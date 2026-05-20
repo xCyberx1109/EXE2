@@ -16,11 +16,48 @@ const superAdminNavigation = [
   { name: 'Quản lý Branch', href: '/app/branches', icon: Building2 },
 ];
 
+const hasAccess = (user: any, pathname: string) => {
+  if (!user) return false;
+
+  // 1. Nếu là Super Admin
+  if (user.isSuperAdmin) {
+    // Super Admin chỉ được phép vào trang quản lý chi nhánh
+    return pathname === '/app/branches';
+  }
+
+  // 2. Nếu là user thường, không được phép vào trang của Super Admin
+  if (pathname === '/app/branches') {
+    return false;
+  }
+
+  // 3. Phân quyền chi tiết cho user thường theo role:
+  // - Dashboard (/app): ADMIN, MANAGER, BRANCH
+  // - Doanh thu (/app/revenue): ADMIN, MANAGER, BRANCH
+  // - Các trang khác (/app/pos, /app/menu, /app/inventory): ADMIN, MANAGER, BRANCH, STAFF, CASHIER
+  const role = user.role;
+
+  if (pathname === '/app' || pathname === '/app/') {
+    return role === 'ADMIN' || role === 'MANAGER' || role === 'BRANCH';
+  }
+
+  if (pathname.startsWith('/app/revenue')) {
+    return role === 'ADMIN' || role === 'MANAGER' || role === 'BRANCH';
+  }
+
+  return true;
+};
+
+const getDefaultRoute = (user: any): string => {
+  if (!user) return '/login';
+  if (user.isSuperAdmin) return '/app/branches';
+  if (user.role === 'STAFF' || user.role === 'CASHIER') return '/app/pos';
+  return '/app';
+};
+
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isReady, isAuthenticated, user, logout } = useAuth();
-  const visibleNavigation = user?.isSuperAdmin ? superAdminNavigation : navigation;
 
   if (!isReady) {
     return (
@@ -35,6 +72,16 @@ export function Layout() {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+
+  // Check permission for the current path based on token info (user object)
+  if (user && !hasAccess(user, location.pathname)) {
+    const defaultPath = getDefaultRoute(user);
+    return <Navigate to={defaultPath} replace />;
+  }
+
+  const visibleNavigation = (user?.isSuperAdmin ? superAdminNavigation : navigation).filter(
+    (item) => hasAccess(user, item.href)
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
