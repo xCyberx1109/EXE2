@@ -135,6 +135,30 @@ export interface User {
   email: string;
   fullName: string;
   role: 'ADMIN' | 'BRANCH' | 'STAFF' | 'SUPER_ADMIN';
+  isSuperAdmin?: boolean;
   branchId?: string;
   createdAt: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  plan: 'BASIC' | 'PRO' | 'ENTERPRISE';
+  subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
+  subscriptionStart: string;
+  subscriptionEnd: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  account?: BranchAccount; // Thông tin account quản lý (nếu có)
+}
+
+export interface BranchAccount {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  branchId: string;
 }

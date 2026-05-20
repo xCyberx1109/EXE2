@@ -10,6 +10,7 @@ import type {
   PosOrder,
   DailyOrdersResponse,
   User,
+  Branch,
 } from '../types';
 
 // Payload used by menu create/update. Recipe rows are persisted to MenuItemIngredient.
@@ -104,6 +105,28 @@ export const revenueApi = {
 // --- Dashboard ---
 export const dashboardApi = {
   get: () => apiFetch<DashboardData>('/dashboard', { auth: false }),
+};
+
+// --- Branches ---
+export type BranchPayload = Pick<
+  Branch,
+  'name' | 'address' | 'phone' | 'plan' | 'subscriptionStatus' | 'subscriptionStart' | 'subscriptionEnd' | 'active'
+> & {
+  email: string;
+  fullName?: string;
+};
+
+export const branchApi = {
+  list: () => apiFetch<Branch[]>('/branches', { auth: false }),
+
+  create: (body: BranchPayload) =>
+    apiFetch<Branch>('/branches', { method: 'POST', body: JSON.stringify(body), auth: false }),
+
+  update: (id: string, body: BranchPayload) =>
+    apiFetch<Branch>(`/branches/${id}`, { method: 'PUT', body: JSON.stringify(body), auth: false }),
+
+  delete: (id: string) =>
+    apiFetch<null>(`/branches/${id}`, { method: 'DELETE', auth: false }),
 };
 
 // --- Orders ---

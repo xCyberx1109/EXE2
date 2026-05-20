@@ -1,20 +1,26 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router';
-import { LayoutDashboard, MonitorCheck, UtensilsCrossed, Package, TrendingUp, Menu, X, Loader2, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, MonitorCheck, UtensilsCrossed, Package, TrendingUp, Menu, X, Loader2, LogOut, User, Building2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const navigation = [
-  { name: 'Tổng quan', href: '/', icon: LayoutDashboard },
-  { name: 'Máy POS', href: '/pos', icon: MonitorCheck },
-  { name: 'Quản lý Menu', href: '/menu', icon: UtensilsCrossed },
-  { name: 'Quản lý Tồn kho', href: '/inventory', icon: Package },
-  { name: 'Quản lý Doanh thu', href: '/revenue', icon: TrendingUp },
+  // All admin routes moved under /app to avoid collision with root -> /login redirect
+  { name: 'Tổng quan', href: '/app', icon: LayoutDashboard },
+  { name: 'Máy POS', href: '/app/pos', icon: MonitorCheck },
+  { name: 'Quản lý Menu', href: '/app/menu', icon: UtensilsCrossed },
+  { name: 'Quản lý Tồn kho', href: '/app/inventory', icon: Package },
+  { name: 'Quản lý Doanh thu', href: '/app/revenue', icon: TrendingUp },
+];
+
+const superAdminNavigation = [
+  { name: 'Quản lý Branch', href: '/app/branches', icon: Building2 },
 ];
 
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isReady, isAuthenticated, user, logout } = useAuth();
+  const visibleNavigation = user?.isSuperAdmin ? superAdminNavigation : navigation;
 
   if (!isReady) {
     return (
@@ -56,7 +62,7 @@ export function Layout() {
           </div>
           
           <nav className="flex-1 p-4 space-y-1">
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
               return (

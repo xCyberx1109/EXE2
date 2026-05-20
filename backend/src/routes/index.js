@@ -4,6 +4,7 @@ import menuRoutes from '../modules/menu/menu.routes.js';
 import inventoryRoutes from '../modules/inventory/inventory.routes.js';
 import revenueRoutes from '../modules/revenue/revenue.routes.js';
 import orderRoutes from '../modules/orders/order.routes.js';
+import branchRoutes from './branch.routes.js';
 import { getDashboard } from '../controllers/dashboard.controller.js';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.use('/', menuRoutes);
 router.use('/', inventoryRoutes);
 router.use('/', revenueRoutes);
 router.use('/', orderRoutes);
+router.use('/', branchRoutes);
 
 // Thứ tự mount: menu → inventory → revenue → orders (không dùng router.use(authenticate) chung)
 

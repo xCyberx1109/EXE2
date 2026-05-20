@@ -5,7 +5,6 @@ import {
   categories,
   menuItems,
   ingredients,
-  revenueReports,
   menuIngredientLinks,
 } from './data.js';
 
@@ -15,46 +14,93 @@ const SALT_ROUNDS = 10;
 export async function seedDatabase() {
   console.log('→ Đang seed database...');
 
-  // Admin
-  const hashedPassword = await bcrypt.hash(config.seed.adminPassword, SALT_ROUNDS);
-  const admin = await prisma.user.upsert({
+  // =========================
+  // BRANCH
+  // =========================
+  const defaultBranch = await getOrCreateDefaultBranch();
+  const branchId = defaultBranch.id;
+
+  // =========================
+  // POS DEVICE
+  // =========================
+  const defaultPosDevice = await prisma.posDevice.upsert({
+    where: { deviceCode: 'MAIN-POS' },
+    update: {
+      branchId,
+      name: 'Main POS',
+      type: 'CASHIER',
+      active: true,
+    },
+    create: {
+      branchId,
+      name: 'Main POS',
+      deviceCode: 'MAIN-POS',
+      type: 'CASHIER',
+      active: true,
+    },
+  });
+  const posDeviceId = defaultPosDevice.id;
+
+  // =========================
+  // ADMIN (ACCOUNT)
+  // =========================
+  const hashedPassword = await bcrypt.hash(
+    config.seed.adminPassword,
+    SALT_ROUNDS
+  );
+
+  const admin = await prisma.account.upsert({
     where: { email: config.seed.adminEmail },
-    update: {},
+    update: { branchId },
     create: {
       email: config.seed.adminEmail,
       password: hashedPassword,
       fullName: config.seed.adminName,
       role: 'ADMIN',
+      isSuperAdmin: true,
+      branchId,
     },
   });
 
-  // Staff demo
-  await prisma.user.upsert({
+  // STAFF DEMO
+  await prisma.account.upsert({
     where: { email: 'staff@store.com' },
-    update: {},
+    update: { branchId },
     create: {
       email: 'staff@store.com',
       password: await bcrypt.hash('Staff@123', SALT_ROUNDS),
       fullName: 'Nhân viên bán hàng',
       role: 'STAFF',
+      isSuperAdmin: false,
+      branchId,
     },
   });
 
-  // Categories
+  // =========================
+  // CATEGORIES
+  // =========================
   const categoryMap = {};
+
   for (const cat of categories) {
     const created = await prisma.category.upsert({
       where: { name: cat.name },
       update: { description: cat.description },
       create: cat,
     });
+
     categoryMap[cat.name] = created.id;
   }
 
-  // Menu items
+  // =========================
+  // MENU ITEMS
+  // =========================
   const menuMap = {};
+
   for (const item of menuItems) {
-    const existing = await prisma.menuItem.findFirst({ where: { name: item.name } });
+    const existing = await prisma.menuItem.findFirst({
+      where: { name: item.name, branchId },
+    });
+
     const created = existing
       ? await prisma.menuItem.update({
           where: { id: existing.id },
@@ -76,78 +122,99 @@ export async function seedDatabase() {
             description: item.description,
             imageUrl: item.imageUrl,
             available: true,
+            branchId,
           },
         });
 
     menuMap[item.name] = created.id;
   }
 
-  // Ingredients
+  // =========================
+  // INGREDIENTS
+  // =========================
   const ingredientMap = {};
+
   for (const ing of ingredients) {
-    const created = await prisma.ingredient.upsert({
-      where: { name: ing.name },
-      update: {
-        quantity: ing.quantity,
-        minQuantity: ing.minQuantity,
-        price: ing.price,
-        supplier: ing.supplier,
-        lastUpdated: new Date(),
-      },
-      create: { ...ing, lastUpdated: new Date() },
+    const existing = await prisma.ingredient.findFirst({
+      where: { name: ing.name, branchId },
     });
+
+    const created = existing
+      ? await prisma.ingredient.update({
+          where: { id: existing.id },
+          data: {
+            unit: ing.unit,
+            quantity: ing.quantity,
+            minQuantity: ing.minQuantity,
+            price: ing.price,
+            supplier: ing.supplier,
+            available: true,
+            lastUpdated: new Date(),
+          },
+        })
+      : await prisma.ingredient.create({
+          data: {
+            ...ing,
+            branchId,
+            lastUpdated: new Date(),
+          },
+        });
+
     ingredientMap[ing.name] = created.id;
   }
 
-  // Menu-Ingredient links
+  // =========================
+  // MENU - INGREDIENT LINKS
+  // =========================
   for (const link of menuIngredientLinks) {
     const menuItemId = menuMap[link.menuItem];
     const ingredientId = ingredientMap[link.ingredient];
+
     if (!menuItemId || !ingredientId) continue;
 
-    await prisma.menuItemIngredient.upsert({
+    const existing = await prisma.menuItemIngredient.findFirst({
       where: {
-        menuItemId_ingredientId: { menuItemId, ingredientId },
-      },
-      update: { amount: link.amount },
-      create: { menuItemId, ingredientId, amount: link.amount },
-    });
-  }
-
-  // Sample completed orders (tạo top selling)
-  await seedSampleOrders(menuMap, admin.id);
-
-  // Revenue reports
-  for (const report of revenueReports) {
-    await prisma.revenueReport.upsert({
-      where: { reportDate: new Date(report.date) },
-      update: {
-        orderCount: report.orderCount,
-        revenue: report.revenue,
-        cost: report.cost,
-        profit: report.profit,
-      },
-      create: {
-        reportDate: new Date(report.date),
-        orderCount: report.orderCount,
-        revenue: report.revenue,
-        cost: report.cost,
-        profit: report.profit,
+        menuItemId,
+        ingredientId,
       },
     });
+
+    if (existing) {
+      await prisma.menuItemIngredient.update({
+        where: { id: existing.id },
+        data: { amount: link.amount },
+      });
+    } else {
+      await prisma.menuItemIngredient.create({
+        data: {
+          menuItemId,
+          ingredientId,
+          amount: link.amount,
+        },
+      });
+    }
   }
 
-  // Inventory transactions mẫu
-  await seedInventoryTransactions(ingredientMap, admin.id);
+  // =========================
+  // SAMPLE ORDERS
+  // =========================
+  await seedSampleOrders(admin.id, branchId, posDeviceId);
+
+  // =========================
+  // INVENTORY TRANSACTIONS
+  // =========================
+  await seedInventoryTransactions(ingredientMap, admin.id, branchId);
 
   console.log('✓ Seed database hoàn tất');
-  console.log(`  Admin: ${config.seed.adminEmail} / ${config.seed.adminPassword}`);
-  console.log('  Staff: staff@store.com / Staff@123');
+  console.log(
+    `  Admin: ${config.seed.adminEmail} / ${config.seed.adminPassword}`
+  );
 }
 
-/** Chạy seed nếu chưa có user */
+/** Run seed if empty */
 export async function runSeedIfEmpty() {
-  const userCount = await prisma.user.count();
+  const userCount = await prisma.account.count();
+
   if (userCount === 0) {
     await seedDatabase();
   } else {
@@ -155,54 +222,98 @@ export async function runSeedIfEmpty() {
   }
 }
 
-async function seedSampleOrders(menuMap, userId) {
-  const existingOrders = await prisma.order.count({ where: { status: 'COMPLETED' } });
+/** BRANCH */
+async function getOrCreateDefaultBranch() {
+  const existing = await prisma.branch.findFirst({
+    where: { name: 'Main Branch' },
+  });
+
+  const subscriptionStart = new Date();
+  const subscriptionEnd = new Date(subscriptionStart);
+  subscriptionEnd.setFullYear(subscriptionEnd.getFullYear() + 1);
+
+  if (existing) {
+    return prisma.branch.update({
+      where: { id: existing.id },
+      data: {
+        address: existing.address || 'Default address',
+        phone: existing.phone || '0000000000',
+        plan: existing.plan || 'BASIC',
+        subscriptionStatus: existing.subscriptionStatus || 'ACTIVE',
+        subscriptionStart: existing.subscriptionStart || subscriptionStart,
+        subscriptionEnd: existing.subscriptionEnd || subscriptionEnd,
+        active: true,
+      },
+    });
+  }
+
+  return prisma.branch.create({
+    data: {
+      name: 'Main Branch',
+      address: 'Default address',
+      phone: '0000000000',
+      plan: 'BASIC',
+      subscriptionStatus: 'ACTIVE',
+      subscriptionStart,
+      subscriptionEnd,
+      active: true,
+    },
+  });
+}
+
+/** SAMPLE ORDERS */
+async function seedSampleOrders(createdBy, branchId, posDeviceId) {
+  const existingOrders = await prisma.order.count({
+    where: { status: 'COMPLETED', branchId },
+  });
+
   if (existingOrders > 0) return;
 
-  const topQuantities = {
-    'Phở Bò': 320,
-    'Bún Chả': 280,
-    'Cơm Tấm': 210,
-    'Bánh Mì': 150,
-    'Cà Phê Đen': 1000,
-    'Cà Phê Sữa': 240,
-    'Trà Chanh': 170,
-    'Nem Rán': 130,
-  };
-
-  const menuEntries = await prisma.menuItem.findMany({ include: { category: true } });
+  const menuEntries = await prisma.menuItem.findMany({
+    where: { branchId },
+  });
 
   for (const item of menuEntries) {
-    const qty = topQuantities[item.name] || 50;
-    const batches = Math.ceil(qty / 10);
+    const batches = 3;
 
-    for (let b = 0; b < Math.min(batches, 5); b++) {
-      const batchQty = Math.min(10, qty - b * 10);
+    for (let b = 0; b < batches; b++) {
+      const batchQty = 10;
+
       const subtotal = Number(item.price) * batchQty;
       const cost = Number(item.cost) * batchQty;
       const tax = subtotal * 0.1;
 
       await prisma.order.create({
         data: {
+          branchId,
+          posDeviceId,
           orderNumber: `SEED-${item.name}-${b}-${Date.now()}`,
-          tableNumber: (b % 8) + 1,
+          tableNumber: (b % 5) + 1,
           status: 'COMPLETED',
-          paymentMethod: b % 2 === 0 ? 'CASH' : 'CARD',
+          paymentMethod: 'CASH',
+          paymentStatus: 'PAID',
+          orderType: 'DINE_IN',
+
           subtotal,
           tax,
           total: subtotal + tax,
           cost,
           profit: subtotal - cost,
-          userId,
-          completedAt: new Date(Date.now() - b * 86400000),
-          items: {
-            create: [{
-              menuItemId: item.id,
-              name: item.name,
-              price: item.price,
-              cost: item.cost,
-              quantity: batchQty,
-            }],
+
+          createdBy,
+
+          completedAt: new Date(),
+
+          orderItems: {
+            create: [
+              {
+                menuItemId: item.id,
+                name: item.name,
+                price: item.price,
+                cost: item.cost,
+                quantity: batchQty,
+              },
+            ],
           },
         },
       });
@@ -210,20 +321,25 @@ async function seedSampleOrders(menuMap, userId) {
   }
 }
 
-async function seedInventoryTransactions(ingredientMap, userId) {
-  const existing = await prisma.inventoryTransaction.count();
+/** INVENTORY */
+async function seedInventoryTransactions(ingredientMap, createdBy, branchId) {
+  const existing = await prisma.inventoryTransaction.count({
+    where: { branchId },
+  });
   if (existing > 0) return;
 
-  const beefId = ingredientMap['Thịt Bò'];
-  if (beefId) {
-    await prisma.inventoryTransaction.create({
-      data: {
-        ingredientId: beefId,
-        type: 'IN',
-        quantity: 50,
-        note: 'Nhập kho ban đầu',
-        userId,
-      },
-    });
-  }
+  const firstIngredient = Object.values(ingredientMap)[0];
+
+  if (!firstIngredient) return;
+
+  await prisma.inventoryTransaction.create({
+    data: {
+      ingredientId: firstIngredient,
+      type: 'IMPORT',
+      quantity: 50,
+      note: 'Nhập kho ban đầu',
+      createdBy,
+      branchId,
+    },
+  });
 }

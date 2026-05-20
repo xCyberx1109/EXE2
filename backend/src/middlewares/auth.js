@@ -14,7 +14,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
   const token = authHeader.split(' ')[1];
   const decoded = jwt.verify(token, config.jwt.secret);
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.account.findUnique({
     where: { id: decoded.userId },
     select: { id: true, email: true, fullName: true, role: true, createdAt: true },
   });
@@ -47,7 +47,7 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
   try {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, config.jwt.secret);
-    const user = await prisma.user.findUnique({
+    const user = await prisma.account.findUnique({
       where: { id: decoded.userId },
       select: { id: true, email: true, fullName: true, role: true },
     });
