@@ -1,0 +1,20 @@
+import { Router } from 'express';
+import {
+  getDailyReports, getSummary, getStatsByPeriod,
+  getTopSelling, getOverview, syncReports,
+} from './revenue.controller.js';
+import { revenueRangeQuery } from '../../validators/revenue.validator.js';
+import { validate } from '../../middlewares/validate.js';
+import { authenticate, authorize } from '../../middlewares/auth.js';
+
+const router = Router();
+
+router.get('/revenue/daily', revenueRangeQuery, validate, getDailyReports);
+router.get('/revenue/summary', revenueRangeQuery, validate, getSummary);
+router.get('/revenue/stats', revenueRangeQuery, validate, getStatsByPeriod);
+router.get('/revenue/top-items', revenueRangeQuery, validate, getTopSelling);
+router.get('/revenue/overview', getOverview);
+
+router.post('/revenue/sync', authenticate, authorize('ADMIN'), syncReports);
+
+export default router;
