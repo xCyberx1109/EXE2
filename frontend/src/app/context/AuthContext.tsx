@@ -8,15 +8,12 @@ interface AuthContextValue {
   isReady: boolean;
   isAuthenticated: boolean;
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
   hasRole: (roles: string | string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const DEFAULT_EMAIL = (import.meta as any).env?.VITE_ADMIN_EMAIL || 'admin@store.com';
-const DEFAULT_PASSWORD = (import.meta as any).env?.VITE_ADMIN_PASSWORD || 'Admin@123';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
@@ -28,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(token);
     setUser(loggedUser);
     setIsAuthenticated(true);
+    return loggedUser;
   };
 
   const logout = () => {
@@ -58,13 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-      try {
-        await login(DEFAULT_EMAIL, DEFAULT_PASSWORD);
-      } catch (err) {
-        console.warn('Auto-login thất bại. CRUD cần đăng nhập backend.', err);
-      } finally {
-        setIsReady(true);
-      }
+      setIsReady(true);
     };
     init();
   }, []);

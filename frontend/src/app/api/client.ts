@@ -5,7 +5,15 @@ const TOKEN_KEY = 'fnb_auth_token';
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+const clearLegacyTokenCookie = () => {
+  // Dọn cookie cũ (nếu trước đó đã từng lưu token trong cookie)
+  document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+};
+
+export const clearToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  clearLegacyTokenCookie();
+};
 
 export class ApiError extends Error {
   status: number;

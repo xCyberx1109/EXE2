@@ -2,15 +2,23 @@ import prisma from '../prisma/client.js';
 
 export const userRepository = {
   findByEmail: (email) =>
-    prisma.user.findUnique({ where: { email } }),
+    prisma.account.findUnique({ where: { email } }),
 
   findById: (id) =>
-    prisma.user.findUnique({
+    prisma.account.findUnique({
       where: { id },
-      select: { id: true, email: true, fullName: true, role: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        isSuperAdmin: true,
+        branchId: true,
+        createdAt: true,
+      },
     }),
 
-  create: (data) => prisma.user.create({ data }),
+  create: (data) => prisma.account.create({ data }),
 
-  count: () => prisma.user.count(),
+  count: () => prisma.account.count(),
 };

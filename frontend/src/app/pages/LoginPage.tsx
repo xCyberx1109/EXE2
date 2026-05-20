@@ -4,8 +4,18 @@ import { useAuth } from '../context/AuthContext';
 import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
 
 export function LoginPage() {
-  const { login, isAuthenticated, isReady } = useAuth();
+  const { login, isAuthenticated, isReady, user } = useAuth();
   const navigate = useNavigate();
+
+  const getRedirectPath = (currentUser = user) => {
+    if (currentUser?.isSuperAdmin) {
+      return '/app/branches';
+    }
+
+    // Sau khi login thành công, chuyển vào khu vực app (đã được Layout bảo vệ đăng nhập)
+    // Tránh redirect về '/' vì hiện tại '/' luôn điều hướng sang /login khi khởi động.
+    return '/app';
+  };
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,9 +26,9 @@ export function LoginPage() {
   // If already authenticated, redirect to dashboard
   useEffect(() => {
     if (isReady && isAuthenticated) {
-      navigate('/', { replace: true });
+      navigate(getRedirectPath(user), { replace: true });
     }
-  }, [isReady, isAuthenticated, navigate]);
+  }, [isReady, isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +44,8 @@ export function LoginPage() {
 
     setLoading(true);
     try {
-      await login(email.trim(), password);
-      navigate('/', { replace: true });
+      const loggedUser = await login(email.trim(), password);
+      navigate(getRedirectPath(loggedUser), { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
     } finally {

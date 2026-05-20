@@ -21,7 +21,7 @@ const startServer = async () => {
     server.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
         console.error(`✗ Port ${config.port} đang được dùng bởi process khác.`);
-        console.error('  Windows: Get-NetTCPConnection -LocalPort 3001 | %% ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }');
+        console.error(`  Windows: Get-NetTCPConnection -LocalPort ${config.port} | %% ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`);
         console.error('  Hoặc đổi PORT trong file .env');
       } else {
         console.error('✗ Lỗi server:', error.message);

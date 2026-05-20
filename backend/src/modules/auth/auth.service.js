@@ -57,5 +57,7 @@ const sanitizeUser = (user) => ({
   email: user.email,
   fullName: user.fullName,
   role: user.role,
+  isSuperAdmin: user.isSuperAdmin,
+  branchId: user.branchId,
   createdAt: user.createdAt,
 });
