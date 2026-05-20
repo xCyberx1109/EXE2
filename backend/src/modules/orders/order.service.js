@@ -4,6 +4,8 @@ import { mapPosOrder, mapOrderDetail } from '../../utils/mappers.js';
 import { orderRepository } from '../../repositories/order.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { revenueService } from '../revenue/revenue.service.js';
+import { inventoryTransactionRepository } from '../../repositories/inventoryTransaction.repository.js';
+import { ingredientRepository } from '../../repositories/ingredient.repository.js';
 
 const TAX_RATE = 0.1;
 
@@ -108,29 +110,99 @@ export const orderService = {
     await orderRepository.delete(id);
   },
 
-  /** Thanh toán - hoàn tất đơn và cập nhật revenue */
-  async completeTableOrders(tableNumber, paymentMethod = 'CASH', userId = null) {
-    const orders = await orderRepository.findPendingByTable(tableNumber);
-    if (orders.length === 0) {
-      throw new AppError('Không có đơn hàng để thanh toán', 404);
-    }
+   /** Thanh toán - hoàn tất đơn và cập nhật revenue */
+   async completeTableOrders(tableNumber, paymentMethod = 'CASH', userId = null) {
+     const orders = await orderRepository.findPendingByTable(tableNumber);
+     if (orders.length === 0) {
+       throw new AppError('Không có đơn hàng để thanh toán', 404);
+     }
 
-    const method = paymentMethod.toUpperCase();
-    const completed = [];
+     const method = paymentMethod.toUpperCase();
+     const completed = [];
 
-    for (const order of orders) {
-      const updated = await orderRepository.update(order.id, {
-        status: 'COMPLETED',
-        paymentMethod: ['CASH', 'CARD', 'QR'].includes(method) ? method : 'CASH',
-        completedAt: new Date(),
-        userId: userId || order.userId,
-      });
-      completed.push(mapPosOrder(updated));
-    }
+     for (const order of orders) {
+       const updated = await orderRepository.update(order.id, {
+         status: 'COMPLETED',
+         paymentMethod: ['CASH', 'CARD', 'QR'].includes(method) ? method : 'CASH',
+         completedAt: new Date(),
+         userId: userId || order.userId,
+       });
+       completed.push(mapPosOrder(updated));
 
-    await revenueService.syncRevenueReports();
-    return completed;
-  },
+       // Deduct inventory when order is COMPLETED
+       await this.deductInventoryForOrder(order.id, userId);
+     }
+
+     await revenueService.syncRevenueReports();
+     return completed;
+   },
+
+   /**
+    * Deduct inventory based on order items and their recipes (MenuItemIngredient)
+    * Business rule: Only deduct when order.status === COMPLETED
+    * Prevents negative inventory and creates InventoryTransaction records
+    */
+   async deductInventoryForOrder(orderId, userId = null) {
+     const order = await orderRepository.findById(orderId);
+     if (!order || order.status !== 'COMPLETED') return;
+
+     // Use transaction to ensure atomicity
+     await prisma.$transaction(async (tx) => {
+       const orderItems = await tx.orderItem.findMany({
+         where: { orderId },
+         include: { menuItem: true },
+       });
+
+       for (const orderItem of orderItems) {
+         if (!orderItem.menuItemId) continue;
+
+         // Get recipe for this menu item (MenuItemIngredient)
+         const recipes = await tx.menuItemIngredient.findMany({
+           where: { menuItemId: orderItem.menuItemId },
+           include: { ingredient: true },
+         });
+
+         for (const recipe of recipes) {
+           // Calculate total ingredient usage: recipe.amount * orderItem.quantity
+           const totalUsage = Number(recipe.amount) * orderItem.quantity;
+
+           // Get current ingredient
+           const ingredient = await tx.ingredient.findUnique({
+             where: { id: recipe.ingredientId },
+           });
+
+           if (!ingredient) continue;
+
+           const newQuantity = Number(ingredient.quantity) - totalUsage;
+
+           // Prevent negative inventory
+           if (newQuantity < 0) {
+             throw new AppError(
+               `Không đủ nguyên liệu: ${ingredient.name}. Cần ${totalUsage}, có ${ingredient.quantity}`,
+               400
+             );
+           }
+
+           // Update ingredient quantity
+           await tx.ingredient.update({
+             where: { id: recipe.ingredientId },
+             data: { quantity: newQuantity, lastUpdated: new Date() },
+           });
+
+           // Create inventory transaction record (type: OUT)
+           await tx.inventoryTransaction.create({
+             data: {
+               ingredientId: recipe.ingredientId,
+               type: 'OUT',
+               quantity: totalUsage,
+               note: `Deduction from order ${order.orderNumber}`,
+               userId,
+             },
+           });
+         }
+       }
+     });
+   },
 };
 
 /** Chuẩn hóa items từ POS (full MenuItem) hoặc QR (itemId, name, price) */

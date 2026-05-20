@@ -1,13 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
-import { menuApi } from '../api/services';
+import { Plus, Edit, Trash2, Search, Loader2, X } from 'lucide-react';
+import { inventoryApi, menuApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import type { MenuItem, TopSellingItem } from '../types';
+import type { InventoryItem, MenuItem, TopSellingItem } from '../types';
+
+type RecipeRow = {
+  ingredientId: string;
+  amount: number;
+};
+
+const emptyRecipeRow: RecipeRow = { ingredientId: '', amount: 0 };
 
 export function MenuManagement() {
   const { isReady } = useAuth();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [topSelling, setTopSelling] = useState<TopSellingItem[]>([]);
+  const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
+  const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([{ ...emptyRecipeRow }]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,15 +37,17 @@ export function MenuManagement() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [items, top] = await Promise.all([
+      const [items, top, ingredientList] = await Promise.all([
         menuApi.list({
           search: searchTerm || undefined,
           category: selectedCategory !== 'all' ? selectedCategory : undefined,
         }),
         menuApi.topSelling(),
+        inventoryApi.list(),
       ]);
       setMenuItems(items);
       setTopSelling(top);
+      setIngredients(ingredientList);
     } catch (err) {
       console.error(err);
       alert('Không tải được menu. Kiểm tra backend đang chạy.');
@@ -58,14 +69,53 @@ export function MenuManagement() {
     (a, b) => (orderMap[b.id] || 0) - (orderMap[a.id] || 0)
   );
 
+  const getIngredientById = (id: string) => ingredients.find((item) => item.id === id);
+
+  const addRecipeRow = () => {
+    setRecipeRows((rows) => [...rows, { ...emptyRecipeRow }]);
+  };
+
+  const removeRecipeRow = (index: number) => {
+    setRecipeRows((rows) => rows.length === 1 ? [{ ...emptyRecipeRow }] : rows.filter((_, i) => i !== index));
+  };
+
+  const updateRecipeRow = (index: number, patch: Partial<RecipeRow>) => {
+    setRecipeRows((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+
+  const validateRecipeRows = () => {
+    const validRows = recipeRows.filter((row) => row.ingredientId || row.amount > 0);
+    const selectedIds = validRows.map((row) => row.ingredientId);
+
+    if (validRows.some((row) => !row.ingredientId)) {
+      throw new Error('Vui lòng chọn nguyên liệu cho tất cả dòng công thức');
+    }
+
+    if (validRows.some((row) => row.amount <= 0)) {
+      throw new Error('Số lượng nguyên liệu phải lớn hơn 0');
+    }
+
+    if (new Set(selectedIds).size !== selectedIds.length) {
+      throw new Error('Không được chọn trùng nguyên liệu trong cùng một món');
+    }
+
+    return validRows;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const recipeIngredients = validateRecipeRows();
+      const payload = {
+        ...formData,
+        ingredients: recipeIngredients,
+      };
+
       if (editingItem) {
-        await menuApi.update(editingItem.id, formData);
+        await menuApi.update(editingItem.id, payload);
       } else {
-        await menuApi.create(formData);
+        await menuApi.create(payload);
       }
       await loadData();
       resetForm();
@@ -87,11 +137,25 @@ export function MenuManagement() {
       description: '',
       available: true,
     });
+    setRecipeRows([{ ...emptyRecipeRow }]);
+  };
+
+  const openCreateForm = () => {
+    resetForm();
+    setShowForm(true);
   };
 
   const handleEdit = (item: MenuItem) => {
     setEditingItem(item);
     setFormData(item);
+    setRecipeRows(
+      item.ingredients?.length
+        ? item.ingredients.map((row) => ({
+            ingredientId: row.ingredientId,
+            amount: Number(row.amount),
+          }))
+        : [{ ...emptyRecipeRow }]
+    );
     setShowForm(true);
   };
 
@@ -131,7 +195,7 @@ export function MenuManagement() {
           <p className="text-gray-500 mt-1">Quản lý danh sách món ăn và thức uống</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={openCreateForm}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -177,6 +241,7 @@ export function MenuManagement() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên món</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Công thức</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá bán</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá vốn</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lợi nhuận</th>
@@ -195,6 +260,26 @@ export function MenuManagement() {
                       <div className="text-sm text-gray-500">{item.description}</div>
                     </td>
                     <td className="px-6 py-4 text-sm">{item.category}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {item.ingredients?.length ? (
+                        <div className="space-y-1">
+                          {item.ingredients.slice(0, 3).map((row) => (
+                            <div key={row.id} className="text-gray-600">
+                              {row.ingredient?.name || getIngredientById(row.ingredientId)?.name || 'Nguyên liệu'}:{' '}
+                              <span className="font-medium">
+                                {Number(row.amount).toLocaleString()}{' '}
+                                {row.ingredient?.unit || getIngredientById(row.ingredientId)?.unit || ''}
+                              </span>
+                            </div>
+                          ))}
+                          {item.ingredients.length > 3 && (
+                            <div className="text-xs text-gray-400">+{item.ingredients.length - 3} nguyên liệu</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Chưa có</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm font-medium">{item.price.toLocaleString()} ₫</td>
                     <td className="px-6 py-4 text-sm">{item.cost.toLocaleString()} ₫</td>
                     <td className="px-6 py-4 text-sm">
@@ -229,7 +314,7 @@ export function MenuManagement() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">{editingItem ? 'Chỉnh sửa món ăn' : 'Thêm món ăn mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -259,6 +344,7 @@ export function MenuManagement() {
                   <label className="block text-sm font-medium mb-1">Giá bán (₫)</label>
                   <input
                     type="number"
+                    min="0"
                     required
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
@@ -269,6 +355,7 @@ export function MenuManagement() {
                   <label className="block text-sm font-medium mb-1">Giá vốn (₫)</label>
                   <input
                     type="number"
+                    min="0"
                     required
                     value={formData.cost}
                     onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
@@ -276,6 +363,73 @@ export function MenuManagement() {
                   />
                 </div>
               </div>
+
+              {/* Recipe ingredients are saved to MenuItemIngredient and used for automatic stock deduction */}
+              <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm font-medium">Công thức nguyên liệu</label>
+                    <p className="text-xs text-gray-500 mt-1">Nhập số lượng nguyên liệu cần dùng cho 1 phần món</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addRecipeRow}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Thêm dòng
+                  </button>
+                </div>
+
+                {recipeRows.map((row, index) => {
+                  const selectedIngredient = getIngredientById(row.ingredientId);
+                  return (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-start">
+                      <div className="col-span-7">
+                        <select
+                          value={row.ingredientId}
+                          onChange={(e) => updateRecipeRow(index, { ingredientId: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        >
+                          <option value="">Chọn nguyên liệu</option>
+                          {ingredients.map((ingredient) => (
+                            <option key={ingredient.id} value={ingredient.id}>
+                              {ingredient.name} ({ingredient.unit}) - tồn {ingredient.quantity}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-4">
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            value={row.amount}
+                            onChange={(e) => updateRecipeRow(index, { amount: Number(e.target.value) })}
+                            placeholder="Số lượng"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-12"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                            {selectedIngredient?.unit || ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removeRecipeRow(index)}
+                          className="p-2 text-gray-400 hover:text-red-600"
+                          title="Xóa dòng"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">Mô tả</label>
                 <textarea

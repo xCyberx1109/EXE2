@@ -8,6 +8,14 @@ export interface MenuItem {
   description: string;
   available: boolean;
   imageUrl?: string | null;
+  ingredients?: MenuItemIngredientDetail[];
+}
+
+export interface MenuItemIngredientDetail {
+  id: string;
+  ingredientId: string;
+  amount: number;
+  ingredient?: InventoryItem;
 }
 
 export interface InventoryItem {
@@ -120,4 +128,13 @@ export interface InventoryStats {
   totalItems: number;
   lowStockCount: number;
   totalValue: number;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  role: 'ADMIN' | 'BRANCH' | 'STAFF' | 'SUPER_ADMIN';
+  branchId?: string;
+  createdAt: string;
 }

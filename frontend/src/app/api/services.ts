@@ -9,15 +9,23 @@ import type {
   InventoryStats,
   PosOrder,
   DailyOrdersResponse,
+  User,
 } from '../types';
+
+// Payload used by menu create/update. Recipe rows are persisted to MenuItemIngredient.
+export type MenuItemPayload = Partial<Omit<MenuItem, 'ingredients'>> & {
+  ingredients?: Array<{ ingredientId: string; amount: number }>;
+};
 
 // --- Auth ---
 export const authApi = {
   login: (email: string, password: string) =>
-    apiFetch<{ token: string; user: { id: string; email: string; fullName: string; role: string } }>(
+    apiFetch<{ token: string; user: User }>(
       '/auth/login',
       { method: 'POST', body: JSON.stringify({ email, password }), auth: false }
     ),
+  getMe: () =>
+    apiFetch<User>('/auth/me', { auth: true }),
 };
 
 // --- Menu ---
@@ -34,10 +42,10 @@ export const menuApi = {
   topSelling: (limit = 10) =>
     apiFetch<TopSellingItem[]>(`/menu-items/top-selling?limit=${limit}`, { auth: false }),
 
-  create: (body: Partial<MenuItem>) =>
+  create: (body: MenuItemPayload) =>
     apiFetch<MenuItem>('/menu-items', { method: 'POST', body: JSON.stringify(body) }),
 
-  update: (id: string, body: Partial<MenuItem>) =>
+  update: (id: string, body: MenuItemPayload) =>
     apiFetch<MenuItem>(`/menu-items/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   toggleAvailability: (id: string) =>

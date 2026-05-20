@@ -2,38 +2,60 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { setToken, getToken, clearToken } from '../api/client';
 import { authApi } from '../api/services';
 
+import { User } from '../types';
+
 interface AuthContextValue {
   isReady: boolean;
   isAuthenticated: boolean;
+  user: User | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  hasRole: (roles: string | string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const DEFAULT_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@store.com';
-const DEFAULT_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'Admin@123';
+const DEFAULT_EMAIL = (import.meta as any).env?.VITE_ADMIN_EMAIL || 'admin@store.com';
+const DEFAULT_PASSWORD = (import.meta as any).env?.VITE_ADMIN_PASSWORD || 'Admin@123';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(!!getToken());
+  const [user, setUser] = useState<User | null>(null);
 
   const login = async (email: string, password: string) => {
-    const { token } = await authApi.login(email, password);
+    const { token, user: loggedUser } = await authApi.login(email, password);
     setToken(token);
+    setUser(loggedUser);
     setIsAuthenticated(true);
   };
 
   const logout = () => {
     clearToken();
+    setUser(null);
     setIsAuthenticated(false);
+  };
+
+  const hasRole = (roles: string | string[]) => {
+    if (!user) return false;
+    const roleList = Array.isArray(roles) ? roles : [roles];
+    return roleList.includes(user.role);
   };
 
   useEffect(() => {
     const init = async () => {
       if (getToken()) {
-        setIsAuthenticated(true);
-        setIsReady(true);
+        try {
+          const currentUser = await authApi.getMe();
+          setUser(currentUser);
+          setIsAuthenticated(true);
+        } catch (err) {
+          console.error('Lỗi verify token:', err);
+          clearToken();
+          setIsAuthenticated(false);
+        } finally {
+          setIsReady(true);
+        }
         return;
       }
       try {
@@ -48,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isReady, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isReady, isAuthenticated, user, login, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

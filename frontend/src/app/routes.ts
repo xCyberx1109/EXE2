@@ -6,11 +6,16 @@ import { MenuManagement } from './pages/MenuManagement';
 import { InventoryManagement } from './pages/InventoryManagement';
 import { RevenueManagement } from './pages/RevenueManagement';
 import { MenuQR } from "./pages/QRMenu";
+import { LoginPage } from './pages/LoginPage';
 
 export const router = createBrowserRouter([
   {
     path: '/qrmenu',
     Component: MenuQR,
+  },
+  {
+    path: '/login',
+    Component: LoginPage,
   },
   {
     path: '/',

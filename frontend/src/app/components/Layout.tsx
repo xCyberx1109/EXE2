@@ -1,5 +1,5 @@
-import { Link, Outlet, useLocation } from 'react-router';
-import { LayoutDashboard, MonitorCheck, UtensilsCrossed, Package, TrendingUp, Menu, X, Loader2 } from 'lucide-react';
+import { Link, Outlet, useLocation, Navigate } from 'react-router';
+import { LayoutDashboard, MonitorCheck, UtensilsCrossed, Package, TrendingUp, Menu, X, Loader2, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,7 +14,7 @@ const navigation = [
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isReady } = useAuth();
+  const { isReady, isAuthenticated, user, logout } = useAuth();
 
   if (!isReady) {
     return (
@@ -23,6 +23,11 @@ export function Layout() {
         Đang kết nối server...
       </div>
     );
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
   return (
@@ -72,10 +77,28 @@ export function Layout() {
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-200">
-            <div className="text-xs text-gray-500">
-              <p>Demo Version 1.0</p>
-              <p className="mt-1">© 2026 F&B Management</p>
+          {/* User info + Logout */}
+          <div className="p-4 border-t border-gray-200 space-y-3">
+            {user && (
+              <div className="flex items-center gap-2 px-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.role}</p>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Đăng xuất
+            </button>
+            <div className="text-xs text-gray-400 px-2">
+              <p>© 2026 F&B Management</p>
             </div>
           </div>
         </div>
