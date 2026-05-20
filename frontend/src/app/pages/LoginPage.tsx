@@ -8,8 +8,12 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   const getRedirectPath = (currentUser = user) => {
-    if (currentUser?.isSuperAdmin) {
+    if (!currentUser) return '/login';
+    if (currentUser.isSuperAdmin) {
       return '/app/branches';
+    }
+    if (currentUser.role === 'STAFF' || currentUser.role === 'CASHIER') {
+      return '/app/pos';
     }
 
     // Sau khi login thành công, chuyển vào khu vực app (đã được Layout bảo vệ đăng nhập)

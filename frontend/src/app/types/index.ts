@@ -134,7 +134,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
-  role: 'ADMIN' | 'BRANCH' | 'STAFF' | 'SUPER_ADMIN';
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF' | 'BRANCH' | 'SUPER_ADMIN';
   isSuperAdmin?: boolean;
   branchId?: string;
   createdAt: string;
