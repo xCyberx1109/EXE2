@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const navigation = [
-  // All admin routes moved under /app to avoid collision with root -> /login redirect
   { name: 'Tổng quan', href: '/app', icon: LayoutDashboard },
   { name: 'Máy POS', href: '/app/pos', icon: MonitorCheck },
   { name: 'Quản lý Menu', href: '/app/menu', icon: UtensilsCrossed },
@@ -19,9 +18,14 @@ const superAdminNavigation = [
 const hasAccess = (user: any, pathname: string) => {
   if (!user) return false;
 
+  // Profile page is accessible to ALL logged-in accounts
+  if (pathname === '/app/profile') {
+    return true;
+  }
+
   // 1. Nếu là Super Admin
   if (user.isSuperAdmin) {
-    // Super Admin chỉ được phép vào trang quản lý chi nhánh
+    // Super Admin chỉ được phép vào trang quản lý chi nhánh và profile
     return pathname === '/app/branches';
   }
 
@@ -31,9 +35,6 @@ const hasAccess = (user: any, pathname: string) => {
   }
 
   // 3. Phân quyền chi tiết cho user thường theo role:
-  // - Dashboard (/app): ADMIN, MANAGER, BRANCH
-  // - Doanh thu (/app/revenue): ADMIN, MANAGER, BRANCH
-  // - Các trang khác (/app/pos, /app/menu, /app/inventory): ADMIN, MANAGER, BRANCH, STAFF, CASHIER
   const role = user.role;
 
   if (pathname === '/app' || pathname === '/app/') {
@@ -133,16 +134,21 @@ export function Layout() {
           {/* User info + Logout */}
           <div className="p-4 border-t border-gray-200 space-y-3">
             {user && (
-              <div className="flex items-center gap-2 px-2">
+              <Link
+                to="/app/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                   <User className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.role}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.isSuperAdmin ? 'Super Admin' : user.role}</p>
                 </div>
-              </div>
+              </Link>
             )}
+
             <button
               onClick={logout}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"

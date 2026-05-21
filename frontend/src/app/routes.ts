@@ -9,6 +9,7 @@ import { RevenueManagement } from './pages/RevenueManagement';
 import { MenuQR } from "./pages/QRMenu";
 import { LoginPage } from './pages/LoginPage';
 import { BranchManagement } from './pages/BranchManagement';
+import { ProfilePage } from './pages/ProfilePage';
 
 function RootRedirect() {
   // routes.ts là file .ts (không dùng JSX), nên dùng createElement thay cho <Navigate />
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { path: 'menu', Component: MenuManagement },
       { path: 'inventory', Component: InventoryManagement },
       { path: 'revenue', Component: RevenueManagement },
+      { path: 'profile', Component: ProfilePage },
     ],
   },
 ]);

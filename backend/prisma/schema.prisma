@@ -109,6 +109,7 @@ model Account {
   role            Role
 
   isSuperAdmin    Boolean  @default(false)
+  mustChangePassword Boolean @default(true)
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

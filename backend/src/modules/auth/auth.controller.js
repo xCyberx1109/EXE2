@@ -20,3 +20,18 @@ export const getMe = asyncHandler(async (req, res) => {
   const user = await authService.getProfile(req.user.id);
   sendSuccess(res, { message: 'Lấy thông tin thành công', data: user });
 });
+
+export const updateMe = asyncHandler(async (req, res) => {
+  const user = await authService.updateProfile(req.user.id, req.body);
+  sendSuccess(res, { message: 'Cập nhật thông tin thành công', data: user });
+});
+
+export const changeMyPassword = asyncHandler(async (req, res) => {
+  await authService.changePassword(req.user.id, req.body);
+  sendSuccess(res, { message: 'Đổi mật khẩu thành công', data: null });
+});
+
+export const resetMyPassword = asyncHandler(async (req, res) => {
+  const result = await authService.resetPasswordForSelf(req.user.id);
+  sendSuccess(res, { message: 'Đặt lại mật khẩu thành công, mật khẩu mới đã được gửi tới email của bạn.', data: result });
+});

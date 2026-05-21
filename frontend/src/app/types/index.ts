@@ -136,6 +136,7 @@ export interface User {
   fullName: string;
   role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF' | 'BRANCH' | 'SUPER_ADMIN';
   isSuperAdmin?: boolean;
+  mustChangePassword?: boolean;
   branchId?: string;
   createdAt: string;
 }
