@@ -10,6 +10,7 @@ import {
   Trash2,
   X,
   XCircle,
+  Lock,
 } from 'lucide-react';
 import { branchApi } from '../api/services';
 import type { Branch } from '../types';
@@ -80,6 +81,12 @@ export function BranchManagement() {
   const [form, setForm] = useState<BranchFormState>(createDefaultForm);
   const [error, setError] = useState<string | null>(null);
 
+  const [resetPasswordBranch, setResetPasswordBranch] = useState<Branch | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+
   const isEditing = Boolean(editingBranchId);
   const isEditModalOpen = Boolean(editingBranchId);
 
@@ -99,6 +106,25 @@ export function BranchManagement() {
   useEffect(() => {
     fetchBranches();
   }, []);
+
+  const handleResetPasswordSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!resetPasswordBranch) return;
+
+    try {
+      setResetting(true);
+      setResetPasswordError(null);
+      setResetPasswordSuccess(null);
+      const res = await branchApi.resetManagerPassword(resetPasswordBranch.id);
+      setResetPasswordSuccess(
+        `Hệ thống đã tự động tạo mật khẩu mới ngẫu nhiên và gửi tới email "${res.accountEmail}" thành công!`
+      );
+    } catch (err: any) {
+      setResetPasswordError(err.message || 'Lỗi khi đặt lại mật khẩu');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const resetForm = () => {
     setIsCreateModalOpen(false);
@@ -306,6 +332,19 @@ export function BranchManagement() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResetPasswordBranch(branch);
+                            setNewPassword('');
+                            setResetPasswordError(null);
+                            setResetPasswordSuccess(null);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50"
+                        >
+                          <Lock className="w-4 h-4" />
+                          Đặt lại mật khẩu
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleEdit(branch)}
@@ -649,6 +688,69 @@ export function BranchManagement() {
                     )}
                   </button>
                 </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {resetPasswordBranch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Đặt lại mật khẩu: {resetPasswordBranch.name}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setResetPasswordBranch(null)}
+                aria-label="Đóng"
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPasswordSubmit} className="p-6 space-y-4">
+              {resetPasswordError && (
+                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-100">
+                  {resetPasswordError}
+                </div>
+              )}
+              {resetPasswordSuccess && (
+                <div className="rounded-lg bg-green-50 p-3 text-sm text-green-600 border border-green-100">
+                  {resetPasswordSuccess}
+                </div>
+              )}
+
+              {!resetPasswordSuccess && (
+                <>
+                  <p className="text-sm text-gray-600">
+                    Tài khoản quản lý: <span className="font-semibold">{resetPasswordBranch.account?.email || 'N/A'}</span>
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Hệ thống sẽ tự động tạo một mật khẩu mới ngẫu nhiên, gửi qua email cho quản lý chi nhánh, và yêu cầu đổi mật khẩu trong lần đăng nhập kế tiếp.
+                  </p>
+                </>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setResetPasswordBranch(null)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  {resetPasswordSuccess ? 'Đóng' : 'Hủy'}
+                </button>
+                {!resetPasswordSuccess && (
+                  <button
+                    type="submit"
+                    disabled={resetting}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {resetting ? 'Đang cập nhật...' : 'Xác nhận'}
+                  </button>
+                )}
               </div>
             </form>
           </div>

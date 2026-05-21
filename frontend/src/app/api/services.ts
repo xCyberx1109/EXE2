@@ -27,6 +27,15 @@ export const authApi = {
     ),
   getMe: () =>
     apiFetch<User>('/auth/me', { auth: true }),
+
+  updateMe: (body: { fullName?: string; email?: string }) =>
+    apiFetch<User>('/auth/me', { method: 'PUT', body: JSON.stringify(body), auth: true }),
+
+  changePassword: (body: { currentPassword: string; newPassword: string }) =>
+    apiFetch<null>('/auth/change-password', { method: 'PUT', body: JSON.stringify(body), auth: true }),
+
+  resetMyPassword: () =>
+    apiFetch<{ email: string }>('/auth/reset-my-password', { method: 'POST', auth: true }),
 };
 
 // --- Menu ---
@@ -127,6 +136,18 @@ export const branchApi = {
 
   delete: (id: string) =>
     apiFetch<null>(`/branches/${id}`, { method: 'DELETE', auth: false }),
+
+  resetManagerPassword: (id: string, body?: { newPassword?: string }) =>
+    apiFetch<{
+      branchId: string;
+      branchName: string;
+      accountEmail: string;
+      accountFullName: string;
+    }>(`/branches/${id}/reset-password`, { 
+      method: 'PUT', 
+      body: body ? JSON.stringify(body) : undefined, 
+      auth: false 
+    }),
 };
 
 // --- Orders ---

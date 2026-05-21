@@ -230,6 +230,80 @@ router.put('/branches/:id', asyncHandler(async (req, res) => {
   });
 }));
 
+router.put('/branches/:id/reset-password', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const branch = await prisma.branch.findUnique({
+    where: { id },
+    select: { id: true, name: true },
+  });
+
+  if (!branch) {
+    return sendError(res, {
+      statusCode: 404,
+      message: 'Không tìm thấy chi nhánh',
+    });
+  }
+
+  const manager = await prisma.account.findFirst({
+    where: {
+      branchId: id,
+      role: 'MANAGER',
+    },
+  });
+
+  if (!manager) {
+    return sendError(res, {
+      statusCode: 404,
+      message: 'Không tìm thấy tài khoản quản lý chi nhánh',
+    });
+  }
+
+  // Auto-generate random new password
+  const newPassword = crypto.randomBytes(4).toString('hex'); // 8 characters
+  const hashedPassword = await authService.hashPassword(newPassword);
+
+  await prisma.account.update({
+    where: { id: manager.id },
+    data: { 
+      password: hashedPassword,
+      mustChangePassword: true,
+    },
+  });
+
+  // Gửi email thông báo mật khẩu mới và yêu cầu đổi mật khẩu
+  try {
+    await sendMail({
+      to: manager.email,
+      subject: `Đặt lại mật khẩu cho quản lý chi nhánh ${branch.name}`,
+      html: `<p>Xin chào <b>${manager.fullName || 'Quản lý'}</b>,</p>
+        <p>Mật khẩu của bạn đã được đặt lại thành công.</p>
+        <p>Thông tin đăng nhập mới:</p>
+        <ul>
+          <li>Email: <b>${manager.email}</b></li>
+          <li>Mật khẩu mới: <b>${newPassword}</b></li>
+        </ul>
+        <p><b>Yêu cầu:</b> Vui lòng đăng nhập bằng mật khẩu mới này và thực hiện đổi mật khẩu ngay sau khi đăng nhập để đảm bảo bảo mật.</p>`,
+    });
+  } catch (err) {
+    console.error('Lỗi gửi email reset password:', err);
+    return sendError(res, {
+      statusCode: 500,
+      message: 'Đặt lại mật khẩu thành công nhưng gửi email thất bại. Vui lòng kiểm tra cấu hình SMTP.',
+    });
+  }
+
+  sendSuccess(res, {
+    message: `Đặt lại mật khẩu thành công cho branch "${branch.name}". Mật khẩu mới đã được gửi tới email ${manager.email}.`,
+    data: {
+      branchId: branch.id,
+      branchName: branch.name,
+      accountEmail: manager.email,
+      accountFullName: manager.fullName,
+    },
+  });
+}));
+
 router.delete('/branches/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
 
