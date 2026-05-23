@@ -31,3 +31,8 @@ export const deletePosDevice = asyncHandler(async (req, res) => {
   await posDeviceService.deleteDevice(req.params.id, req.user.id, req);
   sendSuccess(res, { message: 'Xóa thiết bị POS thành công', data: null });
 });
+
+export const updatePosDeviceMode = asyncHandler(async (req, res) => {
+  const data = await posDeviceService.updateMode(req.params.id, req.body.mode, req.user.id, req);
+  sendSuccess(res, { message: 'Cập nhật chế độ thiết bị thành công', data });
+});

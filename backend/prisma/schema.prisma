@@ -28,14 +28,18 @@ enum SubscriptionStatus {
 enum Role {
   ADMIN
   MANAGER
-  CASHIER
-  COOK
 }
 
 enum PosDeviceType {
   CASHIER
   TABLET
   KIOSK
+}
+
+enum PosMode {
+  CASHIER
+  KITCHEN
+  HYBRID
 }
 
 enum PosStatus {
@@ -180,6 +184,8 @@ model PosDevice {
 
   type         PosDeviceType
 
+  mode         PosMode       @default(CASHIER)
+
   status       PosStatus     @default(OFFLINE)
 
   active       Boolean       @default(true)
@@ -199,8 +205,11 @@ model PosDevice {
   shifts Shift[]
 
   @@index([branchId])
+  @@index([deviceToken])
   @@index([status])
+  @@index([mode])
   @@index([active])
+  @@index([lastActive])
 
   @@map("pos_devices")
 }

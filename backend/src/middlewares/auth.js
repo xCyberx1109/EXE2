@@ -49,10 +49,6 @@ export const requireManager = (req, _res, next) => {
     return next(new AppError('Vui lòng đăng nhập', 401));
   }
 
-  if (req.user.role === 'COOK' || req.user.role === 'CASHIER') {
-    return next(new AppError('Bạn không có quyền thực hiện thao tác này', 403));
-  }
-
   const isAdmin = req.user.role === 'ADMIN';
 
   // Kiểm tra branch-scoped access nếu request có param branchId

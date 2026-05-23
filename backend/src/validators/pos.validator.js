@@ -10,13 +10,14 @@ export const createPosDeviceRules = [
     .notEmpty()
     .isIn(['CASHIER', 'TABLET', 'KIOSK'])
     .withMessage('Loại thiết bị không hợp lệ (CASHIER, TABLET, KIOSK)'),
+  body('mode')
+    .optional()
+    .trim()
+    .isIn(['CASHIER', 'KITCHEN', 'HYBRID'])
+    .withMessage('Chế độ không hợp lệ (CASHIER, KITCHEN, HYBRID)'),
 ];
 
 export const posLoginRules = [
-  body('deviceCode')
-    .trim()
-    .notEmpty()
-    .withMessage('Mã thiết bị là bắt buộc'),
   body('pin')
     .trim()
     .notEmpty()
@@ -25,7 +26,7 @@ export const posLoginRules = [
 ];
 
 export const posDeviceIdParam = [
-  param('id').isUUID().withMessage('ID thiết bị không hợp lệ'),
+  param('id').trim().notEmpty().withMessage('ID thiết bị là bắt buộc'),
 ];
 
 export const resetPinRules = [
@@ -39,4 +40,12 @@ export const toggleDeviceRules = [
   body('active')
     .isBoolean()
     .withMessage('Trạng thái không hợp lệ'),
+];
+
+export const updateModeRules = [
+  body('mode')
+    .trim()
+    .notEmpty()
+    .isIn(['CASHIER', 'KITCHEN', 'HYBRID'])
+    .withMessage('Chế độ không hợp lệ (CASHIER, KITCHEN, HYBRID)'),
 ];

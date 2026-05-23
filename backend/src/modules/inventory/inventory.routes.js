@@ -20,10 +20,10 @@ router.get('/ingredients/:id/transactions', optionalAuth, ingredientIdParam, val
 router.get('/ingredients/:id', optionalAuth, ingredientIdParam, validate, getIngredient);
 router.get('/inventory/transactions', authenticate, listTransactions);
 
-router.post('/ingredients', authenticate, authorize('ADMIN', 'COOK'), ingredientRules, validate, createIngredient);
-router.put('/ingredients/:id', authenticate, authorize('ADMIN', 'COOK'), [...ingredientIdParam, ...ingredientRules], validate, updateIngredient);
+router.post('/ingredients', authenticate, authorize('ADMIN', 'MANAGER'), ingredientRules, validate, createIngredient);
+router.put('/ingredients/:id', authenticate, authorize('ADMIN', 'MANAGER'), [...ingredientIdParam, ...ingredientRules], validate, updateIngredient);
 router.delete('/ingredients/:id', authenticate, authorize('ADMIN'), ingredientIdParam, validate, deleteIngredient);
-router.post('/ingredients/:id/stock-in', authenticate, authorize('ADMIN', 'COOK'), [...ingredientIdParam, ...stockTransactionRules], validate, stockIn);
-router.post('/ingredients/:id/stock-out', authenticate, authorize('ADMIN', 'COOK'), [...ingredientIdParam, ...stockTransactionRules], validate, stockOut);
+router.post('/ingredients/:id/stock-in', authenticate, authorize('ADMIN', 'MANAGER'), [...ingredientIdParam, ...stockTransactionRules], validate, stockIn);
+router.post('/ingredients/:id/stock-out', authenticate, authorize('ADMIN', 'MANAGER'), [...ingredientIdParam, ...stockTransactionRules], validate, stockOut);
 
 export default router;

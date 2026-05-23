@@ -25,7 +25,7 @@ function getClientIp(req) {
 }
 
 export const posDeviceService = {
-  async createDevice(accountId, { name, type }, req) {
+  async createDevice(accountId, { name, type, mode }, req) {
     const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) throw new AppError('Tài khoản không tồn tại', 404);
 
@@ -43,6 +43,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.create({
       name,
       type,
+      mode: mode || 'CASHIER',
       deviceCode,
       devicePin,
       branchId,
@@ -56,7 +57,7 @@ export const posDeviceService = {
       posDeviceId: device.id,
       action: 'CREATE_POS_DEVICE',
       module: 'POS',
-      details: { deviceCode, name },
+      details: { deviceCode, name, mode: device.mode },
       ipAddress: getClientIp(req),
     });
 
@@ -64,6 +65,7 @@ export const posDeviceService = {
       id: device.id,
       name: device.name,
       type: device.type,
+      mode: device.mode,
       deviceCode: device.deviceCode,
       devicePin: device.devicePin,
       branchId: device.branchId,
@@ -84,11 +86,37 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findByIdWithBranch(id);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!user.role === 'ADMIN' && device.branchId !== user.branchId) {
+    if (user.role !== 'ADMIN' && device.branchId !== user.branchId) {
       throw new AppError('Bạn không có quyền truy cập thiết bị này', 403);
     }
 
     return device;
+  },
+
+  async updateMode(deviceId, mode, accountId, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Tài khoản không tồn tại', 404);
+
+    const device = await posDeviceRepository.findById(deviceId);
+    if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
+
+    if (account.role !== 'ADMIN' && device.branchId !== account.branchId) {
+      throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
+    }
+
+    const updated = await posDeviceRepository.update(deviceId, { mode });
+
+    await activityLogRepository.create({
+      branchId: device.branchId,
+      accountId,
+      posDeviceId: device.id,
+      action: 'POS_MODE_CHANGED',
+      module: 'POS',
+      details: { deviceCode: device.deviceCode, oldMode: device.mode, newMode: mode },
+      ipAddress: getClientIp(req),
+    });
+
+    return updated;
   },
 
   async resetPin(deviceId, accountId, req) {
@@ -98,7 +126,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!account.role === 'ADMIN' && device.branchId !== account.branchId) {
+    if (account.role !== 'ADMIN' && device.branchId !== account.branchId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
@@ -129,7 +157,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!account.role === 'ADMIN' && device.branchId !== account.branchId) {
+    if (account.role !== 'ADMIN' && device.branchId !== account.branchId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
@@ -160,10 +188,21 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!account.role === 'ADMIN' && device.branchId !== account.branchId) {
+    if (device.deletedAt) {
+      throw new AppError('Thiết bị đã bị xóa trước đó', 404);
+    }
+
+    if (account.role !== 'ADMIN' && device.branchId !== account.branchId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
+    // Close any open shifts before soft-deleting
+    await prisma.shift.updateMany({
+      where: { posDeviceId: id, status: 'OPEN' },
+      data: { status: 'CLOSED', endTime: new Date(), isOnline: false },
+    });
+
+    // Soft delete: set deletedAt, deactivate, clear token
     await posDeviceRepository.softDelete(id);
 
     await activityLogRepository.create({

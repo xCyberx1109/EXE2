@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Smartphone, RefreshCw, ToggleLeft, ToggleRight, Trash2, Copy, Check, Loader2 } from 'lucide-react';
 import { posDeviceApi } from '../api/posServices';
-import type { PosDevice } from '../types';
+import type { PosDevice, PosMode } from '../types';
 
 const DEVICE_TYPES = [
   { value: 'CASHIER', label: 'Thu ngân' },
@@ -9,11 +9,17 @@ const DEVICE_TYPES = [
   { value: 'KIOSK', label: 'Ki-ốt' },
 ];
 
+const POS_MODES: { value: PosMode; label: string; desc: string }[] = [
+  { value: 'CASHIER', label: 'Thu ngân', desc: 'Chỉ bán hàng' },
+  { value: 'KITCHEN', label: 'Bếp', desc: 'Chỉ xem món cần làm' },
+  { value: 'HYBRID', label: 'Kết hợp', desc: 'Vừa bán hàng vừa xem bếp' },
+];
+
 export function PosDeviceManagement() {
   const [devices, setDevices] = useState<PosDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newDevice, setNewDevice] = useState({ name: '', type: 'CASHIER' });
+  const [newDevice, setNewDevice] = useState({ name: '', type: 'CASHIER', mode: 'CASHIER' as PosMode });
   const [creating, setCreating] = useState(false);
   const [createdResult, setCreatedResult] = useState<PosDevice | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -70,6 +76,19 @@ export function PosDeviceManagement() {
     }
   };
 
+  const handleChangeMode = async (device: PosDevice) => {
+    const currentIndex = POS_MODES.findIndex(m => m.value === device.mode);
+    const nextIndex = (currentIndex + 1) % POS_MODES.length;
+    const newMode = POS_MODES[nextIndex].value;
+    try {
+      await posDeviceApi.updateMode(device.id, newMode);
+      setDevices(prev => prev.map(d => d.id === device.id ? { ...d, mode: newMode } : d));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Lỗi đổi chế độ';
+      alert(msg);
+    }
+  };
+
   const handleDelete = async (device: PosDevice) => {
     if (!confirm(`Xóa thiết bị "${device.name}" (${device.deviceCode})?`)) return;
     try {
@@ -108,6 +127,24 @@ export function PosDeviceManagement() {
     );
   };
 
+  const getModeBadge = (mode: PosMode) => {
+    const colors: Record<string, string> = {
+      CASHIER: 'bg-blue-100 text-blue-800',
+      KITCHEN: 'bg-orange-100 text-orange-800',
+      HYBRID: 'bg-purple-100 text-purple-800',
+    };
+    const labels: Record<string, string> = {
+      CASHIER: 'Thu ngân',
+      KITCHEN: 'Bếp',
+      HYBRID: 'Kết hợp',
+    };
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[mode] || 'bg-gray-100 text-gray-600'}`}>
+        {labels[mode] || mode}
+      </span>
+    );
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -124,7 +161,7 @@ export function PosDeviceManagement() {
             Làm mới
           </button>
           <button
-            onClick={() => { setShowCreateModal(true); setCreatedResult(null); setNewDevice({ name: '', type: 'CASHIER' }); }}
+            onClick={() => { setShowCreateModal(true); setCreatedResult(null); setNewDevice({ name: '', type: 'CASHIER', mode: 'CASHIER' }); }}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
@@ -153,7 +190,10 @@ export function PosDeviceManagement() {
                   <h3 className="font-semibold text-gray-900">{device.name}</h3>
                   <p className="text-sm text-gray-500 font-mono mt-0.5">{device.deviceCode}</p>
                 </div>
-                {getStatusBadge(device.status)}
+                <div className="flex flex-col items-end gap-1">
+                  {getStatusBadge(device.status)}
+                  {getModeBadge(device.mode)}
+                </div>
               </div>
 
               <div className="text-sm text-gray-600 space-y-1.5 mb-4">
@@ -168,6 +208,14 @@ export function PosDeviceManagement() {
               </div>
 
               <div className="flex items-center gap-1.5 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => handleChangeMode(device)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-purple-600 hover:bg-purple-50 rounded-md"
+                  title="Đổi chế độ"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Chế độ
+                </button>
                 <button
                   onClick={() => handleToggle(device)}
                   className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
@@ -232,6 +280,7 @@ export function PosDeviceManagement() {
                         {copied === 'final-pin' ? <Check className="w-3.5 h-3.5 inline" /> : <Copy className="w-3.5 h-3.5 inline" />}
                       </button>
                     </p>
+                    <p><span className="font-medium">Chế độ:</span> {POS_MODES.find(m => m.value === createdResult.mode)?.label}</p>
                   </div>
                 </div>
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
@@ -265,6 +314,18 @@ export function PosDeviceManagement() {
                   >
                     {DEVICE_TYPES.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chế độ hoạt động</label>
+                  <select
+                    value={newDevice.mode}
+                    onChange={e => setNewDevice(p => ({ ...p, mode: e.target.value as PosMode }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {POS_MODES.map(m => (
+                      <option key={m.value} value={m.value}>{m.label} - {m.desc}</option>
                     ))}
                   </select>
                 </div>

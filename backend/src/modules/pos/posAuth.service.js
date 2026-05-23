@@ -15,10 +15,10 @@ function generatePosToken(deviceId) {
 }
 
 export const posAuthService = {
-  async login({ deviceCode, pin }, req) {
-    const device = await posDeviceRepository.findByDeviceCode(deviceCode);
+  async login({ pin }, req) {
+    const device = await posDeviceRepository.findByPin(pin);
     if (!device) {
-      throw new AppError('Mã thiết bị không đúng', 401);
+      throw new AppError('Mã PIN không đúng', 401);
     }
 
     if (device.deletedAt) {
@@ -27,10 +27,6 @@ export const posAuthService = {
 
     if (!device.active) {
       throw new AppError('Thiết bị đã bị vô hiệu hóa', 403);
-    }
-
-    if (device.devicePin !== pin) {
-      throw new AppError('Mã PIN không đúng', 401);
     }
 
     const token = generatePosToken(device.id);
@@ -74,7 +70,7 @@ export const posAuthService = {
       posDeviceId: device.id,
       action: 'POS_LOGIN',
       module: 'POS',
-      details: { deviceCode: device.deviceCode },
+      details: { deviceCode: device.deviceCode, mode: device.mode },
       ipAddress: getClientIp(req),
     });
 
@@ -85,6 +81,7 @@ export const posAuthService = {
         name: device.name,
         deviceCode: device.deviceCode,
         type: device.type,
+        mode: device.mode,
         status: 'ONLINE',
         lastActive: new Date(),
       },
@@ -156,6 +153,7 @@ export const posAuthService = {
       name: device.name,
       deviceCode: device.deviceCode,
       type: device.type,
+      mode: device.mode,
       status: device.status,
       active: device.active,
       lastActive: device.lastActive,

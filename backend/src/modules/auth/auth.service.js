@@ -15,7 +15,7 @@ export const authService = {
       throw new AppError('Email đã được sử dụng', 409);
     }
 
-    const normalizedRole = role?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'COOK';
+    const normalizedRole = role?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'MANAGER';
     const hashedPassword = await this.hashPassword(password);
 
     const user = await userRepository.create({
