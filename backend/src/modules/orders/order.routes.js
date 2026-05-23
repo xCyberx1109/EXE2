@@ -10,16 +10,16 @@ import { optionalAuth } from '../../middlewares/auth.js';
 const router = Router();
 
 // API chuẩn - /orders/daily trước các route khác
-router.get('/orders/daily', ordersByDateQuery, validate, listOrdersByDate);
-router.get('/orders', listOrders);
+router.get('/orders/daily', optionalAuth, ordersByDateQuery, validate, listOrdersByDate);
+router.get('/orders', optionalAuth, listOrders);
 router.post('/orders', optionalAuth, createOrderRules, validate, createOrder);
-router.delete('/orders/:id', orderIdParam, validate, deleteOrder);
+router.delete('/orders/:id', optionalAuth, orderIdParam, validate, deleteOrder);
 router.post('/orders/complete-payment', optionalAuth, completeTablePayment);
 
 export default router;
 
 /** Router legacy cho POS/QRMenu - mount tại /orders */
 export const legacyOrdersRouter = Router();
-legacyOrdersRouter.get('/', listOrdersLegacy);
+legacyOrdersRouter.get('/', optionalAuth, listOrdersLegacy);
 legacyOrdersRouter.post('/', optionalAuth, createOrderRules, validate, createOrderLegacy);
-legacyOrdersRouter.delete('/:id', orderIdParam, validate, deleteOrderLegacy);
+legacyOrdersRouter.delete('/:id', optionalAuth, orderIdParam, validate, deleteOrderLegacy);

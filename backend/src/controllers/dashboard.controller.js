@@ -5,12 +5,12 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 
 /** Tổng quan Dashboard - khớp trang Dashboard.tsx */
-export const getDashboard = asyncHandler(async (_req, res) => {
+export const getDashboard = asyncHandler(async (req, res) => {
   const [overview, topItems, lowStock, menuItems] = await Promise.all([
-    revenueService.getSummary({ range: '30days' }),
-    revenueService.getTopSellingItems(5),
-    inventoryService.getLowStock(),
-    menuService.listMenuItems({ available: 'true' }),
+    revenueService.getSummary({ range: '30days' }, req.user),
+    revenueService.getTopSellingItems(5, req.user),
+    inventoryService.getLowStock(req.user),
+    menuService.listMenuItems({ available: 'true' }, req.user),
   ]);
 
   sendSuccess(res, {

@@ -7,8 +7,12 @@ import prisma from '../../prisma/client.js';
 
 export const menuService = {
   // --- Categories ---
-  async listCategories() {
-    const categories = await categoryRepository.findAll();
+  async listCategories(user) {
+    const where = {};
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.branchId = user.branchId;
+    }
+    const categories = await categoryRepository.findAll(where);
     return categories.map((c) => ({
       id: c.id,
       name: c.name,
@@ -18,15 +22,21 @@ export const menuService = {
     }));
   },
 
-  async createCategory({ name, description }) {
+  async createCategory({ name, description }, user) {
     const slug = slugify(name);
-    const category = await categoryRepository.create({ name, slug, description });
+    const data = { name, slug, description };
+    if (user && user.branchId) data.branchId = user.branchId;
+    const category = await categoryRepository.create(data);
     return category;
   },
 
-  async updateCategory(id, data) {
+  async updateCategory(id, data, user) {
     const existing = await categoryRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
+
+    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền thao tác với danh mục này', 403);
+    }
 
     const updateData = { ...data };
     if (data.name) updateData.slug = slugify(data.name);
@@ -34,7 +44,14 @@ export const menuService = {
     return categoryRepository.update(id, updateData);
   },
 
-  async deleteCategory(id) {
+  async deleteCategory(id, user) {
+    const existing = await categoryRepository.findById(id);
+    if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
+
+    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền thao tác với danh mục này', 403);
+    }
+
     const count = await menuItemRepository.count({ categoryId: id });
     if (count > 0) {
       throw new AppError('Không thể xóa danh mục đang có món ăn', 400);
@@ -43,7 +60,7 @@ export const menuService = {
   },
 
   // --- Menu Items ---
-  async listMenuItems({ search, category, categoryId, available }) {
+  async listMenuItems({ search, category, categoryId, available }, user) {
     const where = {};
 
     if (categoryId) {
@@ -55,6 +72,10 @@ export const menuService = {
 
     if (available !== undefined) {
       where.available = available === 'true' || available === true;
+    }
+
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.branchId = user.branchId;
     }
 
     let items = await menuItemRepository.findMany(where);
@@ -71,13 +92,16 @@ export const menuService = {
     return items.map(mapMenuItem);
   },
 
-  async getMenuItem(id) {
+  async getMenuItem(id, user) {
     const item = await menuItemRepository.findById(id);
     if (!item) throw new AppError('Không tìm thấy món ăn', 404);
+    if (user && user.role !== 'ADMIN' && user.branchId && item.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền xem món này', 403);
+    }
     return mapMenuItem(item);
   },
 
-   async createMenuItem(body) {
+   async createMenuItem(body, user) {
      const categoryId = await resolveCategoryId(body);
      
      // Use transaction to create MenuItem and MenuItemIngredients together
@@ -91,6 +115,7 @@ export const menuService = {
            description: body.description || '',
            imageUrl: body.imageUrl || null,
            available: body.available ?? true,
+           ...(user && user.branchId ? { branchId: user.branchId } : {}),
          },
          include: { category: true, ingredients: { include: { ingredient: true } } },
        });
@@ -114,9 +139,13 @@ export const menuService = {
      return mapMenuItem(item);
    },
 
-   async updateMenuItem(id, body) {
+   async updateMenuItem(id, body, user) {
      const existing = await menuItemRepository.findById(id);
      if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
+
+     if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
+       throw new AppError('Bạn không có quyền thao tác với món này', 403);
+     }
 
      // Use transaction for update with ingredients
      const item = await prisma.$transaction(async (tx) => {
@@ -160,20 +189,33 @@ export const menuService = {
      return mapMenuItem(item);
    },
 
-  async toggleAvailability(id) {
+  async toggleAvailability(id, user) {
     const existing = await menuItemRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
+
+    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền thao tác với món này', 403);
+    }
+
     const item = await menuItemRepository.update(id, { available: !existing.available });
     return mapMenuItem(item);
   },
 
-  async deleteMenuItem(id) {
+  async deleteMenuItem(id, user) {
+    const existing = await menuItemRepository.findById(id);
+    if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
+
+    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền thao tác với món này', 403);
+    }
+
     await menuItemRepository.delete(id);
   },
 
   /** Top món bán chạy - khớp foodOrderStats frontend */
-  async getTopSelling(limit = 10) {
-    const grouped = await orderRepository.aggregateTopItems(limit);
+  async getTopSelling(limit = 10, user) {
+    const branchId = user && user.role !== 'ADMIN' ? user.branchId : undefined;
+    const grouped = await orderRepository.aggregateTopItems(limit, branchId);
     const result = [];
 
     for (const g of grouped) {

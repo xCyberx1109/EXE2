@@ -1,11 +1,12 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router';
-import { LayoutDashboard, MonitorCheck, UtensilsCrossed, Package, TrendingUp, Menu, X, Loader2, LogOut, User, Building2 } from 'lucide-react';
+import { LayoutDashboard, MonitorCheck, UtensilsCrossed, Package, TrendingUp, Menu, X, Loader2, LogOut, User, Building2, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const navigation = [
   { name: 'Tổng quan', href: '/app', icon: LayoutDashboard },
   { name: 'Máy POS', href: '/app/pos', icon: MonitorCheck },
+  { name: 'Thiết bị POS', href: '/app/pos-devices', icon: Smartphone },
   { name: 'Quản lý Menu', href: '/app/menu', icon: UtensilsCrossed },
   { name: 'Quản lý Tồn kho', href: '/app/inventory', icon: Package },
   { name: 'Quản lý Doanh thu', href: '/app/revenue', icon: TrendingUp },
@@ -13,36 +14,38 @@ const navigation = [
 
 const superAdminNavigation = [
   { name: 'Quản lý Branch', href: '/app/branches', icon: Building2 },
+  { name: 'Thiết bị POS', href: '/app/pos-devices', icon: Smartphone },
 ];
 
 const hasAccess = (user: any, pathname: string) => {
   if (!user) return false;
 
-  // Profile page is accessible to ALL logged-in accounts
   if (pathname === '/app/profile') {
     return true;
   }
 
-  // 1. Nếu là Super Admin
-  if (user.isSuperAdmin) {
-    // Super Admin chỉ được phép vào trang quản lý chi nhánh và profile
-    return pathname === '/app/branches';
+  const isAdmin = user.role === 'ADMIN';
+
+  if (isAdmin) {
+    return pathname === '/app/branches' || pathname === '/app/pos-devices' || pathname === '/app';
   }
 
-  // 2. Nếu là user thường, không được phép vào trang của Super Admin
   if (pathname === '/app/branches') {
     return false;
   }
 
-  // 3. Phân quyền chi tiết cho user thường theo role:
   const role = user.role;
 
   if (pathname === '/app' || pathname === '/app/') {
-    return role === 'ADMIN' || role === 'MANAGER' || role === 'BRANCH';
+    return role === 'ADMIN' || role === 'MANAGER';
   }
 
   if (pathname.startsWith('/app/revenue')) {
-    return role === 'ADMIN' || role === 'MANAGER' || role === 'BRANCH';
+    return role === 'ADMIN' || role === 'MANAGER';
+  }
+
+  if (pathname.startsWith('/app/pos-devices')) {
+    return role === 'ADMIN' || role === 'MANAGER';
   }
 
   return true;
@@ -50,8 +53,8 @@ const hasAccess = (user: any, pathname: string) => {
 
 const getDefaultRoute = (user: any): string => {
   if (!user) return '/login';
-  if (user.isSuperAdmin) return '/app/branches';
-  if (user.role === 'STAFF' || user.role === 'CASHIER') return '/app/pos';
+  if (user.role === 'ADMIN') return '/app/branches';
+  if (user.role === 'COOK' || user.role === 'CASHIER') return '/app/pos';
   return '/app';
 };
 
@@ -80,7 +83,7 @@ export function Layout() {
     return <Navigate to={defaultPath} replace />;
   }
 
-  const visibleNavigation = (user?.isSuperAdmin ? superAdminNavigation : navigation).filter(
+  const visibleNavigation = (user?.role === 'ADMIN' ? superAdminNavigation : navigation).filter(
     (item) => hasAccess(user, item.href)
   );
 
@@ -144,7 +147,7 @@ export function Layout() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.isSuperAdmin ? 'Super Admin' : user.role}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.role === 'ADMIN' ? 'Super Admin' : user.role === 'MANAGER' ? 'Quản lý' : user.role === 'COOK' ? 'Bếp' : user.role === 'CASHIER' ? 'Thu ngân' : user.role}</p>
                 </div>
               </Link>
             )}

@@ -5,8 +5,12 @@ import { ingredientRepository } from '../../repositories/ingredient.repository.j
 import { inventoryTransactionRepository } from '../../repositories/inventoryTransaction.repository.js';
 
 export const inventoryService = {
-  async listIngredients({ search, lowStock }) {
-    let items = await ingredientRepository.findMany();
+  async listIngredients({ search, lowStock }, user) {
+    const where = {};
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.branchId = user.branchId;
+    }
+    let items = await ingredientRepository.findMany(where);
 
     if (lowStock === 'true') {
       items = items.filter((i) => Number(i.quantity) < Number(i.minQuantity));
@@ -24,14 +28,17 @@ export const inventoryService = {
     return items.map(mapIngredient);
   },
 
-  async getIngredient(id) {
+  async getIngredient(id, user) {
     const item = await ingredientRepository.findById(id);
     if (!item) throw new AppError('Không tìm thấy nguyên liệu', 404);
+    if (user && user.role !== 'ADMIN' && user.branchId && item.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền xem nguyên liệu này', 403);
+    }
     return mapIngredient(item);
   },
 
-  async createIngredient(body) {
-    const item = await ingredientRepository.create({
+  async createIngredient(body, user) {
+    const data = {
       name: body.name,
       unit: body.unit,
       quantity: body.quantity ?? 0,
@@ -39,13 +46,19 @@ export const inventoryService = {
       price: body.price,
       supplier: body.supplier,
       lastUpdated: new Date(),
-    });
+    };
+    if (user && user.branchId) data.branchId = user.branchId;
+    const item = await ingredientRepository.create(data);
     return mapIngredient(item);
   },
 
-  async updateIngredient(id, body) {
+  async updateIngredient(id, body, user) {
     const existing = await ingredientRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy nguyên liệu', 404);
+
+    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+    }
 
     const item = await ingredientRepository.update(id, {
       ...body,
@@ -54,19 +67,34 @@ export const inventoryService = {
     return mapIngredient(item);
   },
 
-  async deleteIngredient(id) {
+  async deleteIngredient(id, user) {
+    const existing = await ingredientRepository.findById(id);
+    if (!existing) throw new AppError('Không tìm thấy nguyên liệu', 404);
+
+    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+    }
+
     await ingredientRepository.delete(id);
   },
 
-  async getLowStock() {
-    const items = await ingredientRepository.findMany();
+  async getLowStock(user) {
+    const where = {};
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.branchId = user.branchId;
+    }
+    const items = await ingredientRepository.findMany(where);
     return items
       .filter((i) => Number(i.quantity) < Number(i.minQuantity))
       .map(mapIngredient);
   },
 
-  async getStats() {
-    const items = await ingredientRepository.findMany();
+  async getStats(user) {
+    const where = {};
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.branchId = user.branchId;
+    }
+    const items = await ingredientRepository.findMany(where);
     const lowStockCount = items.filter(
       (i) => Number(i.quantity) < Number(i.minQuantity)
     ).length;
@@ -82,29 +110,42 @@ export const inventoryService = {
   },
 
   /** Nhập kho */
-  async stockIn(ingredientId, { quantity, note }, userId) {
-    return applyTransaction(ingredientId, 'IN', quantity, note, userId);
+  async stockIn(ingredientId, { quantity, note }, user) {
+    return applyTransaction(ingredientId, 'IN', quantity, note, user);
   },
 
   /** Xuất kho */
-  async stockOut(ingredientId, { quantity, note }, userId) {
-    return applyTransaction(ingredientId, 'OUT', quantity, note, userId);
+  async stockOut(ingredientId, { quantity, note }, user) {
+    return applyTransaction(ingredientId, 'OUT', quantity, note, user);
   },
 
-  async getTransactionHistory(ingredientId) {
+  async getTransactionHistory(ingredientId, user) {
+    const ingredient = await ingredientRepository.findById(ingredientId);
+    if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
+    if (user && user.role !== 'ADMIN' && user.branchId && ingredient.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền xem lịch sử nguyên liệu này', 403);
+    }
     const txs = await inventoryTransactionRepository.findByIngredient(ingredientId);
     return txs.map(mapInventoryTransaction);
   },
 
-  async listAllTransactions() {
-    const txs = await inventoryTransactionRepository.findMany();
+  async listAllTransactions(user) {
+    const where = {};
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.ingredient = { branchId: user.branchId };
+    }
+    const txs = await inventoryTransactionRepository.findMany(where);
     return txs.map(mapInventoryTransaction);
   },
 };
 
-async function applyTransaction(ingredientId, type, quantity, note, userId) {
+async function applyTransaction(ingredientId, type, quantity, note, user) {
   const ingredient = await ingredientRepository.findById(ingredientId);
   if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
+
+  if (user && user.role !== 'ADMIN' && user.branchId && ingredient.branchId !== user.branchId) {
+    throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+  }
 
   const qty = Number(quantity);
   const current = Number(ingredient.quantity);
@@ -126,7 +167,7 @@ async function applyTransaction(ingredientId, type, quantity, note, userId) {
         type,
         quantity: qty,
         note,
-        userId: userId || null,
+        userId: user?.id || null,
       },
       include: {
         ingredient: true,

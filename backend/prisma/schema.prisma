@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========================================
+// ENUMS
+// ========================================
+
 enum Plan {
   BASIC
   PRO
@@ -25,7 +29,7 @@ enum Role {
   ADMIN
   MANAGER
   CASHIER
-  STAFF
+  COOK
 }
 
 enum PosDeviceType {
@@ -34,15 +38,24 @@ enum PosDeviceType {
   KIOSK
 }
 
+enum PosStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
 enum InventoryTransactionType {
   IMPORT
   EXPORT
   ADJUST
+  RETURN
+  WASTE
 }
 
 enum OrderStatus {
   PENDING
   PREPARING
+  SERVED
   COMPLETED
   CANCELLED
 }
@@ -52,10 +65,12 @@ enum PaymentMethod {
   CARD
   BANKING
   E_WALLET
+  OTHER
 }
 
 enum PaymentStatus {
   UNPAID
+  PARTIAL
   PAID
   REFUNDED
 }
@@ -66,264 +81,469 @@ enum OrderType {
   DELIVERY
 }
 
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum IngredientUnit {
+  KG
+  G
+  LITER
+  ML
+  PIECE
+}
+
+// ========================================
+// MODELS
+// ========================================
+
 model Branch {
-  id                   String   @id @default(cuid())
+  id                 String             @id @default(cuid())
+  name               String
+  address            String
+  phone              String
+  email              String?
+  logoUrl            String?
+  plan               Plan
+  subscriptionStatus SubscriptionStatus
+  subscriptionStart  DateTime
+  subscriptionEnd    DateTime
+  features           Json?
+  active             Boolean            @default(true)
 
-  name                 String
-  address              String
-  phone                String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  plan                 Plan
-  subscriptionStatus   SubscriptionStatus
-
-  subscriptionStart    DateTime
-  subscriptionEnd      DateTime
-
-  features             Json?
-
-  active               Boolean  @default(true)
-
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  accounts             Account[]
-  posDevices           PosDevice[]
-  menuItems            MenuItem[]
-  ingredients          Ingredient[]
+  accounts              Account[]
+  posDevices            PosDevice[]
+  menuItems             MenuItem[]
+  ingredients           Ingredient[]
   inventoryTransactions InventoryTransaction[]
-  orders               Order[]
+  orders                Order[]
+  shifts                Shift[]
+  categories            Category[]
+
+  activityLogs          ActivityLog[]
 
   @@map("branches")
 }
 
 model Account {
-  id              String   @id @default(cuid())
+  id                 String   @id @default(cuid())
+  branchId           String
 
-  branchId        String
+  email              String   @unique
+  password           String
 
-  email           String   @unique
-  password        String
+  pinCode            String?
 
-  fullName        String
+  fullName           String
+  phone              String?
 
-  role            Role
+  role               Role
 
-  isSuperAdmin    Boolean  @default(false)
-  mustChangePassword Boolean @default(true)
+  mustChangePassword Boolean  @default(true)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  active             Boolean  @default(true)
 
-  branch          Branch @relation(fields: [branchId], references: [id])
+  deletedAt          DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  branch                Branch                 @relation(fields: [branchId], references: [id])
 
   inventoryTransactions InventoryTransaction[]
   orders                Order[]
+  shifts                Shift[]
+  activityLogs          ActivityLog[]
+
+  @@unique([branchId, pinCode])
+
+  @@index([branchId, role])
+  @@index([active])
 
   @@map("accounts")
 }
 
 model PosDevice {
-  id            String   @id @default(cuid())
+  id           String        @id @default(cuid())
+  branchId     String
 
-  branchId      String
+  name         String
 
-  name          String
+  deviceCode   String        @unique
 
-  deviceCode    String   @unique
+  devicePin    String?       @unique
+  deviceToken  String?       @unique
 
-  type          PosDeviceType
+  type         PosDeviceType
 
-  active        Boolean  @default(true)
+  status       PosStatus     @default(OFFLINE)
 
-  lastActive    DateTime?
+  active       Boolean       @default(true)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  lastActive   DateTime?
 
-  branch        Branch @relation(fields: [branchId], references: [id])
+  currentVersion String?
 
-  orders        Order[]
+  deletedAt    DateTime?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  orders Order[]
+  shifts Shift[]
+
+  @@index([branchId])
+  @@index([status])
+  @@index([active])
 
   @@map("pos_devices")
 }
 
 model Category {
-  id            String   @id @default(cuid())
+  id          String    @id @default(cuid())
 
-  name          String   @unique
-  slug          String   @unique
+  branchId    String
 
-  description   String?  @db.Text
+  name        String
+  slug        String
 
-  deletedAt     DateTime?
+  description String?   @db.Text
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  active      Boolean   @default(true)
 
-  menuItems     MenuItem[]
+  deletedAt   DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  branch    Branch     @relation(fields: [branchId], references: [id])
+
+  menuItems MenuItem[]
+
+  @@unique([branchId, slug])
+
+  @@index([branchId])
 
   @@map("categories")
 }
 
 model MenuItem {
-  id            String   @id @default(cuid())
+  id          String    @id @default(cuid())
 
-  branchId      String
-  categoryId    String
+  branchId    String
+  categoryId  String
 
-  name          String
+  name        String
 
-  price         Decimal  @db.Decimal(10, 2)
-  cost          Decimal  @db.Decimal(10, 2)
+  price       Decimal   @db.Decimal(10, 2)
+  cost        Decimal   @db.Decimal(10, 2)
 
-  description   String?  @db.Text
+  description String?   @db.Text
 
-  imageUrl      String?
+  imageUrl    String?
 
-  available     Boolean  @default(true)
+  available   Boolean   @default(true)
 
-  deletedAt     DateTime?
+  deletedAt   DateTime?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  branch        Branch   @relation(fields: [branchId], references: [id])
-  category      Category @relation(fields: [categoryId], references: [id])
+  branch      Branch               @relation(fields: [branchId], references: [id])
 
-  ingredients   MenuItemIngredient[]
-  orderItems    OrderItem[]
+  category    Category             @relation(fields: [categoryId], references: [id])
+
+  ingredients MenuItemIngredient[]
+  orderItems  OrderItem[]
+
+  @@index([branchId, categoryId])
 
   @@map("menu_items")
 }
 
 model MenuItemIngredient {
-  id            String   @id @default(cuid())
+  id           String  @id @default(cuid())
 
-  menuItemId    String
-  ingredientId  String
+  menuItemId   String
+  ingredientId String
 
-  amount        Decimal  @db.Decimal(10, 2)
+  amount       Decimal @db.Decimal(10, 2)
 
-  menuItem      MenuItem   @relation(fields: [menuItemId], references: [id])
-  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  menuItem   MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
 
   @@map("menu_item_ingredients")
 }
 
 model Ingredient {
-  id            String   @id @default(cuid())
+  id          String          @id @default(cuid())
 
-  branchId      String
+  branchId    String
 
-  name          String
+  name        String
 
-  unit          String
+  unit        IngredientUnit
 
-  quantity      Decimal  @db.Decimal(10, 2)
-  minQuantity   Decimal  @db.Decimal(10, 2)
+  quantity    Decimal         @db.Decimal(10, 2)
+  minQuantity Decimal         @db.Decimal(10, 2)
 
-  price         Decimal  @db.Decimal(10, 2)
+  price       Decimal         @db.Decimal(10, 2)
 
-  supplier      String?
+  supplier    String?
 
-  available     Boolean  @default(true)
+  available   Boolean         @default(true)
 
-  deletedAt     DateTime?
+  deletedAt   DateTime?
 
-  lastUpdated   DateTime?
+  lastUpdated DateTime?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  branch        Branch @relation(fields: [branchId], references: [id])
+  branch                Branch                 @relation(fields: [branchId], references: [id])
 
-  menuItems     MenuItemIngredient[]
+  menuItems             MenuItemIngredient[]
+
   inventoryTransactions InventoryTransaction[]
+
+  @@index([branchId])
 
   @@map("ingredients")
 }
 
 model InventoryTransaction {
-  id            String   @id @default(cuid())
+  id           String                   @id @default(cuid())
 
-  branchId      String
-  ingredientId  String
+  branchId     String
+  ingredientId String
 
-  createdBy     String
+  createdBy    String
 
-  type          InventoryTransactionType
+  type         InventoryTransactionType
 
-  quantity      Decimal  @db.Decimal(10, 2)
+  quantity     Decimal                  @db.Decimal(10, 2)
 
-  note          String?  @db.Text
+  beforeQuantity Decimal?               @db.Decimal(10, 2)
+  afterQuantity  Decimal?               @db.Decimal(10, 2)
 
-  createdAt     DateTime @default(now())
+  note         String?                  @db.Text
 
-  branch        Branch @relation(fields: [branchId], references: [id])
+  referenceId  String?
 
-  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  createdAt    DateTime                 @default(now())
 
-  account       Account @relation(fields: [createdBy], references: [id])
+  branch     Branch     @relation(fields: [branchId], references: [id])
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
+  account    Account    @relation(fields: [createdBy], references: [id])
+
+  @@index([branchId, ingredientId])
 
   @@map("inventory_transactions")
 }
 
+model Shift {
+  id             String      @id @default(cuid())
+
+  branchId       String
+  posDeviceId    String
+  accountId      String?
+
+  startTime      DateTime    @default(now())
+  endTime        DateTime?
+
+  lastActive     DateTime?
+
+  isOnline       Boolean     @default(true)
+
+  ipAddress      String?
+  userAgent      String?
+
+  openingBalance Decimal     @db.Decimal(10, 2)
+
+  closingBalance Decimal?    @db.Decimal(10, 2)
+
+  actualBalance  Decimal?    @db.Decimal(10, 2)
+
+  note           String?     @db.Text
+
+  status         ShiftStatus @default(OPEN)
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  branch    Branch     @relation(fields: [branchId], references: [id])
+
+  posDevice PosDevice  @relation(fields: [posDeviceId], references: [id])
+
+  account   Account?   @relation(fields: [accountId], references: [id])
+
+  orders    Order[]
+
+  @@index([branchId, accountId])
+
+  @@index([status, isOnline])
+
+  @@map("shifts")
+}
+
 model Order {
-  id              String   @id @default(cuid())
+  id            String        @id @default(cuid())
 
-  branchId        String
-  posDeviceId     String
+  branchId      String
 
-  createdBy       String
+  posDeviceId   String
 
-  orderNumber     String   @unique
+  createdBy     String
 
-  tableNumber     Int?
+  shiftId       String?
 
-  status          OrderStatus
+  orderNumber   String        @unique
 
-  paymentMethod   PaymentMethod
-  paymentStatus   PaymentStatus
+  source        String?
 
-  orderType       OrderType
+  tableNumber   String?
 
-  subtotal        Decimal  @db.Decimal(10, 2)
-  tax             Decimal  @db.Decimal(10, 2)
-  total           Decimal  @db.Decimal(10, 2)
+  status        OrderStatus
 
-  cost            Decimal  @db.Decimal(10, 2)
-  profit          Decimal  @db.Decimal(10, 2)
+  paymentMethod PaymentMethod?
 
-  createdAt       DateTime @default(now())
-  completedAt     DateTime?
+  paymentStatus PaymentStatus @default(UNPAID)
 
-  branch          Branch @relation(fields: [branchId], references: [id])
+  orderType     OrderType
 
-  posDevice       PosDevice @relation(fields: [posDeviceId], references: [id])
+  subtotal      Decimal       @db.Decimal(10, 2)
 
-  account         Account @relation(fields: [createdBy], references: [id])
+  tax           Decimal       @db.Decimal(10, 2)
 
-  orderItems      OrderItem[]
+  serviceCharge Decimal       @default(0) @db.Decimal(10, 2)
+
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+
+  total         Decimal       @db.Decimal(10, 2)
+
+  cost          Decimal       @db.Decimal(10, 2)
+
+  profit        Decimal       @db.Decimal(10, 2)
+
+  note          String?       @db.Text
+
+  createdAt     DateTime      @default(now())
+
+  completedAt   DateTime?
+
+  branch     Branch      @relation(fields: [branchId], references: [id])
+
+  posDevice  PosDevice   @relation(fields: [posDeviceId], references: [id])
+
+  account    Account     @relation(fields: [createdBy], references: [id])
+
+  shift      Shift?      @relation(fields: [shiftId], references: [id])
+
+  orderItems OrderItem[]
+
+  payments   Payment[]
+
+  @@index([branchId, createdAt])
+
+  @@index([shiftId])
+
+  @@index([branchId, status])
+
+  @@index([branchId, paymentStatus])
 
   @@map("orders")
 }
 
 model OrderItem {
-  id            String   @id @default(cuid())
+  id         String  @id @default(cuid())
 
-  orderId       String
-  menuItemId    String
+  orderId    String
+  menuItemId String
 
-  name          String
+  name       String
 
-  price         Decimal  @db.Decimal(10, 2)
-  cost          Decimal  @db.Decimal(10, 2)
+  price      Decimal @db.Decimal(10, 2)
 
-  quantity      Int
+  cost       Decimal @db.Decimal(10, 2)
 
-  order         Order @relation(fields: [orderId], references: [id])
+  quantity   Int
 
-  menuItem      MenuItem @relation(fields: [menuItemId], references: [id])
+  discount   Decimal @default(0) @db.Decimal(10, 2)
+
+  total      Decimal @db.Decimal(10, 2)
+
+  note       String? @db.Text
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
 
   @@map("order_items")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+
+  orderId       String
+
+  amount        Decimal       @db.Decimal(10, 2)
+
+  method        PaymentMethod
+
+  status        PaymentStatus
+
+  transactionId String?
+
+  note          String?       @db.Text
+
+  createdAt     DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+
+  @@index([createdAt])
+
+  @@map("payments")
+}
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+
+  branchId    String
+
+  accountId   String?
+
+  posDeviceId String?
+
+  action      String
+
+  module      String
+
+  details     Json?
+
+  ipAddress   String?
+
+  createdAt   DateTime  @default(now())
+
+  branch  Branch    @relation(fields: [branchId], references: [id])
+
+  account Account?  @relation(fields: [accountId], references: [id])
+
+  @@index([branchId, createdAt])
+
+  @@index([accountId, createdAt])
+
+  @@map("activity_logs")
 }

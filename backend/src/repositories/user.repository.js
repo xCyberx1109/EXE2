@@ -12,7 +12,6 @@ export const userRepository = {
         email: true,
         fullName: true,
         role: true,
-        isSuperAdmin: true,
         mustChangePassword: true,
         branchId: true,
         createdAt: true,

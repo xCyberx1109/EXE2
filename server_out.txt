@@ -1,0 +1,146 @@
+✓ Kết nối MySQL thành công
+→ Database đã có dữ liệu, bỏ qua auto-seed
+✓ Đã khởi động heartbeat check (timeout: 2 phút)
+✓ Server chạy tại http://localhost:3001
+  API: http://localhost:3001/api
+  POS: http://localhost:3001/api/pos
+[HeartbeatCheck] Đã đánh dấu 1 thiết bị OFFLINE do timeout
+prisma:error 
+Invalid `prisma.orderItem.findMany()` invocation:
+
+{
+  where: {
+    menuItemId: {
++     not: String
+    },
+    order: {
+      status: "COMPLETED"
+    }
+  },
+  select: {
+    menuItemId: true,
+    quantity: true
+  }
+}
+
+Argument `not` must not be null.
+[0mGET /api/menu-items/top-selling?limit=10 [31m500[0m 90.448 ms - 1677[0m
+[0mGET /api/ingredients [36m304[0m 102.259 ms - -[0m
+[0mGET /api/menu-items [36m304[0m 147.246 ms - -[0m
+[0mGET /api/ingredients/stats [36m304[0m 7.387 ms - -[0m
+[0mGET /api/ingredients [36m304[0m 13.968 ms - -[0m
+[0mGET /api/revenue/daily?range=14days [31m500[0m 17.486 ms - 1403[0m
+prisma:error 
+Invalid `prisma.orderItem.findMany()` invocation:
+
+{
+  where: {
+    menuItemId: {
++     not: String
+    },
+    order: {
+      status: "COMPLETED"
+    }
+  },
+  select: {
+    menuItemId: true,
+    quantity: true
+  }
+}
+
+Argument `not` must not be null.
+[0mGET /api/revenue/top-items?limit=8 [31m500[0m 10.511 ms - 1693[0m
+prisma:error 
+Invalid `prisma.order.findMany()` invocation:
+
+{
+  where: {
+    createdAt: {
+      gte: new Date("2026-05-22T17:00:00.000Z"),
+      lte: new Date("2026-05-23T16:59:59.999Z")
+    }
+  },
+  include: {
+    items: {
+    ~~~~~
+      include: {
+        menuItem: {
+          include: {
+            category: true
+          }
+        }
+      }
+    },
+?   branch?: true,
+?   posDevice?: true,
+?   account?: true,
+?   shift?: true,
+?   orderItems?: true,
+?   payments?: true
+  },
+  orderBy: {
+    createdAt: "desc"
+  }
+}
+
+Unknown field `items` for include statement on model `Order`. Available options are marked with ?.
+[0mGET /api/orders/daily?date=2026-05-23 [31m500[0m 12.789 ms - 2308[0m
+[0mGET /api/dashboard [31m500[0m 6.396 ms - 1405[0m
+prisma:error 
+Invalid `prisma.orderItem.findMany()` invocation:
+
+{
+  where: {
+    menuItemId: {
++     not: String
+    },
+    order: {
+      status: "COMPLETED"
+    }
+  },
+  select: {
+    menuItemId: true,
+    quantity: true
+  }
+}
+
+Argument `not` must not be null.
+[0mGET /api/menu-items?available=true [36m304[0m 6.052 ms - -[0m
+prisma:error 
+Invalid `prisma.order.findMany()` invocation:
+
+{
+  where: {
+    status: {
+      in: [
+        "PENDING",
+        "PREPARING"
+      ]
+    }
+  },
+  include: {
+    items: {
+    ~~~~~
+      include: {
+        menuItem: {
+          include: {
+            category: true
+          }
+        }
+      }
+    },
+?   branch?: true,
+?   posDevice?: true,
+?   account?: true,
+?   shift?: true,
+?   orderItems?: true,
+?   payments?: true
+  },
+  orderBy: {
+    createdAt: "desc"
+  }
+}
+
+Unknown field `items` for include statement on model `Order`. Available options are marked with ?.
+[0mGET /orders [31m500[0m 8.629 ms - 2229[0m
+[0mGET /api/pos/devices [32m200[0m 111.774 ms - 1120[0m

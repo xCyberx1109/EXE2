@@ -8,22 +8,22 @@ import {
   ingredientRules, ingredientIdParam, stockTransactionRules, inventoryListQuery,
 } from '../../validators/inventory.validator.js';
 import { validate } from '../../middlewares/validate.js';
-import { authenticate, authorize } from '../../middlewares/auth.js';
+import { authenticate, authorize, optionalAuth } from '../../middlewares/auth.js';
 
 const router = Router();
 
 // Routes cố định phải đặt trước /:id
-router.get('/ingredients/stats', getStats);
-router.get('/ingredients/low-stock', getLowStock);
-router.get('/ingredients', inventoryListQuery, validate, listIngredients);
-router.get('/ingredients/:id/transactions', ingredientIdParam, validate, getIngredientTransactions);
-router.get('/ingredients/:id', ingredientIdParam, validate, getIngredient);
+router.get('/ingredients/stats', optionalAuth, getStats);
+router.get('/ingredients/low-stock', optionalAuth, getLowStock);
+router.get('/ingredients', optionalAuth, inventoryListQuery, validate, listIngredients);
+router.get('/ingredients/:id/transactions', optionalAuth, ingredientIdParam, validate, getIngredientTransactions);
+router.get('/ingredients/:id', optionalAuth, ingredientIdParam, validate, getIngredient);
 router.get('/inventory/transactions', authenticate, listTransactions);
 
-router.post('/ingredients', authenticate, authorize('ADMIN', 'STAFF'), ingredientRules, validate, createIngredient);
-router.put('/ingredients/:id', authenticate, authorize('ADMIN', 'STAFF'), [...ingredientIdParam, ...ingredientRules], validate, updateIngredient);
+router.post('/ingredients', authenticate, authorize('ADMIN', 'COOK'), ingredientRules, validate, createIngredient);
+router.put('/ingredients/:id', authenticate, authorize('ADMIN', 'COOK'), [...ingredientIdParam, ...ingredientRules], validate, updateIngredient);
 router.delete('/ingredients/:id', authenticate, authorize('ADMIN'), ingredientIdParam, validate, deleteIngredient);
-router.post('/ingredients/:id/stock-in', authenticate, authorize('ADMIN', 'STAFF'), [...ingredientIdParam, ...stockTransactionRules], validate, stockIn);
-router.post('/ingredients/:id/stock-out', authenticate, authorize('ADMIN', 'STAFF'), [...ingredientIdParam, ...stockTransactionRules], validate, stockOut);
+router.post('/ingredients/:id/stock-in', authenticate, authorize('ADMIN', 'COOK'), [...ingredientIdParam, ...stockTransactionRules], validate, stockIn);
+router.post('/ingredients/:id/stock-out', authenticate, authorize('ADMIN', 'COOK'), [...ingredientIdParam, ...stockTransactionRules], validate, stockOut);
 
 export default router;

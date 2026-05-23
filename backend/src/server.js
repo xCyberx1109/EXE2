@@ -2,6 +2,7 @@ import app from './app.js';
 import config from './config/index.js';
 import prisma from './prisma/client.js';
 import { runSeedIfEmpty } from './seed/runSeed.js';
+import { startHeartbeatCheck } from './jobs/heartbeatCheck.js';
 
 const startServer = async () => {
   try {
@@ -12,10 +13,12 @@ const startServer = async () => {
       await runSeedIfEmpty();
     }
 
+    startHeartbeatCheck();
+
     const server = app.listen(config.port, () => {
       console.log(`✓ Server chạy tại http://localhost:${config.port}`);
       console.log(`  API: http://localhost:${config.port}/api`);
-      console.log(`  POS Orders (legacy): http://localhost:${config.port}/orders`);
+      console.log(`  POS: http://localhost:${config.port}/api/pos`);
     });
 
     server.on('error', (error) => {

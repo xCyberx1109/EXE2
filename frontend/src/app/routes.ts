@@ -10,9 +10,11 @@ import { MenuQR } from "./pages/QRMenu";
 import { LoginPage } from './pages/LoginPage';
 import { BranchManagement } from './pages/BranchManagement';
 import { ProfilePage } from './pages/ProfilePage';
+import { PosDeviceManagement } from './pages/PosDeviceManagement';
+import { PosLoginPage } from './pages/PosLoginPage';
+import { PosDashboard } from './pages/PosDashboard';
 
 function RootRedirect() {
-  // routes.ts là file .ts (không dùng JSX), nên dùng createElement thay cho <Navigate />
   return createElement(Navigate, { to: '/login', replace: true });
 }
 
@@ -25,7 +27,19 @@ export const router = createBrowserRouter([
     path: '/login',
     Component: LoginPage,
   },
-  // Khi khởi động (/) luôn đưa về trang login
+  // POS Device Login (riêng biệt)
+  {
+    path: '/pos/login',
+    Component: PosLoginPage,
+  },
+  {
+    path: '/pos/dashboard',
+    Component: PosDashboard,
+  },
+  {
+    path: '/pos/setup',
+    Component: PosLoginPage,
+  },
   {
     path: '/',
     Component: RootRedirect,
@@ -38,6 +52,7 @@ export const router = createBrowserRouter([
       { index: true, Component: Dashboard },
       { path: 'branches', Component: BranchManagement },
       { path: 'pos', Component: POSSystem },
+      { path: 'pos-devices', Component: PosDeviceManagement },
       { path: 'menu', Component: MenuManagement },
       { path: 'inventory', Component: InventoryManagement },
       { path: 'revenue', Component: RevenueManagement },

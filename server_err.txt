@@ -1,0 +1,168 @@
+[Error] PrismaClientValidationError: 
+Invalid `prisma.orderItem.findMany()` invocation:
+
+{
+  where: {
+    menuItemId: {
++     not: String
+    },
+    order: {
+      status: "COMPLETED"
+    }
+  },
+  select: {
+    menuItemId: true,
+    quantity: true
+  }
+}
+
+Argument `not` must not be null.
+    at Nn (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at ei.handleRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6911)
+    at ei.handleAndLogRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async Object.aggregateTopItems (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/repositories/order.repository.js:41:19)
+    at async Object.getTopSelling (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/menu/menu.service.js:206:21)
+    at async file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/menu/menu.controller.js:59:16 {
+  clientVersion: '6.19.3'
+}
+[Error] TypeError: Cannot read properties of undefined (reading 'findMany')
+    at Object.findReports (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/repositories/revenue.repository.js:5:26)
+    at Object.getDailyReports (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/revenue/revenue.service.js:11:45)
+    at file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/revenue/revenue.controller.js:6:37
+    at file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/utils/asyncHandler.js:3:19
+    at Layer.handle [as handle_request] (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\route.js:149:13)
+    at validate (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/middlewares/validate.js:12:3)
+    at Layer.handle [as handle_request] (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\route.js:149:13)
+    at middleware (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+[Error] PrismaClientValidationError: 
+Invalid `prisma.orderItem.findMany()` invocation:
+
+{
+  where: {
+    menuItemId: {
++     not: String
+    },
+    order: {
+      status: "COMPLETED"
+    }
+  },
+  select: {
+    menuItemId: true,
+    quantity: true
+  }
+}
+
+Argument `not` must not be null.
+    at Nn (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at ei.handleRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6911)
+    at ei.handleAndLogRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async Object.aggregateTopItems (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/repositories/order.repository.js:41:19)
+    at async Object.getTopSellingItems (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/revenue/revenue.service.js:74:21)
+    at async file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/revenue/revenue.controller.js:23:16 {
+  clientVersion: '6.19.3'
+}
+[Error] PrismaClientValidationError: 
+Invalid `prisma.order.findMany()` invocation:
+
+{
+  where: {
+    createdAt: {
+      gte: new Date("2026-05-22T17:00:00.000Z"),
+      lte: new Date("2026-05-23T16:59:59.999Z")
+    }
+  },
+  include: {
+    items: {
+    ~~~~~
+      include: {
+        menuItem: {
+          include: {
+            category: true
+          }
+        }
+      }
+    },
+?   branch?: true,
+?   posDevice?: true,
+?   account?: true,
+?   shift?: true,
+?   orderItems?: true,
+?   payments?: true
+  },
+  orderBy: {
+    createdAt: "desc"
+  }
+}
+
+Unknown field `items` for include statement on model `Order`. Available options are marked with ?.
+    at Nn (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at ei.handleRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6911)
+    at ei.handleAndLogRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async Object.listOrdersByDate (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/orders/order.service.js:40:20)
+    at async file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/orders/order.controller.js:28:16 {
+  clientVersion: '6.19.3'
+}
+[Error] TypeError: Cannot read properties of undefined (reading 'findMany')
+    at Object.findReports (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/repositories/revenue.repository.js:5:26)
+    at Object.getDailyReports (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/revenue/revenue.service.js:11:45)
+    at Object.getSummary (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/revenue/revenue.service.js:23:32)
+    at file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/controllers/dashboard.controller.js:10:20
+    at file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/utils/asyncHandler.js:3:19
+    at Layer.handle [as handle_request] (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\express\lib\router\index.js:284:15
+[Error] PrismaClientValidationError: 
+Invalid `prisma.order.findMany()` invocation:
+
+{
+  where: {
+    status: {
+      in: [
+        "PENDING",
+        "PREPARING"
+      ]
+    }
+  },
+  include: {
+    items: {
+    ~~~~~
+      include: {
+        menuItem: {
+          include: {
+            category: true
+          }
+        }
+      }
+    },
+?   branch?: true,
+?   posDevice?: true,
+?   account?: true,
+?   shift?: true,
+?   orderItems?: true,
+?   payments?: true
+  },
+  orderBy: {
+    createdAt: "desc"
+  }
+}
+
+Unknown field `items` for include statement on model `Order`. Available options are marked with ?.
+    at Nn (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at ei.handleRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6911)
+    at ei.handleAndLogRequestError (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (C:\Users\PC\Downloads\EXE101\Project\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async Object.listActiveOrders (file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/orders/order.service.js:15:20)
+    at async file:///C:/Users/PC/Downloads/EXE101/Project/backend/src/modules/orders/order.controller.js:7:18 {
+  clientVersion: '6.19.3'
+}

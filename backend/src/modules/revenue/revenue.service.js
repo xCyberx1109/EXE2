@@ -4,9 +4,14 @@ import { revenueRepository } from '../../repositories/revenue.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { orderRepository } from '../../repositories/order.repository.js';
 
+function getBranchWhere(user) {
+  return user && user.role !== 'ADMIN' && user.branchId ? { branchId: user.branchId } : {};
+}
+
 export const revenueService = {
   /** Báo cáo theo ngày - khớp revenueRecords frontend */
-  async getDailyReports({ range = '14days', from, to }) {
+  async getDailyReports({ range = '14days', from, to }, user) {
+    const branchWhere = getBranchWhere(user);
     const where = buildDateWhere({ range, from, to });
     const reports = await revenueRepository.findReports(where);
 
@@ -15,12 +20,12 @@ export const revenueService = {
     }
 
     // Fallback: tính từ đơn COMPLETED nếu chưa có revenue_reports
-    return this.aggregateDailyFromOrders({ range, from, to });
+    return this.aggregateDailyFromOrders({ range, from, to }, branchWhere);
   },
 
   /** Tổng hợp thống kê theo khoảng thời gian */
-  async getSummary({ range = '14days', from, to }) {
-    const records = await this.getDailyReports({ range, from, to });
+  async getSummary({ range = '14days', from, to }, user) {
+    const records = await this.getDailyReports({ range, from, to }, user);
 
     const totalRevenue = records.reduce((s, r) => s + r.revenue, 0);
     const totalProfit = records.reduce((s, r) => s + r.profit, 0);
@@ -40,9 +45,11 @@ export const revenueService = {
   },
 
   /** Thống kê theo period: day | month | year */
-  async getStatsByPeriod(period = 'day') {
+  async getStatsByPeriod(period = 'day', user) {
+    const branchWhere = getBranchWhere(user);
+    const where = { status: 'COMPLETED', ...branchWhere };
     const completedOrders = await prisma.order.findMany({
-      where: { status: 'COMPLETED' },
+      where,
       select: {
         total: true,
         cost: true,
@@ -70,8 +77,9 @@ export const revenueService = {
   },
 
   /** Top món bán chạy */
-  async getTopSellingItems(limit = 8) {
-    const grouped = await orderRepository.aggregateTopItems(limit);
+  async getTopSellingItems(limit = 8, user) {
+    const branchId = user && user.role !== 'ADMIN' ? user.branchId : undefined;
+    const grouped = await orderRepository.aggregateTopItems(limit, branchId);
     const result = [];
 
     for (const g of grouped) {
@@ -90,18 +98,17 @@ export const revenueService = {
   },
 
   /** Dashboard overview */
-  async getOverview() {
-    const [summary, topItems, lowStockCount] = await Promise.all([
-      this.getSummary({ range: '30days' }),
-      this.getTopSellingItems(5),
-      prisma.ingredient.count().then(async () => {
-        const items = await prisma.ingredient.findMany();
-        return items.filter((i) => Number(i.quantity) < Number(i.minQuantity)).length;
-      }),
+  async getOverview(user) {
+    const [summary, topItems] = await Promise.all([
+      this.getSummary({ range: '30days' }, user),
+      this.getTopSellingItems(5, user),
     ]);
 
-    const menuAvailable = await prisma.menuItem.count({ where: { available: true } });
-    const menuTotal = await prisma.menuItem.count();
+    const branchWhere = getBranchWhere(user);
+    const lowStockItems = await prisma.ingredient.findMany({ where: branchWhere });
+    const lowStockCount = lowStockItems.filter((i) => Number(i.quantity) < Number(i.minQuantity)).length;
+    const menuAvailable = await prisma.menuItem.count({ where: { available: true, ...branchWhere } });
+    const menuTotal = await prisma.menuItem.count({ where: branchWhere });
 
     return {
       ...summary,
@@ -113,12 +120,13 @@ export const revenueService = {
   },
 
   /** Tổng hợp doanh thu theo ngày từ orders */
-  async aggregateDailyFromOrders({ range = '14days', from, to }) {
+  async aggregateDailyFromOrders({ range = '14days', from, to }, branchWhere = {}) {
     const start = getRangeStartDate({ range, from, to });
 
     const orders = await prisma.order.findMany({
       where: {
         status: 'COMPLETED',
+        ...branchWhere,
         OR: [
           { completedAt: { gte: start } },
           { completedAt: null, createdAt: { gte: start } },
@@ -160,9 +168,11 @@ export const revenueService = {
   },
 
   /** Đồng bộ revenue_reports từ orders đã hoàn thành */
-  async syncRevenueReports() {
+  async syncRevenueReports(branchId) {
+    const where = { status: 'COMPLETED' };
+    if (branchId) where.branchId = branchId;
     const orders = await prisma.order.findMany({
-      where: { status: 'COMPLETED' },
+      where,
       select: {
         total: true,
         cost: true,

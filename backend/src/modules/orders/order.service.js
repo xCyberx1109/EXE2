@@ -11,21 +11,26 @@ const TAX_RATE = 0.1;
 
 export const orderService = {
   /** Lấy tất cả đơn pending/preparing cho POS */
-  async listActiveOrders() {
-    const orders = await orderRepository.findMany({
-      status: { in: ['PENDING', 'PREPARING'] },
-    });
+  async listActiveOrders(user) {
+    const where = { status: { in: ['PENDING', 'PREPARING'] } };
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.branchId = user.branchId;
+    }
+    const orders = await orderRepository.findMany(where);
     return orders.map(mapPosOrder);
   },
 
-  async getOrder(id) {
+  async getOrder(id, user) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user && user.role !== 'ADMIN' && user.branchId && order.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền xem đơn hàng này', 403);
+    }
     return mapOrderDetail(order);
   },
 
   /** Danh sách đơn trong ngày (mặc định hôm nay) */
-  async listOrdersByDate({ date, status } = {}) {
+  async listOrdersByDate({ date, status } = {}, user) {
     const dateStr = date || formatDateKey(new Date());
     const { start, end } = getDayBounds(dateStr);
 
@@ -35,6 +40,10 @@ export const orderService = {
 
     if (status && status !== 'all') {
       where.status = status.toUpperCase();
+    }
+
+    if (user && user.role !== 'ADMIN' && user.branchId) {
+      where.branchId = user.branchId;
     }
 
     const orders = await orderRepository.findMany(where);
@@ -55,7 +64,7 @@ export const orderService = {
   },
 
   /** Tạo đơn từ POS hoặc QR Menu */
-  async createOrder(body, userId = null) {
+  async createOrder(body, user = null) {
     const tableNumber = parseInt(body.table, 10);
     if (Number.isNaN(tableNumber)) {
       throw new AppError('Số bàn không hợp lệ', 400);
@@ -88,8 +97,11 @@ export const orderService = {
     const profit = subtotal - cost;
     const orderNumber = `ORD-${Date.now()}-${tableNumber}`;
 
-    const order = await orderRepository.create({
+    const orderData = {
       orderNumber,
+      branchId: body.branchId || (user ? user.branchId : undefined),
+      posDeviceId: body.posDeviceId,
+      createdBy: user ? user.id : body.createdBy,
       tableNumber,
       status: 'PENDING',
       subtotal,
@@ -97,35 +109,48 @@ export const orderService = {
       total,
       cost,
       profit,
-      userId,
+      source: body.source || 'POS',
+      orderType: body.orderType || 'DINE_IN',
       items: { create: orderItemsData },
-    });
+    };
+
+    const order = await orderRepository.create(orderData);
 
     return mapPosOrder(order);
   },
 
-  async deleteOrder(id) {
+  async deleteOrder(id, user) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user && user.role !== 'ADMIN' && user.branchId && order.branchId !== user.branchId) {
+      throw new AppError('Bạn không có quyền xóa đơn hàng này', 403);
+    }
     await orderRepository.delete(id);
   },
 
    /** Thanh toán - hoàn tất đơn và cập nhật revenue */
-   async completeTableOrders(tableNumber, paymentMethod = 'CASH', userId = null) {
-     const orders = await orderRepository.findPendingByTable(tableNumber);
+   async completeTableOrders(tableNumber, paymentMethod = 'CASH', user = null) {
+     const where = {
+       tableNumber,
+       status: { in: ['PENDING', 'PREPARING'] },
+     };
+     if (user && user.role !== 'ADMIN' && user.branchId) {
+       where.branchId = user.branchId;
+     }
+     const orders = await orderRepository.findMany(where);
      if (orders.length === 0) {
        throw new AppError('Không có đơn hàng để thanh toán', 404);
      }
 
      const method = paymentMethod.toUpperCase();
      const completed = [];
+     const userId = user ? user.id : null;
 
      for (const order of orders) {
        const updated = await orderRepository.update(order.id, {
          status: 'COMPLETED',
          paymentMethod: ['CASH', 'CARD', 'QR'].includes(method) ? method : 'CASH',
          completedAt: new Date(),
-         userId: userId || order.userId,
        });
        completed.push(mapPosOrder(updated));
 

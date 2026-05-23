@@ -15,7 +15,7 @@ export const authService = {
       throw new AppError('Email đã được sử dụng', 409);
     }
 
-    const normalizedRole = role?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'STAFF';
+    const normalizedRole = role?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'COOK';
     const hashedPassword = await this.hashPassword(password);
 
     const user = await userRepository.create({
@@ -148,7 +148,6 @@ const sanitizeUser = (user) => ({
   email: user.email,
   fullName: user.fullName,
   role: user.role,
-  isSuperAdmin: user.isSuperAdmin,
   mustChangePassword: user.mustChangePassword,
   branchId: user.branchId,
   createdAt: user.createdAt,

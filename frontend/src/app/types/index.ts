@@ -134,8 +134,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF' | 'BRANCH' | 'SUPER_ADMIN';
-  isSuperAdmin?: boolean;
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'COOK';
   mustChangePassword?: boolean;
   branchId?: string;
   createdAt: string;
@@ -162,4 +161,76 @@ export interface BranchAccount {
   fullName: string;
   role: string;
   branchId: string;
+}
+
+// === POS Device Types ===
+export interface PosDevice {
+  id: string;
+  branchId: string;
+  name: string;
+  deviceCode: string;
+  devicePin?: string;
+  type: 'CASHIER' | 'TABLET' | 'KIOSK';
+  status: 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
+  active: boolean;
+  lastActive: string | null;
+  createdAt: string;
+  _count?: { orders: number };
+  shifts?: Array<{
+    id: string;
+    startTime: string;
+    status: string;
+    account: { id: string; fullName: string } | null;
+  }>;
+  branch?: { id: string; name: string };
+}
+
+export interface PosDeviceCreatePayload {
+  name: string;
+  type: PosDevice['type'];
+}
+
+export interface PosLoginResponse {
+  token: string;
+  device: {
+    id: string;
+    name: string;
+    deviceCode: string;
+    type: string;
+    status: string;
+    lastActive: string;
+  };
+  branch: {
+    id: string;
+    name: string;
+    address: string;
+  };
+  shift: {
+    id: string;
+    startTime: string;
+    status: string;
+  };
+}
+
+export interface PosProfile {
+  id: string;
+  name: string;
+  deviceCode: string;
+  type: string;
+  status: string;
+  active: boolean;
+  lastActive: string | null;
+  branch: { id: string; name: string } | null;
+  currentShift: {
+    id: string;
+    startTime: string;
+    isOnline: boolean;
+  } | null;
+  ordersToday: number;
+}
+
+export interface ResetPinResponse {
+  deviceId: string;
+  deviceCode: string;
+  devicePin: string;
 }

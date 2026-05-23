@@ -1,8 +1,9 @@
 import prisma from '../prisma/client.js';
 
 export const categoryRepository = {
-  findAll: () =>
+  findAll: (where = {}) =>
     prisma.category.findMany({
+      where,
       orderBy: { name: 'asc' },
       include: { _count: { select: { menuItems: true } } },
     }),

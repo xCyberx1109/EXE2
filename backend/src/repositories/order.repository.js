@@ -37,12 +37,16 @@ export const orderRepository = {
 
   delete: (id) => prisma.order.delete({ where: { id } }),
 
-  aggregateTopItems: async (limit = 10) => {
+  aggregateTopItems: async (limit = 10, branchId) => {
+    const where = {
+      menuItemId: { not: null },
+      order: { status: 'COMPLETED' },
+    };
+    if (branchId) {
+      where.order.branchId = branchId;
+    }
     const items = await prisma.orderItem.findMany({
-      where: {
-        menuItemId: { not: null },
-        order: { status: 'COMPLETED' },
-      },
+      where,
       select: { menuItemId: true, quantity: true },
     });
 

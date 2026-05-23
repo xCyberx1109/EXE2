@@ -126,16 +126,16 @@ export type BranchPayload = Pick<
 };
 
 export const branchApi = {
-  list: () => apiFetch<Branch[]>('/branches', { auth: false }),
+  list: () => apiFetch<Branch[]>('/branches'),
 
   create: (body: BranchPayload) =>
-    apiFetch<Branch>('/branches', { method: 'POST', body: JSON.stringify(body), auth: false }),
+    apiFetch<Branch>('/branches', { method: 'POST', body: JSON.stringify(body) }),
 
   update: (id: string, body: BranchPayload) =>
-    apiFetch<Branch>(`/branches/${id}`, { method: 'PUT', body: JSON.stringify(body), auth: false }),
+    apiFetch<Branch>(`/branches/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   delete: (id: string) =>
-    apiFetch<null>(`/branches/${id}`, { method: 'DELETE', auth: false }),
+    apiFetch<null>(`/branches/${id}`, { method: 'DELETE' }),
 
   resetManagerPassword: (id: string, body?: { newPassword?: string }) =>
     apiFetch<{
@@ -145,8 +145,7 @@ export const branchApi = {
       accountFullName: string;
     }>(`/branches/${id}/reset-password`, { 
       method: 'PUT', 
-      body: body ? JSON.stringify(body) : undefined, 
-      auth: false 
+      body: body ? JSON.stringify(body) : undefined,
     }),
 };
 

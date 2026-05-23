@@ -5,12 +5,13 @@ import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { sendMail } from '../utils/sendMail.js';
 import { authService } from '../modules/auth/auth.service.js';
 import { userRepository } from '../repositories/user.repository.js';
+import { authenticate, authorize } from '../middlewares/auth.js';
 import crypto from 'crypto';
 
 const router = Router();
 
 // Lấy danh sách chi nhánh (branches) từ database
-router.get('/branches', asyncHandler(async (req, res) => {
+router.get('/branches', authenticate, asyncHandler(async (req, res) => {
   const branches = await prisma.branch.findMany({
     orderBy: {
       name: 'asc'
@@ -37,7 +38,7 @@ router.get('/branches', asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/branches', asyncHandler(async (req, res) => {
+router.post('/branches', authenticate, authorize('ADMIN'), asyncHandler(async (req, res) => {
   const {
     name,
     address,
@@ -122,7 +123,7 @@ router.post('/branches', asyncHandler(async (req, res) => {
   });
 }));
 
-router.put('/branches/:id', asyncHandler(async (req, res) => {
+router.put('/branches/:id', authenticate, authorize('ADMIN'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const {
     name,
@@ -230,7 +231,7 @@ router.put('/branches/:id', asyncHandler(async (req, res) => {
   });
 }));
 
-router.put('/branches/:id/reset-password', asyncHandler(async (req, res) => {
+router.put('/branches/:id/reset-password', authenticate, authorize('ADMIN'), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const branch = await prisma.branch.findUnique({
@@ -304,7 +305,7 @@ router.put('/branches/:id/reset-password', asyncHandler(async (req, res) => {
   });
 }));
 
-router.delete('/branches/:id', asyncHandler(async (req, res) => {
+router.delete('/branches/:id', authenticate, authorize('ADMIN'), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const branch = await prisma.branch.findUnique({

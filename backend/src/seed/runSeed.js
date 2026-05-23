@@ -2,6 +2,18 @@ import bcrypt from 'bcrypt';
 import config from '../config/index.js';
 import prisma from '../prisma/client.js';
 import {
+  Role,
+  PosDeviceType,
+  Plan,
+  SubscriptionStatus,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  OrderType,
+  IngredientUnit,
+  InventoryTransactionType,
+} from '@prisma/client';
+import {
   categories,
   menuItems,
   ingredients,
@@ -28,14 +40,14 @@ export async function seedDatabase() {
     update: {
       branchId,
       name: 'Main POS',
-      type: 'CASHIER',
+      type: PosDeviceType.CASHIER,
       active: true,
     },
     create: {
       branchId,
       name: 'Main POS',
       deviceCode: 'MAIN-POS',
-      type: 'CASHIER',
+      type: PosDeviceType.CASHIER,
       active: true,
     },
   });
@@ -56,22 +68,20 @@ export async function seedDatabase() {
       email: config.seed.adminEmail,
       password: hashedPassword,
       fullName: config.seed.adminName,
-      role: 'ADMIN',
-      isSuperAdmin: true,
+      role: Role.ADMIN,
       branchId,
     },
   });
 
-  // STAFF DEMO
+  // COOK DEMO
   await prisma.account.upsert({
-    where: { email: 'staff@store.com' },
+    where: { email: 'cook@store.com' },
     update: { branchId },
     create: {
-      email: 'staff@store.com',
-      password: await bcrypt.hash('Staff@123', SALT_ROUNDS),
-      fullName: 'Nhân viên bán hàng',
-      role: 'STAFF',
-      isSuperAdmin: false,
+      email: 'cook@store.com',
+      password: await bcrypt.hash('Cook@123', SALT_ROUNDS),
+      fullName: 'Nhân viên bếp',
+      role: Role.COOK,
       branchId,
     },
   });
@@ -83,9 +93,19 @@ export async function seedDatabase() {
 
   for (const cat of categories) {
     const created = await prisma.category.upsert({
-      where: { name: cat.name },
-      update: { description: cat.description },
-      create: cat,
+      where: {
+        branchId_slug: {
+          branchId,
+          slug: cat.slug,
+        },
+      },
+      update: {
+        description: cat.description,
+      },
+      create: {
+        ...cat,
+        branchId,
+      },
     });
 
     categoryMap[cat.name] = created.id;
@@ -103,28 +123,28 @@ export async function seedDatabase() {
 
     const created = existing
       ? await prisma.menuItem.update({
-          where: { id: existing.id },
-          data: {
-            categoryId: categoryMap[item.category],
-            price: item.price,
-            cost: item.cost,
-            description: item.description,
-            imageUrl: item.imageUrl,
-            available: true,
-          },
-        })
+        where: { id: existing.id },
+        data: {
+          categoryId: categoryMap[item.category],
+          price: item.price,
+          cost: item.cost,
+          description: item.description,
+          imageUrl: item.imageUrl,
+          available: true,
+        },
+      })
       : await prisma.menuItem.create({
-          data: {
-            name: item.name,
-            categoryId: categoryMap[item.category],
-            price: item.price,
-            cost: item.cost,
-            description: item.description,
-            imageUrl: item.imageUrl,
-            available: true,
-            branchId,
-          },
-        });
+        data: {
+          name: item.name,
+          categoryId: categoryMap[item.category],
+          price: item.price,
+          cost: item.cost,
+          description: item.description,
+          imageUrl: item.imageUrl,
+          available: true,
+          branchId,
+        },
+      });
 
     menuMap[item.name] = created.id;
   }
@@ -134,31 +154,45 @@ export async function seedDatabase() {
   // =========================
   const ingredientMap = {};
 
+  const mapUnit = (unitStr) => {
+    switch (unitStr) {
+      case 'kg': return IngredientUnit.KG;
+      case 'g': return IngredientUnit.G;
+      case 'lít': case 'lit': return IngredientUnit.LITER;
+      case 'ml': return IngredientUnit.ML;
+      case 'chiếc': case 'cái': return IngredientUnit.PIECE;
+      default: return IngredientUnit.PIECE;
+    }
+  };
+
   for (const ing of ingredients) {
+    const unitEnum = mapUnit(ing.unit);
     const existing = await prisma.ingredient.findFirst({
       where: { name: ing.name, branchId },
     });
 
     const created = existing
       ? await prisma.ingredient.update({
-          where: { id: existing.id },
-          data: {
-            unit: ing.unit,
-            quantity: ing.quantity,
-            minQuantity: ing.minQuantity,
-            price: ing.price,
-            supplier: ing.supplier,
-            available: true,
-            lastUpdated: new Date(),
-          },
-        })
+        where: { id: existing.id },
+        data: {
+          unit: unitEnum,
+          quantity: ing.quantity,
+          minQuantity: ing.minQuantity,
+          price: ing.price,
+          supplier: ing.supplier,
+          available: true,
+          lastUpdated: new Date(),
+        },
+      })
       : await prisma.ingredient.create({
-          data: {
-            ...ing,
-            branchId,
-            lastUpdated: new Date(),
-          },
-        });
+        data: {
+          ...ing,
+          unit: unitEnum,
+          available: true,
+          branchId,
+          lastUpdated: new Date(),
+        },
+      });
 
     ingredientMap[ing.name] = created.id;
   }
@@ -238,8 +272,8 @@ async function getOrCreateDefaultBranch() {
       data: {
         address: existing.address || 'Default address',
         phone: existing.phone || '0000000000',
-        plan: existing.plan || 'BASIC',
-        subscriptionStatus: existing.subscriptionStatus || 'ACTIVE',
+        plan: existing.plan || Plan.BASIC,
+        subscriptionStatus: existing.subscriptionStatus || SubscriptionStatus.ACTIVE,
         subscriptionStart: existing.subscriptionStart || subscriptionStart,
         subscriptionEnd: existing.subscriptionEnd || subscriptionEnd,
         active: true,
@@ -252,8 +286,8 @@ async function getOrCreateDefaultBranch() {
       name: 'Main Branch',
       address: 'Default address',
       phone: '0000000000',
-      plan: 'BASIC',
-      subscriptionStatus: 'ACTIVE',
+      plan: Plan.BASIC,
+      subscriptionStatus: SubscriptionStatus.ACTIVE,
       subscriptionStart,
       subscriptionEnd,
       active: true,
@@ -264,7 +298,7 @@ async function getOrCreateDefaultBranch() {
 /** SAMPLE ORDERS */
 async function seedSampleOrders(createdBy, branchId, posDeviceId) {
   const existingOrders = await prisma.order.count({
-    where: { status: 'COMPLETED', branchId },
+    where: { status: OrderStatus.COMPLETED, branchId },
   });
 
   if (existingOrders > 0) return;
@@ -288,11 +322,11 @@ async function seedSampleOrders(createdBy, branchId, posDeviceId) {
           branchId,
           posDeviceId,
           orderNumber: `SEED-${item.name}-${b}-${Date.now()}`,
-          tableNumber: (b % 5) + 1,
-          status: 'COMPLETED',
-          paymentMethod: 'CASH',
-          paymentStatus: 'PAID',
-          orderType: 'DINE_IN',
+          tableNumber: `Bàn ${(b % 5) + 1}`,
+          status: OrderStatus.COMPLETED,
+          paymentMethod: PaymentMethod.CASH,
+          paymentStatus: PaymentStatus.PAID,
+          orderType: OrderType.DINE_IN,
 
           subtotal,
           tax,
@@ -312,6 +346,16 @@ async function seedSampleOrders(createdBy, branchId, posDeviceId) {
                 price: item.price,
                 cost: item.cost,
                 quantity: batchQty,
+                total: Number(item.price) * batchQty,
+              },
+            ],
+          },
+          payments: {
+            create: [
+              {
+                amount: subtotal + tax,
+                method: PaymentMethod.CASH,
+                status: PaymentStatus.PAID,
               },
             ],
           },
@@ -335,7 +379,7 @@ async function seedInventoryTransactions(ingredientMap, createdBy, branchId) {
   await prisma.inventoryTransaction.create({
     data: {
       ingredientId: firstIngredient,
-      type: 'IMPORT',
+      type: InventoryTransactionType.IMPORT,
       quantity: 50,
       note: 'Nhập kho ban đầu',
       createdBy,
