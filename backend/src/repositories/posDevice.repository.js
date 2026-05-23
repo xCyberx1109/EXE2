@@ -13,6 +13,12 @@ export const posDeviceRepository = {
   findByDeviceCode: (deviceCode) =>
     prisma.posDevice.findUnique({ where: { deviceCode } }),
 
+  findByPin: (pin) =>
+    prisma.posDevice.findFirst({
+      where: { devicePin: pin, deletedAt: null },
+      include: { branch: true },
+    }),
+
   findByDeviceToken: (token) =>
     prisma.posDevice.findFirst({
       where: { deviceToken: token, deletedAt: null },

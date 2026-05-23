@@ -15,7 +15,7 @@ export function LoginPage() {
   const getRedirectPath = (currentUser = user) => {
     if (!currentUser) return '/login';
     if (currentUser.role === 'ADMIN') return '/app/branches';
-    if (currentUser.role === 'COOK' || currentUser.role === 'CASHIER') return '/app/pos';
+    if (currentUser.role === 'MANAGER') return '/app';
     return '/app';
   };
 
@@ -66,12 +66,11 @@ export function LoginPage() {
   const handlePosLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!deviceCode.trim()) { setError('Vui lòng nhập mã thiết bị'); return; }
-    if (!pin.trim()) { setError('Vui lòng nhập PIN'); return; }
+    if (!pin.trim() || pin.length !== 6) { setError('Vui lòng nhập mã PIN 6 chữ số'); return; }
 
     setLoading(true);
     try {
-      const result = await posAuthApi.login(deviceCode.trim(), pin.trim());
+      const result = await posAuthApi.login(pin.trim());
       setPosToken(result.token);
       setPosDeviceCode(result.device.deviceCode);
       navigate('/pos/dashboard', { replace: true });
@@ -169,23 +168,13 @@ export function LoginPage() {
         {mode === 'pos' && (
           <form onSubmit={handlePosLogin} className="space-y-5">
             <div>
-              <label htmlFor="pos-device-code" className="block text-sm font-medium text-gray-700 mb-1">Mã thiết bị</label>
-              <input
-                id="pos-device-code" type="text" autoComplete="off"
-                value={deviceCode}
-                onChange={(e) => setDeviceCode(e.target.value.toUpperCase())}
-                placeholder="POS-XXXXXX" disabled={loading}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
-              />
-            </div>
-            <div>
-              <label htmlFor="pos-pin" className="block text-sm font-medium text-gray-700 mb-1">PIN (6 số)</label>
+              <label htmlFor="pos-pin" className="block text-sm font-medium text-gray-700 mb-2 text-center">Mã PIN (6 số)</label>
               <input
                 id="pos-pin" type="password" autoComplete="off"
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Nhập 6 chữ số" maxLength={6} disabled={loading}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                placeholder="Nhập 6 chữ số" maxLength={6} disabled={loading} autoFocus
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm text-center tracking-widest text-2xl font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
               />
             </div>
 
@@ -193,13 +182,13 @@ export function LoginPage() {
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>
             )}
 
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || pin.length !== 6}
               className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang đăng nhập...</> : <><Smartphone className="w-4 h-4" /> Đăng nhập POS</>}
             </button>
 
-            <p className="text-xs text-gray-400 text-center">Liên hệ quản lý nếu bạn chưa có mã thiết bị hoặc PIN</p>
+            <p className="text-xs text-gray-400 text-center">Liên hệ quản lý nếu bạn chưa có mã PIN</p>
           </form>
         )}
 

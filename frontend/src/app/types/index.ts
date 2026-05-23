@@ -134,7 +134,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'COOK';
+  role: 'ADMIN' | 'MANAGER';
   mustChangePassword?: boolean;
   branchId?: string;
   createdAt: string;
@@ -163,6 +163,9 @@ export interface BranchAccount {
   branchId: string;
 }
 
+// === POS Mode ===
+export type PosMode = 'CASHIER' | 'KITCHEN' | 'HYBRID';
+
 // === POS Device Types ===
 export interface PosDevice {
   id: string;
@@ -171,6 +174,7 @@ export interface PosDevice {
   deviceCode: string;
   devicePin?: string;
   type: 'CASHIER' | 'TABLET' | 'KIOSK';
+  mode: PosMode;
   status: 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
   active: boolean;
   lastActive: string | null;
@@ -188,6 +192,7 @@ export interface PosDevice {
 export interface PosDeviceCreatePayload {
   name: string;
   type: PosDevice['type'];
+  mode?: PosMode;
 }
 
 export interface PosLoginResponse {
@@ -197,6 +202,7 @@ export interface PosLoginResponse {
     name: string;
     deviceCode: string;
     type: string;
+    mode: PosMode;
     status: string;
     lastActive: string;
   };
@@ -217,6 +223,7 @@ export interface PosProfile {
   name: string;
   deviceCode: string;
   type: string;
+  mode: PosMode;
   status: string;
   active: boolean;
   lastActive: string | null;
@@ -227,6 +234,23 @@ export interface PosProfile {
     isOnline: boolean;
   } | null;
   ordersToday: number;
+}
+
+export interface KitchenOrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  note?: string;
+}
+
+export interface KitchenOrder {
+  id: string;
+  orderNumber: string;
+  tableNumber: number | null;
+  status: string;
+  items: KitchenOrderItem[];
+  createdAt: string;
+  note?: string;
 }
 
 export interface ResetPinResponse {

@@ -5,7 +5,6 @@ import { posAuthApi, setPosToken, setPosDeviceCode, getPosToken } from '../api/p
 
 export function PosLoginPage() {
   const navigate = useNavigate();
-  const [deviceCode, setDeviceCode] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,14 +21,14 @@ export function PosLoginPage() {
     e.preventDefault();
     setError('');
 
-    if (!deviceCode.trim() || !pin.trim()) {
-      setError('Vui lòng nhập mã thiết bị và PIN');
+    if (!pin.trim() || pin.length !== 6) {
+      setError('Vui lòng nhập mã PIN 6 chữ số');
       return;
     }
 
     setLoading(true);
     try {
-      const result = await posAuthApi.login(deviceCode.trim(), pin.trim());
+      const result = await posAuthApi.login(pin.trim());
       setPosToken(result.token);
       setPosDeviceCode(result.device.deviceCode);
       navigate('/pos/dashboard', { replace: true });
@@ -49,7 +48,7 @@ export function PosLoginPage() {
             <Smartphone className="w-8 h-8 text-blue-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Đăng nhập POS</h1>
-          <p className="text-sm text-gray-500 mt-1">Nhập mã thiết bị và PIN để đăng nhập</p>
+          <p className="text-sm text-gray-500 mt-1">Nhập mã PIN để đăng nhập</p>
         </div>
 
         <form onSubmit={handleLogin} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
@@ -60,41 +59,30 @@ export function PosLoginPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mã thiết bị</label>
-            <input
-              type="text"
-              value={deviceCode}
-              onChange={e => setDeviceCode(e.target.value.toUpperCase())}
-              placeholder="POS-XXXXXX"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              autoComplete="off"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PIN (6 số)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">Mã PIN (6 số)</label>
             <input
               type="password"
               value={pin}
               onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="Nhập 6 chữ số"
               maxLength={6}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-center tracking-widest text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-3 border border-gray-300 rounded-lg text-center tracking-widest text-2xl font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               autoComplete="off"
+              autoFocus
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            disabled={loading || pin.length !== 6}
+            className="w-full py-3 px-4 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            Liên hệ quản lý nếu bạn chưa có mã thiết bị hoặc PIN
+            Liên hệ quản lý nếu bạn chưa có mã PIN
           </p>
         </form>
       </div>

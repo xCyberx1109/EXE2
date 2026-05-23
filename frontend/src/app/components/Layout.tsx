@@ -48,13 +48,16 @@ const hasAccess = (user: any, pathname: string) => {
     return role === 'ADMIN' || role === 'MANAGER';
   }
 
+  if (pathname.startsWith('/app/pos')) {
+    return true;
+  }
+
   return true;
 };
 
 const getDefaultRoute = (user: any): string => {
   if (!user) return '/login';
   if (user.role === 'ADMIN') return '/app/branches';
-  if (user.role === 'COOK' || user.role === 'CASHIER') return '/app/pos';
   return '/app';
 };
 
@@ -147,7 +150,7 @@ export function Layout() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.role === 'ADMIN' ? 'Super Admin' : user.role === 'MANAGER' ? 'Quản lý' : user.role === 'COOK' ? 'Bếp' : user.role === 'CASHIER' ? 'Thu ngân' : user.role}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.role === 'ADMIN' ? 'Super Admin' : 'Quản lý'}</p>
                 </div>
               </Link>
             )}

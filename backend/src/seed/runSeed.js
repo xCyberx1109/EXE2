@@ -35,23 +35,73 @@ export async function seedDatabase() {
   // =========================
   // POS DEVICE
   // =========================
-  const defaultPosDevice = await prisma.posDevice.upsert({
-    where: { deviceCode: 'MAIN-POS' },
+  // Cashier POS device
+  const cashierPos = await prisma.posDevice.upsert({
+    where: { deviceCode: 'POS-CASHIER-01' },
     update: {
       branchId,
-      name: 'Main POS',
+      name: 'POS Thu ngân',
       type: PosDeviceType.CASHIER,
+      mode: 'CASHIER',
+      devicePin: '111111',
       active: true,
     },
     create: {
       branchId,
-      name: 'Main POS',
-      deviceCode: 'MAIN-POS',
+      name: 'POS Thu ngân',
+      deviceCode: 'POS-CASHIER-01',
       type: PosDeviceType.CASHIER,
+      mode: 'CASHIER',
+      devicePin: '111111',
       active: true,
     },
   });
-  const posDeviceId = defaultPosDevice.id;
+
+  // Kitchen POS device
+  await prisma.posDevice.upsert({
+    where: { deviceCode: 'POS-KITCHEN-01' },
+    update: {
+      branchId,
+      name: 'POS Bếp',
+      type: PosDeviceType.TABLET,
+      mode: 'KITCHEN',
+      devicePin: '222222',
+      active: true,
+    },
+    create: {
+      branchId,
+      name: 'POS Bếp',
+      deviceCode: 'POS-KITCHEN-01',
+      type: PosDeviceType.TABLET,
+      mode: 'KITCHEN',
+      devicePin: '222222',
+      active: true,
+    },
+  });
+
+  // Hybrid POS device
+  await prisma.posDevice.upsert({
+    where: { deviceCode: 'POS-HYBRID-01' },
+    update: {
+      branchId,
+      name: 'POS Hybrid',
+      type: PosDeviceType.TABLET,
+      mode: 'HYBRID',
+      devicePin: '333333',
+      active: true,
+    },
+    create: {
+      branchId,
+      name: 'POS Hybrid',
+      deviceCode: 'POS-HYBRID-01',
+      type: PosDeviceType.TABLET,
+      mode: 'HYBRID',
+      devicePin: '333333',
+      active: true,
+    },
+  });
+
+  const posDeviceId = cashierPos.id;
 
   // =========================
   // ADMIN (ACCOUNT)
@@ -73,15 +123,15 @@ export async function seedDatabase() {
     },
   });
 
-  // COOK DEMO
+  // MANAGER DEMO
   await prisma.account.upsert({
-    where: { email: 'cook@store.com' },
+    where: { email: 'manager@store.com' },
     update: { branchId },
     create: {
-      email: 'cook@store.com',
-      password: await bcrypt.hash('Cook@123', SALT_ROUNDS),
-      fullName: 'Nhân viên bếp',
-      role: Role.COOK,
+      email: 'manager@store.com',
+      password: await bcrypt.hash('Manager@123', SALT_ROUNDS),
+      fullName: 'Quản lý chi nhánh',
+      role: Role.MANAGER,
       branchId,
     },
   });

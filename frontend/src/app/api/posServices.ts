@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 import type {
-  PosDevice, PosDeviceCreatePayload, PosLoginResponse, PosProfile, ResetPinResponse,
+  PosDevice, PosDeviceCreatePayload, PosLoginResponse, PosProfile, ResetPinResponse, PosMode,
 } from '../types';
 
 const POS_TOKEN_KEY = 'fnb_pos_token';
@@ -31,10 +31,10 @@ function posFetch<T>(path: string, options: RequestInit & { auth?: boolean } = {
 }
 
 export const posAuthApi = {
-  login: (deviceCode: string, pin: string) =>
+  login: (pin: string) =>
     posFetch<PosLoginResponse>('/pos/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ deviceCode, pin }),
+      body: JSON.stringify({ pin }),
       auth: false,
     }),
 
@@ -72,5 +72,11 @@ export const posDeviceApi = {
     apiFetch<ResetPinResponse>('/pos/devices/reset-pin', {
       method: 'POST',
       body: JSON.stringify({ deviceId }),
+    }),
+
+  updateMode: (id: string, mode: PosMode) =>
+    apiFetch<PosDevice>(`/pos/devices/${id}/mode`, {
+      method: 'PUT',
+      body: JSON.stringify({ mode }),
     }),
 };
