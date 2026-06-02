@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Printer, X } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
-import { menuApi, ordersApi } from '../api/services';
-import type { MenuItem } from '../types';
+import { menuApi, ordersApi, categoryApi } from '../api/services';
+import type { MenuItem, CategoryItem } from '../types';
 
 interface OrderItem extends MenuItem {
   quantity: number;
@@ -20,16 +20,21 @@ interface Table {
 export function POSSystem() {
   const [tables, setTables] = useState<Table[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showPayment, setShowPayment] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const categories = ['all', 'Món chính', 'Món phụ', 'Đồ uống'];
-
   useEffect(() => {
-    menuApi.list({ available: 'true' }).then(setMenuItems).catch(console.error);
+    Promise.all([
+      menuApi.list({ available: 'true' }),
+      categoryApi.list(),
+    ]).then(([items, cats]) => {
+      setMenuItems(items);
+      setCategories(cats);
+    }).catch(console.error);
   }, []);
 
   const filteredMenuItems = menuItems.filter(item => {
@@ -342,16 +347,25 @@ export function POSSystem() {
               {/* Category Filter */}
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex gap-2 flex-wrap mb-3">
-                  {categories.map((category) => (
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                  >
+                    Tất cả
+                  </button>
+                  {categories.map((cat) => (
                     <button
-                      key={category}
-                      onClick={() => setSelectedCategory(category)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === category
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.name)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === cat.name
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
-                      {category === 'all' ? 'Tất cả' : category}
+                      {cat.name}
                     </button>
                   ))}
                 </div>

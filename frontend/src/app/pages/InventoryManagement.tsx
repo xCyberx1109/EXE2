@@ -4,22 +4,24 @@ import { inventoryApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import type { InventoryItem, InventoryStats } from '../types';
 
+type StockStatus = 'all' | 'LOW_STOCK' | 'NORMAL';
+
 export function InventoryManagement() {
-  const { isReady } = useAuth();
+  const { isReady, hasPermission } = useAuth();
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [stats, setStats] = useState<InventoryStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [stockStatus, setStockStatus] = useState<StockStatus>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [formData, setFormData] = useState<Partial<InventoryItem>>({
+  const [formData, setFormData] = useState({
     name: '',
-    unit: 'kg',
-    quantity: 0,
-    minQuantity: 0,
-    price: 0,
+    unit: 'KG',
+    quantity: '',
+    warningQuantity: '',
+    price: '',
     supplier: '',
     lastUpdated: new Date().toISOString().split('T')[0],
   });
@@ -30,7 +32,7 @@ export function InventoryManagement() {
       const [items, s] = await Promise.all([
         inventoryApi.list({
           search: searchTerm || undefined,
-          lowStock: showLowStockOnly,
+          status: stockStatus !== 'all' ? stockStatus : undefined,
         }),
         inventoryApi.stats(),
       ]);
@@ -42,24 +44,33 @@ export function InventoryManagement() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, showLowStockOnly]);
+  }, [searchTerm, stockStatus]);
 
   useEffect(() => {
     if (isReady) loadData();
   }, [isReady, loadData]);
 
   const filteredItems = inventoryItems;
-  const lowStockCount = stats?.lowStockCount ?? inventoryItems.filter(i => i.quantity < i.minQuantity).length;
+  const lowStockCount = stats?.lowStockCount ?? inventoryItems.filter(i => i.quantity <= i.warningQuantity).length;
   const totalValue = stats?.totalValue ?? inventoryItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const toNum = (v: string) => v === '' ? 0 : Number(v);
+      const payload = {
+        name: formData.name,
+        unit: formData.unit,
+        quantity: toNum(formData.quantity),
+        warningQuantity: formData.warningQuantity === '' ? 0 : Number(formData.warningQuantity),
+        price: toNum(formData.price),
+        supplier: formData.supplier,
+      };
       if (editingItem) {
-        await inventoryApi.update(editingItem.id, formData);
+        await inventoryApi.update(editingItem.id, payload);
       } else {
-        await inventoryApi.create(formData);
+        await inventoryApi.create(payload);
       }
       await loadData();
       resetForm();
@@ -75,10 +86,10 @@ export function InventoryManagement() {
     setEditingItem(null);
     setFormData({
       name: '',
-      unit: 'kg',
-      quantity: 0,
-      minQuantity: 0,
-      price: 0,
+      unit: 'KG',
+      quantity: '',
+      warningQuantity: '',
+      price: '',
       supplier: '',
       lastUpdated: new Date().toISOString().split('T')[0],
     });
@@ -86,7 +97,15 @@ export function InventoryManagement() {
 
   const handleEdit = (item: InventoryItem) => {
     setEditingItem(item);
-    setFormData(item);
+    setFormData({
+      name: item.name,
+      unit: item.unit,
+      quantity: String(item.quantity),
+      warningQuantity: String(item.warningQuantity),
+      price: String(item.price),
+      supplier: item.supplier,
+      lastUpdated: item.lastUpdated,
+    });
     setShowForm(true);
   };
 
@@ -129,13 +148,15 @@ export function InventoryManagement() {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý Tồn kho</h1>
           <p className="text-gray-500 mt-1">Theo dõi và quản lý hàng tồn kho</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Thêm hàng hóa
-        </button>
+        {hasPermission('INVENTORY_MANAGE') && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Thêm hàng hóa
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -184,14 +205,24 @@ export function InventoryManagement() {
             />
           </div>
           <button
-            onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+            onClick={() => setStockStatus(stockStatus === 'LOW_STOCK' ? 'all' : 'LOW_STOCK')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showLowStockOnly
+              stockStatus === 'LOW_STOCK'
                 ? 'bg-orange-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Chỉ hàng sắp hết
+            Sắp hết hàng
+          </button>
+          <button
+            onClick={() => setStockStatus(stockStatus === 'NORMAL' ? 'all' : 'NORMAL')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              stockStatus === 'NORMAL'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Bình thường
           </button>
         </div>
       </div>
@@ -204,7 +235,8 @@ export function InventoryManagement() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên hàng hóa</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mức tối thiểu</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngưỡng cảnh báo</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn giá</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trị</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nhà cung cấp</th>
@@ -214,7 +246,7 @@ export function InventoryManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredItems.map((item) => {
-                const isLowStock = item.quantity < item.minQuantity;
+                const isLowStock = item.quantity <= item.warningQuantity;
                 const totalValue = item.quantity * item.price;
                 return (
                   <tr key={item.id} className={`hover:bg-gray-50 ${isLowStock ? 'bg-orange-50' : ''}`}>
@@ -226,41 +258,60 @@ export function InventoryManagement() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleUpdateQuantity(item.id, -1)}
-                          className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
-                        >
-                          -
-                        </button>
+                        {hasPermission('INVENTORY_EXPORT') && (
+                          <button
+                            onClick={() => handleUpdateQuantity(item.id, -1)}
+                            className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
+                          >
+                            -
+                          </button>
+                        )}
                         <span className={`font-medium ${isLowStock ? 'text-orange-600' : 'text-gray-900'}`}>
                           {item.quantity} {item.unit}
                         </span>
-                        <button
-                          onClick={() => handleUpdateQuantity(item.id, 1)}
-                          className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
-                        >
-                          +
-                        </button>
+                        {hasPermission('INVENTORY_IMPORT') && (
+                          <button
+                            onClick={() => handleUpdateQuantity(item.id, 1)}
+                            className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
+                          >
+                            +
+                          </button>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{item.minQuantity} {item.unit}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{item.warningQuantity} {item.unit}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {isLowStock ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <AlertTriangle className="w-3 h-3" /> Sắp hết
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Bình thường
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{item.price.toLocaleString()} ₫</td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{totalValue.toLocaleString()} ₫</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.supplier}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.lastUpdated}</td>
                     <td className="px-6 py-4 text-right text-sm">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {hasPermission('INVENTORY_MANAGE') && (
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="text-blue-600 hover:text-blue-900 mr-3"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      {hasPermission('INVENTORY_MANAGE') && (
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -295,7 +346,7 @@ export function InventoryManagement() {
                     type="number"
                     required
                     value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -306,21 +357,23 @@ export function InventoryManagement() {
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option>kg</option>
-                    <option>lít</option>
-                    <option>chiếc</option>
-                    <option>gói</option>
+                    <option value="KG">Kg</option>
+                    <option value="LITER">Lít</option>
+                    <option value="PIECE">Chiếc</option>
+                    <option value="UNIT">Gói</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mức tối thiểu</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ngưỡng cảnh báo ({formData.unit})</label>
                   <input
                     type="number"
-                    required
-                    value={formData.minQuantity}
-                    onChange={(e) => setFormData({ ...formData, minQuantity: Number(e.target.value) })}
+                    min="0"
+                    step="0.1"
+                    value={formData.warningQuantity}
+                    onChange={(e) => setFormData({ ...formData, warningQuantity: e.target.value })}
+                    placeholder="Nhập ngưỡng cảnh báo"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -330,7 +383,7 @@ export function InventoryManagement() {
                     type="number"
                     required
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>

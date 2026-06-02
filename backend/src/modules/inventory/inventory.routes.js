@@ -5,25 +5,25 @@ import {
   getIngredientTransactions, listTransactions,
 } from './inventory.controller.js';
 import {
-  ingredientRules, ingredientIdParam, stockTransactionRules, inventoryListQuery,
+  ingredientRules, ingredientUpdateRules, ingredientIdParam, stockTransactionRules, inventoryListQuery,
 } from '../../validators/inventory.validator.js';
 import { validate } from '../../middlewares/validate.js';
-import { authenticate, authorize, optionalAuth } from '../../middlewares/auth.js';
+import { authenticate, optionalAuth, requirePermission } from '../../middlewares/auth.js';
 
 const router = Router();
 
 // Routes cố định phải đặt trước /:id
-router.get('/ingredients/stats', optionalAuth, getStats);
-router.get('/ingredients/low-stock', optionalAuth, getLowStock);
-router.get('/ingredients', optionalAuth, inventoryListQuery, validate, listIngredients);
-router.get('/ingredients/:id/transactions', optionalAuth, ingredientIdParam, validate, getIngredientTransactions);
-router.get('/ingredients/:id', optionalAuth, ingredientIdParam, validate, getIngredient);
-router.get('/inventory/transactions', authenticate, listTransactions);
+router.get('/ingredients/stats', optionalAuth, requirePermission('INVENTORY_VIEW'), getStats);
+router.get('/ingredients/low-stock', optionalAuth, requirePermission('INVENTORY_VIEW'), getLowStock);
+router.get('/ingredients', optionalAuth, requirePermission('INVENTORY_VIEW'), inventoryListQuery, validate, listIngredients);
+router.get('/ingredients/:id/transactions', optionalAuth, requirePermission('INVENTORY_VIEW'), ingredientIdParam, validate, getIngredientTransactions);
+router.get('/ingredients/:id', optionalAuth, requirePermission('INVENTORY_VIEW'), ingredientIdParam, validate, getIngredient);
+router.get('/inventory/transactions', authenticate, requirePermission('INVENTORY_VIEW'), listTransactions);
 
-router.post('/ingredients', authenticate, authorize('ADMIN', 'MANAGER'), ingredientRules, validate, createIngredient);
-router.put('/ingredients/:id', authenticate, authorize('ADMIN', 'MANAGER'), [...ingredientIdParam, ...ingredientRules], validate, updateIngredient);
-router.delete('/ingredients/:id', authenticate, authorize('ADMIN'), ingredientIdParam, validate, deleteIngredient);
-router.post('/ingredients/:id/stock-in', authenticate, authorize('ADMIN', 'MANAGER'), [...ingredientIdParam, ...stockTransactionRules], validate, stockIn);
-router.post('/ingredients/:id/stock-out', authenticate, authorize('ADMIN', 'MANAGER'), [...ingredientIdParam, ...stockTransactionRules], validate, stockOut);
+router.post('/ingredients', authenticate, requirePermission('INVENTORY_MANAGE'), ingredientRules, validate, createIngredient);
+router.put('/ingredients/:id', authenticate, requirePermission('INVENTORY_MANAGE'), [...ingredientIdParam, ...ingredientUpdateRules], validate, updateIngredient);
+router.delete('/ingredients/:id', authenticate, requirePermission('INVENTORY_MANAGE'), ingredientIdParam, validate, deleteIngredient);
+router.post('/ingredients/:id/stock-in', authenticate, requirePermission('INVENTORY_IMPORT'), [...ingredientIdParam, ...stockTransactionRules], validate, stockIn);
+router.post('/ingredients/:id/stock-out', authenticate, requirePermission('INVENTORY_EXPORT'), [...ingredientIdParam, ...stockTransactionRules], validate, stockOut);
 
 export default router;

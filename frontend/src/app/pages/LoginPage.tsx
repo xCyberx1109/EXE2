@@ -1,52 +1,74 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, LogIn, Eye, EyeOff, Smartphone } from 'lucide-react';
-import { posAuthApi, setPosToken, setPosDeviceCode, getPosToken } from '../api/posServices';
+import { getDeviceTypeLabel } from '../../shared/permissions/devicePermissions';
+import { Loader2, LogIn, Eye, EyeOff, Smartphone, Monitor, CheckCircle2 } from 'lucide-react';
 
-type LoginMode = 'admin' | 'pos';
+const DEVICE_ROUTES: Record<string, string> = {
+  CASHIER: '/pos/order',
+  KITCHEN: '/pos/kitchen-queue',
+  WAITER: '/pos/waiter-order',
+  KIOSK: '/pos/kiosk',
+  CUSTOMER_DISPLAY: '/pos/display',
+  MANAGER: '/pos/order',
+  TABLET: '/pos/waiter-order',
+};
 
 export function LoginPage() {
-  const { login, isAuthenticated, isReady, user } = useAuth();
+  const {
+    login, loginWithDevicePin,
+    isAuthenticated, isReady, user, authMode, deviceInfo, branchInfo, devicePermissions, enabledFeatures,
+  } = useAuth();
   const navigate = useNavigate();
+  const pinInputRef = useRef<HTMLInputElement>(null);
 
-  const [mode, setMode] = useState<LoginMode>('admin');
+  const [pinMode, setPinMode] = useState<'idle' | 'pin' | 'complete'>('idle');
 
-  const getRedirectPath = (currentUser = user) => {
-    if (!currentUser) return '/login';
-    if (currentUser.role === 'ADMIN') return '/app/branches';
-    if (currentUser.role === 'MANAGER') return '/app';
-    return '/app';
-  };
-
-  // Admin form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // POS form state
-  const [deviceCode, setDeviceCode] = useState('');
-  const [pin, setPin] = useState('');
+  const [setupPin, setSetupPin] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (isReady && isAuthenticated) {
-      navigate(getRedirectPath(user), { replace: true });
-    }
-  }, [isReady, isAuthenticated, user, navigate]);
+  function getDeviceRedirectPath(): string {
+    const type = authMode === 'device' ? deviceInfo?.type : null;
+    return (type && DEVICE_ROUTES[type]) || '/pos-v2/dashboard';
+  }
 
-  // Auto redirect POS if already has POS token
-  useEffect(() => {
-    if (getPosToken()) {
-      posAuthApi.profile().then(() => {
-        navigate('/pos/dashboard', { replace: true });
-      }).catch(() => {});
+  function getAccountRedirectPath(): string {
+    if (!user) return '/app';
+    const perms = user.permissions || [];
+    if (perms.includes('BRANCH_VIEW') || perms.includes('REPORT_VIEW')) {
+      return '/app';
     }
-  }, [navigate]);
+    if (perms.includes('POS_CREATE_ORDER') || perms.includes('POS_OPEN')) {
+      return '/pos/order';
+    }
+    return '/app';
+  }
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!isReady) return;
+    if (!isAuthenticated) return;
+
+    if (authMode === 'account' && user) {
+      const target = getAccountRedirectPath();
+      navigate(target, { replace: true });
+    } else if (authMode === 'device') {
+      navigate(getDeviceRedirectPath(), { replace: true });
+    }
+  }, [isReady, isAuthenticated, authMode, user, deviceInfo, navigate]);
+
+  useEffect(() => {
+    if (pinMode === 'pin' && pinInputRef.current) {
+      pinInputRef.current.focus();
+    }
+  }, [pinMode]);
+
+  const handleAccountLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!email.trim()) { setError('Vui lòng nhập email'); return; }
@@ -54,8 +76,7 @@ export function LoginPage() {
 
     setLoading(true);
     try {
-      const loggedUser = await login(email.trim(), password);
-      navigate(getRedirectPath(loggedUser), { replace: true });
+      await login(email.trim(), password);
     } catch (err: any) {
       setError(err?.message || 'Đăng nhập thất bại');
     } finally {
@@ -63,19 +84,17 @@ export function LoginPage() {
     }
   };
 
-  const handlePosLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDeviceLogin = async () => {
     setError('');
-    if (!pin.trim() || pin.length !== 6) { setError('Vui lòng nhập mã PIN 6 chữ số'); return; }
+    if (setupPin.length !== 6) { setError('Mã PIN phải có 6 chữ số'); return; }
 
     setLoading(true);
     try {
-      const result = await posAuthApi.login(pin.trim());
-      setPosToken(result.token);
-      setPosDeviceCode(result.device.deviceCode);
-      navigate('/pos/dashboard', { replace: true });
+      const result = await loginWithDevicePin(setupPin);
+      setPinMode('complete');
     } catch (err: any) {
-      setError(err?.message || 'Đăng nhập POS thất bại');
+      setError(err?.message || 'Mã PIN không hợp lệ');
+      setSetupPin('');
     } finally {
       setLoading(false);
     }
@@ -90,109 +109,181 @@ export function LoginPage() {
     );
   }
 
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">
+        <Loader2 className="w-8 h-8 animate-spin mr-2" />
+        Đang chuyển hướng...
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-            <LogIn className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Đăng nhập</h1>
-          <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý F&B</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 px-4 py-8">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
 
-        {/* Tab chọn hình thức đăng nhập */}
-        <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
-          <button
-            onClick={() => { setMode('admin'); setError(''); }}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              mode === 'admin' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <LogIn className="w-4 h-4" />
-            Quản trị
-          </button>
-          <button
-            onClick={() => { setMode('pos'); setError(''); }}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              mode === 'pos' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Smartphone className="w-4 h-4" />
-            Thiết bị POS
-          </button>
-        </div>
-
-        {/* Admin login form */}
-        {mode === 'admin' && (
-          <form onSubmit={handleAdminLogin} className="space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                id="email" type="email" autoComplete="email"
-                value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@store.com" disabled={loading}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
-              <div className="relative">
-                <input
-                  id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" disabled={loading}
-                  className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
-                />
-                <button type="button" tabIndex={-1} onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+        {pinMode === 'idle' && (
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+                <Monitor className="w-8 h-8 text-white" />
               </div>
+              <h1 className="text-2xl font-bold text-gray-900">Đăng nhập quản trị</h1>
+              <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý F&B</p>
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>
-            )}
+            <form onSubmit={handleAccountLogin} className="space-y-5">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  id="email" type="email" autoComplete="email"
+                  value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@store.com" disabled={loading}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                <div className="relative">
+                  <input
+                    id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password"
+                    value={password} onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••" disabled={loading}
+                    className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                  />
+                  <button type="button" tabIndex={-1} onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-            <button type="submit" disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang đăng nhập...</> : <><LogIn className="w-4 h-4" /> Đăng nhập</>}
-            </button>
-          </form>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>
+              )}
+
+              <button type="submit" disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang đăng nhập...</> : <><LogIn className="w-4 h-4" /> Đăng nhập</>}
+              </button>
+            </form>
+
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <button
+                onClick={() => { setError(''); setPinMode('pin'); }}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+              >
+                <Smartphone className="w-5 h-5" />
+                Đăng nhập POS bằng mã PIN
+              </button>
+              <p className="text-xs text-center text-gray-400 mt-3">
+                Dành cho thiết bị POS đã được quản lý cấp mã PIN
+              </p>
+            </div>
+          </div>
         )}
 
-        {/* POS login form */}
-        {mode === 'pos' && (
-          <form onSubmit={handlePosLogin} className="space-y-5">
-            <div>
-              <label htmlFor="pos-pin" className="block text-sm font-medium text-gray-700 mb-2 text-center">Mã PIN (6 số)</label>
-              <input
-                id="pos-pin" type="password" autoComplete="off"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Nhập 6 chữ số" maxLength={6} disabled={loading} autoFocus
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm text-center tracking-widest text-2xl font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
-              />
+        {pinMode === 'pin' && (
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-2xl mb-4">
+                <Smartphone className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">Đăng nhập POS</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Nhập mã PIN do quản lý cung cấp
+              </p>
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>
-            )}
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mã PIN thiết lập</label>
+                <input
+                  ref={pinInputRef}
+                  type="password"
+                  placeholder="6 chữ số"
+                  value={setupPin}
+                  onChange={(e) => setSetupPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleDeviceLogin(); }}
+                  className="w-full px-3 py-4 border border-gray-300 rounded-lg text-sm font-mono text-3xl tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-50"
+                  disabled={loading}
+                  maxLength={6}
+                  inputMode="numeric"
+                  autoComplete="off"
+                />
+              </div>
 
-            <button type="submit" disabled={loading || pin.length !== 6}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang đăng nhập...</> : <><Smartphone className="w-4 h-4" /> Đăng nhập POS</>}
-            </button>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>
+              )}
 
-            <p className="text-xs text-gray-400 text-center">Liên hệ quản lý nếu bạn chưa có mã PIN</p>
-          </form>
+              <button
+                onClick={handleDeviceLogin}
+                disabled={loading || setupPin.length !== 6}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg text-sm font-medium hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Đang xác thực...</>
+                ) : (
+                  <><Smartphone className="w-4 h-4" /> Kích hoạt & Đăng nhập</>
+                )}
+              </button>
+
+              <button
+                onClick={() => { setError(''); setPinMode('idle'); setSetupPin(''); }}
+                className="w-full text-gray-500 hover:text-gray-700 text-sm transition-colors py-2"
+              >
+                Quay lại đăng nhập quản trị
+              </button>
+
+              <p className="text-xs text-center text-gray-400">
+                Thiết bị chỉ cần nhập PIN <strong>1 lần</strong> khi setup. Lần sau sẽ tự động kết nối.
+              </p>
+            </div>
+          </div>
         )}
 
-        <p className="text-center text-xs text-gray-400 mt-6">© 2026 F&B Management System</p>
+        {pinMode === 'complete' && (
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-green-700">Kích hoạt thành công!</h1>
+              <p className="text-sm text-gray-500 mt-1">Thiết bị POS đã sẵn sàng sử dụng</p>
+            </div>
+
+            {branchInfo && (
+              <div className="bg-gray-50 rounded-lg p-4 text-center mb-4">
+                <p className="text-sm text-gray-500">Chi nhánh</p>
+                <p className="font-medium text-lg">{branchInfo.name}</p>
+              </div>
+            )}
+
+            {deviceInfo && (
+              <div className="bg-blue-50 rounded-lg p-4 text-center mb-4">
+                <p className="text-sm text-blue-600 font-medium">{getDeviceTypeLabel(deviceInfo.type as any)}</p>
+                <p className="text-xs text-blue-500">
+                  {devicePermissions.length} quyền • {enabledFeatures.length} tính năng
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={() => navigate(getDeviceRedirectPath(), { replace: true })}
+              className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              <Monitor className="w-4 h-4" />
+              Vào giao diện {deviceInfo ? getDeviceTypeLabel(deviceInfo.type as any) : 'POS'}
+            </button>
+          </div>
+        )}
+
+        <div className="px-8 pb-6">
+          <p className="text-center text-xs text-gray-400">© 2026 F&B Management System</p>
+        </div>
       </div>
     </div>
   );

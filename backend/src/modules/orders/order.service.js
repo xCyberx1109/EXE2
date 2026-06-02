@@ -6,16 +6,71 @@ import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { revenueService } from '../revenue/revenue.service.js';
 import { inventoryTransactionRepository } from '../../repositories/inventoryTransaction.repository.js';
 import { ingredientRepository } from '../../repositories/ingredient.repository.js';
+import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 
 const TAX_RATE = 0.1;
 
 export const orderService = {
-  /** Lấy tất cả đơn pending/preparing cho POS */
-  async listActiveOrders(user) {
-    const where = { status: { in: ['PENDING', 'PREPARING'] } };
-    if (user && user.role !== 'ADMIN' && user.branchId) {
+  /** Lấy tất cả đơn cho kitchen queue */
+  async listKitchenQueue(user) {
+    const where = {
+      kitchenStatus: { in: ['PENDING', 'RECEIVED', 'PREPARING', 'READY'] },
+      deletedAt: null,
+    };
+    const branchWhere = buildBranchWhere(user);
+    if (branchWhere.branchId) where.branchId = branchWhere.branchId;
+    if (user?.authType === 'device' && user?.branchId) {
       where.branchId = user.branchId;
     }
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        items: { select: { id: true, name: true, quantity: true, note: true } },
+        kots: { select: { id: true, kotNumber: true, status: true, priority: true, note: true } },
+      },
+      orderBy: [{ kitchenStatus: 'asc' }, { createdAt: 'asc' }],
+    });
+    return orders.map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      tableNumber: o.tableNumber,
+      kitchenStatus: o.kitchenStatus,
+      priority: o.kots?.[0]?.priority || 0,
+      note: o.note,
+      items: o.items,
+      kots: o.kots,
+      createdAt: o.createdAt,
+    }));
+  },
+
+  /** Cập nhật kitchen status của order */
+  async updateKitchenStatus(orderId, status, user = null) {
+    const validStatuses = ['PENDING', 'RECEIVED', 'PREPARING', 'READY', 'SERVED', 'CANCELLED'];
+    if (!validStatuses.includes(status)) {
+      throw new AppError(`Trạng thái bếp không hợp lệ: ${status}`, 400);
+    }
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    assertBranchAccess(order, user, 'đơn hàng');
+
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: { kitchenStatus: status },
+    });
+
+    if (status === 'READY') {
+      await prisma.kot.updateMany({
+        where: { orderId, status: { in: ['PENDING', 'RECEIVED', 'PREPARING'] } },
+        data: { status: 'READY', completedAt: new Date() },
+      });
+    }
+
+    return { id: updated.id, kitchenStatus: updated.kitchenStatus };
+  },
+
+  /** Lấy tất cả đơn pending/preparing cho POS */
+  async listActiveOrders(user) {
+    const where = { status: { in: ['PENDING', 'PREPARING'] }, ...buildBranchWhere(user) };
     const orders = await orderRepository.findMany(where);
     return orders.map(mapPosOrder);
   },
@@ -23,9 +78,7 @@ export const orderService = {
   async getOrder(id, user) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-    if (user && user.role !== 'ADMIN' && user.branchId && order.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền xem đơn hàng này', 403);
-    }
+    assertBranchAccess(order, user, 'đơn hàng');
     return mapOrderDetail(order);
   },
 
@@ -42,9 +95,7 @@ export const orderService = {
       where.status = status.toUpperCase();
     }
 
-    if (user && user.role !== 'ADMIN' && user.branchId) {
-      where.branchId = user.branchId;
-    }
+    Object.assign(where, buildBranchWhere(user));
 
     const orders = await orderRepository.findMany(where);
     const mapped = orders.map(mapOrderDetail);
@@ -99,7 +150,7 @@ export const orderService = {
 
     const orderData = {
       orderNumber,
-      branchId: body.branchId || (user ? user.branchId : undefined),
+      branchId: user?.branchId,
       posDeviceId: body.posDeviceId,
       createdBy: user ? user.id : body.createdBy,
       tableNumber,
@@ -122,9 +173,7 @@ export const orderService = {
   async deleteOrder(id, user) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-    if (user && user.role !== 'ADMIN' && user.branchId && order.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền xóa đơn hàng này', 403);
-    }
+    assertBranchAccess(order, user, 'đơn hàng');
     await orderRepository.delete(id);
   },
 
@@ -134,13 +183,11 @@ export const orderService = {
        tableNumber,
        status: { in: ['PENDING', 'PREPARING'] },
      };
-     if (user && user.role !== 'ADMIN' && user.branchId) {
-       where.branchId = user.branchId;
-     }
-     const orders = await orderRepository.findMany(where);
-     if (orders.length === 0) {
-       throw new AppError('Không có đơn hàng để thanh toán', 404);
-     }
+      Object.assign(where, buildBranchWhere(user));
+      const orders = await orderRepository.findMany(where);
+      if (orders.length === 0) {
+        throw new AppError('Không có đơn hàng để thanh toán', 404);
+      }
 
      const method = paymentMethod.toUpperCase();
      const completed = [];
@@ -214,16 +261,21 @@ export const orderService = {
              data: { quantity: newQuantity, lastUpdated: new Date() },
            });
 
-           // Create inventory transaction record (type: OUT)
-           await tx.inventoryTransaction.create({
-             data: {
-               ingredientId: recipe.ingredientId,
-               type: 'OUT',
-               quantity: totalUsage,
-               note: `Deduction from order ${order.orderNumber}`,
-               userId,
-             },
-           });
+            // Create inventory transaction record (type: OUT)
+            await tx.inventoryTransaction.create({
+              data: {
+                ingredientId: recipe.ingredientId,
+                branchId: order.branchId,
+                type: 'OUT',
+                quantity: totalUsage,
+                beforeQuantity: ingredient.quantity,
+                afterQuantity: newQuantity,
+                note: `Deduction from order ${order.orderNumber}`,
+                referenceType: 'ORDER',
+                referenceId: orderId,
+                createdBy: userId || order.createdBy,
+              },
+            });
          }
        }
      });

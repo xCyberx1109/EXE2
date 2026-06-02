@@ -25,9 +25,11 @@ export const posDeviceRepository = {
       include: { branch: true },
     }),
 
-  findByBranchId: (branchId) =>
-    prisma.posDevice.findMany({
-      where: { branchId, deletedAt: null },
+  findByBranchId: (branchId) => {
+    const where = { deletedAt: null };
+    if (branchId) where.branchId = branchId;
+    return prisma.posDevice.findMany({
+      where,
       include: {
         _count: {
           select: {
@@ -48,11 +50,12 @@ export const posDeviceRepository = {
         },
       },
       orderBy: { createdAt: 'desc' },
-    }),
+    });
+  },
 
-  findAll: () =>
+  findAll: (where = {}) =>
     prisma.posDevice.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, ...where },
       include: { branch: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     }),

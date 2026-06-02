@@ -7,13 +7,15 @@ export const revenueRepository = {
       orderBy: { reportDate: 'asc' },
     }),
 
-  findByDate: (reportDate) =>
-    prisma.revenueReport.findUnique({ where: { reportDate } }),
+  findByDate: (branchId, reportDate) =>
+    prisma.revenueReport.findUnique({
+      where: { branchId_reportDate: { branchId, reportDate } },
+    }),
 
-  upsert: (reportDate, data) =>
+  upsert: (branchId, reportDate, data) =>
     prisma.revenueReport.upsert({
-      where: { reportDate },
-      create: { reportDate, ...data },
+      where: { branchId_reportDate: { branchId, reportDate } },
+      create: { branchId, reportDate, ...data },
       update: data,
     }),
 

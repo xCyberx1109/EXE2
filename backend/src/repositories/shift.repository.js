@@ -1,6 +1,12 @@
 import prisma from '../prisma/client.js';
 
 export const shiftRepository = {
+  findById: (id) =>
+    prisma.shift.findUnique({
+      where: { id },
+      include: { account: { select: { id: true, fullName: true } } },
+    }),
+
   findOpenShiftByDevice: (posDeviceId) =>
     prisma.shift.findFirst({
       where: { posDeviceId, status: 'OPEN' },

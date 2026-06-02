@@ -14,6 +14,13 @@ const config = {
     secret: process.env.POS_JWT_SECRET || process.env.JWT_SECRET || 'pos-secret',
     expiresIn: process.env.POS_JWT_EXPIRES_IN || '30d',
   },
+  deviceToken: {
+    expiresInDays: parseInt(process.env.DEVICE_TOKEN_EXPIRY_DAYS || '30', 10),
+  },
+  setupPin: {
+    expiryHours: parseInt(process.env.SETUP_PIN_EXPIRY_HOURS || '48', 10),
+    length: parseInt(process.env.SETUP_PIN_LENGTH || '6', 10),
+  },
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5174',
   seed: {
     adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@store.com',

@@ -1,70 +1,37 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router';
-import { LayoutDashboard, MonitorCheck, UtensilsCrossed, Package, TrendingUp, Menu, X, Loader2, LogOut, User, Building2, Smartphone } from 'lucide-react';
+import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig';
 
-const navigation = [
-  { name: 'Tổng quan', href: '/app', icon: LayoutDashboard },
-  { name: 'Máy POS', href: '/app/pos', icon: MonitorCheck },
-  { name: 'Thiết bị POS', href: '/app/pos-devices', icon: Smartphone },
-  { name: 'Quản lý Menu', href: '/app/menu', icon: UtensilsCrossed },
-  { name: 'Quản lý Tồn kho', href: '/app/inventory', icon: Package },
-  { name: 'Quản lý Doanh thu', href: '/app/revenue', icon: TrendingUp },
-];
-
-const superAdminNavigation = [
-  { name: 'Quản lý Branch', href: '/app/branches', icon: Building2 },
-  { name: 'Thiết bị POS', href: '/app/pos-devices', icon: Smartphone },
-];
-
-const hasAccess = (user: any, pathname: string) => {
-  if (!user) return false;
-
-  if (pathname === '/app/profile') {
-    return true;
-  }
-
-  const isAdmin = user.role === 'ADMIN';
-
-  if (isAdmin) {
-    return pathname === '/app/branches' || pathname === '/app/pos-devices' || pathname === '/app';
-  }
-
-  if (pathname === '/app/branches') {
-    return false;
-  }
-
-  const role = user.role;
-
-  if (pathname === '/app' || pathname === '/app/') {
-    return role === 'ADMIN' || role === 'MANAGER';
-  }
-
-  if (pathname.startsWith('/app/revenue')) {
-    return role === 'ADMIN' || role === 'MANAGER';
-  }
-
-  if (pathname.startsWith('/app/pos-devices')) {
-    return role === 'ADMIN' || role === 'MANAGER';
-  }
-
-  if (pathname.startsWith('/app/pos')) {
-    return true;
-  }
-
-  return true;
+const ICON_MAP: Record<string, any> = {
+  LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
+  Building2, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3,
 };
 
-const getDefaultRoute = (user: any): string => {
-  if (!user) return '/login';
-  if (user.role === 'ADMIN') return '/app/branches';
-  return '/app';
+function getDefaultRoute(hasPermission: (p: string) => boolean): string {
+  const firstAllowed = APP_MENU.find(item => !item.permission || hasPermission(item.permission));
+  return firstAllowed?.href || '/app/profile';
+}
+
+function isAllowedPath(path: string, menuItems: AppMenuItem[]): boolean {
+  if (path === '/app') return true;
+  if (path === '/app/profile') return true;
+  if (path.startsWith('/app/pos-devices') || path.startsWith('/app/pos')) return true;
+  return menuItems.some((item) => path === item.href || path.startsWith(item.href + '/'));
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Super Admin',
+  MANAGER: 'Quản lý',
+  CASHIER: 'Thu ngân',
+  KITCHEN: 'Bếp',
 };
 
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isReady, isAuthenticated, user, logout } = useAuth();
+  const { isReady, isAuthenticated, isDeviceMode, user, logout, hasPermission } = useAuth();
 
   if (!isReady) {
     return (
@@ -75,20 +42,19 @@ export function Layout() {
     );
   }
 
-  // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Check permission for the current path based on token info (user object)
-  if (user && !hasAccess(user, location.pathname)) {
-    const defaultPath = getDefaultRoute(user);
-    return <Navigate to={defaultPath} replace />;
+  if (isDeviceMode) {
+    return <Navigate to="/pos-v2/dashboard" replace />;
   }
 
-  const visibleNavigation = (user?.role === 'ADMIN' ? superAdminNavigation : navigation).filter(
-    (item) => hasAccess(user, item.href)
-  );
+  const menuItems = APP_MENU.filter(item => !item.permission || hasPermission(item.permission));
+
+  if (user && !isAllowedPath(location.pathname, menuItems)) {
+    return <Navigate to={getDefaultRoute(hasPermission)} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -116,9 +82,9 @@ export function Layout() {
           </div>
           
           <nav className="flex-1 p-4 space-y-1">
-            {visibleNavigation.map((item) => {
+            {menuItems.map((item) => {
               const isActive = location.pathname === item.href;
-              const Icon = item.icon;
+              const Icon = ICON_MAP[item.icon] || LayoutDashboard;
               return (
                 <Link
                   key={item.name}
@@ -150,7 +116,7 @@ export function Layout() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.role === 'ADMIN' ? 'Super Admin' : 'Quản lý'}</p>
+                  <p className="text-xs text-gray-500 truncate">{ROLE_LABELS[user.role] || user.role}</p>
                 </div>
               </Link>
             )}

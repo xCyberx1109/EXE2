@@ -17,7 +17,7 @@ export const mapIngredient = (item) => ({
   name: item.name,
   unit: item.unit,
   quantity: Number(item.quantity),
-  minQuantity: Number(item.minQuantity),
+  warningQuantity: Number(item.warningQuantity),
   price: Number(item.price),
   supplier: item.supplier,
   lastUpdated: item.lastUpdated instanceof Date
@@ -44,7 +44,7 @@ export const mapInventoryTransaction = (tx) => ({
   quantity: Number(tx.quantity),
   note: tx.note,
   createdAt: tx.createdAt,
-  user: tx.user ? { id: tx.user.id, fullName: tx.user.fullName } : null,
+  user: tx.account ? { id: tx.account.id, fullName: tx.account.fullName } : null,
 });
 
 /** Chi tiết đơn hàng cho quản lý */

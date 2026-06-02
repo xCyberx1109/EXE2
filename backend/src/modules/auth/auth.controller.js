@@ -17,8 +17,7 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const getMe = asyncHandler(async (req, res) => {
-  const user = await authService.getProfile(req.user.id);
-  sendSuccess(res, { message: 'Lấy thông tin thành công', data: user });
+  sendSuccess(res, { message: 'Lấy thông tin thành công', data: req.user });
 });
 
 export const updateMe = asyncHandler(async (req, res) => {

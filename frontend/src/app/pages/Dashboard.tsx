@@ -106,15 +106,15 @@ export function Dashboard() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Cảnh báo tồn kho thấp</h2>
           <div className="space-y-3">
-            {lowStockItems.length > 0 ? (
+              {lowStockItems.length > 0 ? (
               lowStockItems.map((item) => (
                 <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <div>
                     <p className="font-medium text-gray-900">{item.name}</p>
-                    <p className="text-sm text-gray-500">Tồn: {item.quantity} {item.unit}</p>
+                    <p className="text-sm text-gray-500">Tồn: {item.quantity} / {item.warningQuantity} {item.unit}</p>
                   </div>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    Cần nhập
+                    ⚠ Sắp hết
                   </span>
                 </div>
               ))

@@ -12,10 +12,5 @@ export const ingredientRepository = {
 
   delete: (id) => prisma.ingredient.delete({ where: { id } }),
 
-  findLowStock: async () => {
-    const items = await prisma.ingredient.findMany({ orderBy: { name: 'asc' } });
-    return items
-      .filter((i) => Number(i.quantity) < Number(i.minQuantity))
-      .sort((a, b) => Number(b.minQuantity) - Number(b.quantity) - (Number(a.minQuantity) - Number(a.quantity)));
-  },
+
 };

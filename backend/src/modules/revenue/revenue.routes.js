@@ -5,16 +5,16 @@ import {
 } from './revenue.controller.js';
 import { revenueRangeQuery } from '../../validators/revenue.validator.js';
 import { validate } from '../../middlewares/validate.js';
-import { authenticate, authorize, optionalAuth } from '../../middlewares/auth.js';
+import { authenticate, optionalAuth, requirePermission } from '../../middlewares/auth.js';
 
 const router = Router();
 
-router.get('/revenue/daily', optionalAuth, revenueRangeQuery, validate, getDailyReports);
-router.get('/revenue/summary', optionalAuth, revenueRangeQuery, validate, getSummary);
-router.get('/revenue/stats', optionalAuth, revenueRangeQuery, validate, getStatsByPeriod);
-router.get('/revenue/top-items', optionalAuth, revenueRangeQuery, validate, getTopSelling);
-router.get('/revenue/overview', optionalAuth, getOverview);
+router.get('/revenue/daily', optionalAuth, requirePermission('REPORT_VIEW'), revenueRangeQuery, validate, getDailyReports);
+router.get('/revenue/summary', optionalAuth, requirePermission('REPORT_VIEW'), revenueRangeQuery, validate, getSummary);
+router.get('/revenue/stats', optionalAuth, requirePermission('REPORT_VIEW'), revenueRangeQuery, validate, getStatsByPeriod);
+router.get('/revenue/top-items', optionalAuth, requirePermission('REPORT_VIEW'), revenueRangeQuery, validate, getTopSelling);
+router.get('/revenue/overview', optionalAuth, requirePermission('REPORT_VIEW'), getOverview);
 
-router.post('/revenue/sync', authenticate, authorize('ADMIN'), syncReports);
+router.post('/revenue/sync', authenticate, requirePermission('REPORT_VIEW'), syncReports);
 
 export default router;

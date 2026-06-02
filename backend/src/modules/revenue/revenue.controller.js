@@ -1,6 +1,7 @@
 import { revenueService } from './revenue.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
+import { buildBranchWhere } from '../../middlewares/branchScope.js';
 
 export const getDailyReports = asyncHandler(async (req, res) => {
   const data = await revenueService.getDailyReports(req.query, req.user);
@@ -30,7 +31,8 @@ export const getOverview = asyncHandler(async (req, res) => {
 });
 
 export const syncReports = asyncHandler(async (req, res) => {
-  const branchId = req.user && req.user.role !== 'ADMIN' ? req.user.branchId : undefined;
+  const branchWhere = buildBranchWhere(req.user);
+  const branchId = branchWhere.branchId;
   const count = await revenueService.syncRevenueReports(branchId);
   sendSuccess(res, { message: `Đồng bộ ${count} báo cáo thành công`, data: { syncedDays: count } });
 });

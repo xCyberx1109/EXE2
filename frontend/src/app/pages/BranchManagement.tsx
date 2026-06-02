@@ -13,6 +13,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { branchApi } from '../api/services';
+import { useAuth } from '../context/AuthContext';
 import type { Branch } from '../types';
 import type { BranchPayload } from '../api/services';
 
@@ -72,6 +73,7 @@ const toPayload = (form: BranchFormState): BranchPayload => ({
 });
 
 export function BranchManagement() {
+  const { hasPermission } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,6 +88,10 @@ export function BranchManagement() {
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+
+  const [forceDeleteBranch, setForceDeleteBranch] = useState<Branch | null>(null);
+  const [confirmName, setConfirmName] = useState('');
+  const [forceDeleting, setForceDeleting] = useState(false);
 
   const isEditing = Boolean(editingBranchId);
   const isEditModalOpen = Boolean(editingBranchId);
@@ -210,28 +216,36 @@ export function BranchManagement() {
     }
   };
 
+  const handleForceDelete = async () => {
+    if (!forceDeleteBranch || confirmName !== forceDeleteBranch.name) return;
+    try {
+      setForceDeleting(true);
+      setError(null);
+      const result = await branchApi.forceDelete(forceDeleteBranch.id);
+      setBranches((current) => current.filter((item) => item.id !== forceDeleteBranch.id));
+      setForceDeleteBranch(null);
+      setConfirmName('');
+      alert(`Đã xoá vĩnh viễn chi nhánh "${result.branchName}"`);
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi xoá vĩnh viễn chi nhánh');
+    } finally {
+      setForceDeleting(false);
+    }
+  };
+
   const handleToggleStatus = async (branch: Branch) => {
     try {
       setError(null);
-      const updatedBranch = await branchApi.update(branch.id, {
-        name: branch.name,
-        address: branch.address,
-        phone: branch.phone,
-        plan: branch.plan,
-        subscriptionStatus: branch.subscriptionStatus,
-        subscriptionStart: toDateInputValue(branch.subscriptionStart),
-        subscriptionEnd: toDateInputValue(branch.subscriptionEnd),
-        active: !branch.active,
-        email: branch.account?.email ?? '',
-        fullName: branch.account?.fullName ?? '',
-      });
+      const result = branch.active
+        ? await branchApi.lock(branch.id)
+        : await branchApi.unlock(branch.id);
 
       setBranches((current) =>
-        current.map((item) => (item.id === branch.id ? updatedBranch : item))
+        current.map((item) => (item.id === branch.id ? { ...item, active: result.active } : item))
       );
 
       if (editingBranchId === branch.id) {
-        setForm((current) => ({ ...current, active: updatedBranch.active }));
+        setForm((current) => ({ ...current, active: result.active }));
       }
     } catch (err: any) {
       setError(err.message || 'Lỗi khi cập nhật trạng thái chi nhánh');
@@ -252,14 +266,16 @@ export function BranchManagement() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            Thêm chi nhánh
-          </button>
+          {hasPermission('BRANCH_CREATE') && (
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm chi nhánh
+            </button>
+          )}
         </div>
       </div>
 
@@ -314,54 +330,71 @@ export function BranchManagement() {
                         ) : (
                           <XCircle className="w-5 h-5 text-gray-300" />
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(branch)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            branch.active ? 'bg-green-500' : 'bg-gray-300'
-                          }`}
-                          aria-label={`Đổi trạng thái ${branch.name}`}
-                        >
-                          <span
-                            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                              branch.active ? 'translate-x-5' : 'translate-x-1'
+                        {(hasPermission('BRANCH_LOCK') && branch.active) || (hasPermission('BRANCH_UNLOCK') && !branch.active) ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(branch)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              branch.active ? 'bg-green-500' : 'bg-gray-300'
                             }`}
-                          />
-                        </button>
+                            aria-label={`Đổi trạng thái ${branch.name}`}
+                          >
+                            <span
+                              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                                branch.active ? 'translate-x-5' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setResetPasswordBranch(branch);
-                            setNewPassword('');
-                            setResetPasswordError(null);
-                            setResetPasswordSuccess(null);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50"
-                        >
-                          <Lock className="w-4 h-4" />
-                          Đặt lại mật khẩu
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(branch)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          Sửa
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(branch)}
-                          disabled={deletingId === branch.id}
-                          className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          {deletingId === branch.id ? 'Đang xóa...' : 'Xóa'}
-                        </button>
+                        {hasPermission('BRANCH_UPDATE') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetPasswordBranch(branch);
+                              setNewPassword('');
+                              setResetPasswordError(null);
+                              setResetPasswordSuccess(null);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50"
+                          >
+                            <Lock className="w-4 h-4" />
+                            Đặt lại mật khẩu
+                          </button>
+                        )}
+                        {hasPermission('BRANCH_UPDATE') && (
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(branch)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            Sửa
+                          </button>
+                        )}
+                        {hasPermission('BRANCH_DELETE') && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(branch)}
+                            disabled={deletingId === branch.id}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            {deletingId === branch.id ? 'Đang xóa...' : 'Xóa'}
+                          </button>
+                        )}
+                        {hasPermission('BRANCH_FORCE_DELETE') && (
+                          <button
+                            type="button"
+                            onClick={() => { setForceDeleteBranch(branch); setConfirmName(''); }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-400 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+                          >
+                            Xóa vĩnh viễn
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -753,6 +786,73 @@ export function BranchManagement() {
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {forceDeleteBranch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h2 className="text-lg font-semibold text-red-700 flex items-center gap-2">
+                <Trash2 className="w-5 h-5" />
+                Xoá vĩnh viễn chi nhánh
+              </h2>
+              <button
+                type="button"
+                onClick={() => { setForceDeleteBranch(null); setConfirmName(''); }}
+                aria-label="Đóng"
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 space-y-2">
+                <p className="font-semibold">Cảnh báo: Hành động này KHÔNG THỂ hoàn tác!</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Toàn bộ dữ liệu của chi nhánh <b>"{forceDeleteBranch.name}"</b> sẽ bị xoá vĩnh viễn</li>
+                  <li>Bao gồm: đơn hàng, thực đơn, tồn kho, thiết bị POS, tài khoản, báo cáo doanh thu</li>
+                  <li>Dữ liệu đã xoá không thể khôi phục</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Nhập <b>chính xác</b> tên chi nhánh để xác nhận xoá:
+                </label>
+                <input
+                  type="text"
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  placeholder={forceDeleteBranch.name}
+                  className="w-full rounded-lg border border-red-300 px-3 py-2 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  autoFocus
+                />
+                {confirmName && confirmName !== forceDeleteBranch.name && (
+                  <p className="text-xs text-red-500">Tên nhập vào không khớp. Vui lòng nhập chính xác "{forceDeleteBranch.name}"</p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setForceDeleteBranch(null); setConfirmName(''); }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleForceDelete}
+                  disabled={confirmName !== forceDeleteBranch.name || forceDeleting}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {forceDeleting ? 'Đang xoá...' : 'Xác nhận xoá vĩnh viễn'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

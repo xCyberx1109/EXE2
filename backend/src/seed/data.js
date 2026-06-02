@@ -18,17 +18,17 @@ export const menuItems = [
 ];
 
 export const ingredients = [
-  { name: 'Thịt Bò', unit: 'kg', quantity: 45, minQuantity: 20, price: 280000, supplier: 'Công ty Thực Phẩm A' },
-  { name: 'Gạo', unit: 'kg', quantity: 150, minQuantity: 50, price: 18000, supplier: 'Công ty Lương Thực B' },
-  { name: 'Rau Sống', unit: 'kg', quantity: 15, minQuantity: 10, price: 25000, supplier: 'Nông Trại C' },
-  { name: 'Cà Phê Hạt', unit: 'kg', quantity: 12, minQuantity: 5, price: 350000, supplier: 'Công ty Cà Phê D' },
-  { name: 'Đường', unit: 'kg', quantity: 30, minQuantity: 15, price: 22000, supplier: 'Công ty Thực Phẩm A' },
-  { name: 'Sữa Tươi', unit: 'lít', quantity: 8, minQuantity: 10, price: 35000, supplier: 'Công ty Sữa E' },
-  { name: 'Bánh Mì', unit: 'chiếc', quantity: 50, minQuantity: 30, price: 8000, supplier: 'Tiệm Bánh F' },
-  { name: 'Chanh', unit: 'kg', quantity: 18, minQuantity: 8, price: 15000, supplier: 'Nông Trại C' },
+  { name: 'Thịt Bò', unit: 'KG', quantity: 45, price: 280000, supplier: 'Công ty Thực Phẩm A' },
+  { name: 'Gạo', unit: 'KG', quantity: 150, price: 18000, supplier: 'Công ty Lương Thực B' },
+  { name: 'Rau Sống', unit: 'KG', quantity: 15, price: 25000, supplier: 'Nông Trại C' },
+  { name: 'Cà Phê Hạt', unit: 'KG', quantity: 12, price: 350000, supplier: 'Công ty Cà Phê D' },
+  { name: 'Đường', unit: 'KG', quantity: 30, price: 22000, supplier: 'Công ty Thực Phẩm A' },
+  { name: 'Sữa Tươi', unit: 'LITER', quantity: 8, price: 35000, supplier: 'Công ty Sữa E' },
+  { name: 'Bánh Mì', unit: 'PIECE', quantity: 50, price: 8000, supplier: 'Tiệm Bánh F' },
+  { name: 'Chanh', unit: 'KG', quantity: 18, price: 15000, supplier: 'Nông Trại C' },
 ];
 
-/** Báo cáo doanh thu 14 ngày - khớp revenueRecords */
+/** Báo cáo doanh thu 14 ngày */
 export const revenueReports = [
   { date: '2026-03-01', orderCount: 85, revenue: 4250000, cost: 2125000, profit: 2125000 },
   { date: '2026-03-02', orderCount: 92, revenue: 4600000, cost: 2300000, profit: 2300000 },
@@ -54,4 +54,86 @@ export const menuIngredientLinks = [
   { menuItem: 'Cà Phê Sữa', ingredient: 'Cà Phê Hạt', amount: 0.02 },
   { menuItem: 'Cà Phê Sữa', ingredient: 'Sữa Tươi', amount: 0.05 },
   { menuItem: 'Bánh Mì', ingredient: 'Bánh Mì', amount: 1 },
+];
+
+export const features = [
+  { code: 'pos_cashier', name: 'POS Thu ngân', module: 'pos', isCore: true, sortOrder: 1 },
+  { code: 'pos_kitchen', name: 'POS Bếp', module: 'pos', isCore: true, sortOrder: 2 },
+  { code: 'inventory', name: 'Quản lý kho', module: 'inventory', isCore: true, sortOrder: 3 },
+  { code: 'revenue', name: 'Báo cáo doanh thu', module: 'revenue', isCore: true, sortOrder: 4 },
+  { code: 'menu_management', name: 'Quản lý thực đơn', module: 'menu', isCore: true, sortOrder: 5 },
+  { code: 'customer_loyalty', name: 'Khách hàng thân thiết', module: 'customer', isCore: false, sortOrder: 6 },
+  { code: 'online_ordering', name: 'Đặt hàng online', module: 'orders', isCore: false, sortOrder: 7 },
+  { code: 'multi_branch', name: 'Đa chi nhánh', module: 'branch', isCore: false, sortOrder: 8 },
+  { code: 'voucher', name: 'Mã giảm giá', module: 'marketing', isCore: false, sortOrder: 9 },
+  { code: 'kitchen_display', name: 'Màn hình hiển thị bếp', module: 'kitchen', isCore: true, sortOrder: 10 },
+];
+
+export const permissions = [
+  // POS
+  { code: 'POS_OPEN', name: 'Mở ca POS', module: 'POS' },
+  { code: 'POS_CLOSE', name: 'Đóng ca POS', module: 'POS' },
+  { code: 'POS_CREATE_ORDER', name: 'Tạo đơn hàng', module: 'POS' },
+  { code: 'POS_CANCEL_ORDER', name: 'Hủy đơn hàng', module: 'POS' },
+  { code: 'POS_APPLY_DISCOUNT', name: 'Áp dụng giảm giá', module: 'POS' },
+  
+  // POS DEVICE
+  { code: 'POS_DEVICE_VIEW', name: 'Xem thiết bị POS', module: 'POS_DEVICE' },
+  { code: 'POS_DEVICE_CREATE', name: 'Tạo thiết bị POS', module: 'POS_DEVICE' },
+  { code: 'POS_DEVICE_UPDATE', name: 'Cập nhật thiết bị POS', module: 'POS_DEVICE' },
+  { code: 'POS_DEVICE_DELETE', name: 'Xóa thiết bị POS', module: 'POS_DEVICE' },
+  { code: 'POS_DEVICE_RESET', name: 'Reset thiết bị POS', module: 'POS_DEVICE' },
+
+  // MENU
+  { code: 'MENU_CREATE', name: 'Thêm món mới', module: 'MENU' },
+  { code: 'MENU_UPDATE', name: 'Cập nhật món', module: 'MENU' },
+  { code: 'MENU_DELETE', name: 'Xóa món', module: 'MENU' },
+  { code: 'MENU_MANAGE', name: 'Quản lý thực đơn', module: 'MENU' },
+  
+  // STAFF
+  { code: 'STAFF_VIEW', name: 'Xem nhân viên', module: 'STAFF' },
+  { code: 'STAFF_CREATE', name: 'Thêm nhân viên', module: 'STAFF' },
+  { code: 'STAFF_UPDATE', name: 'Cập nhật nhân viên', module: 'STAFF' },
+  { code: 'STAFF_DELETE', name: 'Xóa nhân viên', module: 'STAFF' },
+  
+  // REPORT
+  { code: 'REPORT_VIEW', name: 'Xem báo cáo', module: 'REPORT' },
+  { code: 'REPORT_EXPORT', name: 'Xuất báo cáo', module: 'REPORT' },
+  
+  // INVENTORY
+  { code: 'INVENTORY_VIEW', name: 'Xem danh sách nguyên liệu', module: 'INVENTORY' },
+  { code: 'INVENTORY_MANAGE', name: 'Quản lý nguyên liệu', module: 'INVENTORY' },
+  { code: 'INVENTORY_IMPORT', name: 'Nhập kho', module: 'INVENTORY' },
+  { code: 'INVENTORY_EXPORT', name: 'Xuất kho', module: 'INVENTORY' },
+  { code: 'INVENTORY_WARNING_CONFIG', name: 'Cấu hình ngưỡng cảnh báo tồn kho', module: 'INVENTORY' },
+  { code: 'INVENTORY_ADJUST', name: 'Điều chỉnh tồn kho', module: 'INVENTORY' },
+  { code: 'INGREDIENT_VIEW', name: 'Xem nguyên liệu', module: 'INVENTORY' },
+  { code: 'INVENTORY_MANAGE', name: 'Quản lý tồn kho', module: 'INVENTORY' },
+
+  // BRANCH
+  { code: 'BRANCH_VIEW', name: 'Xem chi nhánh', module: 'BRANCH' },
+  { code: 'BRANCH_CREATE', name: 'Tạo chi nhánh', module: 'BRANCH' },
+  { code: 'BRANCH_UPDATE', name: 'Cập nhật chi nhánh', module: 'BRANCH' },
+  { code: 'BRANCH_LOCK', name: 'Khóa chi nhánh', module: 'BRANCH' },
+  { code: 'BRANCH_UNLOCK', name: 'Mở khóa chi nhánh', module: 'BRANCH' },
+  { code: 'BRANCH_DELETE', name: 'Xóa chi nhánh', module: 'BRANCH' },
+  { code: 'BRANCH_FORCE_DELETE', name: 'Xóa vĩnh viễn chi nhánh (force)', module: 'BRANCH' },
+  { code: 'BRANCH_ALL_ACCESS', name: 'Truy cập tất cả chi nhánh', module: 'BRANCH' },
+  { code: 'CROSS_BRANCH_ACCESS', name: 'Truy cập đa chi nhánh (không cần BRANCH_ALL_ACCESS)', module: 'BRANCH' },
+
+  // PERMISSION
+  { code: 'PERMISSION_VIEW', name: 'Xem danh sách quyền', module: 'PERMISSION' },
+  { code: 'PERMISSION_ASSIGN', name: 'Gán quyền cho tài khoản', module: 'PERMISSION' },
+
+  // TABLE
+  { code: 'TABLE_VIEW', name: 'Xem danh sách bàn', module: 'TABLE' },
+  { code: 'TABLE_CREATE', name: 'Thêm bàn mới', module: 'TABLE' },
+  { code: 'TABLE_UPDATE', name: 'Cập nhật bàn', module: 'TABLE' },
+  { code: 'TABLE_DELETE', name: 'Xóa bàn', module: 'TABLE' },
+];
+
+export const subscriptionPlans = [
+  { code: 'basic', name: 'Cơ bản', price: 0, billingInterval: 'MONTHLY', trialDays: 0, maxBranches: 1, maxUsers: 3, sortOrder: 1 },
+  { code: 'pro', name: 'Chuyên nghiệp', price: 499000, billingInterval: 'MONTHLY', trialDays: 14, maxBranches: 3, maxUsers: 10, sortOrder: 2 },
+  { code: 'enterprise', name: 'Doanh nghiệp', price: 1999000, billingInterval: 'MONTHLY', trialDays: 30, maxBranches: 99, maxUsers: 999, sortOrder: 3 },
 ];

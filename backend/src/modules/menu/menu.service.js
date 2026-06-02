@@ -3,15 +3,13 @@ import { mapMenuItem, slugify } from '../../utils/mappers.js';
 import { categoryRepository } from '../../repositories/category.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { orderRepository } from '../../repositories/order.repository.js';
+import { assertBranchAccess, buildBranchWhere, branchDataForCreate } from '../../middlewares/branchScope.js';
 import prisma from '../../prisma/client.js';
 
 export const menuService = {
   // --- Categories ---
   async listCategories(user) {
-    const where = {};
-    if (user && user.role !== 'ADMIN' && user.branchId) {
-      where.branchId = user.branchId;
-    }
+    const where = buildBranchWhere(user);
     const categories = await categoryRepository.findAll(where);
     return categories.map((c) => ({
       id: c.id,
@@ -24,8 +22,7 @@ export const menuService = {
 
   async createCategory({ name, description }, user) {
     const slug = slugify(name);
-    const data = { name, slug, description };
-    if (user && user.branchId) data.branchId = user.branchId;
+    const data = { name, slug, description, ...branchDataForCreate(user) };
     const category = await categoryRepository.create(data);
     return category;
   },
@@ -33,10 +30,7 @@ export const menuService = {
   async updateCategory(id, data, user) {
     const existing = await categoryRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
-
-    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền thao tác với danh mục này', 403);
-    }
+    assertBranchAccess(existing, user, 'danh mục');
 
     const updateData = { ...data };
     if (data.name) updateData.slug = slugify(data.name);
@@ -47,10 +41,7 @@ export const menuService = {
   async deleteCategory(id, user) {
     const existing = await categoryRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
-
-    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền thao tác với danh mục này', 403);
-    }
+    assertBranchAccess(existing, user, 'danh mục');
 
     const count = await menuItemRepository.count({ categoryId: id });
     if (count > 0) {
@@ -74,10 +65,7 @@ export const menuService = {
       where.available = available === 'true' || available === true;
     }
 
-    if (user && user.role !== 'ADMIN' && user.branchId) {
-      where.branchId = user.branchId;
-    }
-
+    Object.assign(where, buildBranchWhere(user));
     let items = await menuItemRepository.findMany(where);
 
     if (search) {
@@ -95,28 +83,111 @@ export const menuService = {
   async getMenuItem(id, user) {
     const item = await menuItemRepository.findById(id);
     if (!item) throw new AppError('Không tìm thấy món ăn', 404);
-    if (user && user.role !== 'ADMIN' && user.branchId && item.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền xem món này', 403);
-    }
+    assertBranchAccess(item, user, 'món ăn');
     return mapMenuItem(item);
   },
 
    async createMenuItem(body, user) {
-     const categoryId = await resolveCategoryId(body);
-     
+      console.log('=== MenuService.createMenuItem ===');
+      console.log('Input body:', JSON.stringify(body, null, 2));
+      console.log('User:', { id: user?.id, email: user?.email, role: user?.role, branchId: user?.branchId, permissions: user?.permissions });
+
+      const branchInfo = branchDataForCreate(user);
+      console.log('branchDataForCreate result:', branchInfo);
+
+      // Kiểm tra branchId: nếu null/undefined và user không có BRANCH_ALL_ACCESS → lỗi rõ ràng
+      const hasBranchAccess = user?.permissions?.includes('BRANCH_ALL_ACCESS') || user?.permissions?.includes('CROSS_BRANCH_ACCESS');
+      if (!branchInfo.branchId && !hasBranchAccess) {
+        console.error('Branch assignment required - user has no branchId and no cross-branch permissions');
+        throw new AppError('Branch assignment required: user must be assigned to a branch to create menu items', 400);
+      }
+
+       const categoryId = await resolveCategoryId(body, branchInfo.branchId || user?.branchId);
+       console.log('Resolved categoryId:', categoryId);
+
+       if (!categoryId) {
+         console.error('CATEGORY ID IS EMPTY. body.category:', body.category, 'body.categoryId:', body.categoryId);
+         throw new AppError('categoryId is required after resolveCategoryId', 400);
+       }
+       const categoryExists = await prisma.category.findUnique({ where: { id: categoryId } });
+       console.log('Category lookup result:', categoryExists ? JSON.stringify(categoryExists, null, 2) : 'NULL');
+       if (!categoryExists) {
+         console.error('CATEGORY NOT FOUND IN DB:', categoryId);
+         throw new AppError(`Category not found in database: ${categoryId}`, 400);
+       }
+
+      // Kiểm tra ingredients trước transaction để trả lỗi rõ ràng
+       if (body.ingredients && Array.isArray(body.ingredients)) {
+         console.log(`Validating ${body.ingredients.length} ingredients...`);
+         for (let i = 0; i < body.ingredients.length; i++) {
+           const ing = body.ingredients[i];
+           console.log(`Ingredient [${i}]:`, JSON.stringify(ing, null, 2));
+
+           // amount phải là số dương
+           const amount = Number(ing.amount);
+           if (ing.amount === undefined || ing.amount === null || ing.amount === '' || isNaN(amount) || amount <= 0) {
+             console.error(`Ingredient [${i}]: INVALID amount:`, ing.amount, 'parsed:', amount);
+             throw new AppError(`Ingredient at index ${i}: amount must be a positive number, got ${JSON.stringify(ing.amount)} (parsed: ${amount})`, 400);
+           }
+           ing.amount = amount; // chuẩn hóa về number
+
+           // Kiểm tra ingredientId không rỗng
+           if (!ing.ingredientId || ing.ingredientId === '') {
+             console.error(`Ingredient [${i}]: MISSING ingredientId`);
+             throw new AppError(`Ingredient at index ${i}: ingredientId is required`, 400);
+           }
+
+           // Kiểm tra ingredient tồn tại trong DB
+           console.log(`Ingredient [${i}]: querying DB for id="${ing.ingredientId}"...`);
+           const ingredient = await prisma.ingredient.findUnique({
+             where: { id: ing.ingredientId },
+             select: { id: true, name: true, branchId: true, unit: true },
+           });
+           console.log(`Ingredient [${i}]: DB result:`, ingredient ? JSON.stringify(ingredient, null, 2) : 'NULL');
+           if (!ingredient) {
+             console.error(`Ingredient [${i}]: NOT FOUND in DB: "${ing.ingredientId}"`);
+             throw new AppError(`Ingredient not found in database: "${ing.ingredientId}" at index ${i}`, 400);
+           }
+
+           // Kiểm tra ingredient cùng branch với menu item
+           const targetBranchId = branchInfo.branchId;
+           console.log(`Ingredient [${i}]: branch check - ingredient.branchId="${ingredient.branchId}", targetBranchId="${targetBranchId}"`);
+           if (targetBranchId && ingredient.branchId !== targetBranchId) {
+             console.error(`Ingredient [${i}]: BRANCH MISMATCH`, {
+               ingredientId: ing.ingredientId,
+               ingredientBranchId: ingredient.branchId,
+               menuItemBranchId: targetBranchId,
+             });
+             throw new AppError(`Ingredient "${ing.ingredientId}" belongs to branch "${ingredient.branchId}" but menu item belongs to branch "${targetBranchId}"`, 400);
+           }
+         }
+         console.log(`All ${body.ingredients.length} ingredients validated successfully`);
+       } else {
+         console.log('No ingredients provided (body.ingredients is', body.ingredients, ')');
+       }
+
      // Use transaction to create MenuItem and MenuItemIngredients together
      const item = await prisma.$transaction(async (tx) => {
-       const menuItem = await tx.menuItem.create({
-         data: {
-           name: body.name,
-           categoryId,
-           price: body.price,
-           cost: body.cost,
-           description: body.description || '',
-           imageUrl: body.imageUrl || null,
-           available: body.available ?? true,
-           ...(user && user.branchId ? { branchId: user.branchId } : {}),
-         },
+      const createData = {
+        name: body.name,
+        categoryId,
+        price: body.price,
+        cost: body.cost,
+        description: body.description === '' ? '' : (body.description || ''),
+        imageUrl: body.imageUrl || null,
+        available: body.available ?? true,
+        ...branchInfo,
+      };
+      console.log('Prisma create data:', JSON.stringify(createData, null, 2));
+
+      // Kiểm tra createData không thiếu field required
+      if (!createData.branchId) {
+        console.error('CRITICAL: branchId missing from createData despite checks. branchInfo:', branchInfo, 'user:', user);
+        throw new AppError('Internal error: branchId is required', 500);
+      }
+
+      const menuItem = await tx.menuItem.create({
+          data: createData,
          include: { category: true, ingredients: { include: { ingredient: true } } },
        });
 
@@ -126,8 +197,8 @@ export const menuService = {
            if (ing.ingredientId && ing.amount) {
              await tx.menuItemIngredient.upsert({
                where: { menuItemId_ingredientId: { menuItemId: menuItem.id, ingredientId: ing.ingredientId } },
-               create: { menuItemId: menuItem.id, ingredientId: ing.ingredientId, amount: ing.amount },
-               update: { amount: ing.amount },
+               create: { menuItemId: menuItem.id, ingredientId: ing.ingredientId, amount: Number(ing.amount) },
+               update: { amount: Number(ing.amount) },
              });
            }
          }
@@ -139,15 +210,35 @@ export const menuService = {
      return mapMenuItem(item);
    },
 
-   async updateMenuItem(id, body, user) {
-     const existing = await menuItemRepository.findById(id);
-     if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
+    async updateMenuItem(id, body, user) {
+      const existing = await menuItemRepository.findById(id);
+      if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
+      assertBranchAccess(existing, user, 'món ăn');
 
-     if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
-       throw new AppError('Bạn không có quyền thao tác với món này', 403);
-     }
+      // Validate ingredients before transaction
+      if (body.ingredients && Array.isArray(body.ingredients)) {
+        for (let i = 0; i < body.ingredients.length; i++) {
+          const ing = body.ingredients[i];
+          if (ing.amount === undefined || ing.amount === null || ing.amount === '' || Number(ing.amount) <= 0) {
+            throw new AppError(`Ingredient at index ${i}: amount must be a positive number, got ${JSON.stringify(ing.amount)}`, 400);
+          }
+          if (!ing.ingredientId || ing.ingredientId === '') {
+            throw new AppError(`Ingredient at index ${i}: ingredientId is required`, 400);
+          }
+          const ingredient = await prisma.ingredient.findUnique({
+            where: { id: ing.ingredientId },
+            select: { id: true, branchId: true },
+          });
+          if (!ingredient) {
+            throw new AppError(`Ingredient not found: ${ing.ingredientId}`, 400);
+          }
+          if (existing.branchId && ingredient.branchId !== existing.branchId) {
+            throw new AppError(`Ingredient "${ing.ingredientId}" belongs to a different branch`, 400);
+          }
+        }
+      }
 
-     // Use transaction for update with ingredients
+      // Use transaction for update with ingredients
      const item = await prisma.$transaction(async (tx) => {
        const updateData = {};
        if (body.name) updateData.name = body.name;
@@ -156,9 +247,9 @@ export const menuService = {
        if (body.description !== undefined) updateData.description = body.description;
        if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
        if (body.available !== undefined) updateData.available = body.available;
-       if (body.categoryId || body.category) {
-         updateData.categoryId = await resolveCategoryId(body);
-       }
+        if (body.categoryId || body.category) {
+          updateData.categoryId = await resolveCategoryId(body, existing.branchId || user?.branchId);
+        }
 
        const updated = await tx.menuItem.update({
          where: { id },
@@ -177,7 +268,7 @@ export const menuService = {
          for (const ing of body.ingredients) {
            if (ing.ingredientId && ing.amount) {
              await tx.menuItemIngredient.create({
-               data: { menuItemId: id, ingredientId: ing.ingredientId, amount: ing.amount },
+               data: { menuItemId: id, ingredientId: ing.ingredientId, amount: Number(ing.amount) },
              });
            }
          }
@@ -192,10 +283,7 @@ export const menuService = {
   async toggleAvailability(id, user) {
     const existing = await menuItemRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
-
-    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền thao tác với món này', 403);
-    }
+    assertBranchAccess(existing, user, 'món ăn');
 
     const item = await menuItemRepository.update(id, { available: !existing.available });
     return mapMenuItem(item);
@@ -204,9 +292,12 @@ export const menuService = {
   async deleteMenuItem(id, user) {
     const existing = await menuItemRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
+    assertBranchAccess(existing, user, 'món ăn');
 
-    if (user && user.role !== 'ADMIN' && user.branchId && existing.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền thao tác với món này', 403);
+    const orderCount = await prisma.orderItem.count({ where: { menuItemId: id } });
+    if (orderCount > 0) {
+      await menuItemRepository.softDelete(id);
+      return;
     }
 
     await menuItemRepository.delete(id);
@@ -214,7 +305,8 @@ export const menuService = {
 
   /** Top món bán chạy - khớp foodOrderStats frontend */
   async getTopSelling(limit = 10, user) {
-    const branchId = user && user.role !== 'ADMIN' ? user.branchId : undefined;
+    const canAccessAll = user?.permissions?.includes('BRANCH_ALL_ACCESS') || user?.permissions?.includes('CROSS_BRANCH_ACCESS');
+    const branchId = !canAccessAll ? user?.branchId : undefined;
     const grouped = await orderRepository.aggregateTopItems(limit, branchId);
     const result = [];
 
@@ -235,17 +327,32 @@ export const menuService = {
   },
 };
 
-async function resolveCategoryId(body) {
-  if (body.categoryId) return body.categoryId;
+async function resolveCategoryId(body, branchId) {
+  if (body.categoryId) {
+    console.log('resolveCategoryId: using direct categoryId:', body.categoryId);
+    return body.categoryId;
+  }
   if (body.category) {
-    let cat = await categoryRepository.findByName(body.category);
+    console.log('resolveCategoryId: searching by name:', JSON.stringify(body.category), 'branchId:', branchId);
+    let cat = await categoryRepository.findByName(body.category, branchId);
+    console.log('resolveCategoryId: findByName result:', cat ? JSON.stringify(cat, null, 2) : 'NULL');
     if (!cat) {
-      cat = await categoryRepository.create({
+      if (!branchId) {
+        console.error('resolveCategoryId: category not found and cannot create - no branchId. User likely has no branch assigned.');
+        throw new AppError('Category "' + body.category + '" not found and cannot be auto-created: user has no branch assigned', 400);
+      }
+      console.log('resolveCategoryId: category not found, creating new one with branchId:', branchId);
+      const newCat = await categoryRepository.create({
         name: body.category,
         slug: slugify(body.category),
+        branchId,
       });
+      console.log('resolveCategoryId: created category:', JSON.stringify(newCat, null, 2));
+      return newCat.id;
     }
+    console.log('resolveCategoryId: found existing category id:', cat.id);
     return cat.id;
   }
-  throw new AppError('Danh mục là bắt buộc', 400);
+  console.error('resolveCategoryId: no categoryId or category provided in body. Body keys:', Object.keys(body));
+  throw new AppError('Danh mục là bắt buộc (category or categoryId required)', 400);
 }

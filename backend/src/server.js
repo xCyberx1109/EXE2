@@ -1,7 +1,8 @@
 import app from './app.js';
 import config from './config/index.js';
 import prisma from './prisma/client.js';
-import { runSeedIfEmpty } from './seed/runSeed.js';
+import { runSeedIfEmpty, syncPermissions } from './seed/runSeed.js';
+import { permissionService } from './modules/permissions/permission.service.js';
 import { startHeartbeatCheck } from './jobs/heartbeatCheck.js';
 
 const startServer = async () => {
@@ -10,6 +11,9 @@ const startServer = async () => {
     console.log('✓ Kết nối MySQL thành công');
 
     if (config.autoSeedOnStart) {
+      // Luôn đồng bộ permissions trước, bất kể DB có data hay không
+      await syncPermissions();
+      permissionService.invalidateCache();
       await runSeedIfEmpty();
     }
 

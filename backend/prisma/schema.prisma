@@ -11,29 +11,26 @@ datasource db {
 // ENUMS
 // ========================================
 
-enum Plan {
-  BASIC
-  PRO
-  ENTERPRISE
-}
-
-enum SubscriptionStatus {
-  TRIAL
-  ACTIVE
-  EXPIRED
-  SUSPENDED
-  CANCELLED
-}
-
-enum Role {
+enum AccountRole {
   ADMIN
   MANAGER
+  STAFF
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
 enum PosDeviceType {
   CASHIER
+  KITCHEN
   TABLET
   KIOSK
+  WAITER
+  CUSTOMER_DISPLAY
+  MANAGER
 }
 
 enum PosMode {
@@ -46,21 +43,27 @@ enum PosStatus {
   ONLINE
   OFFLINE
   MAINTENANCE
-}
-
-enum InventoryTransactionType {
-  IMPORT
-  EXPORT
-  ADJUST
-  RETURN
-  WASTE
+  ACTIVATED
+  PENDING_ACTIVATION
 }
 
 enum OrderStatus {
   PENDING
+  CONFIRMED
   PREPARING
+  READY
   SERVED
   COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum KitchenStatus {
+  PENDING
+  RECEIVED
+  PREPARING
+  READY
+  SERVED
   CANCELLED
 }
 
@@ -83,6 +86,7 @@ enum OrderType {
   DINE_IN
   TAKE_AWAY
   DELIVERY
+  PICKUP
 }
 
 enum ShiftStatus {
@@ -96,28 +100,312 @@ enum IngredientUnit {
   LITER
   ML
   PIECE
+  UNIT
+}
+
+enum InventoryTransactionType {
+  IMPORT
+  OUT
+  ADJUST
+  RETURN
+  WASTE
+  AUDIT
+}
+
+enum SubscriptionBillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum VoucherType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_ITEM
+  BUY_X_GET_Y
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  DISABLED
 }
 
 // ========================================
-// MODELS
+// FEATURE SYSTEM
+// ========================================
+
+model Feature {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String? @db.Text
+  module      String
+  isCore      Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  branchFeatures           BranchFeature[]
+  featurePermissions       FeaturePermission[]
+  featureDependencies      FeatureDependency[]       @relation("FeatureDependencies")
+  dependedBy               FeatureDependency[]       @relation("FeatureDependedBy")
+  subscriptionPlanFeatures SubscriptionPlanFeature[]
+  deviceOverrides          DeviceFeatureOverride[]
+
+  @@index([module])
+  @@index([isCore])
+  @@map("features")
+}
+
+model FeatureDependency {
+  id          String @id @default(cuid())
+  featureId   String
+  dependsOnId String
+
+  feature   Feature @relation("FeatureDependencies", fields: [featureId], references: [id], onDelete: Cascade)
+  dependsOn Feature @relation("FeatureDependedBy", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([featureId, dependsOnId])
+  @@map("feature_dependencies")
+}
+
+model BranchFeature {
+  id        String @id @default(cuid())
+  branchId  String
+  featureId String
+
+  enabled   Boolean   @default(true)
+  settings  Json?
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, featureId])
+  @@index([branchId, enabled])
+  @@index([expiresAt])
+  @@map("branch_features")
+}
+
+model FeaturePermission {
+  id           String @id @default(cuid())
+  featureId    String
+  permissionId String
+
+  feature    Feature    @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([featureId, permissionId])
+  @@map("feature_permissions")
+}
+
+// ========================================
+// RBAC SYSTEM
+// ========================================
+
+model Permission {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String? @db.Text
+  module      String
+  isSystem    Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  featurePermissions    FeaturePermission[]
+  accountPermissions    AccountPermission[]
+  deviceTypePermissions DeviceTypePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model DeviceTypePermission {
+  id           String        @id @default(cuid())
+  deviceType   PosDeviceType
+  permissionId String
+  isRequired   Boolean       @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceType, permissionId])
+  @@index([deviceType])
+  @@map("device_type_permissions")
+}
+
+model DeviceFeatureOverride {
+  id        String  @id @default(cuid())
+  deviceId  String
+  featureId String
+  enabled   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  device  PosDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  feature Feature   @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, featureId])
+  @@index([deviceId])
+  @@map("device_feature_overrides")
+}
+
+model AccountPermission {
+  id           String    @id @default(cuid())
+  accountId    String
+  permissionId String
+  allowed      Boolean   @default(true)
+  grantedBy    String?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+
+  account    Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, permissionId])
+  @@index([accountId])
+  @@index([expiresAt])
+  @@map("account_permissions")
+}
+
+// ========================================
+// SUBSCRIPTION SYSTEM
+// ========================================
+
+model SubscriptionPlan {
+  id              String                      @id @default(cuid())
+  code            String                      @unique
+  name            String
+  description     String?                     @db.Text
+  price           Decimal                     @db.Decimal(12, 2)
+  billingInterval SubscriptionBillingInterval @default(MONTHLY)
+  trialDays       Int                         @default(0)
+  maxBranches     Int                         @default(1)
+  maxUsers        Int                         @default(5)
+  isActive        Boolean                     @default(true)
+  sortOrder       Int                         @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  planFeatures  SubscriptionPlanFeature[]
+  subscriptions Subscription[]
+
+  @@index([isActive])
+  @@index([billingInterval])
+  @@map("subscription_plans")
+}
+
+model SubscriptionPlanFeature {
+  id                 String @id @default(cuid())
+  subscriptionPlanId String
+  featureId          String
+
+  plan    SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id], onDelete: Cascade)
+  feature Feature          @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionPlanId, featureId])
+  @@map("subscription_plan_features")
+}
+
+model Subscription {
+  id          String             @id @default(cuid())
+  branchId    String
+  planId      String
+  status      SubscriptionStatus @default(TRIAL)
+  startDate   DateTime
+  endDate     DateTime
+  trialEndsAt DateTime?
+  cancelledAt DateTime?
+  autoRenew   Boolean            @default(true)
+  metadata    Json?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  branch Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  invoices BillingInvoice[]
+
+  @@index([branchId, status])
+  @@index([endDate])
+  @@index([trialEndsAt])
+  @@map("subscriptions")
+}
+
+model BillingInvoice {
+  id             String    @id @default(cuid())
+  subscriptionId String
+  invoiceNumber  String    @unique
+  amount         Decimal   @db.Decimal(12, 2)
+  currency       String    @default("VND")
+  status         String    @default("PENDING")
+  paidAt         DateTime?
+  dueDate        DateTime
+  paidAmount     Decimal?  @db.Decimal(12, 2)
+  paymentMethod  String?
+  notes          String?   @db.Text
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("billing_invoices")
+}
+
+// ========================================
+// BRANCH / TENANT
 // ========================================
 
 model Branch {
-  id                 String             @id @default(cuid())
-  name               String
-  address            String
-  phone              String
-  email              String?
-  logoUrl            String?
-  plan               Plan
-  subscriptionStatus SubscriptionStatus
-  subscriptionStart  DateTime
-  subscriptionEnd    DateTime
-  features           Json?
-  active             Boolean            @default(true)
+  id       String  @id @default(cuid())
+  name     String
+  address  String
+  phone    String
+  email    String?
+  logoUrl  String?
+  taxCode  String?
+  timezone String  @default("Asia/Ho_Chi_Minh")
+  currency String  @default("VND")
+  active   Boolean @default(true)
 
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   accounts              Account[]
   posDevices            PosDevice[]
@@ -127,432 +415,816 @@ model Branch {
   orders                Order[]
   shifts                Shift[]
   categories            Category[]
-
   activityLogs          ActivityLog[]
+  customers             Customer[]
+  branchFeatures        BranchFeature[]
+  subscriptions         Subscription[]
+  stockAlerts           StockAlert[]
+  stockAudits           StockAudit[]
+  kots                  Kot[]
+  loyaltyPoints         LoyaltyPoint[]
+  vouchers              Voucher[]
+  revenueReports        RevenueReport[]
+  tables                Table[]
 
+  @@index([active])
+  @@index([phone])
   @@map("branches")
 }
 
+// ========================================
+// TABLE
+// ========================================
+
+model Table {
+  id        String      @id @default(cuid())
+  branchId  String
+  tableCode String
+  tableName String?
+  capacity  Int
+  status    TableStatus @default(AVAILABLE)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, tableCode])
+  @@index([branchId])
+  @@map("tables")
+}
+
+// ========================================
+// ACCOUNT
+// ========================================
+
 model Account {
-  id                 String   @id @default(cuid())
-  branchId           String
+  id       String @id @default(cuid())
+  branchId String
 
-  email              String   @unique
-  password           String
+  email    String @unique
+  password String
 
-  pinCode            String?
+  pinCode   String?
+  fullName  String
+  phone     String?
+  avatarUrl String?
 
-  fullName           String
-  phone              String?
+  role   AccountRole
+  status AccountStatus @default(ACTIVE)
 
-  role               Role
+  mustChangePassword Boolean   @default(true)
+  lastLoginAt        DateTime?
 
-  mustChangePassword Boolean  @default(true)
+  active    Boolean   @default(true)
+  deletedAt DateTime?
 
-  active             Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  deletedAt          DateTime?
-
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  branch                Branch                 @relation(fields: [branchId], references: [id])
+  branch             Branch              @relation(fields: [branchId], references: [id])
+  accountPermissions AccountPermission[]
 
   inventoryTransactions InventoryTransaction[]
   orders                Order[]
   shifts                Shift[]
   activityLogs          ActivityLog[]
+  staffSessions         StaffSession[]
+  stockAudits           StockAudit[]
 
-  @@unique([branchId, pinCode])
-
-  @@index([branchId, role])
-  @@index([active])
-
+  @@index([branchId])
+  @@index([email])
+  @@index([role])
   @@map("accounts")
 }
 
+// ========================================
+// POS DEVICE
+// ========================================
+
 model PosDevice {
-  id           String        @id @default(cuid())
-  branchId     String
+  id       String @id @default(cuid())
+  branchId String
 
-  name         String
+  name        String
+  deviceCode  String  @unique
+  devicePin   String? @unique
+  deviceToken String? @unique
 
-  deviceCode   String        @unique
+  // === SETUP PIN (one-time activation) ===
+  setupPinHash      String?   @map("setup_pin_hash")
+  setupPinExpiresAt DateTime? @map("setup_pin_expires_at")
 
-  devicePin    String?       @unique
-  deviceToken  String?       @unique
+  // === ACTIVATION ===
+  activatedAt        DateTime? @map("activated_at")
+  activationAttempts Int       @default(0) @map("activation_attempts")
+  deviceTokenHash    String?   @map("device_token_hash")
+  refreshTokenHash   String?   @map("refresh_token_hash")
+  tokenVersion       Int       @default(0) @map("token_version")
 
-  type         PosDeviceType
+  type   PosDeviceType
+  mode   PosMode       @default(CASHIER)
+  status PosStatus     @default(PENDING_ACTIVATION)
 
-  mode         PosMode       @default(CASHIER)
+  active          Boolean   @default(true)
+  lastActive      DateTime? @map("last_active")
+  lastLoginAt     DateTime? @map("last_login_at")
+  currentVersion  String?   @map("current_version")
+  lastFingerprint String?   @map("last_fingerprint")
+  notes           String?   @db.Text
+  metadata        Json?
 
-  status       PosStatus     @default(OFFLINE)
-
-  active       Boolean       @default(true)
-
-  lastActive   DateTime?
-
-  currentVersion String?
-
-  deletedAt    DateTime?
-
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   branch Branch @relation(fields: [branchId], references: [id])
 
-  orders Order[]
-  shifts Shift[]
+  orders                 Order[]
+  shifts                 Shift[]
+  deviceSessions         DeviceSession[]
+  staffSessions          StaffSession[]
+  trustedDevices         TrustedDevice[]
+  deviceFeatureOverrides DeviceFeatureOverride[]
 
   @@index([branchId])
+  @@index([deviceCode])
   @@index([deviceToken])
   @@index([status])
   @@index([mode])
   @@index([active])
   @@index([lastActive])
-
   @@map("pos_devices")
 }
 
-model Category {
-  id          String    @id @default(cuid())
+// ========================================
+// DEVICE SESSION
+// ========================================
 
-  branchId    String
+model DeviceSession {
+  id        String @id @default(cuid())
+  deviceId  String @map("device_id")
+  tokenHash String @map("token_hash")
+
+  // === REFRESH TOKEN ===
+  refreshTokenHash String? @map("refresh_token_hash")
+
+  // === DEVICE FINGERPRINT ===
+  fingerprint String? @map("fingerprint")
+  deviceName  String? @map("device_name")
+
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  device PosDevice @relation(fields: [deviceId], references: [id])
+
+  @@index([deviceId])
+  @@index([tokenHash])
+  @@index([refreshTokenHash])
+  @@index([fingerprint])
+  @@index([expiresAt])
+  @@map("device_sessions")
+}
+
+// ========================================
+// TRUSTED DEVICE
+// ========================================
+
+model TrustedDevice {
+  id          String    @id @default(cuid())
+  deviceId    String    @map("device_id")
+  fingerprint String    @map("fingerprint")
+  deviceName  String?   @map("device_name")
+  isTrusted   Boolean   @default(true) @map("is_trusted")
+  trustedAt   DateTime  @default(now()) @map("trusted_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  device PosDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, fingerprint])
+  @@index([deviceId])
+  @@index([fingerprint])
+  @@map("trusted_devices")
+}
+
+// ========================================
+// STAFF SESSION
+// ========================================
+
+model StaffSession {
+  id             String    @id @default(cuid())
+  accountId      String    @map("account_id")
+  deviceId       String    @map("device_id")
+  shiftId        String?   @map("shift_id")
+  loginAt        DateTime  @default(now()) @map("login_at")
+  logoutAt       DateTime? @map("logout_at")
+  lastActivityAt DateTime? @map("last_activity_at")
+
+  account Account   @relation(fields: [accountId], references: [id])
+  device  PosDevice @relation(fields: [deviceId], references: [id])
+  shift   Shift?    @relation(fields: [shiftId], references: [id])
+
+  @@index([accountId])
+  @@index([deviceId])
+  @@index([shiftId])
+  @@index([loginAt])
+  @@index([logoutAt])
+  @@map("staff_sessions")
+}
+
+// ========================================
+// CATEGORY
+// ========================================
+
+model Category {
+  id       String @id @default(cuid())
+  branchId String
 
   name        String
   slug        String
+  description String? @db.Text
+  sortOrder   Int     @default(0)
+  active      Boolean @default(true)
 
-  description String?   @db.Text
-
-  active      Boolean   @default(true)
-
-  deletedAt   DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   branch    Branch     @relation(fields: [branchId], references: [id])
-
   menuItems MenuItem[]
 
   @@unique([branchId, slug])
-
   @@index([branchId])
-
+  @@index([active])
   @@map("categories")
 }
 
-model MenuItem {
-  id          String    @id @default(cuid())
+// ========================================
+// MENU
+// ========================================
 
-  branchId    String
-  categoryId  String
+model MenuItem {
+  id         String @id @default(cuid())
+  branchId   String
+  categoryId String
 
   name        String
-
-  price       Decimal   @db.Decimal(10, 2)
-  cost        Decimal   @db.Decimal(10, 2)
-
-  description String?   @db.Text
-
+  price       Decimal @db.Decimal(10, 2)
+  cost        Decimal @db.Decimal(10, 2)
+  description String? @db.Text
   imageUrl    String?
+  prepTime    Int?    @default(0)
+  sortOrder   Int     @default(0)
 
-  available   Boolean   @default(true)
+  available Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  deletedAt   DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  branch      Branch               @relation(fields: [branchId], references: [id])
-
-  category    Category             @relation(fields: [categoryId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
 
   ingredients MenuItemIngredient[]
   orderItems  OrderItem[]
+  modifiers   MenuItemModifier[]
 
   @@index([branchId, categoryId])
-
+  @@index([available])
   @@map("menu_items")
 }
 
-model MenuItemIngredient {
-  id           String  @id @default(cuid())
+model MenuItemModifier {
+  id         String  @id @default(cuid())
+  menuItemId String
+  name       String
+  type       String  @default("SELECT")
+  minSelect  Int     @default(0)
+  maxSelect  Int     @default(1)
+  price      Decimal @default(0) @db.Decimal(10, 2)
+  sortOrder  Int     @default(0)
 
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  orderItemModifiers OrderItemModifier[]
+
+  @@index([menuItemId])
+  @@map("menu_item_modifiers")
+}
+
+model MenuItemIngredient {
+  id           String @id @default(cuid())
   menuItemId   String
   ingredientId String
 
-  amount       Decimal @db.Decimal(10, 2)
+  amount Decimal @db.Decimal(10, 2)
 
   menuItem   MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-
   ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
 
+  @@unique([menuItemId, ingredientId])
+  @@index([menuItemId])
+  @@index([ingredientId])
   @@map("menu_item_ingredients")
 }
 
+// ========================================
+// INVENTORY
+// ========================================
+
 model Ingredient {
-  id          String          @id @default(cuid())
+  id       String @id @default(cuid())
+  branchId String
 
-  branchId    String
-
-  name        String
-
-  unit        IngredientUnit
-
-  quantity    Decimal         @db.Decimal(10, 2)
-  minQuantity Decimal         @db.Decimal(10, 2)
-
-  price       Decimal         @db.Decimal(10, 2)
-
-  supplier    String?
-
-  available   Boolean         @default(true)
+  name            String
+  unit            IngredientUnit
+  quantity        Decimal        @default(0) @db.Decimal(10, 2)
+  warningQuantity Decimal        @default(0) @db.Decimal(10, 2)
+  maxQuantity     Decimal?       @db.Decimal(10, 2)
+  price           Decimal        @default(0) @db.Decimal(10, 2)
+  supplier        String?
+  sku             String?
+  location        String?
+  barcode         String?
+  available       Boolean        @default(true)
 
   deletedAt   DateTime?
-
   lastUpdated DateTime?
-
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   branch                Branch                 @relation(fields: [branchId], references: [id])
-
   menuItems             MenuItemIngredient[]
-
   inventoryTransactions InventoryTransaction[]
+  stockAlerts           StockAlert[]
+  stockAudits           StockAudit[]
 
   @@index([branchId])
-
+  @@index([sku])
+  @@index([barcode])
+  @@index([name])
   @@map("ingredients")
 }
 
-model InventoryTransaction {
-  id           String                   @id @default(cuid())
-
-  branchId     String
+model StockAlert {
+  id           String    @id @default(cuid())
   ingredientId String
+  branchId     String
+  alertType    String    @default("LOW_STOCK")
+  threshold    Decimal   @db.Decimal(10, 2)
+  message      String?   @db.Text
+  isResolved   Boolean   @default(false)
+  resolvedAt   DateTime?
+  resolvedBy   String?
 
-  createdBy    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  type         InventoryTransactionType
-
-  quantity     Decimal                  @db.Decimal(10, 2)
-
-  beforeQuantity Decimal?               @db.Decimal(10, 2)
-  afterQuantity  Decimal?               @db.Decimal(10, 2)
-
-  note         String?                  @db.Text
-
-  referenceId  String?
-
-  createdAt    DateTime                 @default(now())
-
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   branch     Branch     @relation(fields: [branchId], references: [id])
 
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  @@index([ingredientId, isResolved])
+  @@index([branchId, alertType])
+  @@map("stock_alerts")
+}
 
+model StockAudit {
+  id           String @id @default(cuid())
+  ingredientId String
+  branchId     String
+  auditedBy    String
+
+  expectedQuantity Decimal  @db.Decimal(10, 2)
+  actualQuantity   Decimal  @db.Decimal(10, 2)
+  variance         Decimal  @db.Decimal(10, 2)
+  notes            String?  @db.Text
+  auditDate        DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  branch     Branch     @relation(fields: [branchId], references: [id])
+  account    Account    @relation(fields: [auditedBy], references: [id])
+
+  @@index([ingredientId])
+  @@index([branchId, auditDate])
+  @@map("stock_audits")
+}
+
+model InventoryTransaction {
+  id           String @id @default(cuid())
+  branchId     String
+  ingredientId String
+  createdBy    String
+
+  type InventoryTransactionType
+
+  quantity       Decimal  @db.Decimal(10, 2)
+  beforeQuantity Decimal? @db.Decimal(10, 2)
+  afterQuantity  Decimal? @db.Decimal(10, 2)
+
+  unitPrice Decimal? @db.Decimal(10, 2)
+  totalCost Decimal? @db.Decimal(12, 2)
+
+  note          String? @db.Text
+  referenceId   String?
+  referenceType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch     Branch     @relation(fields: [branchId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
   account    Account    @relation(fields: [createdBy], references: [id])
 
   @@index([branchId, ingredientId])
-
+  @@index([createdAt])
+  @@index([referenceId])
+  @@index([type])
   @@map("inventory_transactions")
 }
 
+// ========================================
+// SHIFT
+// ========================================
+
 model Shift {
-  id             String      @id @default(cuid())
+  id          String  @id @default(cuid())
+  branchId    String
+  posDeviceId String
+  accountId   String?
 
-  branchId       String
-  posDeviceId    String
-  accountId      String?
+  startTime DateTime  @default(now())
+  endTime   DateTime?
 
-  startTime      DateTime    @default(now())
-  endTime        DateTime?
+  lastActive DateTime?
+  isOnline   Boolean   @default(true)
 
-  lastActive     DateTime?
+  ipAddress String?
+  userAgent String?
 
-  isOnline       Boolean     @default(true)
+  openingBalance Decimal  @default(0) @db.Decimal(12, 2)
+  closingBalance Decimal? @db.Decimal(12, 2)
+  actualBalance  Decimal? @db.Decimal(12, 2)
 
-  ipAddress      String?
-  userAgent      String?
+  cashSales   Decimal? @default(0) @db.Decimal(12, 2)
+  cardSales   Decimal? @default(0) @db.Decimal(12, 2)
+  otherSales  Decimal? @default(0) @db.Decimal(12, 2)
+  totalOrders Int?     @default(0)
 
-  openingBalance Decimal     @db.Decimal(10, 2)
+  note   String?     @db.Text
+  status ShiftStatus @default(OPEN)
 
-  closingBalance Decimal?    @db.Decimal(10, 2)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  actualBalance  Decimal?    @db.Decimal(10, 2)
+  branch    Branch    @relation(fields: [branchId], references: [id])
+  posDevice PosDevice @relation(fields: [posDeviceId], references: [id])
+  account   Account?  @relation(fields: [accountId], references: [id])
 
-  note           String?     @db.Text
-
-  status         ShiftStatus @default(OPEN)
-
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  branch    Branch     @relation(fields: [branchId], references: [id])
-
-  posDevice PosDevice  @relation(fields: [posDeviceId], references: [id])
-
-  account   Account?   @relation(fields: [accountId], references: [id])
-
-  orders    Order[]
+  orders        Order[]
+  staffSessions StaffSession[]
 
   @@index([branchId, accountId])
-
   @@index([status, isOnline])
-
+  @@index([posDeviceId, status])
   @@map("shifts")
 }
 
+// ========================================
+// ORDER SYSTEM
+// ========================================
+
 model Order {
-  id            String        @id @default(cuid())
+  id          String  @id @default(cuid())
+  branchId    String
+  posDeviceId String
+  createdBy   String
+  shiftId     String?
+  customerId  String?
 
-  branchId      String
-
-  posDeviceId   String
-
-  createdBy     String
-
-  shiftId       String?
-
-  orderNumber   String        @unique
-
-  source        String?
-
-  tableNumber   String?
+  orderNumber String  @unique
+  source      String? @default("POS")
+  tableNumber String?
 
   status        OrderStatus
+  kitchenStatus KitchenStatus @default(PENDING)
 
   paymentMethod PaymentMethod?
-
-  paymentStatus PaymentStatus @default(UNPAID)
-
+  paymentStatus PaymentStatus  @default(UNPAID)
   orderType     OrderType
 
-  subtotal      Decimal       @db.Decimal(10, 2)
+  subtotal      Decimal  @default(0) @db.Decimal(12, 2)
+  tax           Decimal  @default(0) @db.Decimal(12, 2)
+  taxRate       Decimal? @db.Decimal(5, 2)
+  serviceCharge Decimal  @default(0) @db.Decimal(12, 2)
+  discount      Decimal  @default(0) @db.Decimal(12, 2)
+  rounding      Decimal  @default(0) @db.Decimal(12, 2)
+  total         Decimal  @default(0) @db.Decimal(12, 2)
 
-  tax           Decimal       @db.Decimal(10, 2)
+  cost   Decimal @default(0) @db.Decimal(12, 2)
+  profit Decimal @default(0) @db.Decimal(12, 2)
 
-  serviceCharge Decimal       @default(0) @db.Decimal(10, 2)
+  note       String? @db.Text
+  guestCount Int?    @default(1)
 
-  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  deletedAt   DateTime?
 
-  total         Decimal       @db.Decimal(10, 2)
+  branch    Branch    @relation(fields: [branchId], references: [id])
+  posDevice PosDevice @relation(fields: [posDeviceId], references: [id])
+  account   Account   @relation(fields: [createdBy], references: [id])
+  shift     Shift?    @relation(fields: [shiftId], references: [id])
+  customer  Customer? @relation(fields: [customerId], references: [id])
 
-  cost          Decimal       @db.Decimal(10, 2)
-
-  profit        Decimal       @db.Decimal(10, 2)
-
-  note          String?       @db.Text
-
-  createdAt     DateTime      @default(now())
-
-  completedAt   DateTime?
-
-  branch     Branch      @relation(fields: [branchId], references: [id])
-
-  posDevice  PosDevice   @relation(fields: [posDeviceId], references: [id])
-
-  account    Account     @relation(fields: [createdBy], references: [id])
-
-  shift      Shift?      @relation(fields: [shiftId], references: [id])
-
-  orderItems OrderItem[]
-
-  payments   Payment[]
+  items            OrderItem[]
+  payments         Payment[]
+  kots             Kot[]
+  redeemedVouchers RedeemedVoucher[]
 
   @@index([branchId, createdAt])
-
   @@index([shiftId])
-
   @@index([branchId, status])
-
   @@index([branchId, paymentStatus])
-
+  @@index([branchId, kitchenStatus])
+  @@index([orderNumber])
+  @@index([tableNumber])
   @@map("orders")
 }
 
 model OrderItem {
   id         String  @id @default(cuid())
-
   orderId    String
-  menuItemId String
+  menuItemId String?
 
-  name       String
+  kotId String?
 
-  price      Decimal @db.Decimal(10, 2)
+  name     String
+  price    Decimal @db.Decimal(12, 2)
+  cost     Decimal @default(0) @db.Decimal(12, 2)
+  quantity Int
+  discount Decimal @default(0) @db.Decimal(12, 2)
+  total    Decimal @default(0) @db.Decimal(12, 2)
 
-  cost       Decimal @db.Decimal(10, 2)
+  note String? @db.Text
 
-  quantity   Int
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id])
+  kot      Kot?      @relation(fields: [kotId], references: [id])
 
-  discount   Decimal @default(0) @db.Decimal(10, 2)
-
-  total      Decimal @db.Decimal(10, 2)
-
-  note       String? @db.Text
-
-  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  modifiers OrderItemModifier[]
 
   @@index([orderId])
-
+  @@index([menuItemId])
+  @@index([kotId])
   @@map("order_items")
 }
 
+model OrderItemModifier {
+  id          String  @id @default(cuid())
+  orderItemId String
+  modifierId  String?
+  name        String
+  price       Decimal @default(0) @db.Decimal(10, 2)
+  quantity    Int     @default(1)
+
+  orderItem OrderItem         @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifier  MenuItemModifier? @relation(fields: [modifierId], references: [id])
+
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
+}
+
+// ========================================
+// KITCHEN ORDER TICKET (KOT)
+// ========================================
+
+model Kot {
+  id          String        @id @default(cuid())
+  orderId     String
+  branchId    String
+  kotNumber   String        @unique
+  status      KitchenStatus @default(PENDING)
+  priority    Int           @default(0)
+  note        String?       @db.Text
+  preparedBy  String?
+  preparedAt  DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  items OrderItem[]
+
+  @@index([orderId])
+  @@index([branchId, status])
+  @@index([status])
+  @@map("kots")
+}
+
+// ========================================
+// PAYMENT
+// ========================================
+
 model Payment {
-  id            String        @id @default(cuid())
+  id      String @id @default(cuid())
+  orderId String
 
-  orderId       String
-
-  amount        Decimal       @db.Decimal(10, 2)
-
+  amount        Decimal       @db.Decimal(12, 2)
   method        PaymentMethod
-
   status        PaymentStatus
-
+  reference     String?
   transactionId String?
-
   note          String?       @db.Text
 
-  createdAt     DateTime      @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
-
   @@index([createdAt])
-
+  @@index([transactionId])
   @@map("payments")
 }
 
-model ActivityLog {
-  id          String    @id @default(cuid())
+// ========================================
+// CUSTOMER / LOYALTY
+// ========================================
 
+model Customer {
+  id       String @id @default(cuid())
+  branchId String
+
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  birthDate DateTime?
+
+  totalSpent Decimal   @default(0) @db.Decimal(12, 2)
+  visitCount Int       @default(0)
+  lastVisit  DateTime?
+
+  tier   LoyaltyTier @default(BRONZE)
+  points Int         @default(0)
+  note   String?     @db.Text
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  branch Branch  @relation(fields: [branchId], references: [id])
+  orders Order[]
+
+  loyaltyPoints    LoyaltyPoint[]
+  redeemedVouchers RedeemedVoucher[]
+
+  @@unique([branchId, phone])
+  @@index([branchId, tier])
+  @@index([points])
+  @@map("customers")
+}
+
+model LoyaltyPoint {
+  id         String @id @default(cuid())
+  customerId String
+  branchId   String
+
+  points    Int
+  type      String  @default("EARN")
+  reference String?
+  note      String? @db.Text
+
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([customerId])
+  @@index([branchId, createdAt])
+  @@index([expiresAt])
+  @@map("loyalty_points")
+}
+
+model Voucher {
+  id          String      @id @default(cuid())
   branchId    String
+  code        String      @unique
+  type        VoucherType
+  name        String
+  description String?     @db.Text
 
+  discountValue Decimal  @db.Decimal(12, 2)
+  maxDiscount   Decimal? @db.Decimal(12, 2)
+  minOrderValue Decimal? @db.Decimal(12, 2)
+
+  usageLimit Int? @default(0)
+  usedCount  Int  @default(0)
+  pointsCost Int  @default(0)
+
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  redeemedVouchers RedeemedVoucher[]
+
+  @@index([branchId, isActive])
+  @@index([code])
+  @@index([startDate, endDate])
+  @@map("vouchers")
+}
+
+model RedeemedVoucher {
+  id         String   @id @default(cuid())
+  voucherId  String
+  customerId String
+  orderId    String?
+  discount   Decimal  @db.Decimal(12, 2)
+  redeemedAt DateTime @default(now())
+
+  voucher  Voucher  @relation(fields: [voucherId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  order    Order?   @relation(fields: [orderId], references: [id])
+
+  @@index([voucherId])
+  @@index([customerId])
+  @@index([orderId])
+  @@map("redeemed_vouchers")
+}
+
+// ========================================
+// REVENUE REPORTING
+// ========================================
+
+model RevenueReport {
+  id         String   @id @default(cuid())
+  branchId   String
+  reportDate DateTime @db.Date
+
+  orderCount Int     @default(0)
+  revenue    Decimal @default(0) @db.Decimal(14, 2)
+  cost       Decimal @default(0) @db.Decimal(14, 2)
+  profit     Decimal @default(0) @db.Decimal(14, 2)
+
+  cashTotal  Decimal @default(0) @db.Decimal(14, 2)
+  cardTotal  Decimal @default(0) @db.Decimal(14, 2)
+  otherTotal Decimal @default(0) @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, reportDate])
+  @@index([branchId, reportDate])
+  @@map("revenue_reports")
+}
+
+// ========================================
+// ACTIVITY LOG
+// ========================================
+
+model ActivityLog {
+  id          String  @id @default(cuid())
+  branchId    String
   accountId   String?
-
   posDeviceId String?
 
-  action      String
+  action    String
+  module    String
+  details   Json?
+  ipAddress String?
+  userAgent String?
 
-  module      String
+  createdAt DateTime @default(now())
 
-  details     Json?
-
-  ipAddress   String?
-
-  createdAt   DateTime  @default(now())
-
-  branch  Branch    @relation(fields: [branchId], references: [id])
-
-  account Account?  @relation(fields: [accountId], references: [id])
+  branch  Branch   @relation(fields: [branchId], references: [id])
+  account Account? @relation(fields: [accountId], references: [id])
 
   @@index([branchId, createdAt])
-
   @@index([accountId, createdAt])
-
+  @@index([module, action])
   @@map("activity_logs")
 }

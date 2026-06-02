@@ -3,17 +3,20 @@ import { mapRevenueRecord } from '../../utils/mappers.js';
 import { revenueRepository } from '../../repositories/revenue.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { orderRepository } from '../../repositories/order.repository.js';
+import { buildBranchWhere } from '../../middlewares/branchScope.js';
 
 function getBranchWhere(user) {
-  return user && user.role !== 'ADMIN' && user.branchId ? { branchId: user.branchId } : {};
+  return buildBranchWhere(user);
 }
 
 export const revenueService = {
   /** Báo cáo theo ngày - khớp revenueRecords frontend */
   async getDailyReports({ range = '14days', from, to }, user) {
     const branchWhere = getBranchWhere(user);
-    const where = buildDateWhere({ range, from, to });
-    const reports = await revenueRepository.findReports(where);
+    const reports = await revenueRepository.findReports({
+      ...branchWhere,
+      ...buildDateWhere({ range, from, to }),
+    });
 
     if (reports.length > 0) {
       return reports.map(mapRevenueRecord);
@@ -78,7 +81,8 @@ export const revenueService = {
 
   /** Top món bán chạy */
   async getTopSellingItems(limit = 8, user) {
-    const branchId = user && user.role !== 'ADMIN' ? user.branchId : undefined;
+    const canAccessAll = user?.permissions?.includes('BRANCH_ALL_ACCESS') || user?.permissions?.includes('CROSS_BRANCH_ACCESS');
+    const branchId = !canAccessAll ? user?.branchId : undefined;
     const grouped = await orderRepository.aggregateTopItems(limit, branchId);
     const result = [];
 
@@ -106,7 +110,7 @@ export const revenueService = {
 
     const branchWhere = getBranchWhere(user);
     const lowStockItems = await prisma.ingredient.findMany({ where: branchWhere });
-    const lowStockCount = lowStockItems.filter((i) => Number(i.quantity) < Number(i.minQuantity)).length;
+    const lowStockCount = lowStockItems.filter((i) => Number(i.quantity) <= Number(i.warningQuantity)).length;
     const menuAvailable = await prisma.menuItem.count({ where: { available: true, ...branchWhere } });
     const menuTotal = await prisma.menuItem.count({ where: branchWhere });
 
@@ -169,10 +173,9 @@ export const revenueService = {
 
   /** Đồng bộ revenue_reports từ orders đã hoàn thành */
   async syncRevenueReports(branchId) {
-    const where = { status: 'COMPLETED' };
-    if (branchId) where.branchId = branchId;
+    if (!branchId) return 0;
     const orders = await prisma.order.findMany({
-      where,
+      where: { status: 'COMPLETED', branchId },
       select: {
         total: true,
         cost: true,
@@ -198,7 +201,7 @@ export const revenueService = {
 
     for (const [dateStr, stats] of Object.entries(byDate)) {
       const reportDate = new Date(dateStr);
-      await revenueRepository.upsert(reportDate, stats);
+      await revenueRepository.upsert(branchId, reportDate, stats);
     }
 
     return Object.keys(byDate).length;

@@ -1,10 +1,15 @@
 import prisma from '../prisma/client.js';
 
+const txInclude = {
+  ingredient: true,
+  account: { select: { id: true, fullName: true } },
+};
+
 export const inventoryTransactionRepository = {
   findMany: (where = {}, take = 100) =>
     prisma.inventoryTransaction.findMany({
       where,
-      include: { ingredient: true, user: { select: { id: true, fullName: true } } },
+      include: txInclude,
       orderBy: { createdAt: 'desc' },
       take,
     }),
@@ -12,7 +17,7 @@ export const inventoryTransactionRepository = {
   findByIngredient: (ingredientId, take = 50) =>
     prisma.inventoryTransaction.findMany({
       where: { ingredientId },
-      include: { user: { select: { id: true, fullName: true } } },
+      include: txInclude,
       orderBy: { createdAt: 'desc' },
       take,
     }),
@@ -20,6 +25,6 @@ export const inventoryTransactionRepository = {
   create: (data) =>
     prisma.inventoryTransaction.create({
       data,
-      include: { ingredient: true, user: { select: { id: true, fullName: true } } },
+      include: txInclude,
     }),
 };

@@ -28,6 +28,8 @@ export class ApiError extends Error {
 
 type RequestOptions = RequestInit & { auth?: boolean };
 
+const FETCH_TIMEOUT = 10_000; // 10s
+
 /** Gọi API chuẩn { success, message, data } */
 export async function apiFetch<T>(
   path: string,
@@ -47,22 +49,30 @@ export async function apiFetch<T>(
     }
   }
 
-  const res = await fetch(`${API_PREFIX}${path}`, {
-    ...rest,
-    headers: reqHeaders,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-  const json = (await res.json()) as ApiResponse<T> | { success: false; message: string; error?: unknown };
+  try {
+    const res = await fetch(`${API_PREFIX}${path}`, {
+      ...rest,
+      headers: reqHeaders,
+      signal: controller.signal,
+    });
 
-  if (!res.ok || !json.success) {
-    throw new ApiError(
-      json.message || 'Có lỗi xảy ra',
-      res.status,
-      'error' in json ? json.error : undefined
-    );
+    const json = (await res.json()) as ApiResponse<T> | { success: false; message: string; error?: unknown };
+
+    if (!res.ok || !json.success) {
+      throw new ApiError(
+        json.message || 'Có lỗi xảy ra',
+        res.status,
+        'error' in json ? json.error : undefined
+      );
+    }
+
+    return json.data;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return json.data;
 }
 
 /** Fetch legacy POS /orders (JSON thuần, không envelope) */
@@ -82,3 +92,17 @@ export async function ordersFetch<T>(path = '', options: RequestInit = {}): Prom
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+/** Wrapper tiện lợi cho apiFetch */
+export const api = {
+  get: <T>(path: string, options?: RequestOptions) => 
+    apiFetch<T>(path, { ...options, method: 'GET' }),
+  post: <T>(path: string, body?: any, options?: RequestOptions) => 
+    apiFetch<T>(path, { ...options, method: 'POST', body: JSON.stringify(body) }),
+  put: <T>(path: string, body?: any, options?: RequestOptions) => 
+    apiFetch<T>(path, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+  patch: <T>(path: string, body?: any, options?: RequestOptions) => 
+    apiFetch<T>(path, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
+  delete: <T>(path: string, options?: RequestOptions) => 
+    apiFetch<T>(path, { ...options, method: 'DELETE' }),
+};

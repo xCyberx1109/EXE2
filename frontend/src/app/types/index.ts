@@ -23,7 +23,7 @@ export interface InventoryItem {
   name: string;
   unit: string;
   quantity: number;
-  minQuantity: number;
+  warningQuantity: number;
   price: number;
   supplier: string;
   lastUpdated: string;
@@ -36,6 +36,14 @@ export interface RevenueRecord {
   revenue: number;
   cost: number;
   profit: number;
+}
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  itemCount: number;
 }
 
 export interface TopSellingItem {
@@ -128,16 +136,29 @@ export interface InventoryStats {
   totalItems: number;
   lowStockCount: number;
   totalValue: number;
+  warningCount?: number;
 }
+
+export type AccountRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN' | 'STAFF';
 
 export interface User {
   id: string;
   email: string;
   fullName: string;
-  role: 'ADMIN' | 'MANAGER';
+  role: AccountRole;
+  permissions?: string[];
+  permissionsVersion?: number;
   mustChangePassword?: boolean;
   branchId?: string;
   createdAt: string;
+}
+
+export function normalizeRole(role: string): AccountRole {
+  if (role === 'ADMIN') return 'ADMIN';
+  if (role === 'MANAGER') return 'MANAGER';
+  if (role === 'CASHIER') return 'CASHIER';
+  if (role === 'KITCHEN') return 'KITCHEN';
+  return 'STAFF';
 }
 
 export interface Branch {
@@ -166,95 +187,210 @@ export interface BranchAccount {
 // === POS Mode ===
 export type PosMode = 'CASHIER' | 'KITCHEN' | 'HYBRID';
 
-// === POS Device Types ===
-export interface PosDevice {
+// ======== POS v2 Types ========
+
+export type PosDeviceTypeV2 = 'CASHIER' | 'KITCHEN' | 'TABLET' | 'KIOSK' | 'WAITER' | 'CUSTOMER_DISPLAY' | 'MANAGER';
+export type PosStatusV2 = 'PENDING_ACTIVATION' | 'ACTIVATED' | 'ONLINE' | 'OFFLINE' | 'MAINTENANCE' | 'REVOKED';
+
+export type DevicePermission =
+  | 'order:create' | 'order:read' | 'order:update' | 'order:cancel'
+  | 'payment:process' | 'payment:refund' | 'payment:qr'
+  | 'receipt:print' | 'bill:split' | 'bill:print'
+  | 'customer:create' | 'customer:read' | 'customer:update'
+  | 'menu:create' | 'menu:read' | 'menu:update'
+  | 'inventory:read' | 'inventory:update'
+  | 'reports:read'
+  | 'kitchen:view_queue' | 'kitchen:update_status' | 'kitchen:view_status'
+  | 'shift:open' | 'shift:close' | 'shift:view'
+  | 'staff:manage' | 'device:manage'
+  | 'table:read' | 'table:update'
+  | 'kot:read' | 'kot:update';
+
+export interface DeviceFeatures {
+  modules: string[];
+  routes: string[];
+  hide: string[];
+}
+export type ShiftStatus = 'OPEN' | 'CLOSED';
+
+export interface PosDeviceV2 {
   id: string;
   branchId: string;
   name: string;
-  deviceCode: string;
-  devicePin?: string;
-  type: 'CASHIER' | 'TABLET' | 'KIOSK';
+  type: PosDeviceTypeV2;
   mode: PosMode;
-  status: 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
+  status: PosStatusV2;
   active: boolean;
   lastActive: string | null;
+  lastLoginAt: string | null;
+  currentVersion: string | null;
+  activatedAt: string | null;
+  tokenVersion: number;
   createdAt: string;
-  _count?: { orders: number };
-  shifts?: Array<{
+  currentShift: {
     id: string;
     startTime: string;
-    status: string;
-    account: { id: string; fullName: string } | null;
-  }>;
+    cashier: string | null;
+  } | null;
+  ordersToday: number;
   branch?: { id: string; name: string };
 }
 
-export interface PosDeviceCreatePayload {
+export interface CreatePosDeviceResponse {
+  id: string;
   name: string;
-  type: PosDevice['type'];
-  mode?: PosMode;
+  type: string;
+  mode: PosMode;
+  setupPin: string;
+  setupPinExpiresAt: string;
+  branchId: string;
+  status: string;
+  active: boolean;
+  createdAt: string;
 }
 
-export interface PosLoginResponse {
-  token: string;
+export interface StaffLoginResponse {
+  sessionId: string;
+  account: {
+    id: string;
+    fullName: string;
+    role: string;
+  };
+  shift: {
+    id: string;
+    status: ShiftStatus;
+    openedAt: string;
+  } | null;
+  loginAt: string;
+}
+
+export interface ActiveStaff {
+  sessionId: string;
+  account: {
+    id: string;
+    fullName: string;
+    role: string;
+  };
+  loginAt: string;
+  lastActivityAt: string | null;
+}
+
+export interface OpenShiftRequest {
+  openingBalance: number;
+  note?: string;
+}
+
+export interface CloseShiftRequest {
+  closingBalance: number;
+  actualBalance?: number;
+  note?: string;
+}
+
+export interface ShiftResponse {
+  id: string;
+  status: ShiftStatus;
+  openingBalance: number;
+  closingBalance?: number;
+  expectedCashBalance?: number;
+  balanceVariance?: number;
+  cashSales?: number;
+  cardSales?: number;
+  otherSales?: number;
+  totalOrders?: number;
+  openedAt: string;
+  closedAt?: string;
+  cashier?: { id: string; fullName: string } | null;
+}
+
+export interface CurrentShift {
+  id: string;
+  status: ShiftStatus;
+  openingBalance: number;
+  openedAt: string;
+  cashSales: number;
+  cardSales: number;
+  otherSales: number;
+  totalOrders: number;
+  currentSales: number;
+  staff: Array<{ id: string; fullName: string; role: string }>;
+  isOnline: boolean;
+  lastActive: string | null;
+}
+
+export interface DeviceRegeneratePinResponse {
+  deviceId: string;
+  setupPin: string;
+  setupPinExpiresAt: string;
+}
+
+export interface DeviceRevokeResponse {
+  deviceId: string;
+  status: string;
+}
+
+export interface PosSetupState {
+  step: 'welcome' | 'activation' | 'complete';
+  deviceName?: string;
+  deviceToken?: string;
+  branchName?: string;
+}
+
+// ======== Unified Auth Types ========
+
+export interface DeviceLoginRequest {
+  setupPin: string;
+  fingerprint?: string;
+  deviceName?: string;
+}
+
+export interface DeviceLoginResponse {
+  deviceToken: string;
+  refreshToken: string;
+  expiresAt: string;
   device: {
     id: string;
     name: string;
-    deviceCode: string;
-    type: string;
+    type: PosDeviceTypeV2;
     mode: PosMode;
     status: string;
-    lastActive: string;
   };
+  permissions: DevicePermission[];
+  features: DeviceFeatures;
+  enabledFeatures: string[];
   branch: {
     id: string;
     name: string;
     address: string;
   };
-  shift: {
-    id: string;
-    startTime: string;
-    status: string;
-  };
 }
 
-export interface PosProfile {
+export interface TableItem {
   id: string;
-  name: string;
-  deviceCode: string;
-  type: string;
-  mode: PosMode;
-  status: string;
-  active: boolean;
-  lastActive: string | null;
-  branch: { id: string; name: string } | null;
-  currentShift: {
-    id: string;
-    startTime: string;
-    isOnline: boolean;
-  } | null;
-  ordersToday: number;
-}
-
-export interface KitchenOrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  note?: string;
-}
-
-export interface KitchenOrder {
-  id: string;
-  orderNumber: string;
-  tableNumber: number | null;
-  status: string;
-  items: KitchenOrderItem[];
+  branchId: string;
+  tableCode: string;
+  tableName: string | null;
+  capacity: number;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'DISABLED';
+  isActive: boolean;
   createdAt: string;
-  note?: string;
+  updatedAt: string;
 }
 
-export interface ResetPinResponse {
-  deviceId: string;
-  deviceCode: string;
-  devicePin: string;
+export interface DeviceRefreshResponse {
+  deviceToken: string;
+  refreshToken: string;
+  expiresAt: string;
 }
+
+export interface DeviceSessionInfo {
+  id: string;
+  deviceName: string | null;
+  fingerprint: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  expiresAt: string;
+  lastUsedAt: string;
+  createdAt: string;
+}
+
+export type AuthMode = 'account' | 'device';

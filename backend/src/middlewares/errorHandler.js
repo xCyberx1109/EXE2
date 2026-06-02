@@ -1,20 +1,16 @@
+import { Prisma } from '@prisma/client';
 import { AppError } from '../utils/AppError.js';
 import { sendError } from '../utils/apiResponse.js';
 
 /** Global error handler */
 export const errorHandler = (err, req, res, _next) => {
-  if (err.name === 'ValidationError' || err.type === 'validation') {
-    return sendError(res, {
-      message: err.message || 'Dữ liệu không hợp lệ',
-      error: err.errors || err.array?.() || null,
-      statusCode: 400,
-    });
-  }
-
   if (err instanceof AppError) {
+    const details = err.errors ? (Array.isArray(err.errors) ? err.errors.map(e => `[${e.path || e.param || 'field'}]: ${e.msg || e.message}`).join('; ') : JSON.stringify(err.errors)) : null;
+    console.error(`[AppError ${err.statusCode}] ${err.message}`, details);
+    if (err.statusCode === 400) console.error(err.stack);
     return sendError(res, {
-      message: err.message,
-      error: err.errors,
+      message: details ? `${err.message}: ${details}` : err.message,
+      error: err.errors || { stack: err.stack, message: err.message },
       statusCode: err.statusCode,
     });
   }
@@ -34,7 +30,25 @@ export const errorHandler = (err, req, res, _next) => {
     });
   }
 
-  console.error('[Error]', err);
+  if (err.code === 'P2003') {
+    return sendError(res, {
+      message: 'Không thể xóa vì dữ liệu đang được tham chiếu bởi các bản ghi khác',
+      error: err.meta,
+      statusCode: 409,
+    });
+  }
+
+  if (err instanceof Prisma.PrismaClientValidationError) {
+    console.error('[Prisma Validation Error]', err.message);
+    console.error(err.stack);
+    return sendError(res, {
+      message: err.message,
+      error: err.message,
+      statusCode: 400,
+    });
+  }
+
+  console.error('[Unhandled Error]', err);
 
   return sendError(res, {
     message: process.env.NODE_ENV === 'production' ? 'Lỗi máy chủ' : err.message,

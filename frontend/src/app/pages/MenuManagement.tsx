@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Search, Loader2, X } from 'lucide-react';
-import { inventoryApi, menuApi } from '../api/services';
+import { inventoryApi, menuApi, categoryApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import type { InventoryItem, MenuItem, TopSellingItem } from '../types';
+import type { InventoryItem, MenuItem, TopSellingItem, CategoryItem } from '../types';
 
 type RecipeRow = {
   ingredientId: string;
-  amount: number;
+  amount: string;
 };
 
-const emptyRecipeRow: RecipeRow = { ingredientId: '', amount: 0 };
+const emptyRecipeRow: RecipeRow = { ingredientId: '', amount: '' };
 
 export function MenuManagement() {
   const { isReady } = useAuth();
@@ -19,35 +19,39 @@ export function MenuManagement() {
   const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([{ ...emptyRecipeRow }]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [formData, setFormData] = useState<Partial<MenuItem>>({
+  const [formData, setFormData] = useState({
     name: '',
-    category: 'Món chính',
-    price: 0,
-    cost: 0,
+    category: '',
+    price: '',
+    cost: '',
     description: '',
     available: true,
   });
 
-  const categories = ['all', 'Món chính', 'Món phụ', 'Đồ uống'];
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [items, top, ingredientList] = await Promise.all([
+      const [items, top, ingredientList, cats] = await Promise.all([
         menuApi.list({
           search: searchTerm || undefined,
           category: selectedCategory !== 'all' ? selectedCategory : undefined,
         }),
         menuApi.topSelling(),
         inventoryApi.list(),
+        categoryApi.list(),
       ]);
       setMenuItems(items);
       setTopSelling(top);
       setIngredients(ingredientList);
+      setCategories(cats);
+      if (cats.length > 0 && formData.category === '') {
+        setFormData((prev) => ({ ...prev, category: cats[0].name }));
+      }
     } catch (err) {
       console.error(err);
       alert('Không tải được menu. Kiểm tra backend đang chạy.');
@@ -84,14 +88,14 @@ export function MenuManagement() {
   };
 
   const validateRecipeRows = () => {
-    const validRows = recipeRows.filter((row) => row.ingredientId || row.amount > 0);
+    const validRows = recipeRows.filter((row) => row.ingredientId);
     const selectedIds = validRows.map((row) => row.ingredientId);
 
     if (validRows.some((row) => !row.ingredientId)) {
       throw new Error('Vui lòng chọn nguyên liệu cho tất cả dòng công thức');
     }
 
-    if (validRows.some((row) => row.amount <= 0)) {
+    if (validRows.some((row) => Number(row.amount) <= 0)) {
       throw new Error('Số lượng nguyên liệu phải lớn hơn 0');
     }
 
@@ -106,11 +110,43 @@ export function MenuManagement() {
     e.preventDefault();
     setSaving(true);
     try {
-      const recipeIngredients = validateRecipeRows();
+      if (!formData.name.trim()) {
+        throw new Error('Tên món là bắt buộc');
+      }
+      if (!formData.category.trim()) {
+        throw new Error('Danh mục là bắt buộc');
+      }
+      const priceVal = Number(formData.price);
+      const costVal = Number(formData.cost);
+      if (formData.price === '' || isNaN(priceVal)) {
+        throw new Error('Giá bán là bắt buộc và phải là số hợp lệ');
+      }
+      if (formData.cost === '' || isNaN(costVal)) {
+        throw new Error('Giá vốn là bắt buộc và phải là số hợp lệ');
+      }
+      if (priceVal < 0) throw new Error('Giá bán không được âm');
+      if (costVal < 0) throw new Error('Giá vốn không được âm');
+
+      const recipeIngredients = validateRecipeRows().map((row) => ({
+        ingredientId: row.ingredientId,
+        amount: Number(row.amount),
+      }));
       const payload = {
-        ...formData,
+        name: formData.name.trim(),
+        category: formData.category.trim(),
+        price: priceVal,
+        cost: costVal,
+        description: formData.description,
+        available: formData.available,
         ingredients: recipeIngredients,
       };
+
+      // Log payload thực tế trước API call
+      console.log('Menu Payload:', JSON.stringify(payload, null, 2));
+      console.log('price type:', typeof payload.price, 'cost type:', typeof payload.cost);
+      console.log('available type:', typeof payload.available);
+      console.log('description type:', typeof payload.description, 'value:', JSON.stringify(payload.description));
+      console.log('ingredients:', payload.ingredients?.length || 0, 'items');
 
       if (editingItem) {
         await menuApi.update(editingItem.id, payload);
@@ -132,8 +168,8 @@ export function MenuManagement() {
     setFormData({
       name: '',
       category: 'Món chính',
-      price: 0,
-      cost: 0,
+      price: '',
+      cost: '',
       description: '',
       available: true,
     });
@@ -147,12 +183,19 @@ export function MenuManagement() {
 
   const handleEdit = (item: MenuItem) => {
     setEditingItem(item);
-    setFormData(item);
+    setFormData({
+      name: item.name,
+      category: item.category,
+      price: String(item.price),
+      cost: String(item.cost),
+      description: item.description,
+      available: item.available,
+    });
     setRecipeRows(
       item.ingredients?.length
         ? item.ingredients.map((row) => ({
             ingredientId: row.ingredientId,
-            amount: Number(row.amount),
+            amount: String(row.amount),
           }))
         : [{ ...emptyRecipeRow }]
     );
@@ -217,17 +260,27 @@ export function MenuManagement() {
             />
           </div>
           <div className="flex gap-2 flex-wrap">
-            {categories.map((category) => (
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedCategory === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tất cả
+            </button>
+            {categories.map((cat) => (
               <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.name)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategory === category
+                  selectedCategory === cat.name
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {category === 'all' ? 'Tất cả' : category}
+                {cat.name}
               </button>
             ))}
           </div>
@@ -334,9 +387,9 @@ export function MenuManagement() {
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
-                  <option>Món chính</option>
-                  <option>Món phụ</option>
-                  <option>Đồ uống</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id}>{cat.name}</option>
+                  ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -347,7 +400,7 @@ export function MenuManagement() {
                     min="0"
                     required
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -358,7 +411,7 @@ export function MenuManagement() {
                     min="0"
                     required
                     value={formData.cost}
-                    onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -406,7 +459,7 @@ export function MenuManagement() {
                             min="0"
                             step="0.001"
                             value={row.amount}
-                            onChange={(e) => updateRecipeRow(index, { amount: Number(e.target.value) })}
+                            onChange={(e) => updateRecipeRow(index, { amount: e.target.value })}
                             placeholder="Số lượng"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-12"
                           />

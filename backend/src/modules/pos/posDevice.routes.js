@@ -7,21 +7,19 @@ import {
   createPosDeviceRules, resetPinRules, toggleDeviceRules, posDeviceIdParam, updateModeRules,
 } from '../../validators/pos.validator.js';
 import { validate } from '../../middlewares/validate.js';
-import { authenticate, requireManager } from '../../middlewares/auth.js';
+import { authenticate, requireBranchManager, requirePermission } from '../../middlewares/auth.js';
 
 const router = Router();
 
-// Tất cả routes đều cần xác thực và quyền MANAGER trở lên
-router.use(authenticate, requireManager);
+router.use(authenticate);
 
-router.get('/', listPosDevices);
-router.get('/:id', posDeviceIdParam, validate, getPosDevice);
-router.post('/', createPosDeviceRules, validate, createPosDevice);
-router.put('/:id/toggle', [...posDeviceIdParam, ...toggleDeviceRules], validate, togglePosDevice);
-router.put('/:id/mode', [...posDeviceIdParam, ...updateModeRules], validate, updatePosDeviceMode);
-router.delete('/:id', posDeviceIdParam, validate, deletePosDevice);
+router.get('/', requirePermission('POS_DEVICE_VIEW'), listPosDevices);
+router.get('/:id', requirePermission('POS_DEVICE_VIEW'), posDeviceIdParam, validate, getPosDevice);
+router.post('/', requirePermission('POS_DEVICE_CREATE'), createPosDeviceRules, validate, createPosDevice);
+router.put('/:id/toggle', requirePermission('POS_DEVICE_UPDATE'), [...posDeviceIdParam, ...toggleDeviceRules], validate, togglePosDevice);
+router.put('/:id/mode', requirePermission('POS_DEVICE_UPDATE'), [...posDeviceIdParam, ...updateModeRules], validate, updatePosDeviceMode);
+router.delete('/:id', requirePermission('POS_DEVICE_DELETE'), posDeviceIdParam, validate, deletePosDevice);
 
-// Reset PIN - dùng body deviceId thay vì params
-router.post('/reset-pin', resetPinRules, validate, resetPosPin);
+router.post('/reset-pin', requirePermission('POS_DEVICE_RESET'), resetPinRules, validate, resetPosPin);
 
 export default router;

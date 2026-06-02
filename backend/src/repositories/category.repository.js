@@ -10,7 +10,11 @@ export const categoryRepository = {
 
   findById: (id) => prisma.category.findUnique({ where: { id } }),
 
-  findByName: (name) => prisma.category.findUnique({ where: { name } }),
+  findByName: (name, branchId) => {
+    const where = { name };
+    if (branchId) where.branchId = branchId;
+    return prisma.category.findFirst({ where });
+  },
 
   create: (data) => prisma.category.create({ data }),
 

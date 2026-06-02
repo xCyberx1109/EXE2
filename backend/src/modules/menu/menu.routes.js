@@ -8,7 +8,7 @@ import {
   categoryRules, menuItemRules, menuItemIdParam, menuSearchQuery,
 } from '../../validators/menu.validator.js';
 import { validate } from '../../middlewares/validate.js';
-import { authenticate, authorize, optionalAuth } from '../../middlewares/auth.js';
+import { authenticate, optionalAuth, requirePermission } from '../../middlewares/auth.js';
 import { param } from 'express-validator';
 
 const router = Router();
@@ -20,13 +20,13 @@ router.get('/menu-items/:id', optionalAuth, menuItemIdParam, validate, getMenuIt
 router.get('/categories', optionalAuth, listCategories);
 
 // Protected write - authenticate từng route (không dùng router.use để tránh chặn router khác)
-router.post('/categories', authenticate, authorize('ADMIN'), categoryRules, validate, createCategory);
-router.put('/categories/:id', authenticate, authorize('ADMIN'), categoryRules, validate, updateCategory);
-router.delete('/categories/:id', authenticate, authorize('ADMIN'), [param('id').isUUID()], validate, deleteCategory);
+router.post('/categories', authenticate, requirePermission('MENU_MANAGE'), categoryRules, validate, createCategory);
+router.put('/categories/:id', authenticate, requirePermission('MENU_MANAGE'), categoryRules, validate, updateCategory);
+router.delete('/categories/:id', authenticate, requirePermission('MENU_MANAGE'), [param('id').isUUID()], validate, deleteCategory);
 
-router.post('/menu-items', authenticate, authorize('ADMIN', 'MANAGER'), menuItemRules, validate, createMenuItem);
-router.put('/menu-items/:id', authenticate, authorize('ADMIN', 'MANAGER'), [...menuItemIdParam, ...menuItemRules], validate, updateMenuItem);
-router.patch('/menu-items/:id/availability', authenticate, authorize('ADMIN', 'MANAGER'), menuItemIdParam, validate, toggleAvailability);
-router.delete('/menu-items/:id', authenticate, authorize('ADMIN'), menuItemIdParam, validate, deleteMenuItem);
+router.post('/menu-items', authenticate, requirePermission('MENU_MANAGE'), menuItemRules, validate, createMenuItem);
+router.put('/menu-items/:id', authenticate, requirePermission('MENU_UPDATE'), [...menuItemIdParam, ...menuItemRules], validate, updateMenuItem);
+router.patch('/menu-items/:id/availability', authenticate, requirePermission('MENU_MANAGE'), menuItemIdParam, validate, toggleAvailability);
+router.delete('/menu-items/:id', authenticate, requirePermission('MENU_DELETE'), menuItemIdParam, validate, deleteMenuItem);
 
 export default router;

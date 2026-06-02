@@ -4,6 +4,8 @@ import config from '../../config/index.js';
 import { AppError } from '../../utils/AppError.js';
 import { userRepository } from '../../repositories/user.repository.js';
 
+import { permissionService } from '../permissions/permission.service.js';
+
 const SALT_ROUNDS = 10;
 
 export const authService = {
@@ -25,8 +27,10 @@ export const authService = {
       role: normalizedRole,
     });
 
-    const token = generateToken(user.id);
-    return { user: sanitizeUser(user), token };
+    const token = await generateToken(user);
+    const permissions = await permissionService.getEffectivePermissions(user.id);
+    const permissionsVersion = permissionService.getPermissionsVersion(user.id);
+    return { user: { ...sanitizeUser(user), permissions, permissionsVersion }, token };
   },
 
   async login({ email, password }) {
@@ -40,8 +44,10 @@ export const authService = {
       throw new AppError('Email hoặc mật khẩu không đúng', 401);
     }
 
-    const token = generateToken(user.id);
-    return { user: sanitizeUser(user), token };
+    const token = await generateToken(user);
+    const permissions = await permissionService.getEffectivePermissions(user.id);
+    const permissionsVersion = permissionService.getPermissionsVersion(user.id);
+    return { user: { ...sanitizeUser(user), permissions, permissionsVersion }, token };
   },
 
   async getProfile(userId) {
@@ -140,8 +146,19 @@ export const authService = {
   },
 };
 
-const generateToken = (userId) =>
-  jwt.sign({ userId }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+const generateToken = async (user) => {
+  const permissions = await permissionService.getEffectivePermissions(user.id);
+  return jwt.sign(
+    {
+      userId: user.id,
+      role: user.role,
+      branchId: user.branchId,
+      permissions,
+    },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn },
+  );
+};
 
 const sanitizeUser = (user) => ({
   id: user.id,
