@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Printer, X } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
-import { menuApi, ordersApi, categoryApi } from '../api/services';
-import type { MenuItem, CategoryItem } from '../types';
+import { menuApi, ordersApi, categoryApi, inventoryApi } from '../api/services';
+import type { MenuItem, CategoryItem, InventoryItem } from '../types';
+import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
 
 interface OrderItem extends MenuItem {
   quantity: number;
@@ -27,14 +28,19 @@ export function POSSystem() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showPayment, setShowPayment] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+
+  const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
   useEffect(() => {
     Promise.all([
       menuApi.list({ available: 'true' }),
       categoryApi.list(),
-    ]).then(([items, cats]) => {
+      inventoryApi.list(),
+    ]).then(([items, cats, inv]) => {
       setMenuItems(items);
       setCategories(cats);
+      setInventoryItems(Array.isArray(inv) ? inv : []);
     }).catch(console.error);
   }, []);
 
@@ -382,17 +388,28 @@ export function POSSystem() {
               {/* Menu Grid */}
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {filteredMenuItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => addToOrder(item)}
-                      className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all text-left"
-                    >
-                      <div className="font-semibold text-gray-900 mb-1">{item.name}</div>
-                      <div className="text-sm text-gray-500 mb-2">{item.category}</div>
-                      <div className="text-lg font-bold text-blue-600">{item.price.toLocaleString()} ₫</div>
-                    </button>
-                  ))}
+                  {filteredMenuItems.map((item) => {
+                    const outOfStock = isItemOutOfStock(item, inventoryMap);
+                    return (
+                      <div key={item.id} className="relative">
+                        <button
+                          onClick={outOfStock ? undefined : () => addToOrder(item)}
+                          className={`p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all text-left w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-blue-50 hover:border-blue-300'}`}
+                        >
+                          <div className="font-semibold text-gray-900 mb-1">{item.name}</div>
+                          <div className="text-sm text-gray-500 mb-2">{item.category}</div>
+                          <div className="text-lg font-bold text-blue-600">{item.price.toLocaleString()} ₫</div>
+                        </button>
+                        {outOfStock && (
+                          <div className="absolute inset-0 flex items-start justify-center pt-3 pointer-events-none">
+                            <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold shadow">
+                              Hết nguyên liệu
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>

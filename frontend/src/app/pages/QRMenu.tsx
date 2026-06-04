@@ -1,7 +1,8 @@
 import { useSearchParams } from "react-router";
-import { useState, useEffect } from "react";
-import { menuApi, ordersApi } from "../api/services";
-import type { MenuItem } from "../types";
+import { useState, useEffect, useMemo } from "react";
+import { menuApi, ordersApi, inventoryApi } from "../api/services";
+import type { MenuItem, InventoryItem } from "../types";
+import { buildInventoryMap, isItemOutOfStock } from "../../shared/utils/inventoryAvailability";
 
 export function MenuQR() {
 
@@ -14,9 +15,12 @@ export function MenuQR() {
     const [quantity, setQuantity] = useState(1);
     const [cart, setCart] = useState<Array<MenuItem & { quantity: number }>>([]);
     const [showCart, setShowCart] = useState(false);
+    const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+    const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
     useEffect(() => {
         menuApi.list({ available: 'true', ...(branchId ? { branchId } : {}) }).then(setMenuItems).catch(console.error);
+        inventoryApi.list().then((inv) => setInventoryItems(Array.isArray(inv) ? inv : [])).catch(() => setInventoryItems([]));
     }, [branchId]);
 
 
@@ -95,16 +99,18 @@ export function MenuQR() {
             {/* MENU LIST */}
             <div className="space-y-3">
 
-                {menuItems.map(item => (
+                {menuItems.map(item => {
+                    const outOfStock = isItemOutOfStock(item, inventoryMap);
+                    return (
 
-                    <div key={item.id} className="border rounded-lg">
+                    <div key={item.id} className="border rounded-lg relative">
 
                         <div
-                            onClick={() => {
+                            onClick={outOfStock ? undefined : () => {
                                 setOpenItem(openItem === item.id ? null : item.id);
                                 setQuantity(1);
                             }}
-                            className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
+                            className={`flex justify-between items-center p-4 ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'}`}
                         >
 
                             <div>
@@ -123,9 +129,17 @@ export function MenuQR() {
 
                         </div>
 
+                        {outOfStock && (
+                            <div className="absolute top-2 right-2 pointer-events-none">
+                                <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold shadow">
+                                    Hết nguyên liệu
+                                </span>
+                            </div>
+                        )}
+
                         {/* COLLAPSE */}
 
-                        {openItem === item.id && (
+                        {openItem === item.id && !outOfStock && (
 
                             <div className="p-4 border-t bg-gray-50">
 
@@ -163,8 +177,8 @@ export function MenuQR() {
                         )}
 
                     </div>
-
-                ))}
+                    );
+                })}
 
 
             </div>

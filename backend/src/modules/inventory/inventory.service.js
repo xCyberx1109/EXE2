@@ -13,7 +13,7 @@ export const inventoryService = {
     let items = await ingredientRepository.findMany(where);
 
     if (lowStock === 'true') {
-      items = items.filter((i) => Number(i.quantity) < Number(i.warningQuantity));
+      items = items.filter((i) => Number(i.quantity) <= Number(i.warningQuantity));
     }
 
     if (search) {
@@ -85,7 +85,7 @@ export const inventoryService = {
     }
     const items = await ingredientRepository.findMany(where);
     return items
-      .filter((i) => Number(i.quantity) < Number(i.warningQuantity))
+      .filter((i) => Number(i.quantity) <= Number(i.warningQuantity))
       .map(mapIngredient);
   },
 
@@ -96,7 +96,7 @@ export const inventoryService = {
     }
     const items = await ingredientRepository.findMany(where);
     const lowStockCount = items.filter(
-      (i) => Number(i.quantity) < Number(i.warningQuantity)
+      (i) => Number(i.quantity) <= Number(i.warningQuantity)
     ).length;
     const totalValue = items.reduce(
       (sum, i) => sum + Number(i.quantity) * Number(i.price),

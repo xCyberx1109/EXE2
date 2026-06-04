@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../app/components/ui/card';
 import { Button } from '../../app/components/ui/button';
 import { Badge } from '../../app/components/ui/badge';
 import { Input } from '../../app/components/ui/input';
 import { useAuth } from '../../app/context/AuthContext';
-import { menuApi } from '../../app/api/services';
+import { menuApi, inventoryApi } from '../../app/api/services';
 import { useCategories } from '../../shared/hooks/useCategories';
-import type { MenuItem } from '../../app/types';
+import type { MenuItem, InventoryItem } from '../../app/types';
+import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
 import { ShoppingCart, Plus, Minus, CheckCircle, Table2, Utensils, Loader2, AlertCircle, Search } from 'lucide-react';
 
 interface CartItem {
@@ -25,21 +26,30 @@ export function WaiterPOS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+
+  const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
   useEffect(() => {
     let mounted = true;
-    async function fetchMenu() {
+    async function fetchMenuAndInventory() {
       setMenuLoading(true);
       try {
-        const items = await menuApi.list({ available: 'true' });
-        if (mounted) setMenuItems(Array.isArray(items) ? items : []);
+        const [items, inv] = await Promise.all([
+          menuApi.list({ available: 'true' }),
+          inventoryApi.list(),
+        ]);
+        if (mounted) {
+          setMenuItems(Array.isArray(items) ? items : []);
+          setInventoryItems(Array.isArray(inv) ? inv : []);
+        }
       } catch {
         if (mounted) setMenuItems([]);
       } finally {
         if (mounted) setMenuLoading(false);
       }
     }
-    fetchMenu();
+    fetchMenuAndInventory();
     return () => { mounted = false; };
   }, []);
 
@@ -160,27 +170,38 @@ export function WaiterPOS() {
               <p className="text-sm text-gray-400 text-center py-8">Không có món nào</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {filteredItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => addToCart(item)}
-                    className="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-gray-200 bg-white hover:border-blue-400 hover:shadow-md active:scale-95 transition-all text-center"
-                  >
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="w-12 h-12 object-cover rounded-lg mb-2"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-gray-300">
-                        <Utensils className="w-5 h-5" />
-                      </div>
-                    )}
-                    <span className="text-sm font-semibold text-gray-800 line-clamp-2">{item.name}</span>
-                    <span className="text-xs text-blue-600 font-bold mt-1">{item.price.toLocaleString()}đ</span>
-                  </button>
-                ))}
+                {filteredItems.map((item) => {
+                  const outOfStock = isItemOutOfStock(item, inventoryMap);
+                  return (
+                    <div key={item.id} className="relative">
+                      <button
+                        onClick={outOfStock ? undefined : () => addToCart(item)}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 bg-white transition-all text-center w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed border-gray-200' : 'border-gray-200 hover:border-blue-400 hover:shadow-md active:scale-95'}`}
+                      >
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="w-12 h-12 object-cover rounded-lg mb-2"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-gray-300">
+                            <Utensils className="w-5 h-5" />
+                          </div>
+                        )}
+                        <span className="text-sm font-semibold text-gray-800 line-clamp-2">{item.name}</span>
+                        <span className="text-xs text-blue-600 font-bold mt-1">{item.price.toLocaleString()}đ</span>
+                      </button>
+                      {outOfStock && (
+                        <div className="absolute inset-0 flex items-start justify-center pt-2 pointer-events-none">
+                          <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold shadow">
+                            Hết nguyên liệu
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

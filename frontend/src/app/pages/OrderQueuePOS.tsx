@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { menuApi, ordersQueueApi } from '../api/services';
-import { MenuItem, OrderDetail } from '../types';
+import { menuApi, ordersQueueApi, inventoryApi } from '../api/services';
+import { MenuItem, OrderDetail, InventoryItem } from '../types';
 import {
   Clock,
   CreditCard,
@@ -15,6 +15,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
 
 type QueueLine = {
   menuItemId: string;
@@ -105,6 +106,7 @@ export function OrderQueuePOS() {
   const { hasPermission } = useAuth();
   const [orders, setOrders] = useState<OrderDetail[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
@@ -117,6 +119,8 @@ export function OrderQueuePOS() {
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [labels, setLabels] = useState<OrderLabelMap>(() => loadStoredLabels());
   const [error, setError] = useState<string | null>(null);
+
+  const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
   const canCreate = hasPermission('POS_ORDER_QUEUE_CREATE');
   const canUpdate = hasPermission('POS_ORDER_QUEUE_UPDATE');
@@ -254,6 +258,10 @@ export function OrderQueuePOS() {
       .list({ available: 'true' })
       .then(setMenuItems)
       .catch(() => setMenuItems([]));
+    inventoryApi
+      .list()
+      .then((inv) => setInventoryItems(Array.isArray(inv) ? inv : []))
+      .catch(() => setInventoryItems([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -471,7 +479,10 @@ export function OrderQueuePOS() {
     console.log("Payment method:", paymentMethod);
     console.log("Total:", payableTotal);
 
-    await flushPersist();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
 
     setSaving(true);
     setError(null);
@@ -509,7 +520,7 @@ export function OrderQueuePOS() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-slate-100 overflow-hidden">
+    <div className="h-[94vh] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="shrink-0 px-3 lg:px-4 pt-3 lg:pt-4 pb-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -594,22 +605,37 @@ export function OrderQueuePOS() {
           <div className="flex-1 overflow-y-auto p-3 lg:p-4">
             <div className="grid grid-cols-2 gap-2 lg:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
               style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-              {filteredMenuItems.map(item => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => addProduct(item)}
-                  disabled={!activeOrderId || saving || !canUpdate}
-                  className="group flex flex-col rounded-2xl lg:rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-2 lg:p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 min-h-28 lg:min-h-36"
-                >
-                  <div className="mb-2 flex h-8 w-8 lg:h-12 lg:w-12 items-center justify-center rounded-xl lg:rounded-2xl bg-blue-50 font-black text-blue-700 text-xs lg:text-base group-hover:bg-blue-600 group-hover:text-white">
-                    {item.name.slice(0, 2).toUpperCase()}
+              {filteredMenuItems.map(item => {
+                const outOfStock = isItemOutOfStock(item, inventoryMap);
+                return (
+                  <div key={item.id} className="relative">
+                    <button
+                      type="button"
+                      onClick={outOfStock ? undefined : () => addProduct(item)}
+                      disabled={!activeOrderId || saving || !canUpdate || outOfStock}
+                      className={`group flex flex-col rounded-2xl lg:rounded-3xl border bg-gradient-to-br from-white to-slate-50 p-2 lg:p-4 text-left shadow-sm transition min-h-28 lg:min-h-36 w-full ${
+                        outOfStock
+                          ? 'opacity-50 grayscale border-slate-200 cursor-not-allowed'
+                          : 'border-slate-200 hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50'
+                      }`}
+                    >
+                      <div className="mb-2 flex h-8 w-8 lg:h-12 lg:w-12 items-center justify-center rounded-xl lg:rounded-2xl bg-blue-50 font-black text-blue-700 text-xs lg:text-base group-hover:bg-blue-600 group-hover:text-white">
+                        {item.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="text-xs lg:text-sm font-black text-slate-900 overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</div>
+                      <div className="mt-1 text-[10px] lg:text-xs font-semibold uppercase tracking-wide text-slate-400 truncate">{item.category}</div>
+                      <div className="mt-auto pt-1 lg:pt-2 text-sm lg:text-lg font-black text-blue-700">{formatMoney(item.price)}</div>
+                    </button>
+                    {outOfStock && (
+                      <div className="absolute inset-0 flex items-start justify-center pt-2 lg:pt-3 pointer-events-none">
+                        <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold shadow">
+                          Hết nguyên liệu
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs lg:text-sm font-black text-slate-900 overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</div>
-                  <div className="mt-1 text-[10px] lg:text-xs font-semibold uppercase tracking-wide text-slate-400 truncate">{item.category}</div>
-                  <div className="mt-auto pt-1 lg:pt-2 text-sm lg:text-lg font-black text-blue-700">{formatMoney(item.price)}</div>
-                </button>
-              ))}
+                );
+              })}
               {filteredMenuItems.length === 0 && (
                 <div className="col-span-full rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500 text-sm">
                   Không có sản phẩm phù hợp.

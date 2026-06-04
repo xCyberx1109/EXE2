@@ -139,19 +139,6 @@ export function InventoryManagement() {
     }
   };
 
-  const handleUpdateQuantity = async (id: string, delta: number) => {
-    try {
-      if (delta > 0) {
-        await inventoryApi.stockIn(id, delta, 'Điều chỉnh nhanh');
-      } else {
-        await inventoryApi.stockOut(id, Math.abs(delta), 'Điều chỉnh nhanh');
-      }
-      await loadData();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Cập nhật số lượng thất bại');
-    }
-  };
-
   if (!hasPermission('INVENTORY_VIEW')) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-500">
@@ -285,27 +272,9 @@ export function InventoryManagement() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {hasPermission('INVENTORY_EXPORT') && (
-                          <button
-                            onClick={() => handleUpdateQuantity(item.id, -1)}
-                            className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
-                          >
-                            -
-                          </button>
-                        )}
-                        <span className={`font-medium ${isLowStock ? 'text-orange-600' : 'text-gray-900'}`}>
-                          {item.quantity} {item.unit}
-                        </span>
-                        {hasPermission('INVENTORY_IMPORT') && (
-                          <button
-                            onClick={() => handleUpdateQuantity(item.id, 1)}
-                            className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
-                          >
-                            +
-                          </button>
-                        )}
-                      </div>
+                      <span className={`font-medium ${isLowStock ? 'text-orange-600' : 'text-gray-900'}`}>
+                        {item.quantity} {item.unit}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.warningQuantity} {item.unit}</td>
                     <td className="px-6 py-4 text-sm">

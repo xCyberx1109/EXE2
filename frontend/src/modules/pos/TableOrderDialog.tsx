@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { menuApi, ordersApi } from '../../app/api/services';
-import type { MenuItem, TableItem, OrderDetail } from '../../app/types';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { menuApi, ordersApi, inventoryApi } from '../../app/api/services';
+import type { MenuItem, TableItem, OrderDetail, InventoryItem } from '../../app/types';
 import { useCategories } from '../../shared/hooks/useCategories';
+import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
 import { X, Plus, Minus, ShoppingCart, CheckCircle, Utensils, Loader2, AlertCircle } from 'lucide-react';
 
 interface CartItem {
@@ -25,15 +26,20 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [existingOrder, setExistingOrder] = useState<OrderDetail | null>(null);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const isCreatingOrder = useRef(false);
+
+  const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [items] = await Promise.all([
+        const [items, inv] = await Promise.all([
           menuApi.list({ available: 'true' }),
+          inventoryApi.list(),
         ]);
         setMenuItems(items);
+        setInventoryItems(Array.isArray(inv) ? inv : []);
 
         // Check if table already has an active order → reuse
         if (table.id) {
@@ -202,31 +208,42 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {availableItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => addToCart(item)}
-                      className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-blue-400 hover:shadow-md active:scale-95 transition-all text-center"
-                    >
-                      {item.imageUrl ? (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.name}
-                          className="w-16 h-16 object-cover rounded-lg mb-2"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-gray-300">
-                          <Utensils className="w-6 h-6" />
-                        </div>
-                      )}
-                      <span className="text-sm font-semibold text-gray-800 line-clamp-2">
-                        {item.name}
-                      </span>
-                      <span className="text-sm font-bold text-blue-600 mt-1">
-                        {item.price.toLocaleString()}₫
-                      </span>
-                    </button>
-                  ))}
+                  {availableItems.map((item) => {
+                    const outOfStock = isItemOutOfStock(item, inventoryMap);
+                    return (
+                      <div key={item.id} className="relative">
+                        <button
+                          onClick={outOfStock ? undefined : () => addToCart(item)}
+                          className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 bg-white transition-all text-center w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed border-gray-200' : 'border-gray-200 hover:border-blue-400 hover:shadow-md active:scale-95'}`}
+                        >
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="w-16 h-16 object-cover rounded-lg mb-2"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-gray-300">
+                              <Utensils className="w-6 h-6" />
+                            </div>
+                          )}
+                          <span className="text-sm font-semibold text-gray-800 line-clamp-2">
+                            {item.name}
+                          </span>
+                          <span className="text-sm font-bold text-blue-600 mt-1">
+                            {item.price.toLocaleString()}₫
+                          </span>
+                        </button>
+                        {outOfStock && (
+                          <div className="absolute inset-0 flex items-start justify-center pt-3 pointer-events-none">
+                            <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold shadow">
+                              Hết nguyên liệu
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
