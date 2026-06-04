@@ -29,4 +29,5 @@ export const inventoryListQuery = [
   query('search').optional().trim(),
   query('lowStock').optional().isIn(['true', 'false']),
   query('status').optional().isIn(['LOW_STOCK', 'NORMAL']),
+  query('includeInactive').optional().isIn(['true', 'false']),
 ];

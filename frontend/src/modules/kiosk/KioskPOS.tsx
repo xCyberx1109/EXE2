@@ -49,6 +49,7 @@ export function KioskPOS() {
   };
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="text-center mb-6">
@@ -91,8 +92,8 @@ export function KioskPOS() {
                   <div className="space-y-2">
                     {cart.map((item) => (
                       <div key={item.menuItemId} className="flex items-center justify-between py-1 border-b last:border-0">
-                        <div className="flex-1 text-sm">
-                          <p className="font-medium">{item.name}</p>
+                        <div className="flex-1 text-sm min-w-0">
+                          <p className="font-medium truncate">{item.name}</p>
                           <p className="text-xs text-gray-500">{item.price.toLocaleString()}đ</p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -140,10 +141,10 @@ export function KioskPOS() {
               <label className="text-sm font-medium">Số điện thoại (không bắt buộc)</label>
               <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Nhập số điện thoại" />
             </div>
-            <div className="border-t pt-4">
-              {cart.map((item) => (
-                <div key={item.menuItemId} className="flex justify-between text-sm py-1">
-                  <span>x{item.quantity} {item.name}</span>
+                <div className="border-t pt-4">
+                  {cart.map((item) => (
+                    <div key={item.menuItemId} className="flex justify-between text-sm py-1">
+                      <span className="truncate">x{item.quantity} {item.name}</span>
                   <span>{(item.price * item.quantity).toLocaleString()}đ</span>
                 </div>
               ))}
@@ -173,6 +174,7 @@ export function KioskPOS() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

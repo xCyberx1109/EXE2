@@ -9,17 +9,23 @@ import {
 } from 'lucide-react';
 import { tableApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import type { TableItem } from '../types';
+import type { TableItem, TableStatus } from '../types';
 
-const STATUS_OPTIONS: Array<{ value: TableItem['status']; label: string }> = [
+const STATUS_OPTIONS: Array<{ value: TableStatus; label: string }> = [
   { value: 'AVAILABLE', label: 'Trống' },
   { value: 'OCCUPIED', label: 'Đang dùng' },
+  { value: 'RESERVED', label: 'Đặt trước' },
+  { value: 'CLEANING', label: 'Đang dọn' },
+  { value: 'CHECKING_OUT', label: 'Đang thanh toán' },
   { value: 'DISABLED', label: 'Tạm ngưng' },
 ];
 
-const STATUS_BADGE: Record<TableItem['status'], { class: string; label: string }> = {
+const STATUS_BADGE: Record<TableStatus, { class: string; label: string }> = {
   AVAILABLE: { class: 'bg-green-100 text-green-800', label: 'Trống' },
   OCCUPIED: { class: 'bg-orange-100 text-orange-800', label: 'Đang dùng' },
+  RESERVED: { class: 'bg-yellow-100 text-yellow-800', label: 'Đặt trước' },
+  CLEANING: { class: 'bg-gray-100 text-gray-500', label: 'Đang dọn' },
+  CHECKING_OUT: { class: 'bg-blue-100 text-blue-800', label: 'Đang thanh toán' },
   DISABLED: { class: 'bg-gray-100 text-gray-500', label: 'Tạm ngưng' },
 };
 
@@ -27,7 +33,7 @@ type TableFormState = {
   tableCode: string;
   tableName: string;
   capacity: string;
-  status: TableItem['status'];
+  status: TableStatus;
 };
 
 const createDefaultForm = (): TableFormState => ({
@@ -316,7 +322,7 @@ export function TableManagement() {
                   <span className="text-sm font-medium text-gray-700">Trạng thái</span>
                   <select
                     value={form.status}
-                    onChange={(e) => setForm((cur) => ({ ...cur, status: e.target.value as TableItem['status'] }))}
+                    onChange={(e) => setForm((cur) => ({ ...cur, status: e.target.value as TableStatus }))}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   >
                     {STATUS_OPTIONS.map((opt) => (

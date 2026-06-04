@@ -1,24 +1,59 @@
-import type { AccountRole } from '../../app/types';
-
-export type { AccountRole } from '../../app/types';
-
 export interface AppMenuItem {
   name: string;
   href: string;
   icon: string;
-  permission?: string;
+  requiredPermission?: string;
+  requiredAnyPermission?: string[];
 }
 
 export const APP_MENU: AppMenuItem[] = [
-  { name: 'Tổng quan', href: '/app', icon: 'LayoutDashboard', permission: 'REPORT_VIEW' },
-  { name: 'Thiết bị POS', href: '/app/pos-devices-v2', icon: 'Smartphone', permission: 'POS_DEVICE_VIEW' },
-  { name: 'Quản lý Menu', href: '/app/menu', icon: 'UtensilsCrossed', permission: 'MENU_MANAGE' },
-  { name: 'Tồn kho', href: '/app/inventory', icon: 'Package', permission: 'INVENTORY_VIEW' },
-  { name: 'Quản lý nhân viên', href: '/app/staff', icon: 'Users', permission: 'STAFF_VIEW' },
-  { name: 'Phân quyền', href: '/app/permissions', icon: 'Shield', permission: 'PERMISSION_VIEW' },
-  { name: 'Quản lý Chi nhánh', href: '/app/branches', icon: 'MapPin', permission: 'BRANCH_VIEW' },
-  { name: 'Quản lý bàn', href: '/app/tables', icon: 'Grid3X3', permission: 'TABLE_VIEW' },
+  {
+    name: 'Dashboard',
+    children: [
+      { name: 'Tổng quan', href: '/app', icon: 'LayoutDashboard', requiredPermission: 'DASHBOARD_VIEW' },
+    ],
+  },
+  {
+    name: 'Thực đơn',
+    children: [
+      { name: 'Menu', href: '/app/menu', icon: 'UtensilsCrossed', requiredPermission: 'MENU_VIEW' },
+      { name: 'Categories', href: '/app/categories', icon: 'Grid3X3', requiredPermission: 'CATEGORY_VIEW' },
+    ],
+  },
+  {
+    name: 'Kho & Đơn hàng',
+    children: [
+      { name: 'Kho', href: '/app/inventory', icon: 'Package', requiredPermission: 'INVENTORY_VIEW' },
+      { name: 'Đơn hàng', href: '/app/orders', icon: 'ClipboardList', requiredPermission: 'ORDER_VIEW' },
+      { name: 'Lịch sử đơn hàng', href: '/app/orders/history', icon: 'Clock', requiredPermission: 'ORDER_HISTORY_VIEW' },
+      { name: 'Bàn', href: '/app/tables', icon: 'MapPin', requiredPermission: 'TABLE_VIEW' },
+      { name: 'Khách hàng', href: '/app/customers', icon: 'Users', requiredPermission: 'CUSTOMER_VIEW' },
+    ],
+  },
+  {
+    name: 'Báo cáo',
+    children: [
+      { name: 'Doanh thu', href: '/app/revenue', icon: 'TrendingUp', requiredPermission: 'REVENUE_VIEW' },
+    ],
+  },
+  {
+    name: 'Quản trị',
+    children: [
+      { name: 'Phân quyền', href: '/app/permissions', icon: 'Settings', requiredPermission: 'PERMISSION_VIEW' },
+      { name: 'Tính năng', href: '/app/features', icon: 'ChefHat', requiredPermission: 'FEATURE_VIEW' },
+      { name: 'Branch Management', href: '/app/branch', icon: 'Building2', requiredPermission: 'BRANCH_VIEW' },
+    ],
+  },
+  {
+    name: 'Thiết bị',
+    children: [
+      { name: 'Thiết bị POS', href: '/app/pos-devices-v2', icon: 'Smartphone', requiredPermission: 'POS_DEVICE_VIEW' },
+    ],
+  },
+  {
+    name: 'POS',
+    children: [
+      { name: 'Order Queue POS', href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },
+    ],
+  },
 ];
-
-// Remove legacy MENU_BY_ROLE as we use account-based permissions now
-export const MENU_BY_ROLE = {};

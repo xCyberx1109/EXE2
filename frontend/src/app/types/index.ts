@@ -43,7 +43,11 @@ export interface CategoryItem {
   name: string;
   slug: string;
   description?: string;
+  sortOrder: number;
+  active: boolean;
   itemCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TopSellingItem {
@@ -63,6 +67,13 @@ export interface PosOrder {
   total?: number;
 }
 
+export interface OrderItemModifier {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface OrderItemDetail {
   id: string;
   menuItemId: string | null;
@@ -70,7 +81,36 @@ export interface OrderItemDetail {
   price: number;
   cost: number;
   quantity: number;
+  discount: number;
   lineTotal: number;
+  note: string | null;
+  modifiers: OrderItemModifier[];
+}
+
+export interface CustomerInfo {
+  id: string;
+  fullName: string;
+  phone: string;
+}
+
+export interface PaymentInfo {
+  id: string;
+  amount: number;
+  method: string;
+  status: string;
+  reference: string | null;
+  createdAt: string;
+}
+
+export interface TableInfo {
+  id: string;
+  tableCode: string;
+  tableName: string | null;
+}
+
+export interface CreatedByInfo {
+  id: string;
+  fullName: string;
 }
 
 export interface OrderDetail {
@@ -84,10 +124,44 @@ export interface OrderDetail {
   total: number;
   cost: number;
   profit: number;
+  discount: number;
+  rounding: number;
+  serviceCharge: number;
+  note: string | null;
+  source: string | null;
+  guestCount: number | null;
+  orderType: string;
   createdAt: string;
   completedAt: string | null;
   items: OrderItemDetail[];
   itemCount: number;
+  cashier?: string;
+  cashierName?: string;
+  customer: CustomerInfo | null;
+  payments: PaymentInfo[];
+  table: TableInfo | null;
+  createdBy: CreatedByInfo | null;
+}
+
+export interface OrderItemSimple {
+  name: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+}
+
+export interface OrderDetailSimple {
+  orderId: string;
+  orderNumber: string;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  serviceCharge: number;
+  total: number;
+  items: OrderItemSimple[];
 }
 
 export interface DailyOrdersResponse {
@@ -121,6 +195,68 @@ export interface DashboardData {
   lowStockItems: InventoryItem[];
 }
 
+export interface DashboardKpi {
+  todayRevenue: number;
+  todayRevenueTrend: number;
+  todayProfit: number;
+  todayProfitTrend: number;
+  todayOrders: number;
+  todayOrdersTrend: number;
+  activeMenuItems: number;
+  lowInventoryAlerts: number;
+}
+
+export interface RevenueChartPoint {
+  date: string;
+  revenue: number;
+  profit: number;
+  orderCount: number;
+}
+
+export interface DashboardTopItem {
+  menuItemId: string;
+  name: string;
+  category: string;
+  quantity: number;
+  revenue: number;
+}
+
+export interface DashboardLowStockItem {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  warningQuantity: number;
+  status: 'out_of_stock' | 'low_stock';
+}
+
+export interface DashboardActivity {
+  id: string;
+  action: string;
+  module: string;
+  details: any;
+  createdAt: string;
+  user: string | null;
+}
+
+export interface DashboardQuickStats {
+  totalRevenue30d: number;
+  totalProfit30d: number;
+  avgOrderValue: number;
+  totalCustomersServed: number;
+  profitMargin: number;
+}
+
+export interface DashboardDataV2 {
+  kpi: DashboardKpi;
+  revenueChart: RevenueChartPoint[];
+  orderStatus: Record<string, number>;
+  topItems: DashboardTopItem[];
+  lowStockItems: DashboardLowStockItem[];
+  recentActivities: DashboardActivity[];
+  quickStats: DashboardQuickStats;
+}
+
 export interface RevenueSummary {
   totalRevenue: number;
   totalProfit: number;
@@ -139,26 +275,33 @@ export interface InventoryStats {
   warningCount?: number;
 }
 
-export type AccountRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN' | 'STAFF';
+export interface MenuRecipeRef {
+  menuItemId: string;
+  menuItemName: string;
+  amount: number;
+}
+
+export interface DeleteDependencyReport {
+  action: 'soft_delete';
+  ingredientId: string;
+  ingredientName: string;
+  dependencies: {
+    menuRecipes: MenuRecipeRef[];
+    inventoryTransactions: number;
+    stockAlerts: number;
+    stockAudits: number;
+  };
+}
 
 export interface User {
   id: string;
   email: string;
   fullName: string;
-  role: AccountRole;
   permissions?: string[];
   permissionsVersion?: number;
   mustChangePassword?: boolean;
   branchId?: string;
   createdAt: string;
-}
-
-export function normalizeRole(role: string): AccountRole {
-  if (role === 'ADMIN') return 'ADMIN';
-  if (role === 'MANAGER') return 'MANAGER';
-  if (role === 'CASHIER') return 'CASHIER';
-  if (role === 'KITCHEN') return 'KITCHEN';
-  return 'STAFF';
 }
 
 export interface Branch {
@@ -180,7 +323,6 @@ export interface BranchAccount {
   id: string;
   email: string;
   fullName: string;
-  role: string;
   branchId: string;
 }
 
@@ -193,18 +335,75 @@ export type PosDeviceTypeV2 = 'CASHIER' | 'KITCHEN' | 'TABLET' | 'KIOSK' | 'WAIT
 export type PosStatusV2 = 'PENDING_ACTIVATION' | 'ACTIVATED' | 'ONLINE' | 'OFFLINE' | 'MAINTENANCE' | 'REVOKED';
 
 export type DevicePermission =
-  | 'order:create' | 'order:read' | 'order:update' | 'order:cancel'
-  | 'payment:process' | 'payment:refund' | 'payment:qr'
-  | 'receipt:print' | 'bill:split' | 'bill:print'
-  | 'customer:create' | 'customer:read' | 'customer:update'
-  | 'menu:create' | 'menu:read' | 'menu:update'
-  | 'inventory:read' | 'inventory:update'
-  | 'reports:read'
-  | 'kitchen:view_queue' | 'kitchen:update_status' | 'kitchen:view_status'
-  | 'shift:open' | 'shift:close' | 'shift:view'
-  | 'staff:manage' | 'device:manage'
-  | 'table:read' | 'table:update'
-  | 'kot:read' | 'kot:update';
+  | 'ORDER_VIEW'
+  | 'ORDER_MANAGE'
+  | 'ORDER_HISTORY_VIEW'
+
+  | 'MENU_VIEW'
+  | 'MENU_CREATE'
+  | 'MENU_UPDATE'
+  | 'MENU_DELETE'
+  | 'MENU_MANAGE'
+
+  | 'INVENTORY_VIEW'
+  | 'INVENTORY_MANAGE'
+  | 'INVENTORY_IMPORT'
+  | 'INVENTORY_EXPORT'
+  | 'INVENTORY_ADJUST'
+
+  | 'REPORT_VIEW'
+  | 'REPORT_EXPORT'
+
+  | 'BRANCH_VIEW'
+  | 'BRANCH_CREATE'
+  | 'BRANCH_UPDATE'
+  | 'BRANCH_DELETE'
+  | 'BRANCH_MANAGE'
+
+  | 'ACCOUNT_VIEW'
+  | 'ACCOUNT_MANAGE'
+
+  | 'POS_OPEN'
+  | 'POS_CLOSE'
+  | 'POS_CREATE_ORDER'
+  | 'POS_CANCEL_ORDER'
+
+  | 'POS_ORDER_QUEUE_VIEW'
+  | 'POS_ORDER_QUEUE_CREATE'
+  | 'POS_ORDER_QUEUE_UPDATE'
+  | 'POS_ORDER_QUEUE_DELETE'
+  | 'POS_ORDER_QUEUE_PAYMENT'
+
+  | 'POS_DEVICE_VIEW'
+  | 'POS_DEVICE_CREATE'
+  | 'POS_DEVICE_UPDATE'
+  | 'POS_DEVICE_DELETE'
+
+  | 'TABLE_VIEW'
+  | 'TABLE_CREATE'
+  | 'TABLE_UPDATE'
+  | 'TABLE_DELETE'
+
+  | 'CATEGORY_VIEW'
+  | 'CATEGORY_CREATE'
+  | 'CATEGORY_UPDATE'
+  | 'CATEGORY_DELETE'
+
+  | 'CUSTOMER_VIEW'
+  | 'CUSTOMER_MANAGE'
+
+  | 'SHIFT_VIEW'
+  | 'SHIFT_MANAGE'
+
+  | 'PERMISSION_VIEW'
+  | 'PERMISSION_MANAGE'
+  | 'PERMISSION_ASSIGN'
+
+  | 'SETTINGS_MANAGE'
+
+  | 'DASHBOARD_VIEW'
+
+  | 'ADMIN_ALL';
 
 export interface DeviceFeatures {
   modules: string[];
@@ -242,7 +441,6 @@ export interface CreatePosDeviceResponse {
   type: string;
   mode: PosMode;
   setupPin: string;
-  setupPinExpiresAt: string;
   branchId: string;
   status: string;
   active: boolean;
@@ -254,7 +452,6 @@ export interface StaffLoginResponse {
   account: {
     id: string;
     fullName: string;
-    role: string;
   };
   shift: {
     id: string;
@@ -269,7 +466,6 @@ export interface ActiveStaff {
   account: {
     id: string;
     fullName: string;
-    role: string;
   };
   loginAt: string;
   lastActivityAt: string | null;
@@ -312,7 +508,7 @@ export interface CurrentShift {
   otherSales: number;
   totalOrders: number;
   currentSales: number;
-  staff: Array<{ id: string; fullName: string; role: string }>;
+  staff: Array<{ id: string; fullName: string }>;
   isOnline: boolean;
   lastActive: string | null;
 }
@@ -320,7 +516,6 @@ export interface CurrentShift {
 export interface DeviceRegeneratePinResponse {
   deviceId: string;
   setupPin: string;
-  setupPinExpiresAt: string;
 }
 
 export interface DeviceRevokeResponse {
@@ -364,13 +559,25 @@ export interface DeviceLoginResponse {
   };
 }
 
+export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING' | 'CHECKING_OUT' | 'DISABLED';
+
+export interface PosTableOrder {
+  id: string;
+  orderNumber: string;
+  status: string;
+  itemCount: number;
+  total: number;
+}
+
 export interface TableItem {
   id: string;
   branchId: string;
   tableCode: string;
   tableName: string | null;
   capacity: number;
-  status: 'AVAILABLE' | 'OCCUPIED' | 'DISABLED';
+  status: TableStatus;
+  currentOrderId: string | null;
+  currentOrder: PosTableOrder | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Search, AlertTriangle, TrendingDown, Loader2 } from 'lucide-react';
 import { inventoryApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import type { InventoryItem, InventoryStats } from '../types';
+import type { InventoryItem, InventoryStats, DeleteDependencyReport } from '../types';
 
 type StockStatus = 'all' | 'LOW_STOCK' | 'NORMAL';
 
@@ -110,9 +110,29 @@ export function InventoryManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc muốn xóa mặt hàng này?')) return;
+    if (!confirm('Bạn có chắc muốn lưu trữ (archive) mặt hàng này? Hàng hóa đã lưu trữ sẽ không hiển thị trong danh sách.')) return;
     try {
-      await inventoryApi.delete(id);
+      const report = await inventoryApi.delete(id) as DeleteDependencyReport;
+      const deps = report.dependencies;
+      const parts: string[] = [];
+      if (deps.menuRecipes.length > 0) {
+        const names = deps.menuRecipes.map(r => r.menuItemName).join(', ');
+        parts.push(`${deps.menuRecipes.length} công thức món (${names})`);
+      }
+      if (deps.inventoryTransactions > 0) {
+        parts.push(`${deps.inventoryTransactions} giao dịch tồn kho`);
+      }
+      if (deps.stockAlerts > 0) {
+        parts.push(`${deps.stockAlerts} cảnh báo tồn kho`);
+      }
+      if (deps.stockAudits > 0) {
+        parts.push(`${deps.stockAudits} kiểm kê`);
+      }
+      let msg = `Đã lưu trữ "${report.ingredientName}" thành công.`;
+      if (parts.length > 0) {
+        msg += `\n\nNguyên liệu này vẫn đang được tham chiếu bởi:\n${parts.join('\n')}\n\nDữ liệu lịch sử được giữ nguyên.`;
+      }
+      alert(msg);
       await loadData();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Xóa thất bại');
@@ -131,6 +151,14 @@ export function InventoryManagement() {
       alert(err instanceof Error ? err.message : 'Cập nhật số lượng thất bại');
     }
   };
+
+  if (!hasPermission('INVENTORY_VIEW')) {
+    return (
+      <div className="flex items-center justify-center py-24 text-gray-500">
+        <p>Bạn không có quyền truy cập trang này.</p>
+      </div>
+    );
+  }
 
   if (loading && inventoryItems.length === 0) {
     return (

@@ -8,11 +8,8 @@ export const categoryRules = [
 export const menuItemRules = [
   body('name').trim().notEmpty().withMessage('Tên món là bắt buộc'),
 
-  body('categoryId').optional({ values: 'null' }).isUUID().withMessage('categoryId không hợp lệ'),
-  body('category').optional({ values: 'null' }).trim().notEmpty().withMessage('Tên danh mục không được để trống'),
+  body('categoryId').notEmpty().withMessage('categoryId là bắt buộc'),
 
-  // Dùng custom validator thay vì notEmpty()+isFloat() vì validator.js
-  // gọi assertString() bên trong, không xử lý được number type từ JSON body
   body('price')
     .exists().withMessage('Giá bán là bắt buộc')
     .bail()
@@ -35,10 +32,43 @@ export const menuItemRules = [
 
   body('imageUrl').optional({ values: 'null' }).isURL().withMessage('imageUrl phải là URL hợp lệ'),
 
-  // isBoolean() từ validator.js cũng gọi assertString → ko xử lý boolean
   body('available')
     .optional()
     .custom((value) => typeof value === 'boolean').withMessage('available phải là boolean'),
+];
+
+export const menuItemUpdateRules = [
+  body('name').optional().trim().notEmpty().withMessage('Tên món không được để trống'),
+
+  body('categoryId').optional().notEmpty().withMessage('categoryId không được để trống'),
+
+  body('price')
+    .optional()
+    .custom((value) => {
+      if (value === null || value === '') return false;
+      const num = Number(value);
+      return !isNaN(num) && isFinite(num) && num >= 0;
+    }).withMessage('Giá bán phải là số >= 0'),
+
+  body('cost')
+    .optional()
+    .custom((value) => {
+      if (value === null || value === '') return false;
+      const num = Number(value);
+      return !isNaN(num) && isFinite(num) && num >= 0;
+    }).withMessage('Giá vốn phải là số >= 0'),
+
+  body('description').optional().trim(),
+
+  body('imageUrl').optional({ values: 'null' }).isURL().withMessage('imageUrl phải là URL hợp lệ'),
+
+  body('available')
+    .optional()
+    .custom((value) => typeof value === 'boolean').withMessage('available phải là boolean'),
+
+  body('ingredients').optional().isArray().withMessage('ingredients phải là mảng'),
+  body('ingredients.*.ingredientId').optional().notEmpty().withMessage('ingredientId không hợp lệ'),
+  body('ingredients.*.amount').optional().isFloat({ min: 0.01 }).withMessage('Số lượng phải > 0'),
 ];
 
 export const menuItemIdParam = [param('id').trim().notEmpty().withMessage('ID món là bắt buộc')];
@@ -46,6 +76,7 @@ export const menuItemIdParam = [param('id').trim().notEmpty().withMessage('ID m�
 export const menuSearchQuery = [
   query('search').optional().trim(),
   query('category').optional().trim(),
-  query('categoryId').optional().isUUID(),
+  query('categoryId').optional().notEmpty(),
   query('available').optional().isIn(['true', 'false']),
+  query('branchId').optional().notEmpty().withMessage('branchId không hợp lệ'),
 ];

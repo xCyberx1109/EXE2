@@ -1,26 +1,42 @@
 import prisma from '../prisma/client.js';
 
 const includeCategory = { category: true };
+const includeIngredients = { ingredients: { include: { ingredient: true } } };
+
+const ALLOWED_FIELDS = [
+  'name', 'categoryId', 'price', 'cost', 'description', 'imageUrl',
+  'available', 'deletedAt', 'branchId',
+];
+
+function sanitizePayload(data) {
+  const clean = {};
+  for (const key of Object.keys(data)) {
+    if (ALLOWED_FIELDS.includes(key)) {
+      clean[key] = data[key];
+    }
+  }
+  return clean;
+}
 
 export const menuItemRepository = {
   findMany: (where = {}) =>
     prisma.menuItem.findMany({
       where: { deletedAt: null, ...where },
-      include: includeCategory,
+      include: { ...includeCategory, ...includeIngredients },
       orderBy: { name: 'asc' },
     }),
 
   findById: (id) =>
     prisma.menuItem.findUnique({
       where: { id },
-      include: { ...includeCategory, ingredients: { include: { ingredient: true } } },
+      include: { ...includeCategory, ...includeIngredients },
     }),
 
   create: (data) =>
-    prisma.menuItem.create({ data, include: includeCategory }),
+    prisma.menuItem.create({ data: sanitizePayload(data), include: includeCategory }),
 
   update: (id, data) =>
-    prisma.menuItem.update({ where: { id }, data, include: includeCategory }),
+    prisma.menuItem.update({ where: { id }, data: sanitizePayload(data), include: { ...includeCategory, ...includeIngredients } }),
 
   delete: (id) => prisma.menuItem.delete({ where: { id } }),
 

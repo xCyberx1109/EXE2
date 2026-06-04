@@ -1,37 +1,61 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router';
-import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3 } from 'lucide-react';
-import { useState } from 'react';
+import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig';
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
-  Building2, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3,
+  Building2, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock,
 };
 
 function getDefaultRoute(hasPermission: (p: string) => boolean): string {
-  const firstAllowed = APP_MENU.find(item => !item.permission || hasPermission(item.permission));
-  return firstAllowed?.href || '/app/profile';
+  for (const group of APP_MENU) {
+    if (!group.children) continue;
+    for (const child of group.children) {
+      if (!child.requiredPermission || hasPermission(child.requiredPermission)) {
+        return child.href;
+      }
+    }
+  }
+  return '/app/profile';
 }
 
-function isAllowedPath(path: string, menuItems: AppMenuItem[]): boolean {
-  if (path === '/app') return true;
-  if (path === '/app/profile') return true;
-  if (path.startsWith('/app/pos-devices') || path.startsWith('/app/pos')) return true;
-  return menuItems.some((item) => path === item.href || path.startsWith(item.href + '/'));
+function isAllowedPath(path: string, flatItems: AppMenuItem[]): boolean {
+  if (path === '/app' || path === '/app/profile') return true;
+  return flatItems.some((item) => path === item.href || path.startsWith(item.href + '/'));
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Super Admin',
-  MANAGER: 'Quản lý',
-  CASHIER: 'Thu ngân',
-  KITCHEN: 'Bếp',
-};
+
 
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isReady, isAuthenticated, isDeviceMode, user, logout, hasPermission } = useAuth();
+
+  const { visibleGroups, flatMenuItems } = useMemo(() => {
+    const flatItems: AppMenuItem[] = [];
+    const groups = APP_MENU
+      .map(group => {
+        if (!group.children) return group;
+        const filtered = group.children.filter(child => {
+          const allowed = !child.requiredPermission || hasPermission(child.requiredPermission);
+          console.log(`[Sidebar] "${child.name}" requiredPermission="${child.requiredPermission}" allowed=${allowed}`);
+          return allowed;
+        });
+        return { ...group, children: filtered };
+      })
+      .filter(group => !group.children || group.children.length > 0);
+
+    for (const group of groups) {
+      if (group.children) {
+        for (const child of group.children) {
+          flatItems.push(child);
+        }
+      }
+    }
+    return { visibleGroups: groups, flatMenuItems: flatItems };
+  }, [hasPermission]);
 
   if (!isReady) {
     return (
@@ -50,14 +74,12 @@ export function Layout() {
     return <Navigate to="/pos-v2/dashboard" replace />;
   }
 
-  const menuItems = APP_MENU.filter(item => !item.permission || hasPermission(item.permission));
-
-  if (user && !isAllowedPath(location.pathname, menuItems)) {
+  if (user && !isAllowedPath(location.pathname, flatMenuItems)) {
     return <Navigate to={getDefaultRoute(hasPermission)} replace />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex overflow-hidden bg-gray-50">
       {/* Mobile menu button */}
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 px-4 py-3 z-40">
         <div className="flex items-center justify-between">
@@ -81,24 +103,34 @@ export function Layout() {
             <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý nhà hàng</p>
           </div>
           
-          <nav className="flex-1 p-4 space-y-1">
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              const Icon = ICON_MAP[item.icon] || LayoutDashboard;
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            {visibleGroups.map((group) => {
+              if (!group.children) return null;
               return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.name}
-                </Link>
+                <div key={group.name} className="mb-4">
+                  <p className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    {group.name}
+                  </p>
+                  {group.children.map((item) => {
+                    const isActive = location.pathname === item.href;
+                    const Icon = ICON_MAP[item.icon] || LayoutDashboard;
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </div>
               );
             })}
           </nav>
@@ -116,7 +148,7 @@ export function Layout() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">{ROLE_LABELS[user.role] || user.role}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
                 </div>
               </Link>
             )}
@@ -143,9 +175,9 @@ export function Layout() {
         />
       )}
 
-      {/* Main content */}
-      <div className="lg:pl-64 pt-14 lg:pt-0">
-        <main className="p-6">
+      {/* Main content - scrollable */}
+      <div className="flex-1 lg:pl-64 pt-14 lg:pt-0 h-full overflow-y-auto overflow-x-hidden">
+        <main className="p-6 min-h-full">
           <Outlet />
         </main>
       </div>

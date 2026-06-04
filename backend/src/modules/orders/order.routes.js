@@ -1,26 +1,49 @@
 import { Router } from 'express';
 import {
-  listOrders, listOrdersByDate, createOrder, deleteOrder, completeTablePayment,
+  listOrders, listOrdersByDate, createOrder, deleteOrder, completeTablePayment, getActiveTableOrder,
   listKitchenQueue, updateKitchenStatus,
+  listOrderHistory, getOrderDetail,
+  listOrderQueue, createOrderQueue, updateOrderQueue, payOrderQueue, cancelOrderQueue,
   listOrdersLegacy, createOrderLegacy, deleteOrderLegacy,
 } from './order.controller.js';
-import { createOrderRules, orderIdParam, ordersByDateQuery } from '../../validators/order.validator.js';
+import { createOrderRules, createOrderQueueRules, orderIdParam, ordersByDateQuery } from '../../validators/order.validator.js';
 import { validate } from '../../middlewares/validate.js';
-import { optionalAuth, requireDeviceAuth } from '../../middlewares/auth.js';
-import { requireDevicePermission, requireDeviceType } from '../../middlewares/devicePermission.js';
+import { optionalAuth, requireDeviceAuth, requirePermission } from '../../middlewares/auth.js';
+import { requireDevicePermission } from '../../middlewares/devicePermission.js';
 
 const router = Router();
 
 // API chuẩn - /orders/daily trước các route khác
 router.get('/orders/daily', optionalAuth, ordersByDateQuery, validate, listOrdersByDate);
+router.get('/orders/history', optionalAuth, requirePermission('ORDER_HISTORY_VIEW'), listOrderHistory);
 router.get('/orders', optionalAuth, listOrders);
-router.post('/orders', requireDeviceAuth, requireDevicePermission('order:create'), createOrderRules, validate, createOrder);
-router.delete('/orders/:id', requireDeviceAuth, requireDevicePermission('order:cancel'), orderIdParam, validate, deleteOrder);
-router.post('/orders/complete-payment', requireDeviceAuth, requireDevicePermission('payment:process'), completeTablePayment);
+router.post('/orders', optionalAuth, createOrderRules, validate, createOrder);
+router.delete('/orders/:id', optionalAuth, orderIdParam, validate, deleteOrder);
+router.post('/orders/complete-payment', optionalAuth, completeTablePayment);
+
+// Order Queue POS endpoints - independent no-table POS workflow
+router.get('/orders/queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_VIEW'), listOrderQueue);
+router.post('/orders/queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_CREATE'), createOrderQueueRules, validate, createOrderQueue);
+router.put('/orders/queue/:id', optionalAuth, requirePermission('POS_ORDER_QUEUE_UPDATE'), orderIdParam, validate, updateOrderQueue);
+router.post('/orders/queue/:id/payment', optionalAuth, requirePermission('POS_ORDER_QUEUE_PAYMENT'), orderIdParam, validate, payOrderQueue);
+router.post('/orders/queue/:id/cancel', optionalAuth, requirePermission('POS_ORDER_QUEUE_DELETE'), orderIdParam, validate, cancelOrderQueue);
+
+// Backward-compatible aliases for older clients
+router.get('/orders/order-queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_VIEW'), listOrderQueue);
+router.post('/orders/order-queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_CREATE'), createOrderQueueRules, validate, createOrderQueue);
+router.patch('/orders/order-queue/:id', optionalAuth, requirePermission('POS_ORDER_QUEUE_UPDATE'), orderIdParam, validate, updateOrderQueue);
+router.post('/orders/order-queue/:id/payment', optionalAuth, requirePermission('POS_ORDER_QUEUE_PAYMENT'), orderIdParam, validate, payOrderQueue);
+router.delete('/orders/order-queue/:id', optionalAuth, requirePermission('POS_ORDER_QUEUE_DELETE'), orderIdParam, validate, cancelOrderQueue);
+
+// Table-order endpoints
+router.get('/orders/by-table/:tableId', optionalAuth, getActiveTableOrder);
 
 // Kitchen endpoints
 router.get('/orders/kitchen-queue', optionalAuth, listKitchenQueue);
 router.patch('/orders/:id/kitchen-status', requireDeviceAuth, requireDevicePermission('kitchen:update_status'), updateKitchenStatus);
+
+// Order detail
+router.get('/orders/:orderId', optionalAuth, requirePermission('ORDER_HISTORY_VIEW'), getOrderDetail);
 
 export default router;
 

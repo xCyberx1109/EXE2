@@ -5,12 +5,12 @@ import { getDeviceTypeLabel } from '../../shared/permissions/devicePermissions';
 import { Loader2, LogIn, Eye, EyeOff, Smartphone, Monitor, CheckCircle2 } from 'lucide-react';
 
 const DEVICE_ROUTES: Record<string, string> = {
-  CASHIER: '/pos/order',
+  CASHIER: '/pos/table-view',
   KITCHEN: '/pos/kitchen-queue',
   WAITER: '/pos/waiter-order',
   KIOSK: '/pos/kiosk',
   CUSTOMER_DISPLAY: '/pos/display',
-  MANAGER: '/pos/order',
+  MANAGER: '/pos/table-view',
   TABLET: '/pos/waiter-order',
 };
 
@@ -45,7 +45,7 @@ export function LoginPage() {
       return '/app';
     }
     if (perms.includes('POS_CREATE_ORDER') || perms.includes('POS_OPEN')) {
-      return '/pos/order';
+      return '/pos/table-view';
     }
     return '/app';
   }

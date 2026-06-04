@@ -49,7 +49,7 @@ const DEVICE_NAV_ITEMS: Record<string, NavItem[]> = {
 function PosNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isReady, isAuthenticated, authMode, deviceType, deviceInfo, branchInfo, logoutDevice, logout, hasDevicePermission, user } = useAuth();
+  const { isReady, isAuthenticated, authMode, deviceType, deviceInfo, branchInfo, logoutDevice, logout, hasDevicePermission, hasPermission, user } = useAuth();
 
   useEffect(() => {
     if (!isReady) return;
@@ -68,15 +68,17 @@ function PosNavbar() {
     );
   }
 
-  // Determine effective device type from auth mode
-  const effectiveType = authMode === 'device' ? deviceType : (user?.permissions?.includes('REPORT_VIEW') ? 'MANAGER' : 'CASHIER');
+  const effectiveType = authMode === 'device' ? deviceType : 'CASHIER';
   const allNavItems = (effectiveType && DEVICE_NAV_ITEMS[effectiveType]) || [];
   const navItems = authMode === 'device'
     ? allNavItems.filter((item) => !item.requiredPermission || hasDevicePermission(item.requiredPermission as any))
-    : allNavItems.filter((item) => !item.requiredPermission || (item.module === 'reports' ? hasPermission('REPORT_VIEW') : true)); // Basic filtering for account mode
+    : allNavItems.filter((item) => {
+        const allowed = !item.requiredPermission || hasPermission(item.requiredPermission);
+        console.log(`[PosNavbar] "${item.label}" requiredPermission="${item.requiredPermission}" allowed=${allowed}`);
+        return allowed;
+      });
 
-
-  const deviceLabel = authMode === 'device' ? getDeviceTypeLabel(deviceType || 'CASHIER') : (user?.permissions?.includes('REPORT_VIEW') ? 'Quản lý' : 'Thu ngân');
+  const deviceLabel = authMode === 'device' ? getDeviceTypeLabel(deviceType || 'CASHIER') : 'Thu ngân';
   const branchName = branchInfo?.name || '';
 
   const handleLogout = async () => {
@@ -103,7 +105,7 @@ function PosNavbar() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
-              {authMode === 'device' ? (deviceType || 'POS') : (user?.permissions?.includes('REPORT_VIEW') ? 'Quản lý' : 'Thu ngân')}
+              {authMode === 'device' ? (deviceType || 'POS') : 'STAFF'}
             </span>
             <button
               onClick={handleLogout}

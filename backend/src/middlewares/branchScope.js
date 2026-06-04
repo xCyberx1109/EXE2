@@ -23,7 +23,7 @@ export function enforceBranchScope(req, _res, next) {
     return next(new AppError('Authentication required', 401));
   }
 
-  const canAccessAll = ctx.permissions?.includes('BRANCH_ALL_ACCESS') || ctx.permissions?.includes('CROSS_BRANCH_ACCESS');
+  const canAccessAll = ctx.permissions?.includes('ADMIN_ALL') || ctx.permissions?.some(p => p.startsWith('BRANCH_'));
   const branchId = canAccessAll ? null : (ctx.branchId || req.branch?.id);
 
   req.branchScope = {
@@ -44,6 +44,7 @@ export function enforceBranchScope(req, _res, next) {
  */
 export function assertBranchAccess(resource, user, name = 'dữ liệu') {
   if (!resource || !user) return;
+  if (user.permissions?.includes('ADMIN_ALL')) return;
   if (user.permissions?.includes('BRANCH_ALL_ACCESS')) return;
   if (user.permissions?.includes('CROSS_BRANCH_ACCESS')) return;
   const userBranchId = user.branchId || (user.branch?.id);
@@ -54,7 +55,6 @@ export function assertBranchAccess(resource, user, name = 'dữ liệu') {
       resourceBranchId: resource.branchId,
       userBranchId: userBranchId,
       userId: user.id,
-      userRole: user.role,
       userPermissions: user.permissions,
     });
     throw new AppError(`${name} này thuộc chi nhánh khác`, 403);
@@ -71,6 +71,7 @@ export function assertBranchAccess(resource, user, name = 'dữ liệu') {
  */
 export function buildBranchWhere(user, additionalWhere = {}) {
   if (!user) return additionalWhere;
+  if (user.permissions?.includes('ADMIN_ALL')) return additionalWhere;
   if (user.permissions?.includes('BRANCH_ALL_ACCESS')) return additionalWhere;
   if (user.permissions?.includes('CROSS_BRANCH_ACCESS')) return additionalWhere;
   const branchId = user.branchId || (user.branch?.id);
@@ -88,6 +89,7 @@ export function branchDataForCreate(user) {
   if (!user) return {};
   const branchId = user.branchId || (user.branch?.id);
   if (!branchId) return {};
+  if (user.permissions?.includes('ADMIN_ALL') && !user.branchId) return {};
   if (user.permissions?.includes('BRANCH_ALL_ACCESS') && !user.branchId) return {};
   if (user.permissions?.includes('CROSS_BRANCH_ACCESS') && !user.branchId) return {};
   return { branchId };

@@ -27,14 +27,19 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
     throw new AppError('Vui lòng đăng nhập', 401);
   }
 
-  const decoded = jwt.verify(token, config.jwt.secret);
+  let decoded;
+  try {
+    decoded = jwt.verify(token, config.jwt.secret);
+  } catch (jwtErr) {
+    throw new AppError('Phiên đăng nhập không hợp lệ hoặc đã hết hạn', 401);
+  }
   if (decoded.type !== 'user') {
     throw new AppError('Token không hợp lệ cho tài khoản quản trị', 401);
   }
 
   const user = await prisma.account.findUnique({
     where: { id: decoded.sub || decoded.userId },
-    select: { id: true, email: true, fullName: true, role: true, branchId: true },
+        select: { id: true, email: true, fullName: true, branchId: true },
   });
 
   if (!user) {
@@ -43,9 +48,6 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
 
   // Lấy permissions hiệu dụng realtime
   user.permissions = await permissionService.getEffectivePermissions(user.id);
-  user.permissionsVersion = permissionService.getPermissionsVersion(user.id);
-
-  console.log('[authenticate] user:', { id: user.id, email: user.email, role: user.role, branchId: user.branchId, permissions: user.permissions });
 
   req.user = user;
   req.authType = 'user';
@@ -63,7 +65,12 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
 
   try {
     if (isJwtToken(token)) {
-      const decoded = jwt.verify(token, config.jwt.secret);
+      let decoded;
+      try {
+        decoded = jwt.verify(token, config.jwt.secret);
+      } catch {
+        throw new AppError('Phiên đăng nhập thiết bị không hợp lệ hoặc đã hết hạn', 401);
+      }
       if (decoded.type === 'device') {
         device = await prisma.posDevice.findUnique({
           where: { id: decoded.sub, deletedAt: null },
@@ -104,50 +111,54 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
   next();
 });
 
-/** Phân quyền theo permission — granular, không bypass */
+/** Phân quyền theo permission */
 export const requirePermission = (permissionCode) => (req, _res, next) => {
   if (!req.user) {
     return next(new AppError('Vui lòng đăng nhập', 401));
   }
 
+  console.log(`[RBAC] Checking permission "${permissionCode}" for user ${req.user.id}`);
+  console.log("[RBAC] USER PERMISSIONS:", JSON.stringify(req.user.permissions));
+
+  // Admin bypass via ADMIN_ALL permission (not role-based)
+  if (req.user.permissions?.includes('ADMIN_ALL')) {
+    console.log(`[RBAC] ADMIN_ALL override - granting "${permissionCode}"`);
+    return next();
+  }
+
   if (!req.user.permissions?.includes(permissionCode)) {
+    console.warn(`[RBAC] DENIED: user ${req.user.id} missing "${permissionCode}"`);
     return next(new AppError(`Bạn không có quyền: ${permissionCode}`, 403));
   }
+
+  console.log(`[RBAC] GRANTED: "${permissionCode}" for user ${req.user.id}`);
   next();
 };
 
-/**
- * Yêu cầu quyền quản lý chi nhánh
- * Kiểm tra quyền truy cập theo branchId
- */
-export const requireBranchManager = (req, _res, next) => {
+/** Kiểm tra quyền truy cập branch */
+export const requireBranchAccess = (req, _res, next) => {
   if (!req.user) {
     return next(new AppError('Vui lòng đăng nhập', 401));
   }
 
-  const canAccessAll = req.user.permissions?.includes('BRANCH_ALL_ACCESS') || req.user.permissions?.includes('CROSS_BRANCH_ACCESS');
+  const hasAllBranchAccess = req.user.permissions?.includes('BRANCH_ALL_ACCESS');
 
-  if (req.params.branchId && !canAccessAll) {
+  if (req.params.branchId && !hasAllBranchAccess) {
     if (req.params.branchId !== req.user.branchId) {
-      return next(new AppError('Bạn không có quyền truy cập chi nhánh này', 403));
+      return next(new AppError('Bạn không có quyền truy cập branch này', 403));
     }
   }
 
-  if (req.body && req.body.branchId && !canAccessAll) {
+  if (req.body && req.body.branchId && !hasAllBranchAccess) {
     if (req.body.branchId !== req.user.branchId) {
-      return next(new AppError('Bạn không có quyền truy cập chi nhánh này', 403));
+      return next(new AppError('Bạn không có quyền truy cập branch này', 403));
     }
-  }
-
-  // Nếu user có branchId cụ thể, tự động gán vào query
-  if (!canAccessAll && req.user.branchId) {
-    req.branchScope = { hasAccess: false, branchId: req.user.branchId };
   }
 
   next();
 };
 
-/** Optional auth - gắn user nếu có token (kèm permissions) */
+/** Optional auth - gắn user nếu có token */
 export const optionalAuth = asyncHandler(async (req, _res, next) => {
   const token = extractToken(req);
   if (!token) return next();
@@ -157,11 +168,10 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
     if (decoded.type === 'user') {
       const user = await prisma.account.findUnique({
         where: { id: decoded.sub },
-        select: { id: true, email: true, fullName: true, role: true, branchId: true },
+        select: { id: true, email: true, fullName: true, branchId: true },
       });
       if (user) {
         user.permissions = await permissionService.getEffectivePermissions(user.id);
-        user.permissionsVersion = permissionService.getPermissionsVersion(user.id);
         req.user = user;
         req.authType = 'user';
       }

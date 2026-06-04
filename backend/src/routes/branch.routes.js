@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import prisma from '../prisma/client.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
@@ -6,7 +7,7 @@ import { sendMail } from '../utils/sendMail.js';
 import bcrypt from 'bcrypt';
 import { userRepository } from '../repositories/user.repository.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
-import { buildBranchWhere, enforceBranchScope } from '../middlewares/branchScope.js';
+import { enforceBranchScope } from '../middlewares/branchScope.js';
 
 const router = Router();
 
@@ -54,15 +55,18 @@ async function resolvePlan(planCode) {
 }
 
 // Lấy danh sách chi nhánh (branches) từ database
-router.get('/branches', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) => {
-  const branchWhere = buildBranchWhere(req.user);
-  const where = branchWhere.branchId ? { id: branchWhere.branchId } : {};
+router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) => {
+  const permissions = req.user.permissions || [];
+  const hasBranchAccess = permissions.includes('ADMIN_ALL') || permissions.some(p => p.startsWith('BRANCH_'));
+
+  const where = hasBranchAccess ? {} : (req.user.branchId ? { id: req.user.branchId } : {});
+
   const branches = await prisma.branch.findMany({
     where,
     orderBy: { name: 'asc' },
     include: {
       accounts: {
-        where: { role: 'MANAGER' },
+        orderBy: { grantedAt: 'asc' },
         take: 1,
       },
       subscriptions: {
@@ -80,7 +84,7 @@ router.get('/branches', requirePermission('BRANCH_VIEW'), asyncHandler(async (re
   });
 }));
 
-router.post('/branches', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, res) => {
+router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, res) => {
   const {
     name,
     address,
@@ -137,14 +141,13 @@ router.post('/branches', requirePermission('BRANCH_CREATE'), asyncHandler(async 
   const password = crypto.randomBytes(4).toString('hex');
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Tạo account MANAGER cho branch
-  const account = await userRepository.create({
-    email,
-    password: hashedPassword,
-    fullName,
-    role: 'MANAGER',
-    branchId: branch.id,
-  });
+      // Tạo account cho branch
+      const account = await userRepository.create({
+        email,
+        password: hashedPassword,
+        fullName,
+        branchId: branch.id,
+      });
 
   // Gán quyền quản lý branch cho manager
   await assignBranchPermissions(account.id);
@@ -180,9 +183,10 @@ router.post('/branches', requirePermission('BRANCH_CREATE'), asyncHandler(async 
   });
 }));
 
-router.put('/branches/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, res) => {
+router.put('/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!req.user.permissions?.includes('BRANCH_ALL_ACCESS') && req.user.branchId && id !== req.user.branchId) {
+  const hasBranchAccess = req.user.permissions?.includes('ADMIN_ALL') || req.user.permissions?.some(p => p.startsWith('BRANCH_'));
+  if (!hasBranchAccess && req.user.branchId && id !== req.user.branchId) {
     return sendError(res, { statusCode: 403, message: 'Bạn không có quyền cập nhật chi nhánh này' });
   }
   const {
@@ -249,7 +253,8 @@ router.put('/branches/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(asy
   // Cập nhật email hoặc tạo account nếu được gửi lên
   if (email) {
     const existingAccount = await prisma.account.findFirst({
-      where: { branchId: id, role: 'MANAGER' },
+      where: { branchId: id },
+      orderBy: { grantedAt: 'asc' },
     });
 
     if (existingAccount) {
@@ -265,11 +270,10 @@ router.put('/branches/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(asy
         email,
         password: hashedPassword,
         fullName: fullName || '',
-        role: 'MANAGER',
         branchId: id,
       });
 
-      // Gán quyền quản lý branch cho manager
+      // Gán quyền quản lý branch cho account
       await assignBranchPermissions(account.id);
 
       try {
@@ -296,7 +300,7 @@ router.put('/branches/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(asy
     where: { id },
     include: {
       accounts: {
-        where: { role: 'MANAGER' },
+        orderBy: { grantedAt: 'asc' },
         take: 1,
       },
       subscriptions: {
@@ -314,9 +318,10 @@ router.put('/branches/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(asy
   });
 }));
 
-router.put('/branches/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, res) => {
+router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!req.user.permissions?.includes('BRANCH_ALL_ACCESS') && req.user.branchId && id !== req.user.branchId) {
+  const hasBranchAccess = req.user.permissions?.includes('ADMIN_ALL') || req.user.permissions?.some(p => p.startsWith('BRANCH_'));
+  if (!hasBranchAccess && req.user.branchId && id !== req.user.branchId) {
     return sendError(res, { statusCode: 403, message: 'Bạn không có quyền đặt lại mật khẩu chi nhánh này' });
   }
 
@@ -335,8 +340,8 @@ router.put('/branches/:id/reset-password', requirePermission('BRANCH_UPDATE'), a
   const manager = await prisma.account.findFirst({
     where: {
       branchId: id,
-      role: 'MANAGER',
     },
+    orderBy: { grantedAt: 'asc' },
   });
 
   if (!manager) {
@@ -391,9 +396,10 @@ router.put('/branches/:id/reset-password', requirePermission('BRANCH_UPDATE'), a
   });
 }));
 
-router.patch('/branches/:id/lock', requirePermission('BRANCH_LOCK'), asyncHandler(async (req, res) => {
+router.patch('/:id/lock', requirePermission('BRANCH_LOCK'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!req.user.permissions?.includes('BRANCH_ALL_ACCESS') && req.user.branchId && id !== req.user.branchId) {
+  const hasBranchAccess = req.user.permissions?.includes('ADMIN_ALL') || req.user.permissions?.some(p => p.startsWith('BRANCH_'));
+  if (!hasBranchAccess && req.user.branchId && id !== req.user.branchId) {
     return sendError(res, { statusCode: 403, message: 'Bạn không có quyền khóa chi nhánh này' });
   }
 
@@ -407,9 +413,10 @@ router.patch('/branches/:id/lock', requirePermission('BRANCH_LOCK'), asyncHandle
   sendSuccess(res, { message: `Đã khóa chi nhánh "${branch.name}"`, data: { id, active: false } });
 }));
 
-router.patch('/branches/:id/unlock', requirePermission('BRANCH_UNLOCK'), asyncHandler(async (req, res) => {
+router.patch('/:id/unlock', requirePermission('BRANCH_UNLOCK'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!req.user.permissions?.includes('BRANCH_ALL_ACCESS') && req.user.branchId && id !== req.user.branchId) {
+  const hasBranchAccess = req.user.permissions?.includes('ADMIN_ALL') || req.user.permissions?.some(p => p.startsWith('BRANCH_'));
+  if (!hasBranchAccess && req.user.branchId && id !== req.user.branchId) {
     return sendError(res, { statusCode: 403, message: 'Bạn không có quyền mở khóa chi nhánh này' });
   }
 
@@ -449,9 +456,10 @@ async function checkForceDeleteSafety(branchId) {
  * Chỉ dùng cho branch test / tạo nhầm / chưa go-live
  * Permission riêng: BRANCH_FORCE_DELETE
  */
-router.delete('/branches/:id/force', requirePermission('BRANCH_FORCE_DELETE'), asyncHandler(async (req, res) => {
+router.delete('/:id/force', requirePermission('BRANCH_FORCE_DELETE'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!req.user.permissions?.includes('BRANCH_ALL_ACCESS') && req.user.branchId && id !== req.user.branchId) {
+  const hasBranchAccess = req.user.permissions?.includes('ADMIN_ALL') || req.user.permissions?.some(p => p.startsWith('BRANCH_'));
+  if (!hasBranchAccess && req.user.branchId && id !== req.user.branchId) {
     return sendError(res, { statusCode: 403, message: 'Bạn không có quyền xóa chi nhánh này' });
   }
 
@@ -546,7 +554,7 @@ router.delete('/branches/:id/force', requirePermission('BRANCH_FORCE_DELETE'), a
     }
 
     // Branch-scoped entities
-    stats.revenueReports = await tx.revenueReport.deleteMany({ where: { branchId: id } });
+    // RevenueReport removed
     stats.vouchers = await tx.voucher.deleteMany({ where: { branchId: id } });
     stats.loyaltyPoints = await tx.loyaltyPoint.deleteMany({ where: { branchId: id } });
 
@@ -593,9 +601,10 @@ router.delete('/branches/:id/force', requirePermission('BRANCH_FORCE_DELETE'), a
 }));
 
 /** Xoá chi nhánh (basic) — dùng cho branch sạch, không có dữ liệu phức tạp */
-router.delete('/branches/:id', requirePermission('BRANCH_DELETE'), asyncHandler(async (req, res) => {
+router.delete('/:id', requirePermission('BRANCH_DELETE'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!req.user.permissions?.includes('BRANCH_ALL_ACCESS') && req.user.branchId && id !== req.user.branchId) {
+  const hasBranchAccess = req.user.permissions?.includes('ADMIN_ALL') || req.user.permissions?.some(p => p.startsWith('BRANCH_'));
+  if (!hasBranchAccess && req.user.branchId && id !== req.user.branchId) {
     return sendError(res, { statusCode: 403, message: 'Bạn không có quyền xóa chi nhánh này' });
   }
 
@@ -635,7 +644,7 @@ router.delete('/branches/:id', requirePermission('BRANCH_DELETE'), asyncHandler(
     await tx.stockAlert.deleteMany({ where: { branchId: id } });
     await tx.stockAudit.deleteMany({ where: { branchId: id } });
     await tx.loyaltyPoint.deleteMany({ where: { branchId: id } });
-    await tx.revenueReport.deleteMany({ where: { branchId: id } });
+    // RevenueReport removed
     await tx.subscription.deleteMany({ where: { branchId: id } });
     await tx.branchFeature.deleteMany({ where: { branchId: id } });
     await tx.branch.delete({ where: { id } });

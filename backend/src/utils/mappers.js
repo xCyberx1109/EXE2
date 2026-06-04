@@ -10,6 +10,16 @@ export const mapMenuItem = (item) => ({
   description: item.description || '',
   available: item.available,
   imageUrl: item.imageUrl || null,
+  ingredients: item.ingredients ? item.ingredients.map(i => ({
+    id: i.id,
+    ingredientId: i.ingredientId,
+    amount: Number(i.amount),
+    ingredient: i.ingredient ? {
+      id: i.ingredient.id,
+      name: i.ingredient.name,
+      unit: i.ingredient.unit
+    } : null
+  })) : [],
 });
 
 export const mapIngredient = (item) => ({
@@ -23,17 +33,6 @@ export const mapIngredient = (item) => ({
   lastUpdated: item.lastUpdated instanceof Date
     ? item.lastUpdated.toISOString().split('T')[0]
     : String(item.lastUpdated).split('T')[0],
-});
-
-export const mapRevenueRecord = (report) => ({
-  id: report.id,
-  date: report.reportDate instanceof Date
-    ? report.reportDate.toISOString().split('T')[0]
-    : String(report.reportDate).split('T')[0],
-  orderCount: report.orderCount,
-  revenue: Number(report.revenue),
-  cost: Number(report.cost),
-  profit: Number(report.profit),
 });
 
 export const mapInventoryTransaction = (tx) => ({
@@ -59,6 +58,13 @@ export const mapOrderDetail = (order) => ({
   total: Number(order.total),
   cost: Number(order.cost),
   profit: Number(order.profit),
+  discount: Number(order.discount || 0),
+  rounding: Number(order.rounding || 0),
+  serviceCharge: Number(order.serviceCharge || 0),
+  note: order.note || null,
+  source: order.source || null,
+  guestCount: order.guestCount || null,
+  orderType: order.orderType,
   createdAt: order.createdAt,
   completedAt: order.completedAt,
   items: order.items.map((item) => ({
@@ -68,29 +74,80 @@ export const mapOrderDetail = (order) => ({
     price: Number(item.price),
     cost: Number(item.cost),
     quantity: item.quantity,
+    discount: Number(item.discount || 0),
     lineTotal: Number(item.price) * item.quantity,
+    note: item.note || null,
+    modifiers: item.modifiers ? item.modifiers.map((m) => ({
+      id: m.id,
+      name: m.name,
+      price: Number(m.price),
+      quantity: m.quantity,
+    })) : [],
   })),
   itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+  customer: order.customer ? {
+    id: order.customer.id,
+    fullName: order.customer.fullName,
+    phone: order.customer.phone,
+  } : null,
+  payments: order.payments ? order.payments.map((p) => ({
+    id: p.id,
+    amount: Number(p.amount),
+    method: p.method,
+    status: p.status,
+    reference: p.reference,
+    createdAt: p.createdAt,
+  })) : [],
+  table: order.table ? {
+    id: order.table.id,
+    tableCode: order.table.tableCode,
+    tableName: order.table.tableName,
+  } : null,
+  createdBy: order.account ? {
+    id: order.account.id,
+    fullName: order.account.fullName,
+  } : null,
 });
 
 /** Format order cho POS frontend (GET /orders) */
-export const mapPosOrder = (order) => ({
-  id: order.id,
-  table: order.tableNumber,
-  items: order.items.map((item) => ({
-    id: item.menuItemId || item.id,
-    name: item.name,
-    price: Number(item.price),
-    cost: Number(item.cost),
-    quantity: item.quantity,
-    category: item.menuItem?.category?.name || '',
-    description: item.menuItem?.description || '',
-    available: true,
-  })),
-  time: order.createdAt.toISOString(),
-  status: order.status.toLowerCase(),
-  total: Number(order.total),
-});
+export const mapPosOrder = (order) => {
+  const items = order.items || [];
+
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    table: order.tableNumber,
+    tableNumber: order.tableNumber,
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    subtotal: Number(order.subtotal || 0),
+    tax: Number(order.tax || 0),
+    total: Number(order.total || 0),
+    cost: Number(order.cost || order.totalCost || 0),
+    profit: Number(order.profit || 0),
+    discount: Number(order.discount || 0),
+    createdAt: order.createdAt,
+    completedAt: order.completedAt,
+    cashier: order.account?.fullName || order.cashier?.fullName || '',
+    cashierName: order.account?.fullName || order.cashier?.fullName || '',
+    orderType: order.orderType,
+    note: order.note || '',
+    items: items.map((item) => ({
+      id: item.id,
+      menuItemId: item.menuItemId,
+      name: item.name,
+      price: Number(item.price),
+      cost: Number(item.cost),
+      quantity: item.quantity,
+      lineTotal: Number(item.price) * item.quantity,
+      category: item.menuItem?.category?.name || '',
+      description: item.menuItem?.description || '',
+      available: true,
+    })),
+    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+    time: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
+  };
+};
 
 export const slugify = (text) =>
   text

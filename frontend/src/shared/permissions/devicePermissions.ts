@@ -57,14 +57,14 @@ export const DEVICE_PERMISSIONS: Record<PosDeviceTypeV2, DevicePermission[]> = {
 
 export const DEVICE_FEATURES: Record<PosDeviceTypeV2, DeviceFeatures> = {
   CASHIER: {
-    modules: ['pos-order', 'payment', 'receipt', 'bill-split', 'customer', 'menu-browser'],
-    routes: ['/pos/order', '/pos/payment', '/pos/receipt', '/pos/bill-split', '/pos/customer'],
+    modules: ['table-view', 'menu-browser'],
+    routes: ['/pos/table-view'],
     hide: ['kitchen', 'admin', 'reports', 'inventory', 'staff'],
   },
   KITCHEN: {
     modules: ['kitchen-queue', 'order-timeline', 'cooking-status'],
     routes: ['/pos/kitchen-queue'],
-    hide: ['payment', 'revenue', 'customer-management', 'admin', 'reports'],
+    hide: ['payment', 'customer-management', 'admin', 'reports'],
   },
   WAITER: {
     modules: ['table-order', 'menu-browser', 'customer', 'order-cart'],
@@ -83,13 +83,11 @@ export const DEVICE_FEATURES: Record<PosDeviceTypeV2, DeviceFeatures> = {
   },
   MANAGER: {
     modules: [
-      'pos-order', 'payment', 'receipt', 'bill-split', 'customer',
-      'kitchen-queue', 'reports', 'inventory', 'staff', 'menu-management',
+      'table-view', 'kitchen-queue', 'reports', 'inventory', 'staff', 'menu-management',
       'shift', 'device-management',
     ],
     routes: [
-      '/pos/order', '/pos/payment', '/pos/receipt', '/pos/bill-split',
-      '/pos/customer', '/pos/kitchen-queue', '/pos/reports',
+      '/pos/table-view', '/pos/kitchen-queue', '/pos/reports',
     ],
     hide: [],
   },

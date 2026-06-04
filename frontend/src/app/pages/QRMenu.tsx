@@ -7,6 +7,7 @@ export function MenuQR() {
 
     const [params] = useSearchParams();
     const table = params.get("table");
+    const branchId = params.get("branchId");
 
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [openItem, setOpenItem] = useState<string | null>(null);
@@ -15,8 +16,8 @@ export function MenuQR() {
     const [showCart, setShowCart] = useState(false);
 
     useEffect(() => {
-        menuApi.list({ available: 'true' }).then(setMenuItems).catch(console.error);
-    }, []);
+        menuApi.list({ available: 'true', ...(branchId ? { branchId } : {}) }).then(setMenuItems).catch(console.error);
+    }, [branchId]);
 
 
     const addToCart = (item: MenuItem) => {

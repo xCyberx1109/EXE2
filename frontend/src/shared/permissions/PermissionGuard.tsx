@@ -1,17 +1,16 @@
 import { Navigate } from 'react-router';
 import { useAuth } from '../../app/context/AuthContext';
-import type { AccountRole } from './menuConfig';
 import type { ReactNode } from 'react';
 
 interface PermissionGuardProps {
   children: ReactNode;
-  requiredPermission?: string;
+  requiredPermissions?: string[];
   fallbackPath?: string;
 }
 
 export function PermissionGuard({
   children,
-  requiredPermission,
+  requiredPermissions,
   fallbackPath = '/login',
 }: PermissionGuardProps) {
   const { isReady, isAuthenticated, user, hasPermission } = useAuth();
@@ -22,8 +21,9 @@ export function PermissionGuard({
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredPermission) {
-    if (!hasPermission(requiredPermission)) {
+  if (requiredPermissions && requiredPermissions.length > 0) {
+    const hasAll = requiredPermissions.every((p) => hasPermission(p));
+    if (!hasAll) {
       return <Navigate to={fallbackPath} replace />;
     }
   }

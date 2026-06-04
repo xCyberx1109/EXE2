@@ -1,11 +1,9 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router';
-import { FEATURE_PERMISSIONS, type FeatureKey } from '../../shared/permissions/featurePermissions';
 
 interface PermissionGuardProps {
-  permission?: string;
-  feature?: FeatureKey;
+  permission: string;
   children: ReactNode;
   fallback?: ReactNode;
   redirect?: string;
@@ -13,7 +11,6 @@ interface PermissionGuardProps {
 
 export function PermissionGuard({
   permission,
-  feature,
   children,
   fallback = null,
   redirect,
@@ -24,8 +21,15 @@ export function PermissionGuard({
     return <Navigate to="/login" replace />;
   }
 
-  const perm = permission || (feature ? FEATURE_PERMISSIONS[feature] : null);
-  if (!perm || !hasPermission(perm)) {
+  // ✅ FIX: handle empty permission safely
+  if (!permission) {
+    return <>{children}</>;
+  }
+
+  // ❌ nếu backend sai format thì vẫn fail
+  const allowed = hasPermission(permission);
+
+  if (!allowed) {
     if (redirect) {
       return <Navigate to={redirect} replace />;
     }
@@ -33,4 +37,18 @@ export function PermissionGuard({
   }
 
   return <>{children}</>;
+}
+
+function extractPermissionCodes(permissions: unknown): string[] {
+  if (!permissions || !Array.isArray(permissions)) return [];
+  return permissions.map((p: any) => (typeof p === 'string' ? p : (p as { code: string }).code));
+}
+
+export function usePermissions() {
+  const { hasPermission, user } = useAuth();
+  return {
+    hasPermission,
+    permissions: extractPermissionCodes(user?.permissions),
+    isAdmin: hasPermission('ADMIN_ALL'),
+  };
 }

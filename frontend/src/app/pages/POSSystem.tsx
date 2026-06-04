@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Printer, X } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
 import { menuApi, ordersApi, categoryApi } from '../api/services';
@@ -207,13 +208,13 @@ export function POSSystem() {
 
     try {
 
-      // lấy tất cả orders
-      const orders = await ordersApi.list();
-      const tableOrders = orders.filter((o) => Number(o.table) === selectedTable.number);
+      // Gọi API thanh toán - update status = COMPLETED + release table (không xóa order)
+      const paymentMethod = method === 'cash' ? 'CASH' : 'CARD';
+      await ordersApi.completePayment(selectedTable.number, paymentMethod);
 
-      await Promise.all(tableOrders.map((o) => ordersApi.delete(o.id)));
-
-      alert(`Đã thanh toán ${(calculateTotal() * 1.1).toLocaleString()} ₫ bằng ${method === 'cash' ? 'Tiền mặt' : 'Thẻ'}`);
+      toast.success(`Đã thanh toán ${(calculateTotal() * 1.1).toLocaleString()} ₫`, {
+        description: `Phương thức: ${method === 'cash' ? 'Tiền mặt' : 'Thẻ'}`,
+      });
 
       // reset UI
       setTables(prev =>
@@ -231,7 +232,7 @@ export function POSSystem() {
     } catch (err) {
 
       console.log("Payment error", err);
-      alert("Thanh toán lỗi");
+      toast.error('Thanh toán thất bại');
 
     }
   };
@@ -400,8 +401,8 @@ export function POSSystem() {
 
         {/* Right Side - Order Summary */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-4 h-[650px] flex flex-col">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-4 max-h-[calc(100vh-8rem)] flex flex-col">
+            <div className="flex items-center gap-2 mb-4 shrink-0">
               <ShoppingCart className="w-5 h-5 text-gray-600" />
               <h2 className="text-lg font-semibold text-gray-900">Đơn hàng</h2>
               <span className="ml-auto bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
@@ -416,17 +417,16 @@ export function POSSystem() {
               </div>
             ) : (
               <>
-                <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
+                <div className="flex-1 space-y-3 overflow-y-auto mb-4 min-h-0">
                   {orderItems.map((item) => (
                     <div key={item.id} className="flex items-start gap-2 pb-3 border-b border-gray-100">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{item.name}</div>
-
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{item.name}</div>
                         <div className="text-sm text-gray-500 mt-1">
                           {item.price.toLocaleString()} ₫
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           onClick={() => updateQuantity(item.id, -1)}
                           className="w-7 h-7 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
@@ -451,7 +451,7 @@ export function POSSystem() {
                   ))}
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 space-y-2">
+                <div className="border-t border-gray-200 pt-4 space-y-2 shrink-0">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Tạm tính:</span>
                     <span className="font-medium">{calculateTotal().toLocaleString()} ₫</span>
@@ -466,8 +466,7 @@ export function POSSystem() {
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-2">
-
+                <div className="mt-4 space-y-2 shrink-0">
                   <button
                     onClick={handleOrder}
                     className="w-full py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
@@ -489,7 +488,6 @@ export function POSSystem() {
                     <CreditCard className="w-5 h-5" />
                     Thanh toán
                   </button>
-
                 </div>
               </>
             )}
@@ -500,7 +498,7 @@ export function POSSystem() {
       {/* Payment Modal */}
       {showPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Thanh toán</h2>
 
             <div className="bg-gray-50 rounded-lg p-4 mb-6">

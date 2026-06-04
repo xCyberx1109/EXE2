@@ -4,7 +4,6 @@ import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { posDeviceRepository } from '../../repositories/posDevice.repository.js';
 import { activityLogRepository } from '../../repositories/activityLog.repository.js';
-import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 
 const SETUP_PIN_EXPIRY_HOURS = 48;
 const SETUP_PIN_LENGTH = 6;
@@ -31,8 +30,11 @@ async function hashToken(token) {
 }
 
 export const posDevicesService = {
-  async createDevice(user, { name, type, mode, metadata }, req) {
-    const branchId = user.branchId;
+  async createDevice(accountId, { name, type, mode, metadata }, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Account not found', 404);
+
+    const branchId = account.branchId;
 
     let deviceCode = generateDeviceCode();
     let existingCode = await posDeviceRepository.findDeviceCode(deviceCode);
@@ -60,7 +62,7 @@ export const posDevicesService = {
 
     await activityLogRepository.create({
       branchId,
-      accountId: user.id,
+      accountId,
       posDeviceId: device.id,
       action: 'CREATE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -83,8 +85,10 @@ export const posDevicesService = {
   },
 
   async listDevices(user) {
-    const canAccessAll = user.permissions?.includes('BRANCH_ALL_ACCESS');
-    const branchId = canAccessAll ? undefined : user.branchId;
+    if (!user.permissions?.includes('MANAGE_POS_DEVICES')) {
+      return [];
+    }
+    const branchId = user.branchId;
     const devices = await posDeviceRepository.findByBranchId(branchId);
     return devices.map((d) => ({
       id: d.id,
@@ -112,14 +116,21 @@ export const posDevicesService = {
   async getDevice(id, user) {
     const device = await posDeviceRepository.findByIdWithBranch(id);
     if (!device) throw new AppError('Device not found', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (device.branchId !== user.branchId && !user.permissions?.includes('ADMIN_ALL')) {
+      throw new AppError('Access denied to this device', 403);
+    }
     return device;
   },
 
-  async regenerateSetupPin(deviceId, user, req) {
+  async regenerateSetupPin(deviceId, accountId, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Account not found', 404);
+
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+      throw new AppError('Access denied', 403);
+    }
 
     const setupPin = generateSetupPin();
     const setupPinHash = await bcrypt.hash(setupPin, 10);
@@ -134,7 +145,7 @@ export const posDevicesService = {
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: user.id,
+      accountId,
       posDeviceId: device.id,
       action: 'REGENERATE_SETUP_PIN',
       module: 'POS_DEVICES',
@@ -145,10 +156,15 @@ export const posDevicesService = {
     return { deviceId: device.id, setupPin, setupPinExpiresAt };
   },
 
-  async revokeDevice(deviceId, reason, user, req) {
+  async revokeDevice(deviceId, reason, accountId, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Account not found', 404);
+
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+      throw new AppError('Access denied', 403);
+    }
 
     await prisma.shift.updateMany({
       where: { posDeviceId: deviceId, status: 'OPEN' },
@@ -171,7 +187,7 @@ export const posDevicesService = {
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: user.id,
+      accountId,
       posDeviceId: device.id,
       action: 'REVOKE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -182,10 +198,15 @@ export const posDevicesService = {
     return { deviceId: device.id, status: 'REVOKED' };
   },
 
-  async resetDevice(deviceId, user, req) {
+  async resetDevice(deviceId, accountId, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Account not found', 404);
+
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+      throw new AppError('Access denied', 403);
+    }
 
     const setupPin = generateSetupPin();
     const setupPinHash = await bcrypt.hash(setupPin, 10);
@@ -222,7 +243,7 @@ export const posDevicesService = {
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: user.id,
+      accountId,
       posDeviceId: device.id,
       action: 'RESET_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -233,10 +254,15 @@ export const posDevicesService = {
     return { deviceId: device.id, setupPin, setupPinExpiresAt };
   },
 
-  async toggleDevice(id, active, user, req) {
+  async toggleDevice(id, active, accountId, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Account not found', 404);
+
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+      throw new AppError('Access denied', 403);
+    }
 
     const updateData = { active };
     if (!active) {
@@ -258,7 +284,7 @@ export const posDevicesService = {
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: user.id,
+      accountId,
       posDeviceId: device.id,
       action: active ? 'ENABLE_POS_DEVICE' : 'DISABLE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -269,16 +295,21 @@ export const posDevicesService = {
     return posDeviceRepository.findById(id);
   },
 
-  async updateMode(deviceId, mode, user, req) {
+  async updateMode(deviceId, mode, accountId, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Account not found', 404);
+
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+      throw new AppError('Access denied', 403);
+    }
 
     const updated = await posDeviceRepository.update(deviceId, { mode });
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: user.id,
+      accountId,
       posDeviceId: device.id,
       action: 'POS_MODE_CHANGED',
       module: 'POS_DEVICES',
@@ -289,11 +320,16 @@ export const posDevicesService = {
     return updated;
   },
 
-  async deleteDevice(id, user, req) {
+  async deleteDevice(id, accountId, req) {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) throw new AppError('Account not found', 404);
+
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
     if (device.deletedAt) throw new AppError('Device already deleted', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+      throw new AppError('Access denied', 403);
+    }
 
     await prisma.shift.updateMany({
       where: { posDeviceId: id, status: 'OPEN' },
@@ -309,7 +345,7 @@ export const posDevicesService = {
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: user.id,
+      accountId,
       posDeviceId: device.id,
       action: 'DELETE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -321,7 +357,9 @@ export const posDevicesService = {
   async getActivityLogs(deviceId, user) {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    assertBranchAccess(device, user, 'thiết bị');
+    if (device.branchId !== user.branchId && !user.permissions?.includes('ADMIN_ALL')) {
+      throw new AppError('Access denied', 403);
+    }
     return activityLogRepository.findByDevice(deviceId, 100);
   },
 };

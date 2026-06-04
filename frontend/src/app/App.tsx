@@ -1,8 +1,10 @@
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { CategoryProvider } from './context/CategoryContext';
 import { Loader2 } from 'lucide-react';
 import { AppErrorBoundary } from '@/components/ErrorBoundary';
+import { Toaster } from '@/app/components/ui/sonner';
 
 function AppContent() {
   const { isReady } = useAuth();
@@ -24,7 +26,10 @@ export default function App() {
   return (
     <AppErrorBoundary>
       <AuthProvider>
-        <AppContent />
+        <CategoryProvider>
+          <AppContent />
+        </CategoryProvider>
+        <Toaster position="top-right" richColors />
       </AuthProvider>
     </AppErrorBoundary>
   );

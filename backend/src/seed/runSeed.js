@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt';
 import config from '../config/index.js';
 import prisma from '../prisma/client.js';
 import {
-  AccountRole,
   PosDeviceType,
   SubscriptionStatus,
   OrderStatus,
@@ -29,46 +28,11 @@ export async function seedDatabase() {
   console.log('→ Đang seed database...');
 
   // =========================
-  // FEATURES
+  // SYNC CORE DATA (Always sync)
   // =========================
-  const featureMap = {};
-  for (const feat of features) {
-    const created = await prisma.feature.upsert({
-      where: { code: feat.code },
-      update: { name: feat.name, module: feat.module, isCore: feat.isCore, sortOrder: feat.sortOrder },
-      create: feat,
-    });
-    featureMap[feat.code] = created.id;
-  }
-  console.log(`  ✓ ${features.length} features`);
-
-  // =========================
-  // PERMISSIONS
-  // =========================
-  const permissionMap = {};
-  for (const perm of permissions) {
-    const created = await prisma.permission.upsert({
-      where: { code: perm.code },
-      update: { name: perm.name, module: perm.module, isSystem: perm.isSystem || false },
-      create: perm,
-    });
-    permissionMap[perm.code] = created.id;
-  }
-  console.log(`  ✓ ${permissions.length} permissions`);
-
-  // =========================
-  // SUBSCRIPTION PLANS
-  // =========================
-  const planMap = {};
-  for (const plan of subscriptionPlans) {
-    const created = await prisma.subscriptionPlan.upsert({
-      where: { code: plan.code },
-      update: { name: plan.name, price: plan.price, maxBranches: plan.maxBranches, maxUsers: plan.maxUsers },
-      create: plan,
-    });
-    planMap[plan.code] = created.id;
-  }
-  console.log(`  ✓ ${subscriptionPlans.length} subscription plans`);
+  const featureMap = await syncFeatures();
+  const permissionMap = await syncPermissions();
+  const planMap = await syncSubscriptionPlans();
 
   // =========================
   // BRANCH
@@ -193,7 +157,6 @@ export async function seedDatabase() {
       email: config.seed.adminEmail,
       password: hashedPassword,
       fullName: config.seed.adminName,
-      role: AccountRole.ADMIN,
       branchId,
       status: AccountStatus.ACTIVE,
     },
@@ -203,8 +166,8 @@ export async function seedDatabase() {
   for (const permCode of Object.keys(permissionMap)) {
     await prisma.accountPermission.upsert({
       where: { accountId_permissionId: { accountId: admin.id, permissionId: permissionMap[permCode] } },
-      update: { allowed: true },
-      create: { accountId: admin.id, permissionId: permissionMap[permCode], allowed: true },
+      update: {},
+      create: { accountId: admin.id, permissionId: permissionMap[permCode] },
     });
   }
 
@@ -217,29 +180,40 @@ export async function seedDatabase() {
       email: 'manager@store.com',
       password: managerPassword,
       fullName: 'Quản lý chi nhánh',
-      role: AccountRole.MANAGER,
       branchId,
       status: AccountStatus.ACTIVE,
     },
   });
 
-  // Grant key permissions to manager
+  // Grant key permissions to manager (standardized permission codes)
   const managerPerms = [
-    'POS_OPEN', 'POS_CLOSE', 'POS_CREATE_ORDER', 'POS_CANCEL_ORDER', 'POS_APPLY_DISCOUNT',
-    'POS_DEVICE_VIEW', 'POS_DEVICE_CREATE', 'POS_DEVICE_UPDATE',
-    'MENU_CREATE', 'MENU_UPDATE', 'MENU_DELETE', 'MENU_MANAGE',
-    'STAFF_VIEW', 'STAFF_CREATE', 'STAFF_UPDATE', 'STAFF_DELETE',
-    'REPORT_VIEW', 'REPORT_EXPORT',
-    'INVENTORY_VIEW', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST', 'INGREDIENT_VIEW', 'INVENTORY_MANAGE',
-    'BRANCH_VIEW',
-    'TABLE_VIEW', 'TABLE_CREATE', 'TABLE_UPDATE', 'TABLE_DELETE'
+    // Orders: manage covers create/update/delete
+    'ORDER_VIEW',
+    'ORDER_MANAGE',
+    'order:cancel',
+
+    'payment:collect',
+
+    // Menu
+    'MENU_VIEW',
+    'MENU_MANAGE',
+
+    // Inventory
+    'INVENTORY_VIEW',
+    'INVENTORY_MANAGE',
+
+    // Customers
+    'CUSTOMER_VIEW',
+    'CUSTOMER_MANAGE',
+
   ];
+
   for (const permCode of managerPerms) {
     if (permissionMap[permCode]) {
       await prisma.accountPermission.upsert({
         where: { accountId_permissionId: { accountId: manager.id, permissionId: permissionMap[permCode] } },
-        update: { allowed: true },
-        create: { accountId: manager.id, permissionId: permissionMap[permCode], allowed: true },
+        update: {},
+        create: { accountId: manager.id, permissionId: permissionMap[permCode] },
       });
     }
   }
@@ -311,26 +285,28 @@ export async function seedDatabase() {
     const created = existing
       ? await prisma.ingredient.update({
           where: { id: existing.id },
-          data: {
-            unit: ing.unit,
-            quantity: ing.quantity,
-            price: ing.price,
-            supplier: ing.supplier,
-            available: true,
-            lastUpdated: new Date(),
-          },
-        })
-      : await prisma.ingredient.create({
-          data: {
-            name: ing.name,
-            unit: ing.unit,
-            quantity: ing.quantity,
-            price: ing.price,
-            supplier: ing.supplier,
-            available: true,
-            branchId,
-            lastUpdated: new Date(),
-          },
+      data: {
+        unit: ing.unit,
+        quantity: ing.quantity,
+        warningQuantity: ing.minQuantity ?? 0,
+        price: ing.price,
+        supplier: ing.supplier,
+        available: true,
+        lastUpdated: new Date(),
+      },
+    })
+  : await prisma.ingredient.create({
+      data: {
+        name: ing.name,
+        unit: ing.unit,
+        quantity: ing.quantity,
+        warningQuantity: ing.minQuantity ?? 0,
+        price: ing.price,
+        supplier: ing.supplier,
+        available: true,
+        branchId,
+        lastUpdated: new Date(),
+      },
         });
 
     ingredientMap[ing.name] = created.id;
@@ -380,106 +356,140 @@ export async function seedDatabase() {
 }
 
 /**
- * Luôn đồng bộ permissions + migrate old codes lên startup
- * Đảm bảo permissions trong data.js luôn tồn tại trong DB
+ * Map các tài khoản cần được gán tự động các quyền bắt buộc.
+ * accountId -> [permissionId, ...]
+ * Khi syncPermissions chạy, các quyền này sẽ được đảm bảo tồn tại.
+ */
+const REQUIRED_ACCOUNT_PERMISSIONS = {
+  'cmpxn8g0n003l0w2000bf7loj': [
+    'cmpxn80mo00110w207j8e84li',
+    'cmpxn80sr00120w20dmjuh7wu',
+  ],
+};
+
+/** 
+ * Đồng bộ danh sách permissions từ file data.js vào database.
+ * Luôn chạy khi server start để cập nhật các quyền mới.
  */
 export async function syncPermissions() {
   console.log('→ Đồng bộ permissions...');
-
   const permissionMap = {};
   for (const perm of permissions) {
     const created = await prisma.permission.upsert({
       where: { code: perm.code },
-      update: { name: perm.name, module: perm.module, isSystem: perm.isSystem || false },
+      update: { 
+        name: perm.name, 
+        module: perm.module, 
+        isSystem: perm.isSystem || false 
+      },
       create: perm,
     });
     permissionMap[perm.code] = created.id;
   }
+  console.log(`  ✓ ${permissions.length} permissions synchronized`);
 
-  // Migrate: BRANCH_MANAGE (cũ) → BRANCH_VIEW (mới)
-  const oldManagePerm = await prisma.permission.findUnique({ where: { code: 'BRANCH_MANAGE' } });
-  const newViewPerm = permissionMap['BRANCH_VIEW'];
-  if (oldManagePerm && newViewPerm) {
-    const oldRecords = await prisma.accountPermission.findMany({
-      where: { permissionId: oldManagePerm.id, allowed: true },
-      select: { accountId: true },
+  // Grant all permissions to admin account (nếu đã tồn tại)
+  try {
+    const admin = await prisma.account.findFirst({
+      where: { email: config.seed.adminEmail },
+      select: { id: true },
     });
-    for (const record of oldRecords) {
-      await prisma.accountPermission.upsert({
-        where: { accountId_permissionId: { accountId: record.accountId, permissionId: newViewPerm } },
-        update: { allowed: true },
-        create: { accountId: record.accountId, permissionId: newViewPerm, allowed: true },
-      });
-    }
-    if (oldRecords.length > 0) {
-      console.log(`  → Migrated BRANCH_MANAGE → BRANCH_VIEW for ${oldRecords.length} accounts`);
-    }
-    // Xoá permission cũ (không ai dùng nữa)
-    await prisma.accountPermission.deleteMany({ where: { permissionId: oldManagePerm.id } });
-    await prisma.permission.delete({ where: { id: oldManagePerm.id } });
-    console.log('  → Removed legacy BRANCH_MANAGE permission');
-  }
-
-  // Xoá các permission cũ khác nếu có (SYSTEM_SUPER_ADMIN…)
-  for (const legacyCode of ['SYSTEM_SUPER_ADMIN', 'SYSTEM_ALL']) {
-    const legacy = await prisma.permission.findUnique({ where: { code: legacyCode } });
-    if (legacy) {
-      await prisma.accountPermission.deleteMany({ where: { permissionId: legacy.id } });
-      await prisma.permission.delete({ where: { id: legacy.id } });
-      console.log(`  → Removed legacy ${legacyCode} permission`);
-    }
-  }
-
-  // Auto-assign BRANCH_VIEW + BRANCH_UPDATE cho MANAGER accounts chưa có
-  const managers = await prisma.account.findMany({
-    where: { role: 'MANAGER' },
-    select: { id: true },
-  });
-  for (const m of managers) {
-    for (const code of ['BRANCH_VIEW', 'BRANCH_UPDATE']) {
-      const permId = permissionMap[code];
-      if (!permId) continue;
-      await prisma.accountPermission.upsert({
-        where: { accountId_permissionId: { accountId: m.id, permissionId: permId } },
-        update: { allowed: true },
-        create: { accountId: m.id, permissionId: permId, allowed: true },
-      });
-    }
-  }
-  if (managers.length > 0) {
-    console.log(`  → Assigned BRANCH_VIEW + BRANCH_UPDATE to ${managers.length} MANAGER accounts`);
-  }
-
-  // Auto-assign TABLE permissions cho ADMIN accounts
-  const tablePermCodes = ['TABLE_VIEW', 'TABLE_CREATE', 'TABLE_UPDATE', 'TABLE_DELETE'];
-  const admins = await prisma.account.findMany({
-    where: { role: 'ADMIN' },
-    select: { id: true },
-  });
-  let assignedCount = 0;
-  for (const a of admins) {
-    for (const code of tablePermCodes) {
-      const permId = permissionMap[code];
-      if (!permId) continue;
-      const existing = await prisma.accountPermission.findUnique({
-        where: { accountId_permissionId: { accountId: a.id, permissionId: permId } },
-      });
-      if (!existing) {
-        await prisma.accountPermission.create({
-          data: { accountId: a.id, permissionId: permId, allowed: true },
+    if (admin) {
+      for (const permId of Object.values(permissionMap)) {
+        await prisma.accountPermission.upsert({
+          where: { accountId_permissionId: { accountId: admin.id, permissionId: permId } },
+          update: {},
+          create: { accountId: admin.id, permissionId: permId },
         });
-        assignedCount++;
       }
+      console.log('  ✓ Gán tất cả quyền cho tài khoản ADMIN');
     }
-  }
-  if (assignedCount > 0) {
-    console.log(`  → Assigned TABLE permissions to ${admins.length} ADMIN accounts (${assignedCount} records)`);
+  } catch (err) {
+    // Admin chưa tồn tại (lần chạy đầu tiên), bỏ qua
   }
 
-  console.log(`  ✓ ${permissions.length} permissions synced`);
+  // Gán các quyền bắt buộc cho các tài khoản đặc biệt
+  for (const [accountId, permissionIds] of Object.entries(REQUIRED_ACCOUNT_PERMISSIONS)) {
+    try {
+      const account = await prisma.account.findUnique({
+        where: { id: accountId },
+        select: { id: true },
+      });
+      if (account) {
+        for (const permissionId of permissionIds) {
+          // Kiểm tra quyền đã tồn tại trong DB sau syncPermissions ở trên
+          const permExists = Object.values(permissionMap).includes(permissionId) ||
+            await prisma.permission.findUnique({ where: { id: permissionId }, select: { id: true } });
+          if (!permExists) {
+            console.warn(`  ⚠ Permission ${permissionId} không tồn tại trong DB, bỏ qua`);
+            continue;
+          }
+          await prisma.accountPermission.upsert({
+            where: { accountId_permissionId: { accountId, permissionId } },
+            update: {},
+            create: { accountId, permissionId, allowed: true },
+          });
+        }
+        console.log(`  ✓ Đảm bảo quyền bắt buộc cho tài khoản ${accountId}`);
+      }
+    } catch (err) {
+      // Tài khoản chưa tồn tại, bỏ qua
+    }
+  }
+
+  return permissionMap;
 }
 
-/** Run seed if empty (vẫn giữ nguyên cho data mẫu) */
+/** 
+ * Đồng bộ danh sách features từ file data.js vào database.
+ */
+export async function syncFeatures() {
+  console.log('→ Đồng bộ features...');
+  const featureMap = {};
+  for (const feat of features) {
+    const created = await prisma.feature.upsert({
+      where: { code: feat.code },
+      update: { 
+        name: feat.name, 
+        module: feat.module, 
+        isCore: feat.isCore, 
+        sortOrder: feat.sortOrder 
+      },
+      create: feat,
+    });
+    featureMap[feat.code] = created.id;
+  }
+  console.log(`  ✓ ${features.length} features synchronized`);
+  return featureMap;
+}
+
+/** 
+ * Đồng bộ các gói đăng ký (Subscription Plans).
+ */
+export async function syncSubscriptionPlans() {
+  console.log('→ Đồng bộ subscription plans...');
+  const planMap = {};
+  for (const plan of subscriptionPlans) {
+    const created = await prisma.subscriptionPlan.upsert({
+      where: { code: plan.code },
+      update: { 
+        name: plan.name, 
+        price: plan.price, 
+      },
+      create: {
+        code: plan.code,
+        name: plan.name,
+        price: plan.price,
+        billingInterval: plan.billingInterval,
+      },
+    });
+    planMap[plan.code] = created.id;
+  }
+  console.log(`  ✓ ${subscriptionPlans.length} plans synchronized`);
+  return planMap;
+}
+
+/** Run seed if empty */
 export async function runSeedIfEmpty() {
   const userCount = await prisma.account.count();
   if (userCount === 0) {
@@ -601,7 +611,7 @@ async function seedDemoCustomers(branchId) {
   await prisma.customer.create({
     data: {
       branchId,
-      name: 'Nguyễn Văn A',
+      fullName: 'Nguyễn Văn A',
       phone: '0901234567',
       email: 'nguyenvana@example.com',
       totalSpent: 1250000,
@@ -614,7 +624,7 @@ async function seedDemoCustomers(branchId) {
   await prisma.customer.create({
     data: {
       branchId,
-      name: 'Trần Thị B',
+      fullName: 'Trần Thị B',
       phone: '0907654321',
       email: 'tranthib@example.com',
       totalSpent: 450000,

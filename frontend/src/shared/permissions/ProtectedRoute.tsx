@@ -1,8 +1,7 @@
 import { Navigate } from 'react-router';
 import { useAuth } from '../../app/context/AuthContext';
-import type { DevicePermission, PosDeviceTypeV2 } from '../../app/types';
+import type { DevicePermission, PosDeviceTypeV2, DeviceFeatures } from '../../app/types';
 import type { ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -17,6 +16,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({
   children,
   allowedTypes,
+  allowedRoles,
   requiredPermissions,
   requiredRBACPermissions,
   requiredFeatures,
@@ -29,25 +29,18 @@ export function ProtectedRoute({
     deviceFeatures, user, hasPermission,
   } = useAuth();
 
-  if (!isReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">
-        <Loader2 className="w-8 h-8 animate-spin mr-2" />
-        Đang kết nối server...
-      </div>
-    );
-  }
+  if (!isReady) return null;
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Account-level checks (Account-based Permissions)
+  // Account-level checks (permission-based RBAC)
   if (authMode === 'account' && user) {
     if (requiredRBACPermissions && requiredRBACPermissions.length > 0) {
       const hasAll = requiredRBACPermissions.every((p) => hasPermission(p));
       if (!hasAll) {
-        return <Navigate to="/app/profile" replace />;
+        return <Navigate to="/app" replace />;
       }
     }
   }

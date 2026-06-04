@@ -13,7 +13,6 @@ interface Account {
   id: string;
   fullName: string;
   email: string;
-  role: string;
   status: string;
 }
 
@@ -29,6 +28,7 @@ export function PermissionManagement() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [accountPermissions, setAccountPermissions] = useState<AccountPermission[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -42,15 +42,29 @@ export function PermissionManagement() {
 
   const loadInitialData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [accountsData, permsData] = await Promise.all([
         api.get<Account[]>('/rbac/accounts'),
         api.get<Permission[]>('/rbac/permissions'),
       ]);
-      setAccounts(accountsData);
-      setPermissions(permsData);
-    } catch (err) {
+
+      // Hard guard: dedupe permissions to avoid duplicate rendering (prefer code)
+      const dedupedPermissions = Array.from(
+        new Map(
+          (permsData || []).map((p) => [p.code ?? p.id, p]),
+        ).values(),
+      );
+
+      setAccounts(accountsData || []);
+      setPermissions(dedupedPermissions);
+    } catch (err: any) {
       console.error('Failed to load permission data:', err);
+      if (err?.status === 403) {
+        setLoadError('Bạn không có quyền truy cập trang này (cần quyền PERMISSION_VIEW).');
+      } else {
+        setLoadError('Không thể tải dữ liệu phân quyền. Vui lòng thử lại sau.');
+      }
     } finally {
       setLoading(false);
     }
@@ -59,10 +73,20 @@ export function PermissionManagement() {
   const loadAccountPermissions = async (accountId: string) => {
     try {
       const res = await api.get<AccountPermission[]>(`/rbac/accounts/${accountId}/permissions`);
-      setAccountPermissions(res.map((ap: any) => ({
+
+      // Hard guard: dedupe by permissionId to avoid duplicate checkboxes/state
+      const normalized = (res || []).map((ap: any) => ({
         permissionId: ap.permissionId,
-        allowed: ap.allowed
-      })));
+        allowed: ap.allowed,
+      }));
+
+      const deduped = Array.from(
+        new Map(
+          normalized.map((ap) => [ap.permissionId, ap]),
+        ).values(),
+      );
+
+      setAccountPermissions(deduped);
     } catch (err) {
       console.error('Failed to load account permissions:', err);
     }
@@ -104,6 +128,16 @@ export function PermissionManagement() {
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Đang tải dữ liệu phân quyền...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-8 text-center">
+        <div className="max-w-md mx-auto bg-red-50 border border-red-200 rounded-xl p-6">
+          <p className="text-red-600 font-medium">{loadError}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -154,9 +188,7 @@ export function PermissionManagement() {
                         {account.fullName}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">{account.email}</p>
-                      <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 uppercase">
-                        {account.role}
-                      </span>
+
                     </div>
                   </div>
                   <ChevronRight className={`w-4 h-4 transition-transform ${
@@ -179,7 +211,7 @@ export function PermissionManagement() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">{selectedAccount.fullName}</h2>
-                    <p className="text-gray-500 text-sm">{selectedAccount.email} • {selectedAccount.role}</p>
+                    <p className="text-gray-500 text-sm">{selectedAccount.email}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">

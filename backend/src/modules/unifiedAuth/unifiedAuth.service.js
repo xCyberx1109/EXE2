@@ -9,19 +9,12 @@ import { deviceSessionRepository } from '../../repositories/deviceSession.reposi
 import { activityLogRepository } from '../../repositories/activityLog.repository.js';
 import prisma from '../../prisma/client.js';
 import { permissionService } from '../permissions/permission.service.js';
+import { getPermissionsForDeviceType, getFeaturesForDeviceType, getEnabledFeaturesForDeviceType } from '../permissions/devicePermissions.js';
 
 const SALT_ROUNDS = 10;
 const DEVICE_TOKEN_EXPIRY_DAYS = 30;
 const REFRESH_TOKEN_EXPIRY_DAYS = 60;
 const RATE_LIMIT_ATTEMPTS = 5;
-const SETUP_PIN_EXPIRY_HOURS = 48;
-
-// Role normalization for account classification only, NOT for authorization
-function normalizeRole(role) {
-  const upper = role?.toUpperCase();
-  if (upper === 'ADMIN' || upper === 'MANAGER') return upper;
-  return 'STAFF';
-}
 
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
@@ -45,7 +38,6 @@ async function generateUserToken(user) {
     {
       sub: user.id,
       type: 'user',
-      role: user.role,
       branchId: user.branchId,
       permissions,
     },
@@ -71,12 +63,11 @@ const sanitizeUser = (user) => ({
   id: user.id,
   email: user.email,
   fullName: user.fullName,
-  role: user.role,
   mustChangePassword: user.mustChangePassword,
   branchId: user.branchId,
   createdAt: user.createdAt,
   permissions: user.permissions || [],
-  permissionsVersion: user.permissionsVersion ?? permissionService.getPermissionsVersion(user.id),
+  permissionsVersion: user.permissionsVersion ?? 0,
 });
 
 export const unifiedAuthService = {
@@ -93,24 +84,22 @@ export const unifiedAuthService = {
 
     const token = await generateUserToken(user);
     user.permissions = await permissionService.getEffectivePermissions(user.id);
-    user.permissionsVersion = permissionService.getPermissionsVersion(user.id);
+    user.permissionsVersion = await permissionService.getPermissionsVersion(user.id);
     return { user: sanitizeUser(user), token };
   },
 
-  async register({ email, password, fullName, role }) {
+  async register({ email, password, fullName }) {
     const existing = await userRepository.findByEmail(email);
     if (existing) {
       throw new AppError('Email đã được sử dụng', 409);
     }
 
-    const normalizedRole = normalizeRole(role);
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     const user = await userRepository.create({
       email,
       password: hashedPassword,
       fullName,
-      role: normalizedRole,
     });
 
     const token = await generateUserToken(user);
@@ -121,10 +110,9 @@ export const unifiedAuthService = {
     const candidates = await prisma.posDevice.findMany({
       where: {
         setupPinHash: { not: null },
-        setupPinExpiresAt: { gt: new Date() },
         deletedAt: null,
         active: true,
-        status: 'PENDING_ACTIVATION',
+        status: { in: ['PENDING_ACTIVATION', 'ACTIVATED'] },
       },
     });
 
@@ -137,7 +125,7 @@ export const unifiedAuthService = {
       }
     }
 
-    if (!device) throw new AppError('Mã PIN không hợp lệ hoặc đã hết hạn', 401);
+    if (!device) throw new AppError('Mã PIN không hợp lệ', 401);
 
     if (device.activationAttempts >= RATE_LIMIT_ATTEMPTS) {
       throw new AppError('Quá nhiều lần thử. Thiết bị đã bị khóa.', 429);
@@ -191,8 +179,6 @@ export const unifiedAuthService = {
       deviceTokenHash,
       refreshTokenHash,
       tokenVersion: { increment: 1 },
-      setupPinHash: null,
-      setupPinExpiresAt: null,
       activationAttempts: 0,
       lastFingerprint: fingerprint || null,
       lastActive: new Date(),
@@ -370,7 +356,7 @@ export const unifiedAuthService = {
     const user = await userRepository.findById(userId);
     if (!user) throw new AppError('Không tìm thấy người dùng', 404);
     user.permissions = await permissionService.getEffectivePermissions(userId);
-    user.permissionsVersion = permissionService.getPermissionsVersion(userId);
+    user.permissionsVersion = await permissionService.getPermissionsVersion(userId);
     return user;
   },
 

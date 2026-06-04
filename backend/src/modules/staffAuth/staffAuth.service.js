@@ -71,7 +71,6 @@ export const staffAuthService = {
         account: {
           id: account.id,
           fullName: account.fullName,
-          role: account.role,
         },
         shift: shift
           ? { id: shift.id, status: shift.status, openedAt: shift.startTime }
@@ -101,7 +100,7 @@ export const staffAuthService = {
       posDeviceId: posDevice.id,
       action: 'STAFF_LOGIN_PIN',
       module: 'STAFF_AUTH',
-      details: { fullName: account.fullName, role: account.role, deviceId: posDevice.id },
+      details: { fullName: account.fullName, deviceId: posDevice.id },
       ipAddress: getClientIp(req),
     });
 
@@ -110,7 +109,6 @@ export const staffAuthService = {
       account: {
         id: account.id,
         fullName: account.fullName,
-        role: account.role,
       },
       shift: openShift
         ? { id: openShift.id, status: openShift.status, openedAt: openShift.startTime }

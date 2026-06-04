@@ -18,7 +18,6 @@ const config = {
     expiresInDays: parseInt(process.env.DEVICE_TOKEN_EXPIRY_DAYS || '30', 10),
   },
   setupPin: {
-    expiryHours: parseInt(process.env.SETUP_PIN_EXPIRY_HOURS || '48', 10),
     length: parseInt(process.env.SETUP_PIN_LENGTH || '6', 10),
   },
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5174',
@@ -28,6 +27,7 @@ const config = {
     adminName: process.env.SEED_ADMIN_NAME || 'Quản trị viên',
   },
   autoSeedOnStart: process.env.AUTO_SEED_ON_START === 'true',
+  allowNegativeStock: process.env.ALLOW_NEGATIVE_STOCK === 'true',
 };
 
 export default config;

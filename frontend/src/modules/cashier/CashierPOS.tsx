@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '../../app/components/ui/card';
 import { Button } from '../../app/components/ui/button';
 import { Badge } from '../../app/components/ui/badge';
@@ -17,22 +18,51 @@ interface CartItem {
 interface TabInfo {
   id: string;
   tableNumber: string;
+  tableId?: string;
   items: CartItem[];
   subtotal: number;
 }
 
+const INITIAL_TABLES: TabInfo[] = [
+  { id: '1', tableNumber: 'A1', items: [], subtotal: 0 },
+  { id: '2', tableNumber: 'A2', items: [], subtotal: 0 },
+  { id: '3', tableNumber: 'B1', items: [], subtotal: 0 },
+  { id: '4', tableNumber: 'B2', items: [], subtotal: 0 },
+];
+
 export function CashierPOS() {
   const { hasDevicePermission, branchInfo } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tableIdParam = searchParams.get('tableId');
+  const tableCodeParam = searchParams.get('tableCode');
+
   const [activeTab, setActiveTab] = useState<'order' | 'payment' | 'receipt'>('order');
-  const [tables] = useState<TabInfo[]>([
-    { id: '1', tableNumber: 'A1', items: [], subtotal: 0 },
-    { id: '2', tableNumber: 'A2', items: [], subtotal: 0 },
-    { id: '3', tableNumber: 'B1', items: [], subtotal: 0 },
-    { id: '4', tableNumber: 'B2', items: [], subtotal: 0 },
-  ]);
+  const [tables, setTables] = useState<TabInfo[]>(INITIAL_TABLES);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(tableIdParam);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (tableIdParam && tableCodeParam) {
+      const exists = tables.find((t) => t.id === tableIdParam);
+      if (!exists) {
+        const newTable: TabInfo = {
+          id: tableIdParam,
+          tableNumber: tableCodeParam,
+          tableId: tableIdParam,
+          items: [],
+          subtotal: 0,
+        };
+        setTables((prev) => [...prev, newTable]);
+        setSelectedTable(tableIdParam);
+        setSelectedTableId(tableIdParam);
+      } else {
+        setSelectedTable(tableIdParam);
+        setSelectedTableId(tableIdParam);
+      }
+    }
+  }, [tableIdParam, tableCodeParam]);
 
   const canProcessPayment = hasDevicePermission('payment:process');
   const canSplitBill = hasDevicePermission('bill:split');
@@ -41,10 +71,9 @@ export function CashierPOS() {
   const currentTab = tables.find((t) => t.id === selectedTable);
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* Left: Tables & Menu */}
       <div className="lg:col-span-2 space-y-4">
-        {/* Table Grid */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -57,7 +86,10 @@ export function CashierPOS() {
               {tables.map((table) => (
                 <button
                   key={table.id}
-                  onClick={() => setSelectedTable(table.id)}
+                  onClick={() => {
+                    setSelectedTable(table.id);
+                    setSelectedTableId(table.tableId || null);
+                  }}
                   className={`p-3 rounded-lg text-center font-medium text-sm transition-colors ${
                     selectedTable === table.id
                       ? 'bg-blue-600 text-white'
@@ -78,7 +110,6 @@ export function CashierPOS() {
           </CardContent>
         </Card>
 
-        {/* Menu Search */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Tìm món</CardTitle>
@@ -97,9 +128,7 @@ export function CashierPOS() {
         </Card>
       </div>
 
-      {/* Right: Cart & Payment */}
       <div className="space-y-4">
-        {/* Current Order */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
@@ -116,8 +145,8 @@ export function CashierPOS() {
               <div className="space-y-2">
                 {currentTab.items.map((item, idx) => (
                   <div key={idx} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.name}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.name}</p>
                       <p className="text-xs text-gray-500">
                         {item.price.toLocaleString()}đ x {item.quantity}
                       </p>
@@ -136,7 +165,6 @@ export function CashierPOS() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="space-y-2">
           {canProcessPayment && (
             <Button className="w-full" size="lg" disabled={!currentTab || currentTab.items.length === 0}>
@@ -162,6 +190,7 @@ export function CashierPOS() {
           </Button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

@@ -11,7 +11,6 @@ export const userRepository = {
         id: true,
         email: true,
         fullName: true,
-        role: true,
         mustChangePassword: true,
         branchId: true,
         createdAt: true,
@@ -29,14 +28,6 @@ export const userRepository = {
     prisma.account.update({
       where: { id },
       data,
-    }),
-
-  findBranchManagerByBranchId: (branchId) =>
-    prisma.account.findFirst({
-      where: {
-        branchId,
-        role: 'MANAGER',
-      },
     }),
 
   count: () => prisma.account.count(),

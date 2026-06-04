@@ -8,7 +8,13 @@ export const createOrderRules = [
   body('time').optional().isISO8601(),
 ];
 
-export const orderIdParam = [param('id').isUUID().withMessage('ID đơn không hợp lệ')];
+export const createOrderQueueRules = [
+  body('items').optional().isArray().withMessage('items phải là mảng'),
+  body('items.*.menuItemId').optional().trim(),
+  body('items.*.quantity').optional().isInt({ min: 1 }),
+];
+
+export const orderIdParam = [param('id').isString().notEmpty().withMessage('ID đơn không hợp lệ')];
 
 export const ordersByDateQuery = [
   query('date').optional().matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('date phải có dạng YYYY-MM-DD'),

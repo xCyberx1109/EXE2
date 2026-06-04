@@ -1,0 +1,39 @@
+﻿{
+  "version": "5.19.0-rc4",
+  "steps": [
+    {
+      "tag": "DropForeignKey",
+      "foreignKey": {
+        "schema": "public",
+        "table": "accounts",
+        "constraint": "accounts_roleId_fkey",
+        "columns": ["roleId"],
+        "referencedTable": "roles",
+        "referencedColumns": ["id"]
+      }
+    },
+    {
+      "tag": "DropColumn",
+      "column": {
+        "schema": "public",
+        "table": "accounts",
+        "column": "roleId"
+      }
+    },
+    {
+      "tag": "DropTable",
+      "table": {
+        "schema": "public",
+        "table": "role_permissions"
+      }
+    },
+    {
+      "tag": "DropTable",
+      "table": {
+        "schema": "public",
+        "table": "roles"
+      }
+    }
+  ],
+  "datamodel": ""
+}

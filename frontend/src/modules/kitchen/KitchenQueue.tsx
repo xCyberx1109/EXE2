@@ -121,6 +121,7 @@ export function KitchenQueue() {
   }
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="space-y-4">
       {/* Controls bar */}
       <div className="flex flex-wrap items-center gap-3">
@@ -245,6 +246,7 @@ export function KitchenQueue() {
           })}
         </div>
       )}
+    </div>
     </div>
   );
 }

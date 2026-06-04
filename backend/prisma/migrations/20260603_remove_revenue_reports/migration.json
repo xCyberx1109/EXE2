@@ -1,0 +1,9 @@
+{
+  "version": "6.5.0",
+  "steps": [
+    {
+      "tag": "DropTable",
+      "table": "revenue_reports"
+    }
+  ]
+}

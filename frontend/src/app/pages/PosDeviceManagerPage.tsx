@@ -26,7 +26,7 @@ export function PosDeviceManagerPage() {
   const [createDialog, setCreateDialog] = useState(false);
   const [newDevice, setNewDevice] = useState({ name: '', type: 'CASHIER', mode: 'CASHIER' as PosMode });
   const [newDeviceResult, setNewDeviceResult] = useState<{
-    setupPin: string; setupPinExpiresAt: string;
+    setupPin: string;
   } | null>(null);
   const [regenerateResult, setRegenerateResult] = useState<{
     deviceId: string; setupPin: string;
@@ -52,7 +52,7 @@ export function PosDeviceManagerPage() {
   const handleCreate = async () => {
     try {
       const result = await posDevicesV2Api.create(newDevice);
-      setNewDeviceResult({ setupPin: result.setupPin, setupPinExpiresAt: result.setupPinExpiresAt });
+      setNewDeviceResult({ setupPin: result.setupPin });
       setNewDevice({ name: '', type: 'CASHIER', mode: 'CASHIER' });
       await fetchDevices();
     } catch (err: unknown) {
@@ -193,9 +193,6 @@ export function PosDeviceManagerPage() {
                   <div className="font-bold mb-2">Device Created! Share PIN with the setup person:</div>
                   <div className="space-y-1 font-mono text-sm">
                     <div>PIN: <strong className="text-lg">{newDeviceResult.setupPin}</strong></div>
-                    <div className="text-xs text-gray-500">
-                      Expires: {new Date(newDeviceResult.setupPinExpiresAt).toLocaleString()}
-                    </div>
                   </div>
                 </AlertDescription>
               </Alert>

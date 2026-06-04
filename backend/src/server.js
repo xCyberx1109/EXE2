@@ -8,13 +8,20 @@ import { startHeartbeatCheck } from './jobs/heartbeatCheck.js';
 const startServer = async () => {
   try {
     await prisma.$connect();
-    console.log('✓ Kết nối MySQL thành công');
+    console.log('✓ Kết nối PostgreSQL thành công');
 
     if (config.autoSeedOnStart) {
-      // Luôn đồng bộ permissions trước, bất kể DB có data hay không
-      await syncPermissions();
-      permissionService.invalidateCache();
-      await runSeedIfEmpty();
+      try {
+        console.log('→ Khởi tạo dữ liệu hệ thống...');
+        // Luôn đồng bộ permissions trước, bất kể DB có data hay không
+        await syncPermissions();
+        permissionService.invalidateCache();
+        await runSeedIfEmpty();
+        console.log('✓ Hoàn tất khởi tạo dữ liệu');
+      } catch (seedError) {
+        console.error('⚠ Lỗi khi seed dữ liệu (server vẫn sẽ khởi động):', seedError.message);
+        // Không process.exit(1) ở đây để server vẫn có thể chạy nếu DB đã có data cũ
+      }
     }
 
     startHeartbeatCheck();

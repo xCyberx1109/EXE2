@@ -2,8 +2,6 @@ import { apiFetch, ordersFetch } from './client';
 import type {
   MenuItem,
   InventoryItem,
-  RevenueRecord,
-  RevenueSummary,
   DashboardData,
   TopSellingItem,
   InventoryStats,
@@ -13,6 +11,7 @@ import type {
   Branch,
   CategoryItem,
   TableItem,
+  DeleteDependencyReport,
 } from '../types';
 
 // Payload used by menu create/update. Recipe rows are persisted to MenuItemIngredient.
@@ -42,6 +41,15 @@ export const authApi = {
 
 const POS_TOKEN_KEY = 'fnb_pos_token';
 function getPosToken() { return localStorage.getItem(POS_TOKEN_KEY); }
+
+/** Lấy auth headers từ user token hoặc POS device token */
+function getAuthHeaders(): Record<string, string> {
+  const userToken = localStorage.getItem('fnb_auth_token');
+  const posToken = getPosToken();
+  const token = userToken || posToken;
+  if (!token) return {};
+  return { 'Authorization': `Bearer ${token}` };
+}
 
 function deviceFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -75,19 +83,42 @@ export const deviceAuthApi = {
 
 // --- Categories ---
 export const categoryApi = {
-  list: () => apiFetch<{ id: string; name: string; slug: string; description: string; itemCount: number }[]>('/categories'),
+  list: (params?: { branchId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    const query = q.toString();
+    const headers = getAuthHeaders();
+    return apiFetch<CategoryItem[]>(`/categories${query ? `?${query}` : ''}`, { auth: false, headers });
+  },
+
+  get: (id: string) =>
+    apiFetch<CategoryItem>(`/categories/${id}`),
+
+  create: (body: { name: string; description?: string; sortOrder?: number; active?: boolean }) =>
+    apiFetch<CategoryItem>('/categories', { method: 'POST', body: JSON.stringify(body) }),
+
+  update: (id: string, body: { name?: string; description?: string; sortOrder?: number; active?: boolean }) =>
+    apiFetch<CategoryItem>(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+  delete: (id: string) =>
+    apiFetch<null>(`/categories/${id}`, { method: 'DELETE' }),
 };
 
 // --- Menu ---
 export const menuApi = {
-  list: (params?: { search?: string; category?: string; available?: string }) => {
+  list: (params?: { search?: string; category?: string; available?: string; branchId?: string }) => {
     const q = new URLSearchParams();
     if (params?.search) q.set('search', params.search);
     if (params?.category && params.category !== 'all') q.set('category', params.category);
     if (params?.available) q.set('available', params.available);
+    if (params?.branchId) q.set('branchId', params.branchId);
     const query = q.toString();
-    return apiFetch<MenuItem[]>(`/menu-items${query ? `?${query}` : ''}`);
+    const headers = getAuthHeaders();
+    return apiFetch<MenuItem[]>(`/menu-items${query ? `?${query}` : ''}`, { auth: false, headers });
   },
+
+  getById: (id: string) =>
+    apiFetch<MenuItem>(`/menu-items/${id}`),
 
   topSelling: (limit = 10) =>
     apiFetch<TopSellingItem[]>(`/menu-items/top-selling?limit=${limit}`),
@@ -125,7 +156,7 @@ export const inventoryApi = {
     apiFetch<InventoryItem>(`/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   delete: (id: string) =>
-    apiFetch<null>(`/ingredients/${id}`, { method: 'DELETE' }),
+    apiFetch<import('../types').DeleteDependencyReport>(`/ingredients/${id}`, { method: 'DELETE' }),
 
   stockIn: (id: string, quantity: number, note?: string) =>
     apiFetch<{ ingredient: InventoryItem }>(`/ingredients/${id}/stock-in`, {
@@ -140,21 +171,13 @@ export const inventoryApi = {
     }),
 };
 
-// --- Revenue ---
-export const revenueApi = {
-  daily: (range: '7days' | '14days' | '30days') =>
-    apiFetch<RevenueRecord[]>(`/revenue/daily?range=${range}`),
-
-  summary: (range: '7days' | '14days' | '30days') =>
-    apiFetch<RevenueSummary>(`/revenue/summary?range=${range}`),
-
-  topItems: (limit = 10) =>
-    apiFetch<TopSellingItem[]>(`/revenue/top-items?limit=${limit}`),
-};
-
 // --- Dashboard ---
 export const dashboardApi = {
   get: () => apiFetch<DashboardData>('/dashboard'),
+  getV2: (chartRange?: string) => {
+    const q = chartRange ? `?chartRange=${chartRange}` : '';
+    return apiFetch<import('../types').DashboardDataV2>(`/dashboard${q}`);
+  },
 };
 
 // --- Branches ---
@@ -213,12 +236,29 @@ export const tableApi = {
 
   delete: (id: string) =>
     apiFetch<null>(`/tables/${id}`, { method: 'DELETE' }),
+
+  listPos: () => {
+    return apiFetch<TableItem[]>('/tables/pos/list', { auth: false, headers: getAuthHeaders() });
+  },
+
+  assignOrder: (tableId: string, orderId: string) =>
+    apiFetch<TableItem>(`/tables/${tableId}/assign-order`, { method: 'POST', body: JSON.stringify({ orderId }) }),
+
+  release: (tableId: string) =>
+    apiFetch<TableItem>(`/tables/${tableId}/release`, { method: 'POST' }),
+
+  updateStatus: (tableId: string, status: string) =>
+    apiFetch<TableItem>(`/tables/${tableId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+
+  checkIn: (tableId: string) => {
+    return apiFetch<TableItem>(`/tables/${tableId}/check-in`, { method: 'POST', auth: false, headers: getAuthHeaders() });
+  },
 };
 
 // --- Orders ---
 export const ordersApi = {
   list: () => ordersFetch<PosOrder[]>(),
-  create: (body: { table: number; items: unknown[]; time?: string }) =>
+  create: (body: { table: number; items: unknown[]; time?: string; tableId?: string }) =>
     ordersFetch<PosOrder>('', { method: 'POST', body: JSON.stringify(body) }),
   delete: (id: string) => ordersFetch<void>(`/${id}`, { method: 'DELETE' }),
 
@@ -231,4 +271,74 @@ export const ordersApi = {
     return apiFetch<DailyOrdersResponse>(`/orders/daily${query ? `?${query}` : ''}`);
   },
 
+  /** Chi tiết đơn hàng */
+  getDetail: (orderId: string) =>
+    apiFetch<import('../types').OrderDetailSimple>(`/orders/${orderId}`),
+
+  /** Lịch sử đơn hàng */
+  history: (params?: { startDate?: string; endDate?: string; status?: string; source?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.startDate) q.set('startDate', params.startDate);
+    if (params?.endDate) q.set('endDate', params.endDate);
+    if (params?.status) q.set('status', params.status);
+    if (params?.source) q.set('source', params.source);
+    const query = q.toString();
+    return apiFetch<import('../types').OrderDetail[]>(`/orders/history${query ? `?${query}` : ''}`);
+  },
+
+  getActiveByTable: (tableId: string) =>
+    apiFetch<import('../types').OrderDetail | null>(`/orders/by-table/${tableId}`),
+
+  createPos: (body: { table: string; tableId: string; items: Array<{ menuItemId: string; quantity: number }>; orderType: string }) => {
+    return apiFetch<import('../types').PosOrder>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      auth: false,
+      headers: getAuthHeaders(),
+    });
+  },
+
+  /** Thanh toán - hoàn tất đơn và giải phóng bàn (không xóa) */
+  completePayment: (tableNumber: string | number, paymentMethod: string = 'CASH') => {
+    return apiFetch<import('../types').PosOrder[]>('/orders/complete-payment', {
+      method: 'POST',
+      body: JSON.stringify({ table: tableNumber, paymentMethod }),
+      auth: false,
+      headers: getAuthHeaders(),
+    });
+  },
+};
+
+// --- Order Queue POS ---
+export const ordersQueueApi = {
+  list: (params?: { search?: string; status?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.status && params.status !== 'all') q.set('status', params.status);
+    const query = q.toString();
+    return apiFetch<import('../types').OrderDetail[]>(`/orders/queue${query ? `?${query}` : ''}`);
+  },
+  create: (body: { items: Array<{ menuItemId: string; quantity: number }> }) => {
+    return apiFetch<import('../types').OrderDetail>('/orders/queue', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  update: (id: string, body: { items: Array<{ menuItemId: string; quantity: number }>; discount?: number }) => {
+    return apiFetch<import('../types').OrderDetail>(`/orders/queue/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  },
+  cancel: (id: string) => {
+    return apiFetch<import('../types').OrderDetail>(`/orders/queue/${id}/cancel`, {
+      method: 'POST',
+    });
+  },
+  pay: (id: string, paymentMethod: string = 'CASH') => {
+    return apiFetch<import('../types').OrderDetail>(`/orders/queue/${id}/payment`, {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod }),
+    });
+  },
 };

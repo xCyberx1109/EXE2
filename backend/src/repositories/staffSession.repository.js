@@ -12,14 +12,14 @@ export const staffSessionRepository = {
   findActiveByDevice: (deviceId) =>
     prisma.staffSession.findMany({
       where: { deviceId, logoutAt: null },
-      include: { account: { select: { id: true, fullName: true, role: true } } },
+      include: { account: { select: { id: true, fullName: true } } },
       orderBy: { loginAt: 'desc' },
     }),
 
   findActiveByShift: (shiftId) =>
     prisma.staffSession.findMany({
       where: { shiftId, logoutAt: null },
-      include: { account: { select: { id: true, fullName: true, role: true } } },
+      include: { account: { select: { id: true, fullName: true } } },
     }),
 
   create: (data) => prisma.staffSession.create({ data }),

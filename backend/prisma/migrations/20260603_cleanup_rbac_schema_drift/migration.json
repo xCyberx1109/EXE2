@@ -1,0 +1,98 @@
+{
+  "version": "5.2",
+  "steps": [
+    {
+      "tag": "DropTable",
+      "table": "user_permissions"
+    },
+    {
+      "tag": "DropTable",
+      "table": "role_permissions"
+    },
+    {
+      "tag": "DropTable",
+      "table": "roles"
+    },
+    {
+      "tag": "AlterColumn",
+      "table": "accounts",
+      "column": "roleId",
+      "operation": "Drop"
+    },
+    {
+      "tag": "CreateEnumValue",
+      "enum": "PaymentStatus",
+      "value": "PAID"
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "isOnline",
+      "type": "Boolean",
+      "default": false
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "lastActive",
+      "type": "DateTime",
+      "required": false
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "cardSales",
+      "type": "Decimal(12,2)",
+      "default": 0
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "otherSales",
+      "type": "Decimal(12,2)",
+      "default": 0
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "totalOrders",
+      "type": "Int",
+      "default": 0
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "note",
+      "type": "String",
+      "required": false
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "ipAddress",
+      "type": "String",
+      "required": false
+    },
+    {
+      "tag": "AddColumn",
+      "table": "shifts",
+      "column": "userAgent",
+      "type": "String",
+      "required": false
+    },
+    {
+      "tag": "AddColumn",
+      "table": "pos_devices",
+      "column": "setup_pin_expires_at",
+      "type": "DateTime",
+      "required": false
+    },
+    {
+      "tag": "AddColumn",
+      "table": "orders",
+      "column": "source",
+      "type": "String",
+      "required": false
+    }
+  ]
+}

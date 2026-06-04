@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit, Trash2, Search, Loader2, X } from 'lucide-react';
-import { inventoryApi, menuApi, categoryApi } from '../api/services';
+import { Plus, Edit, Trash2, Search, Loader2, X, AlertCircle } from 'lucide-react';
+import { menuApi, inventoryApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import type { InventoryItem, MenuItem, TopSellingItem, CategoryItem } from '../types';
+import { useCategories } from '../../shared/hooks/useCategories';
+import type { MenuItem, TopSellingItem, InventoryItem } from '../types';
 
 type RecipeRow = {
   ingredientId: string;
@@ -15,43 +16,55 @@ export function MenuManagement() {
   const { isReady } = useAuth();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [topSelling, setTopSelling] = useState<TopSellingItem[]>([]);
-  const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
   const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([{ ...emptyRecipeRow }]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const { categories, loading: catsLoading, error: catsError } = useCategories();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
+    categoryId: '',
     price: '',
     cost: '',
     description: '',
     available: true,
   });
+  const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
+  const [ingredientsLoading, setIngredientsLoading] = useState(false);
+  const fetchIngredients = useCallback(async () => {
+    setIngredientsLoading(true);
+    try {
+      const data = await inventoryApi.list();
+
+      console.log('🔥 RAW INVENTORY DATA:', data);
+
+      setIngredients(data);
+    } catch (err) {
+      console.error('❌ Inventory API failed:', err);
+    } finally {
+      setIngredientsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showForm) fetchIngredients();
+  }, [showForm, fetchIngredients]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [items, top, ingredientList, cats] = await Promise.all([
+      const [items, top] = await Promise.all([
         menuApi.list({
           search: searchTerm || undefined,
           category: selectedCategory !== 'all' ? selectedCategory : undefined,
         }),
         menuApi.topSelling(),
-        inventoryApi.list(),
-        categoryApi.list(),
       ]);
       setMenuItems(items);
       setTopSelling(top);
-      setIngredients(ingredientList);
-      setCategories(cats);
-      if (cats.length > 0 && formData.category === '') {
-        setFormData((prev) => ({ ...prev, category: cats[0].name }));
-      }
     } catch (err) {
       console.error(err);
       alert('Không tải được menu. Kiểm tra backend đang chạy.');
@@ -64,6 +77,12 @@ export function MenuManagement() {
     if (isReady) loadData();
   }, [isReady, loadData]);
 
+  useEffect(() => {
+    if (categories.length > 0 && formData.categoryId === '') {
+      setFormData((prev) => ({ ...prev, categoryId: categories[0].id }));
+    }
+  }, [categories]);
+
   const orderMap = topSelling.reduce((map, item) => {
     map[item.menuItemId] = item.quantity;
     return map;
@@ -72,8 +91,6 @@ export function MenuManagement() {
   const filteredItems = [...menuItems].sort(
     (a, b) => (orderMap[b.id] || 0) - (orderMap[a.id] || 0)
   );
-
-  const getIngredientById = (id: string) => ingredients.find((item) => item.id === id);
 
   const addRecipeRow = () => {
     setRecipeRows((rows) => [...rows, { ...emptyRecipeRow }]);
@@ -113,7 +130,7 @@ export function MenuManagement() {
       if (!formData.name.trim()) {
         throw new Error('Tên món là bắt buộc');
       }
-      if (!formData.category.trim()) {
+      if (!formData.categoryId.trim()) {
         throw new Error('Danh mục là bắt buộc');
       }
       const priceVal = Number(formData.price);
@@ -133,7 +150,7 @@ export function MenuManagement() {
       }));
       const payload = {
         name: formData.name.trim(),
-        category: formData.category.trim(),
+        categoryId: formData.categoryId.trim(),
         price: priceVal,
         cost: costVal,
         description: formData.description,
@@ -167,7 +184,7 @@ export function MenuManagement() {
     setEditingItem(null);
     setFormData({
       name: '',
-      category: 'Món chính',
+      categoryId: '',
       price: '',
       cost: '',
       description: '',
@@ -178,28 +195,39 @@ export function MenuManagement() {
 
   const openCreateForm = () => {
     resetForm();
+    setFormData((prev) => ({
+      ...prev,
+      categoryId: categories.length > 0 ? categories[0].id : '',
+    }));
     setShowForm(true);
   };
 
-  const handleEdit = (item: MenuItem) => {
-    setEditingItem(item);
-    setFormData({
-      name: item.name,
-      category: item.category,
-      price: String(item.price),
-      cost: String(item.cost),
-      description: item.description,
-      available: item.available,
-    });
-    setRecipeRows(
-      item.ingredients?.length
-        ? item.ingredients.map((row) => ({
-            ingredientId: row.ingredientId,
-            amount: String(row.amount),
+  const handleEdit = async (item: MenuItem) => {
+    try {
+      const detail = await menuApi.getById(item.id);
+      console.log('Editing item details:', detail);
+      setEditingItem(detail);
+      setFormData({
+        name: detail.name,
+        categoryId: detail.categoryId || '',
+        price: String(detail.price),
+        cost: String(detail.cost),
+        description: detail.description,
+        available: detail.available,
+      });
+      setRecipeRows(
+        detail.ingredients?.length
+          ? detail.ingredients.map((row) => ({
+            ingredientId: row.ingredient?.id ?? row.ingredientId ?? '',
+            amount: String(row.amount ?? 0),
           }))
-        : [{ ...emptyRecipeRow }]
-    );
-    setShowForm(true);
+          : [{ ...emptyRecipeRow }]
+      );
+      setShowForm(true);
+    } catch (err) {
+      console.error(err);
+      alert('Không thể tải thông tin món ăn');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -262,27 +290,37 @@ export function MenuManagement() {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedCategory === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Tất cả
             </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.name)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategory === cat.name
+            {catsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Đang tải danh mục...
+              </div>
+            ) : catsError ? (
+              <div className="flex items-center gap-2 text-sm text-red-400">
+                <AlertCircle className="w-4 h-4" />
+                Lỗi tải danh mục
+              </div>
+            ) : (
+              categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === cat.name
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+                    }`}
+                >
+                  {cat.name}
+                </button>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -318,10 +356,10 @@ export function MenuManagement() {
                         <div className="space-y-1">
                           {item.ingredients.slice(0, 3).map((row) => (
                             <div key={row.id} className="text-gray-600">
-                              {row.ingredient?.name || getIngredientById(row.ingredientId)?.name || 'Nguyên liệu'}:{' '}
+                              {row.ingredient?.name || 'Nguyên liệu'}:{' '}
                               <span className="font-medium">
                                 {Number(row.amount).toLocaleString()}{' '}
-                                {row.ingredient?.unit || getIngredientById(row.ingredientId)?.unit || ''}
+                                {row.ingredient?.unit || ''}
                               </span>
                             </div>
                           ))}
@@ -342,9 +380,8 @@ export function MenuManagement() {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleToggleAvailability(item.id)}
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}
+                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${item.available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}
                       >
                         {item.available ? 'Khả dụng' : 'Ngừng bán'}
                       </button>
@@ -383,13 +420,22 @@ export function MenuManagement() {
               <div>
                 <label className="block text-sm font-medium mb-1">Danh mục</label>
                 <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  value={formData.categoryId}
+                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  disabled={catsLoading}
                 >
-                  {categories.map((cat) => (
-                    <option key={cat.id}>{cat.name}</option>
-                  ))}
+                  {catsLoading ? (
+                    <option value="">Đang tải danh mục...</option>
+                  ) : catsError ? (
+                    <option value="">Lỗi tải danh mục</option>
+                  ) : categories.length === 0 ? (
+                    <option value="">Chưa có danh mục</option>
+                  ) : (
+                    categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))
+                  )}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -435,7 +481,6 @@ export function MenuManagement() {
                 </div>
 
                 {recipeRows.map((row, index) => {
-                  const selectedIngredient = getIngredientById(row.ingredientId);
                   return (
                     <div key={index} className="grid grid-cols-12 gap-2 items-start">
                       <div className="col-span-7">
@@ -444,10 +489,10 @@ export function MenuManagement() {
                           onChange={(e) => updateRecipeRow(index, { ingredientId: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         >
-                          <option value="">Chọn nguyên liệu</option>
-                          {ingredients.map((ingredient) => (
-                            <option key={ingredient.id} value={ingredient.id}>
-                              {ingredient.name} ({ingredient.unit}) - tồn {ingredient.quantity}
+                          <option value="">-- Chọn nguyên liệu --</option>
+                          {ingredients.map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.name} ({i.quantity} {i.unit})
                             </option>
                           ))}
                         </select>
@@ -463,9 +508,6 @@ export function MenuManagement() {
                             placeholder="Số lượng"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-12"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                            {selectedIngredient?.unit || ''}
-                          </span>
                         </div>
                       </div>
                       <div className="col-span-1 flex justify-end">
