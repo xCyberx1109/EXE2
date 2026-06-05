@@ -5,6 +5,7 @@ import config from './config/index.js';
 import apiRoutes from './routes/index.js';
 import { legacyOrdersRouter } from './modules/orders/order.routes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import prisma from './prisma/client.js';
 
 const app = express();
 
@@ -17,6 +18,36 @@ if (config.nodeEnv === 'development') {
 } else {
   app.use(morgan('combined'));
 }
+
+app.use((req, res, next) => {
+  req.setTimeout(25_000, () => {
+    if (!res.headersSent) {
+      res.status(503).json({
+        success: false,
+        message: 'Máy chủ quá tải, vui lòng thử lại',
+      });
+    }
+  });
+  next();
+});
+
+app.use((req, res, next) => {
+  let aborted = false;
+  req.on('close', () => {
+    aborted = true;
+  });
+  res.on('close', () => {
+    if (!res.writableFinished && !aborted) {
+      aborted = true;
+    }
+  });
+  const originalJson = res.json.bind(res);
+  res.json = function (body) {
+    if (aborted) return this;
+    return originalJson(body);
+  };
+  next();
+});
 
 // REST API chuẩn
 app.use('/api', apiRoutes);

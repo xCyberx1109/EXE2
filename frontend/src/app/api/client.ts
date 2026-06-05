@@ -6,7 +6,6 @@ const TOKEN_KEY = 'fnb_auth_token';
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
 const clearLegacyTokenCookie = () => {
-  // Dọn cookie cũ (nếu trước đó đã từng lưu token trong cookie)
   document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
 };
 
@@ -28,9 +27,14 @@ export class ApiError extends Error {
 
 type RequestOptions = RequestInit & { auth?: boolean };
 
-const FETCH_TIMEOUT = 10_000; // 10s
+const FETCH_TIMEOUT = 30_000;
+const RETRY_ATTEMPTS = 1;
+const RETRY_DELAY = 500;
 
-/** Gọi API chuẩn { success, message, data } */
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestOptions = {}
@@ -49,30 +53,58 @@ export async function apiFetch<T>(
     }
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  let lastError: Error | null = null;
 
-  try {
-    const res = await fetch(`${API_PREFIX}${path}`, {
-      ...rest,
-      headers: reqHeaders,
-      signal: controller.signal,
-    });
+  for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-    const json = (await res.json()) as ApiResponse<T> | { success: false; message: string; error?: unknown };
+    try {
+      const res = await fetch(`${API_PREFIX}${path}`, {
+        ...rest,
+        headers: reqHeaders,
+        signal: controller.signal,
+      });
 
-    if (!res.ok || !json.success) {
-      throw new ApiError(
-        json.message || 'Có lỗi xảy ra',
-        res.status,
-        'error' in json ? json.error : undefined
-      );
+      const json = (await res.json()) as ApiResponse<T> | { success: false; message: string; error?: unknown };
+
+      if (!res.ok || !json.success) {
+        throw new ApiError(
+          json.message || 'Có lỗi xảy ra',
+          res.status,
+          'error' in json ? json.error : undefined
+        );
+      }
+
+      return json.data;
+    } catch (err: any) {
+      lastError = err;
+
+      if (err.name === 'AbortError') {
+        console.warn(`[API] Request aborted (attempt ${attempt + 1}/${RETRY_ATTEMPTS + 1}): ${path}`);
+        if (attempt < RETRY_ATTEMPTS) {
+          await delay(RETRY_DELAY * (attempt + 1));
+          continue;
+        }
+        throw new ApiError(
+          'Máy chủ không phản hồi, vui lòng thử lại',
+          504,
+          { retry: true }
+        );
+      }
+
+      if (err instanceof TypeError && err.message === 'Failed to fetch' && attempt < RETRY_ATTEMPTS) {
+        await delay(RETRY_DELAY * (attempt + 1));
+        continue;
+      }
+
+      throw err;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return json.data;
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastError || new ApiError('Request failed', 500);
 }
 
 /** Fetch legacy POS /orders (JSON thuần, không envelope) */

@@ -8,8 +8,36 @@ const JWT_ERROR_MAP = new Map([
   ['NotBeforeError', 'Token chưa có hiệu lực'],
 ]);
 
+const ABORT_ERROR_CODES = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'EPIPE',
+  'ETIMEDOUT',
+]);
+
 /** Global error handler */
 export const errorHandler = (err, req, res, _next) => {
+  if (err.name === 'AbortError' || err.code === 'ABORT_ERR') {
+    console.warn(`[Aborted] ${req.method} ${req.originalUrl} — client disconnected`);
+    if (!res.headersSent) {
+      res.status(499).json({ success: false, message: 'Yêu cầu đã bị hủy' });
+    }
+    return;
+  }
+
+  if (ABORT_ERROR_CODES.has(err.code)) {
+    console.warn(`[Connection Error] ${req.method} ${req.originalUrl} — ${err.code}`);
+    if (!res.headersSent) {
+      res.status(503).json({ success: false, message: 'Kết nối máy chủ không ổn định' });
+    }
+    return;
+  }
+
+  if (err.code === 'ERR_HTTP_HEADERS_SENT') {
+    console.warn(`[Headers Sent] ${req.method} ${req.originalUrl} — response already sent`);
+    return;
+  }
+
   if (err instanceof AppError) {
     const details = err.errors ? (Array.isArray(err.errors) ? err.errors.map(e => `[${e.path || e.param || 'field'}]: ${e.msg || e.message}`).join('; ') : JSON.stringify(err.errors)) : null;
     console.error(`[AppError ${err.statusCode}] ${err.message}`, details);
@@ -61,7 +89,6 @@ export const errorHandler = (err, req, res, _next) => {
   if (err instanceof Prisma.PrismaClientValidationError) {
     console.error('[Prisma Validation Error]', err.message);
     console.error(err.stack);
-    // Extract the unknown argument name from Prisma's error message
     const unknownArgMatch = err.message.match(/Unknown argument `([^`]+)`/);
     const field = unknownArgMatch ? unknownArgMatch[1] : null;
     const suggestion = err.message.match(/Did you mean `([^`]+)`/);
@@ -78,6 +105,14 @@ export const errorHandler = (err, req, res, _next) => {
     return sendError(res, {
       message: JWT_ERROR_MAP.get(err.name),
       statusCode: 401,
+    });
+  }
+
+  if (err.code === 'P1001' || err.code === 'P1002' || err.code === 'P1017') {
+    console.error(`[Prisma Connection Error ${err.code}]`, err.message);
+    return sendError(res, {
+      message: 'Không thể kết nối đến cơ sở dữ liệu, vui lòng thử lại sau',
+      statusCode: 503,
     });
   }
 

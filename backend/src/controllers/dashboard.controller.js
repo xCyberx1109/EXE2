@@ -108,6 +108,7 @@ async function getRevenueChartData(branchWhere, range, _todayStart, sevenDaysAgo
     where: { status: 'COMPLETED', completedAt: { gte: startDate }, ...branchWhere },
     select: { total: true, cost: true, completedAt: true, createdAt: true },
     orderBy: { completedAt: 'asc' },
+    take: 5000,
   });
 
   const byDate = {};
@@ -142,25 +143,35 @@ async function getTopSellingItems(ctx, branchWhere) {
     take: 5,
   });
 
-  const result = [];
-  for (const g of grouped) {
-    const menuItem = await menuItemRepository.findById(g.menuItemId);
-    result.push({
-      menuItemId: g.menuItemId,
-      name: menuItem?.name || 'Unknown',
-      category: menuItem?.category?.name || '',
-      quantity: g._sum.quantity,
-      revenue: 0,
-    });
-  }
-  return result;
+  if (grouped.length === 0) return [];
+
+  const ids = grouped.map(g => g.menuItemId);
+  const menuItems = await prisma.menuItem.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, category: { select: { name: true } } },
+  });
+  const menuMap = Object.fromEntries(menuItems.map(m => [m.id, m]));
+
+  return grouped.map(g => ({
+    menuItemId: g.menuItemId,
+    name: menuMap[g.menuItemId]?.name || 'Unknown',
+    category: menuMap[g.menuItemId]?.category?.name || '',
+    quantity: g._sum.quantity,
+    revenue: 0,
+  }));
 }
 
 async function getLowStockItems(branchWhere) {
-  const items = await prisma.ingredient.findMany({ where: { ...branchWhere, available: true } });
-  const low = items
+  const items = await prisma.ingredient.findMany({
+    where: { ...branchWhere, available: true },
+    select: { id: true, name: true, unit: true, quantity: true, warningQuantity: true },
+    orderBy: { quantity: 'asc' },
+    take: 50,
+  });
+  return items
     .filter((i) => Number(i.quantity) <= Number(i.warningQuantity))
-    .map((i) => ({
+    .slice(0, 10)
+    .map(i => ({
       id: i.id,
       name: i.name,
       unit: i.unit,
@@ -168,7 +179,6 @@ async function getLowStockItems(branchWhere) {
       warningQuantity: Number(i.warningQuantity),
       status: Number(i.quantity) === 0 ? 'out_of_stock' : 'low_stock',
     }));
-  return low.slice(0, 10);
 }
 
 async function getRecentActivities(branchWhere) {
