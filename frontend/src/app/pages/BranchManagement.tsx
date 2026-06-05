@@ -2,7 +2,10 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   CheckCircle2,
+  Copy,
   Edit3,
+  ExternalLink,
+  Mail,
   MapPin,
   Phone,
   Plus,
@@ -15,7 +18,7 @@ import {
 import { branchApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import type { Branch } from '../types';
-import type { BranchPayload } from '../api/services';
+import type { BranchPayload, CreateBranchResult } from '../api/services';
 
 type Plan = Branch['plan'];
 type SubscriptionStatus = Branch['subscriptionStatus'];
@@ -86,11 +89,15 @@ export function BranchManagement() {
   const [newPassword, setNewPassword] = useState('');
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+  const [resetPasswordInviteLink, setResetPasswordInviteLink] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
 
   const [forceDeleteBranch, setForceDeleteBranch] = useState<Branch | null>(null);
   const [confirmName, setConfirmName] = useState('');
   const [forceDeleting, setForceDeleting] = useState(false);
+
+  const [inviteResult, setInviteResult] = useState<{ email: string; inviteLink: string; fullName: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const isEditing = Boolean(editingBranchId);
   const isEditModalOpen = Boolean(editingBranchId);
@@ -120,9 +127,13 @@ export function BranchManagement() {
       setResetting(true);
       setResetPasswordError(null);
       setResetPasswordSuccess(null);
+      setResetPasswordInviteLink(null);
       const res = await branchApi.resetManagerPassword(resetPasswordBranch.id);
+      if (res.inviteLink) {
+        setResetPasswordInviteLink(res.inviteLink);
+      }
       setResetPasswordSuccess(
-        `Hệ thống đã tự động tạo mật khẩu mới ngẫu nhiên và gửi tới email "${res.accountEmail}" thành công!`
+        `Đã tạo link đặt lại mật khẩu cho "${res.accountFullName}" thành công!`
       );
     } catch (err: any) {
       setResetPasswordError(err.message || 'Lỗi khi đặt lại mật khẩu');
@@ -167,10 +178,17 @@ export function BranchManagement() {
           current.map((branch) => (branch.id === editingBranchId ? updatedBranch : branch))
         );
       } else {
-        const newBranch = await branchApi.create(payload);
+        const newBranch = await branchApi.create(payload) as CreateBranchResult;
         setBranches((current) =>
-          [...current, newBranch].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+          [...current, newBranch as Branch].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
         );
+        if (newBranch.inviteLink) {
+          setInviteResult({
+            email: payload.email,
+            inviteLink: newBranch.inviteLink,
+            fullName: newBranch.name,
+          });
+        }
       }
 
       resetForm();
@@ -734,14 +752,14 @@ export function BranchManagement() {
 
       {resetPasswordBranch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <h2 className="text-lg font-semibold text-gray-900">
                 Đặt lại mật khẩu: {resetPasswordBranch.name}
               </h2>
               <button
                 type="button"
-                onClick={() => setResetPasswordBranch(null)}
+                onClick={() => { setResetPasswordBranch(null); setResetPasswordInviteLink(null); }}
                 aria-label="Đóng"
                 className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
               >
@@ -767,15 +785,57 @@ export function BranchManagement() {
                     Tài khoản quản lý: <span className="font-semibold">{resetPasswordBranch.account?.email || 'N/A'}</span>
                   </p>
                   <p className="text-sm text-gray-500">
-                    Hệ thống sẽ tự động tạo một mật khẩu mới ngẫu nhiên, gửi qua email cho quản lý chi nhánh, và yêu cầu đổi mật khẩu trong lần đăng nhập kế tiếp.
+                    Hệ thống sẽ tạo link đặt lại mật khẩu, gửi cho quản lý chi nhánh để tự đặt mật khẩu mới.
                   </p>
                 </>
+              )}
+
+              {resetPasswordInviteLink && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-700">Link đặt lại mật khẩu</p>
+                    <input
+                      type="text"
+                      readOnly
+                      value={resetPasswordInviteLink}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(resetPasswordInviteLink);
+                        setResetPasswordSuccess(`Đã sao chép link đặt lại mật khẩu!`);
+                      }}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const email = resetPasswordBranch.account?.email || '';
+                        const subject = encodeURIComponent('Đặt lại mật khẩu tài khoản');
+                        const body = encodeURIComponent(
+                          `Xin chào,\n\nLink đặt lại mật khẩu cho tài khoản "${resetPasswordBranch.name}":\n${resetPasswordInviteLink}\n\nLink có hiệu lực trong 24 giờ.`
+                        );
+                        window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`, '_blank');
+                      }}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Gửi qua Gmail
+                    </button>
+                  </div>
+                </div>
               )}
 
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setResetPasswordBranch(null)}
+                  onClick={() => { setResetPasswordBranch(null); setResetPasswordInviteLink(null); }}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   {resetPasswordSuccess ? 'Đóng' : 'Hủy'}
@@ -855,6 +915,76 @@ export function BranchManagement() {
                   className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {forceDeleting ? 'Đang xoá...' : 'Xác nhận xoá vĩnh viễn'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inviteResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Tạo tài khoản thành công</h2>
+              <button
+                type="button"
+                onClick={() => { setInviteResult(null); setCopied(false); }}
+                aria-label="Đóng"
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-700">
+                Vui lòng gửi link bên dưới cho quản lý chi nhánh để họ tự đặt mật khẩu lần đầu. Link có hiệu lực trong 24 giờ.
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-700">Email quản lý</p>
+                <p className="text-sm text-gray-900 font-semibold">{inviteResult.email}</p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-700">Link đặt mật khẩu</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={inviteResult.inviteLink}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteResult.inviteLink);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Copy className="w-4 h-4" />
+                  {copied ? 'Đã sao chép!' : 'Copy Link'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const subject = encodeURIComponent('Thiết lập mật khẩu tài khoản');
+                    const body = encodeURIComponent(
+                      `Xin chào,\n\nTài khoản quản lý chi nhánh "${inviteResult.fullName}" đã được tạo.\n\nVui lòng click vào link sau để đặt mật khẩu lần đầu:\n${inviteResult.inviteLink}\n\nLink có hiệu lực trong 24 giờ.`
+                    );
+                    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(inviteResult.email)}&su=${subject}&body=${body}`, '_blank');
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  <Mail className="w-4 h-4" />
+                  Gửi qua Gmail
                 </button>
               </div>
             </div>

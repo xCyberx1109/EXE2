@@ -239,6 +239,7 @@ model Account {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   accountPermissions    AccountPermission[]
+  inviteTokens          InviteToken[]
   activityLogs          ActivityLog[]
   inventoryTransactions InventoryTransaction[]
   orders                Order[]
@@ -767,6 +768,22 @@ model RedeemedVoucher {
   @@index([customerId])
   @@index([orderId])
   @@map("redeemed_vouchers")
+}
+
+model InviteToken {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([token])
+  @@index([email])
+  @@map("invite_tokens")
 }
 
 model ActivityLog {

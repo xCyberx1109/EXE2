@@ -4,6 +4,7 @@ import menuRoutes from '../modules/menu/menu.routes.js';
 import inventoryRoutes from '../modules/inventory/inventory.routes.js';
 import orderRoutes from '../modules/orders/order.routes.js';
 import branchRoutes from './branch.routes.js';
+import inviteRoutes from './invite.routes.js';
 import posDevicesRoutes from '../modules/posDevices/posDevices.routes.js';
 import staffAuthRoutes from '../modules/staffAuth/staffAuth.routes.js';
 import shiftRoutes from '../modules/shifts/shift.routes.js';
@@ -28,6 +29,7 @@ router.use('/', menuRoutes);
 router.use('/', inventoryRoutes);
 router.use('/', orderRoutes);
 router.use('/branches', branchRoutes);
+router.use('/invite', inviteRoutes);
 
 // POS v2 modules (enterprise-grade)
 router.use('/pos-v2/devices', posDevicesRoutes);

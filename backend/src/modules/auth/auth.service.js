@@ -6,7 +6,7 @@ import { AppError } from '../../utils/AppError.js';
 import { userRepository } from '../../repositories/user.repository.js';
 
 import { permissionService } from '../permissions/permission.service.js';
-import { sendMailAsync } from '../../utils/sendMail.js';
+
 
 const SALT_ROUNDS = 10;
 
@@ -123,21 +123,7 @@ export const authService = {
       mustChangePassword: true,
     });
 
-    sendMailAsync({
-      to: currentUser.email,
-      subject: 'Đặt lại mật khẩu của bạn',
-      html: `<p>Xin chào <b>${currentUser.fullName || 'Người dùng'}</b>,</p>
-        <p>Yêu cầu đặt lại mật khẩu của bạn đã được thực hiện thành công.</p>
-        <p>Thông tin đăng nhập mới:</p>
-        <ul>
-          <li>Email: <b>${currentUser.email}</b></li>
-          <li>Mật khẩu mới: <b>${newPassword}</b></li>
-        </ul>
-        <p><b>Yêu cầu:</b> Vui lòng đăng nhập lại bằng mật khẩu mới này và thực hiện đổi mật khẩu ngay lập tức.</p>`,
-      requestId,
-    });
-
-    return { email: currentUser.email };
+    return { email: currentUser.email, newPassword };
   },
 };
 

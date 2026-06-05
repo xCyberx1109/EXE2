@@ -5,7 +5,6 @@ import { Prisma } from '@prisma/client';
 import prisma from '../prisma/client.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
-import { sendMailAsync, hasEmailBeenSent, markEmailSent } from '../utils/sendMail.js';
 import { lockService } from '../utils/lockService.js';
 import { requestLogger } from '../utils/logger.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
@@ -88,8 +87,8 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
   }
 
   try {
-    const password = crypto.randomBytes(4).toString('hex');
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const tempPassword = crypto.randomBytes(6).toString('hex');
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     const account = await prisma.$transaction(async (tx) => {
       const existing = await tx.account.findUnique({ where: { email } });
@@ -105,6 +104,7 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
           fullName: fullName || name,
           phone: phone || '',
           active: active !== undefined ? Boolean(active) : true,
+          mustChangePassword: true,
         },
       });
 
@@ -121,35 +121,31 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
         });
       }
 
-      return newAccount;
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      await tx.inviteToken.create({
+        data: {
+          email,
+          token: rawToken,
+          accountId: newAccount.id,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return { account: newAccount, rawToken };
     });
 
-    requestLogger.log(requestId, `[BRANCH_CREATE] accountId=${account.id} email=${email}`);
+    const inviteLink = `${req.protocol}://${req.get('host')}/set-password?token=${account.rawToken}`;
 
-    // Send response immediately — do NOT await email
+    requestLogger.log(requestId, `[BRANCH_CREATE] accountId=${account.account.id} email=${email}`);
+
     sendSuccess(res, {
       statusCode: 201,
       message: 'Tạo chi nhánh thành công',
-      data: formatBranch(account),
+      data: {
+        ...formatBranch(account.account),
+        inviteLink,
+      },
     });
-
-    // Fire email asynchronously via setImmediate — non-blocking, never crashes the request
-    if (!hasEmailBeenSent(requestId)) {
-      markEmailSent(requestId);
-      sendMailAsync({
-        to: email,
-        subject: 'Tài khoản quản lý chi nhánh mới',
-        html: `<p>Xin chào,</p>
-        <p>Tài khoản <b>${name}</b> đã được tạo thành công.</p>
-        <p>Thông tin đăng nhập:</p>
-        <ul>
-          <li>Email: <b>${email}</b></li>
-          <li>Mật khẩu: <b>${password}</b></li>
-        </ul>
-        <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>`,
-        requestId,
-      });
-    }
   } catch (err) {
     requestLogger.error(requestId, `[POST /api/branches] Error:`, err.message);
 
@@ -222,39 +218,38 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
       return sendError(res, { statusCode: 404, message: 'Không tìm thấy tài khoản' });
     }
 
-    const newPassword = crypto.randomBytes(4).toString('hex');
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const rawToken = crypto.randomBytes(32).toString('hex');
 
-    await prisma.account.update({
-      where: { id },
-      data: { password: hashedPassword, mustChangePassword: true },
+    await prisma.$transaction(async (tx) => {
+      await tx.inviteToken.updateMany({
+        where: { accountId: id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
+      await tx.inviteToken.create({
+        data: {
+          email: account.email,
+          token: rawToken,
+          accountId: account.id,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
     });
-    console.log(`[PUT /api/branches/reset-password] DB password reset for ${account.id}`);
 
-    // Send response immediately — do NOT await email
+    console.log(`[PUT /api/branches/reset-password] invite token generated for ${account.id}`);
+
+    const inviteLink = `${req.protocol}://${req.get('host')}/set-password?token=${rawToken}`;
+
     sendSuccess(res, {
-      message: `Đặt lại mật khẩu thành công cho "${account.fullName}". Mật khẩu mới đã được gửi tới email ${account.email}.`,
+      message: `Đã tạo link đặt lại mật khẩu cho "${account.fullName}".`,
       data: {
         branchId: account.id,
         branchName: account.fullName,
         accountEmail: account.email,
         accountFullName: account.fullName,
+        inviteLink,
       },
     });
-
-    // Fire email asynchronously via setImmediate — non-blocking, never crashes the request
-    if (!hasEmailBeenSent(req.requestId)) {
-      markEmailSent(req.requestId);
-      sendMailAsync({
-        to: account.email,
-        subject: `Đặt lại mật khẩu cho ${account.fullName}`,
-        html: `<p>Xin chào <b>${account.fullName}</b>,</p>
-        <p>Mật khẩu của bạn đã được đặt lại.</p>
-        <p>Mật khẩu mới: <b>${newPassword}</b></p>
-        <p>Vui lòng đăng nhập và đổi mật khẩu ngay sau khi đăng nhập.</p>`,
-        requestId: req.requestId,
-      });
-    }
   } catch (err) {
     console.error('[PUT /api/branches/:id/reset-password] Error:', err);
     sendError(res, {

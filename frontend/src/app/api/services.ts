@@ -189,11 +189,13 @@ export type BranchPayload = Pick<
   fullName?: string;
 };
 
+export type CreateBranchResult = Branch & { inviteLink?: string };
+
 export const branchApi = {
   list: () => apiFetch<Branch[]>('/branches'),
 
   create: (body: BranchPayload) =>
-    apiFetch<Branch>('/branches', { method: 'POST', body: JSON.stringify(body) }),
+    apiFetch<CreateBranchResult>('/branches', { method: 'POST', body: JSON.stringify(body) }),
 
   update: (id: string, body: BranchPayload) =>
     apiFetch<Branch>(`/branches/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
@@ -216,10 +218,26 @@ export const branchApi = {
       branchName: string;
       accountEmail: string;
       accountFullName: string;
+      inviteLink?: string;
     }>(`/branches/${id}/reset-password`, { 
       method: 'PUT', 
       body: body ? JSON.stringify(body) : undefined,
     }),
+};
+
+// --- Invite (Set Password) ---
+export const inviteApi = {
+  verify: (token: string) =>
+    apiFetch<{ valid: boolean; email?: string; fullName?: string }>(
+      `/invite/verify?token=${encodeURIComponent(token)}`,
+      { auth: false }
+    ),
+
+  setPassword: (token: string, password: string) =>
+    apiFetch<null>(
+      '/invite/set-password',
+      { method: 'POST', body: JSON.stringify({ token, password }), auth: false }
+    ),
 };
 
 // --- Tables ---

@@ -7,6 +7,7 @@ import { InventoryManagement } from './pages/InventoryManagement';
 import { MenuQR } from "./pages/QRMenu";
 import { LoginPage } from './pages/LoginPage';
 import { BranchManagement } from './pages/BranchManagement';
+import { SetPasswordPage } from './pages/SetPasswordPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PermissionManagement } from './pages/PermissionManagement';
 import { PosV2Dashboard } from './pages/PosV2Dashboard';
@@ -123,6 +124,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     Component: LoginPage,
+  },
+  {
+    path: '/set-password',
+    Component: SetPasswordPage,
   },
   {
     path: '/pos-v2/dashboard',
