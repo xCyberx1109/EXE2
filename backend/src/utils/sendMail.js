@@ -1,75 +1,12 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
+import { Resend } from 'resend';
 import { mailLogger, maskEmail } from './logger.js';
 
-dns.setDefaultResultOrder('ipv4first');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-let transporter = null;
-let transporterInitPromise = null;
+const FROM_NAME = 'FnB Store System';
 
-const TRANSPORT_OPTIONS = () => ({
-  host: process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587', 10),
-  secure: false,
-  requireTLS: true,
-  family: 4,
-  auth: {
-    user: process.env.SMTP_USER || process.env.EMAIL_USER,
-    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-  pool: true,
-  maxConnections: 3,
-  maxMessages: 30,
-  rateDelta: 1000,
-  rateLimit: 5,
-  tls: {
-    rejectUnauthorized: true,
-    ciphers: 'HIGH',
-  },
-});
-
-async function getTransporter() {
-  if (transporter) return transporter;
-
-  if (transporterInitPromise) {
-    await transporterInitPromise;
-    return transporter;
-  }
-
-  const opts = TRANSPORT_OPTIONS();
-  if (!opts.auth.user || !opts.auth.pass) {
-    mailLogger.warn('init', '[EMAIL_SKIPPED] SMTP not configured');
-    return null;
-  }
-
-  transporterInitPromise = (async () => {
-    try {
-      const tr = nodemailer.createTransport(opts);
-      await tr.verify();
-      transporter = tr;
-      mailLogger.log('init', '[SMTP_VERIFIED]', {
-        host: opts.host,
-        port: opts.port,
-        user: maskEmail(opts.auth.user),
-      });
-    } catch (err) {
-      transporter = nodemailer.createTransport(opts);
-      mailLogger.warn('init', '[SMTP_VERIFY_FAILED] using fallback transport', {
-        host: opts.host,
-        port: opts.port,
-        user: maskEmail(opts.auth.user),
-        error: err.message,
-      });
-    } finally {
-      transporterInitPromise = null;
-    }
-  })();
-
-  await transporterInitPromise;
-  return transporter;
+function getFromEmail() {
+  return process.env.FROM_EMAIL || 'onboarding@resend.dev';
 }
 
 function formatDuration(ms) {
@@ -82,29 +19,30 @@ async function sendMailInternal({ to, subject, html, requestId }) {
 
   mailLogger.log(reqId, '[EMAIL_START]', { to: maskEmail(to), subject: subject?.substring(0, 50) });
 
-  const tr = await getTransporter();
-  if (!tr) {
-    mailLogger.warn(reqId, '[EMAIL_SKIPPED] SMTP not configured', { to: maskEmail(to) });
-    return { success: false, reason: 'SMTP chưa được cấu hình' };
+  if (!process.env.RESEND_API_KEY) {
+    mailLogger.warn(reqId, '[EMAIL_SKIPPED] RESEND_API_KEY not configured', { to: maskEmail(to) });
+    return { success: false, reason: 'Resend chưa được cấu hình' };
   }
 
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
-
-  const info = await tr.sendMail({
-    from: `"FnB Store System" <${user}>`,
-    to,
+  const { data, error } = await resend.emails.send({
+    from: `${FROM_NAME} <${getFromEmail()}>`,
+    to: [to],
     subject,
     html,
   });
 
+  if (error) {
+    throw error;
+  }
+
   const duration = Date.now() - startTime;
   mailLogger.log(reqId, '[EMAIL_SENT]', {
-    messageId: info.messageId,
+    messageId: data?.id,
     to: maskEmail(to),
     duration: formatDuration(duration),
   });
 
-  return { success: true, messageId: info.messageId };
+  return { success: true, messageId: data?.id };
 }
 
 export async function sendMail({ to, subject, html, requestId }) {
