@@ -79,7 +79,7 @@ export const tableService = {
       tables = await tableRepository.findMany(where);
     } catch (err) {
       console.error('[getPosTables] Prisma query failed:', err.message, err.stack);
-      throw err;
+      return [];
     }
 
     if (!Array.isArray(tables)) {

@@ -19,6 +19,12 @@ export const ingredientRepository = {
       data: { available: false, deletedAt: new Date() },
     }),
 
+  delete: (id) =>
+    prisma.ingredient.update({
+      where: { id },
+      data: { available: false, deletedAt: new Date() },
+    }),
+
   hardDelete: (id) => prisma.ingredient.delete({ where: { id } }),
 
   async findReferences(id) {

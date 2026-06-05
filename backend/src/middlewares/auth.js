@@ -5,6 +5,7 @@ import prisma from '../prisma/client.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { permissionService } from '../modules/permissions/permission.service.js';
+import { devicePermissionService } from '../modules/permissions/devicePermission.service.js';
 
 async function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');

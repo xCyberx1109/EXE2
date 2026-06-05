@@ -102,7 +102,6 @@ export const orderService = {
       where,
       include: {
         items: true,
-        branch: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

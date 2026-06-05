@@ -35,6 +35,12 @@ export const orderRepository = {
   update: (id, data) =>
     prisma.order.update({ where: { id }, data, include: includeItems }),
 
+  delete: (id) =>
+    prisma.order.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    }),
+
   softDelete: (id) =>
     prisma.order.update({
       where: { id },
