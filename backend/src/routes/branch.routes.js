@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../prisma/client.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
-import { sendMail } from '../utils/sendMail.js';
+import { sendMailAsync, hasEmailBeenSent, markEmailSent } from '../utils/sendMail.js';
 import { lockService } from '../utils/lockService.js';
 import { requestLogger } from '../utils/logger.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
@@ -133,11 +133,13 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
       data: formatBranch(account),
     });
 
-    // Fire email asynchronously — non-blocking, never crashes the request
-    sendMail({
-      to: email,
-      subject: 'Tài khoản quản lý chi nhánh mới',
-      html: `<p>Xin chào,</p>
+    // Fire email asynchronously via setImmediate — non-blocking, never crashes the request
+    if (!hasEmailBeenSent(requestId)) {
+      markEmailSent(requestId);
+      sendMailAsync({
+        to: email,
+        subject: 'Tài khoản quản lý chi nhánh mới',
+        html: `<p>Xin chào,</p>
         <p>Tài khoản <b>${name}</b> đã được tạo thành công.</p>
         <p>Thông tin đăng nhập:</p>
         <ul>
@@ -145,10 +147,9 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
           <li>Mật khẩu: <b>${password}</b></li>
         </ul>
         <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>`,
-      requestId,
-    }).catch((emailErr) => {
-      requestLogger.error(requestId, `[EMAIL_FAILED] email=${email}`, emailErr);
-    });
+        requestId,
+      });
+    }
   } catch (err) {
     requestLogger.error(requestId, `[POST /api/branches] Error:`, err.message);
 
@@ -241,16 +242,19 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
       },
     });
 
-    // Fire email asynchronously — non-blocking, never crashes the request
-    sendMail({
-      to: account.email,
-      subject: `Đặt lại mật khẩu cho ${account.fullName}`,
-      html: `<p>Xin chào <b>${account.fullName}</b>,</p>
+    // Fire email asynchronously via setImmediate — non-blocking, never crashes the request
+    if (!hasEmailBeenSent(req.requestId)) {
+      markEmailSent(req.requestId);
+      sendMailAsync({
+        to: account.email,
+        subject: `Đặt lại mật khẩu cho ${account.fullName}`,
+        html: `<p>Xin chào <b>${account.fullName}</b>,</p>
         <p>Mật khẩu của bạn đã được đặt lại.</p>
         <p>Mật khẩu mới: <b>${newPassword}</b></p>
         <p>Vui lòng đăng nhập và đổi mật khẩu ngay sau khi đăng nhập.</p>`,
-      requestId: req.requestId,
-    });
+        requestId: req.requestId,
+      });
+    }
   } catch (err) {
     console.error('[PUT /api/branches/:id/reset-password] Error:', err);
     sendError(res, {

@@ -6,6 +6,7 @@ import { AppError } from '../../utils/AppError.js';
 import { userRepository } from '../../repositories/user.repository.js';
 
 import { permissionService } from '../permissions/permission.service.js';
+import { sendMailAsync } from '../../utils/sendMail.js';
 
 const SALT_ROUNDS = 10;
 
@@ -114,32 +115,26 @@ export const authService = {
     const currentUser = await userRepository.findRawById(userId);
     if (!currentUser) throw new AppError('Không tìm thấy người dùng', 404);
 
-    const crypto = await import('crypto');
     const newPassword = crypto.randomBytes(4).toString('hex');
     const hashedPassword = await this.hashPassword(newPassword);
 
-    await userRepository.updateById(userId, { 
-      password: hashedPassword, 
-      mustChangePassword: true 
+    await userRepository.updateById(userId, {
+      password: hashedPassword,
+      mustChangePassword: true,
     });
-    console.log(`[resetPasswordForSelf] DB password reset for user ${userId}`);
 
-    import('../../utils/sendMail.js').then(({ sendMail }) => {
-      sendMail({
-        to: currentUser.email,
-        subject: 'Đặt lại mật khẩu của bạn',
-        html: `<p>Xin chào <b>${currentUser.fullName || 'Người dùng'}</b>,</p>
-          <p>Yêu cầu đặt lại mật khẩu của bạn đã được thực hiện thành công.</p>
-          <p>Thông tin đăng nhập mới:</p>
-          <ul>
-            <li>Email: <b>${currentUser.email}</b></li>
-            <li>Mật khẩu mới: <b>${newPassword}</b></li>
-          </ul>
-          <p><b>Yêu cầu:</b> Vui lòng đăng nhập lại bằng mật khẩu mới này và thực hiện đổi mật khẩu ngay lập tức.</p>`,
-        requestId,
-      });
-    }).catch(err => {
-      console.error(`[resetPasswordForSelf] Failed to import sendMail:`, err.message);
+    sendMailAsync({
+      to: currentUser.email,
+      subject: 'Đặt lại mật khẩu của bạn',
+      html: `<p>Xin chào <b>${currentUser.fullName || 'Người dùng'}</b>,</p>
+        <p>Yêu cầu đặt lại mật khẩu của bạn đã được thực hiện thành công.</p>
+        <p>Thông tin đăng nhập mới:</p>
+        <ul>
+          <li>Email: <b>${currentUser.email}</b></li>
+          <li>Mật khẩu mới: <b>${newPassword}</b></li>
+        </ul>
+        <p><b>Yêu cầu:</b> Vui lòng đăng nhập lại bằng mật khẩu mới này và thực hiện đổi mật khẩu ngay lập tức.</p>`,
+      requestId,
     });
 
     return { email: currentUser.email };
