@@ -214,7 +214,11 @@ export function BranchManagement() {
   };
 
   const handleForceDelete = async () => {
-    if (!forceDeleteBranch || confirmName !== forceDeleteBranch.name) return;
+    if (!forceDeleteBranch || confirmName !== forceDeleteBranch.name) {
+      setError('Tên chi nhánh không chính xác');
+      return;
+    }
+    const branchName = forceDeleteBranch.name;
     try {
       setForceDeleting(true);
       setError(null);
@@ -222,7 +226,7 @@ export function BranchManagement() {
       setBranches((current) => current.filter((item) => item.id !== forceDeleteBranch.id));
       setForceDeleteBranch(null);
       setConfirmName('');
-      alert(`Đã xoá vĩnh viễn chi nhánh "${result.branchName}"`);
+      alert(`Đã xoá vĩnh viễn chi nhánh "${branchName}"`);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi xoá vĩnh viễn chi nhánh');
     } finally {
@@ -797,7 +801,7 @@ export function BranchManagement() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
-                  Nhập <b>chính xác</b> tên chi nhánh để xác nhận xoá:
+                  Nhập đúng tên chi nhánh "<b>{forceDeleteBranch.name}</b>" để xác nhận xoá:
                 </label>
                 <input
                   type="text"
@@ -808,7 +812,7 @@ export function BranchManagement() {
                   autoFocus
                 />
                 {confirmName && confirmName !== forceDeleteBranch.name && (
-                  <p className="text-xs text-red-500">Tên nhập vào không khớp. Vui lòng nhập chính xác "{forceDeleteBranch.name}"</p>
+                  <p className="text-xs text-red-500">Tên chi nhánh không chính xác</p>
                 )}
               </div>
 

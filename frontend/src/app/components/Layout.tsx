@@ -41,7 +41,6 @@ export function Layout() {
         if (!group.children) return group;
         const filtered = group.children.filter(child => {
           const allowed = !child.requiredPermission || hasPermission(child.requiredPermission);
-          console.log(`[Sidebar] "${child.name}" requiredPermission="${child.requiredPermission}" allowed=${allowed}`);
           return allowed;
         });
         return { ...group, children: filtered };

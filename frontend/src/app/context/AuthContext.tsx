@@ -201,8 +201,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ========================= */
   const hasPermission = useCallback(
     (permission?: string): boolean => {
-      console.log("[CHECK PERMISSION]", permission);
-      console.log("[USER PERMISSIONS]", Array.from(permissionSet));
       if (!permission) return true;
 
       if (permissionSet.has('ADMIN_ALL')) return true;

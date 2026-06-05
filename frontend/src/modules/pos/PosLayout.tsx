@@ -75,7 +75,6 @@ function PosNavbar() {
     ? allNavItems.filter((item) => !item.requiredPermission || hasDevicePermission(item.requiredPermission as any))
     : allNavItems.filter((item) => {
         const allowed = !item.requiredPermission || hasPermission(item.requiredPermission);
-        console.log(`[PosNavbar] "${item.label}" requiredPermission="${item.requiredPermission}" allowed=${allowed}`);
         return allowed;
       });
 
