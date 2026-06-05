@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../app/components/u
 import { Badge } from '../../app/components/ui/badge';
 import { Button } from '../../app/components/ui/button';
 import { Clock, ChefHat, CheckCircle2, ArrowUpDown, Timer, AlertTriangle } from 'lucide-react';
+import { APP_NAME } from '../../shared/constants';
 import { useAuth } from '../../app/context/AuthContext';
 import { apiFetch } from '../../app/api/client';
 
@@ -115,7 +116,7 @@ export function KitchenQueue() {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
         <Clock className="w-6 h-6 animate-spin mr-2" />
-        Đang tải hàng chờ bếp...
+        Đang tải {APP_NAME} hàng chờ bếp...
       </div>
     );
   }

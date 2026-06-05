@@ -1,4 +1,4 @@
-# POS System + QR Menu (React + Vite + JSON Server)
+# POSitive - POS System + QR Menu (React + Vite + JSON Server)
 
 Hệ thống POS đơn giản cho nhà hàng / quán ăn cho phép:
 

@@ -1,3 +1,5 @@
+import { APP_NAME } from '../constants';
+
 export interface AppMenuItem {
   name: string;
   href: string;
@@ -53,7 +55,7 @@ export const APP_MENU: AppMenuItem[] = [
   {
     name: 'POS',
     children: [
-      { name: 'Order Queue POS', href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },
+      { name: `${APP_NAME} Order Queue`, href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },
     ],
   },
 ];

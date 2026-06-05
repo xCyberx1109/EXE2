@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { getDeviceTypeLabel } from '../../shared/permissions/devicePermissions';
+import { APP_NAME } from '../../shared/constants';
 import { Loader2, LogIn, Eye, EyeOff, Smartphone, Monitor, CheckCircle2 } from 'lucide-react';
 
 const DEVICE_ROUTES: Record<string, string> = {
@@ -129,7 +130,7 @@ export function LoginPage() {
                 <Monitor className="w-8 h-8 text-white" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Đăng nhập quản trị</h1>
-              <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý F&B</p>
+              <p className="text-sm text-gray-500 mt-1">{APP_NAME}</p>
             </div>
 
             <form onSubmit={handleAccountLogin} className="space-y-5">
@@ -282,7 +283,7 @@ export function LoginPage() {
         )}
 
         <div className="px-8 pb-6">
-          <p className="text-center text-xs text-gray-400">© 2026 F&B Management System</p>
+          <p className="text-center text-xs text-gray-400">© 2026 {APP_NAME}</p>
         </div>
       </div>
     </div>

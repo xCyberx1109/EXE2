@@ -3,6 +3,7 @@ import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed,
 import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig';
+import { APP_NAME } from '../../shared/constants';
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
@@ -83,7 +84,7 @@ export function Layout() {
       {/* Mobile menu button */}
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 px-4 py-3 z-40">
         <div className="flex items-center justify-between">
-          <h1 className="font-semibold text-lg">Quản lý F&B</h1>
+          <h1 className="font-semibold text-lg">{APP_NAME}</h1>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-md hover:bg-gray-100"
@@ -99,8 +100,8 @@ export function Layout() {
       }`}>
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">Quản lý F&B</h1>
-            <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý nhà hàng</p>
+            <h1 className="text-xl font-bold text-gray-900">{APP_NAME}</h1>
+            <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý {APP_NAME}</p>
           </div>
           
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -161,7 +162,7 @@ export function Layout() {
               Đăng xuất
             </button>
             <div className="text-xs text-gray-400 px-2">
-              <p>© 2026 F&B Management</p>
+              <p>© 2026 {APP_NAME}</p>
             </div>
           </div>
         </div>

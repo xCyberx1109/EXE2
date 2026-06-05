@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { menuApi, ordersQueueApi, inventoryApi } from '../api/services';
 import { MenuItem, OrderDetail, InventoryItem } from '../types';
+import { APP_NAME } from '../../shared/constants';
 import {
   Clock,
   CreditCard,
@@ -495,7 +496,7 @@ export function OrderQueuePOS() {
       setActiveOrderId(current => (current === activeOrder.id ? null : current));
 
       const receipt = [
-        `Order Queue POS Receipt`,
+        `${APP_NAME} Order Queue Receipt`,
         `Order: #${paidOrder.orderNumber}`,
         `Customer: ${getCustomerLabel(activeOrder)}`,
         `Time: ${new Date().toLocaleString()}`,
@@ -525,7 +526,7 @@ export function OrderQueuePOS() {
       <div className="shrink-0 px-3 lg:px-4 pt-3 lg:pt-4 pb-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900">Order Queue POS</h1>
+            <h1 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900">{APP_NAME} Order Queue</h1>
             <p className="text-xs lg:text-sm text-slate-500">Single-screen cashier workflow • Open orders • Fast checkout</p>
           </div>
           <div className="flex items-center gap-2">

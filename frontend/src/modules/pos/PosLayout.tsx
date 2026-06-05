@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { useAuth } from '../../app/context/AuthContext';
 import { getDeviceTypeLabel } from '../../shared/permissions/devicePermissions';
+import { APP_NAME } from '../../shared/constants';
 import { UtensilsCrossed, LogOut, ChefHat, ClipboardList, ShoppingCart, Monitor, Tv, Settings, Loader2, Bell, Clock, ArrowLeft } from 'lucide-react';
 
 interface NavItem {
@@ -105,7 +106,7 @@ function PosNavbar() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
-              {authMode === 'device' ? (deviceType || 'POS') : 'STAFF'}
+              {authMode === 'device' ? (deviceType || APP_NAME) : 'STAFF'}
             </span>
             <button
               onClick={handleLogout}

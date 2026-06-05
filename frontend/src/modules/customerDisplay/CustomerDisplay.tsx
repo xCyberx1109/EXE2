@@ -3,6 +3,7 @@ import { Card, CardContent } from '../../app/components/ui/card';
 import { Badge } from '../../app/components/ui/badge';
 import { useAuth } from '../../app/context/AuthContext';
 import { apiFetch } from '../../app/api/client';
+import { APP_NAME } from '../../shared/constants';
 import { ChefHat, Timer } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -36,7 +37,7 @@ export function CustomerDisplay() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">{branchInfo?.name || 'Nhà hàng'}</h1>
+          <h1 className="text-3xl font-bold text-gray-800">{branchInfo?.name || APP_NAME}</h1>
           <p className="text-gray-500 mt-1">Trạng thái đơn hàng</p>
         </div>
 

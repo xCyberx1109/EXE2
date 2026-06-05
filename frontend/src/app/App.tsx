@@ -5,6 +5,7 @@ import { CategoryProvider } from './context/CategoryContext';
 import { Loader2 } from 'lucide-react';
 import { AppErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/app/components/ui/sonner';
+import { APP_NAME } from '@/shared/constants';
 
 function AppContent() {
   const { isReady } = useAuth();
@@ -13,7 +14,7 @@ function AppContent() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-        <p className="text-lg font-medium">Đang khởi tạo hệ thống...</p>
+        <p className="text-lg font-medium">Đang khởi tạo {APP_NAME}...</p>
         <p className="text-sm text-gray-400 mt-2">Vui lòng chờ trong giây lát...</p>
       </div>
     );

@@ -4,6 +4,7 @@ import { Button } from '../../app/components/ui/button';
 import { Badge } from '../../app/components/ui/badge';
 import { Input } from '../../app/components/ui/input';
 import { useAuth } from '../../app/context/AuthContext';
+import { APP_NAME } from '../../shared/constants';
 import { ShoppingCart, Plus, Minus, QrCode, Search, CheckCircle, ArrowLeft } from 'lucide-react';
 
 interface CartItem {
@@ -53,7 +54,7 @@ export function KioskPOS() {
     <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold">{branchInfo?.name || 'Hệ thống tự đặt món'}</h1>
+        <h1 className="text-2xl font-bold">{branchInfo?.name || APP_NAME}</h1>
         <p className="text-gray-500">Vui lòng chọn món và tiến hành thanh toán</p>
       </div>
 

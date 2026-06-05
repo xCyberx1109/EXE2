@@ -12,6 +12,7 @@ import {
 import { tableApi, menuApi, categoryApi, ordersApi } from '../api/services';
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { APP_NAME } from '../../shared/constants';
 import type { CurrentShift, ActiveStaff, TableItem, MenuItem, CategoryItem } from '../types';
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Printer, X, Smartphone, Clock, Search, Utensils } from 'lucide-react';
 
@@ -338,7 +339,7 @@ export function PosV2Dashboard() {
     <div className="h-full space-y-4 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Hệ thống POS</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{APP_NAME}</h1>
           <p className="text-gray-500 mt-1">Quản lý đơn hàng và thanh toán</p>
         </div>
         {selectedTable && (
@@ -645,7 +646,7 @@ export function PosV2Dashboard() {
       <header className="bg-white border-b shadow-sm shrink-0">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold">POS Dashboard</h1>
+            <h1 className="text-xl font-bold">{APP_NAME}</h1>
             {currentShift && (
               <Badge variant={currentShift.status === 'OPEN' ? 'default' : 'secondary'}>
                 Shift {currentShift.status === 'OPEN' ? 'Open' : 'Closed'}

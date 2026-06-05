@@ -5,6 +5,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { menuApi, ordersApi, categoryApi, inventoryApi } from '../api/services';
 import type { MenuItem, CategoryItem, InventoryItem } from '../types';
 import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
+import { APP_NAME } from '../../shared/constants';
 
 interface OrderItem extends MenuItem {
   quantity: number;
@@ -280,7 +281,7 @@ export function POSSystem() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Hệ thống POS</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{APP_NAME}</h1>
           <p className="text-gray-500 mt-1">Quản lý đơn hàng và thanh toán</p>
         </div>
         {selectedTable && (

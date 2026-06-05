@@ -1,6 +1,7 @@
 import { AlertTriangle, Info, CheckCircle, XCircle } from 'lucide-react';
 import { Link } from 'react-router';
 import { SectionHeader, EmptyState } from './shared';
+import { APP_NAME } from '../../../shared/constants';
 import type { SystemAlert } from '../types';
 
 const SEVERITY_CONFIG = {
@@ -39,7 +40,7 @@ export function SystemAlerts({ alerts, criticalCount, warningCount, loading }: {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <SectionHeader
-        title={`Hệ thống${urgentCount > 0 ? ` (${urgentCount})` : ''}`}
+        title={`${APP_NAME}${urgentCount > 0 ? ` (${urgentCount})` : ''}`}
         actionLabel={urgentCount > 0 ? 'Xem chi tiết' : undefined}
         actionHref={urgentCount > 0 ? '#' : undefined}
       />
@@ -76,7 +77,7 @@ export function SystemAlerts({ alerts, criticalCount, warningCount, loading }: {
           })}
         </div>
       ) : (
-        <EmptyState message="Hệ thống hoạt động bình thường" icon={CheckCircle} />
+        <EmptyState message={`${APP_NAME} hoạt động bình thường`} icon={CheckCircle} />
       )}
     </div>
   );

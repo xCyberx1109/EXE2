@@ -9,6 +9,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { posDevicesV2Api } from '../api/posServices';
+import { APP_NAME } from '../../shared/constants';
 import type { PosDeviceV2, PosMode } from '../types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -126,8 +127,8 @@ export function PosDeviceManagerPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">POS Device Management</h1>
-          <p className="text-gray-500">Manage all POS devices across your branch</p>
+          <h1 className="text-2xl font-bold">{APP_NAME} Device Management</h1>
+          <p className="text-gray-500">Manage all {APP_NAME} devices across your branch</p>
         </div>
         <Dialog open={createDialog} onOpenChange={setCreateDialog}>
           <DialogTrigger asChild>
@@ -135,7 +136,7 @@ export function PosDeviceManagerPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New POS Device</DialogTitle>
+              <DialogTitle>Create New {APP_NAME} Device</DialogTitle>
               <DialogDescription>
                 A device code and setup PIN will be generated for first-time activation.
               </DialogDescription>

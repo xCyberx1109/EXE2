@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ordersApi } from '../api/services';
 import type { OrderDetail } from '../types';
 import { Calendar, Eye, Filter, Loader2, RefreshCw, Search } from 'lucide-react';
+import { APP_NAME } from '../../shared/constants';
 
 const ORDER_STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -19,7 +20,7 @@ const ORDER_STATUS_OPTIONS = [
 const SOURCE_OPTIONS = [
   { value: '', label: 'Tất cả nguồn' },
   { value: 'POS', label: 'POS' },
-  { value: 'ORDER_QUEUE_POS', label: 'Order Queue POS' },
+  { value: 'ORDER_QUEUE_POS', label: `${APP_NAME} Order Queue` },
 ];
 
 const STATUS_BADGE: Record<string, string> = {
