@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client';
 import prisma from '../prisma/client.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { sendMail } from '../utils/sendMail.js';
+import { lockService } from '../utils/lockService.js';
+import { requestLogger } from '../utils/logger.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
 import { enforceBranchScope } from '../middlewares/branchScope.js';
-
-const pendingEmailLocks = new Map();
 
 const router = Router();
 
@@ -65,6 +66,7 @@ router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) 
 
 router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, res) => {
   const { name, phone, email, fullName, active } = req.body;
+  const { requestId } = req;
 
   if (!name || !email) {
     return sendError(res, {
@@ -73,15 +75,17 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
     });
   }
 
-  console.log("[ACCOUNT_CREATE_HIT]", email, Date.now());
+  const lockKey = `create_account:${email}`;
 
-  if (pendingEmailLocks.has(email)) {
+  requestLogger.log(requestId, `[ACCOUNT_CREATE_HIT] email=${email}`);
+
+  if (!lockService.acquire(lockKey)) {
+    requestLogger.warn(requestId, `[DUPLICATE_BLOCKED] email=${email} — request đang được xử lý`);
     return sendError(res, {
       statusCode: 429,
       message: 'Yêu cầu tạo chi nhánh với email này đang được xử lý, vui lòng đợi',
     });
   }
-  pendingEmailLocks.set(email, Date.now());
 
   try {
     const password = crypto.randomBytes(4).toString('hex');
@@ -90,6 +94,7 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
     const account = await prisma.$transaction(async (tx) => {
       const existing = await tx.account.findUnique({ where: { email } });
       if (existing) {
+        requestLogger.warn(requestId, `[DUPLICATE_EMAIL] email=${email} — tài khoản đã tồn tại`);
         throw Object.assign(new Error('Email quản lý đã được sử dụng'), { statusCode: 409 });
       }
 
@@ -119,7 +124,7 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
       return newAccount;
     });
 
-    console.log(`[POST /api/branches] DB account created: ${account.id} (${email})`);
+    requestLogger.log(requestId, `[BRANCH_CREATE] accountId=${account.id} email=${email}`);
 
     // Send response immediately — do NOT await email
     sendSuccess(res, {
@@ -140,12 +145,22 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
           <li>Mật khẩu: <b>${password}</b></li>
         </ul>
         <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>`,
-      requestId: req.requestId,
+      requestId,
+    }).catch((emailErr) => {
+      requestLogger.error(requestId, `[EMAIL_FAILED] email=${email}`, emailErr);
     });
   } catch (err) {
-    console.error('[POST /api/branches] Error:', err);
+    requestLogger.error(requestId, `[POST /api/branches] Error:`, err.message);
 
     if (err.statusCode === 409) {
+      return sendError(res, {
+        statusCode: 409,
+        message: 'Email quản lý đã được sử dụng',
+      });
+    }
+
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      requestLogger.error(requestId, `[P2002_UNIQUE_VIOLATION] email=${email} — Prisma unique constraint`);
       return sendError(res, {
         statusCode: 409,
         message: 'Email quản lý đã được sử dụng',
@@ -158,7 +173,7 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
       error: err.message,
     });
   } finally {
-    pendingEmailLocks.delete(email);
+    lockService.release(lockKey);
   }
 }));
 

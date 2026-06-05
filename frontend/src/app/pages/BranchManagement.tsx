@@ -156,8 +156,8 @@ export function BranchManagement() {
     }
 
     isSubmittingRef.current = true;
+    setSaving(true);
     try {
-      setSaving(true);
       setError(null);
       const payload = toPayload(form);
 
@@ -424,7 +424,8 @@ export function BranchManagement() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X className="w-4 h-4" />
                   Đóng
@@ -435,13 +436,14 @@ export function BranchManagement() {
                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-gray-700">Tên chi nhánh</span>
                   <input
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập tên chi nhánh"
                   />
                 </label>
@@ -451,7 +453,8 @@ export function BranchManagement() {
                   <input
                     value={form.address}
                     onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập địa chỉ"
                   />
                 </label>
@@ -461,7 +464,8 @@ export function BranchManagement() {
                   <input
                     value={form.phone}
                     onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập số điện thoại"
                   />
                 </label>
@@ -472,7 +476,8 @@ export function BranchManagement() {
                     type="email"
                     value={form.email}
                     onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập email quản lý"
                     required
                   />
@@ -483,7 +488,8 @@ export function BranchManagement() {
                   <select
                     value={form.plan}
                     onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     {PLAN_OPTIONS.map((plan) => (
                       <option key={plan.value} value={plan.value}>
@@ -498,7 +504,8 @@ export function BranchManagement() {
                   <button
                     type="button"
                     onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
-                    className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50"
+                    disabled={saving}
+                    className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className={form.active ? 'text-green-600 font-medium' : 'text-gray-500 font-medium'}>
                       {form.active ? 'Đang bật' : 'Đang tắt'}
@@ -525,7 +532,8 @@ export function BranchManagement() {
                     onChange={(event) =>
                       setForm((current) => ({ ...current, subscriptionStart: event.target.value }))
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </label>
 
@@ -537,14 +545,15 @@ export function BranchManagement() {
                     onChange={(event) =>
                       setForm((current) => ({ ...current, subscriptionEnd: event.target.value }))
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </label>
 
                 <div className="flex items-end">
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={saving || isSubmittingRef.current}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (
@@ -575,7 +584,8 @@ export function BranchManagement() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X className="w-4 h-4" />
                   Đóng
@@ -586,13 +596,14 @@ export function BranchManagement() {
                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-gray-700">Tên chi nhánh</span>
                   <input
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập tên chi nhánh"
                   />
                 </label>
@@ -602,7 +613,8 @@ export function BranchManagement() {
                   <input
                     value={form.address}
                     onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập địa chỉ"
                   />
                 </label>
@@ -612,7 +624,8 @@ export function BranchManagement() {
                   <input
                     value={form.phone}
                     onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập số điện thoại"
                   />
                 </label>
@@ -623,7 +636,8 @@ export function BranchManagement() {
                     type="email"
                     value={form.email}
                     onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nhập email quản lý"
                     required
                   />
@@ -634,7 +648,8 @@ export function BranchManagement() {
                   <select
                     value={form.plan}
                     onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     {PLAN_OPTIONS.map((plan) => (
                       <option key={plan.value} value={plan.value}>
@@ -649,7 +664,8 @@ export function BranchManagement() {
                   <button
                     type="button"
                     onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
-                    className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50"
+                    disabled={saving}
+                    className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className={form.active ? 'text-green-600 font-medium' : 'text-gray-500 font-medium'}>
                       {form.active ? 'Đang bật' : 'Đang tắt'}
@@ -676,7 +692,8 @@ export function BranchManagement() {
                     onChange={(event) =>
                       setForm((current) => ({ ...current, subscriptionStart: event.target.value }))
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </label>
 
@@ -688,14 +705,15 @@ export function BranchManagement() {
                     onChange={(event) =>
                       setForm((current) => ({ ...current, subscriptionEnd: event.target.value }))
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    disabled={saving}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </label>
 
                 <div className="flex items-end">
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={saving || isSubmittingRef.current}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (

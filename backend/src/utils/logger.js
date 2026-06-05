@@ -5,6 +5,23 @@ export function maskEmail(email) {
   return `${prefix}***@${domain}`;
 }
 
+export const requestLogger = {
+  log(requestId, message, ...args) {
+    const prefix = requestId ? `[${requestId}]` : '[no-req]';
+    console.log(`${prefix} ${message}`, ...args);
+  },
+
+  warn(requestId, message, ...args) {
+    const prefix = requestId ? `[${requestId}]` : '[no-req]';
+    console.warn(`${prefix} ${message}`, ...args);
+  },
+
+  error(requestId, message, ...args) {
+    const prefix = requestId ? `[${requestId}]` : '[no-req]';
+    console.error(`${prefix} ${message}`, ...args);
+  },
+};
+
 export const mailLogger = {
   log(requestId, message, extra = {}) {
     const extraStr = Object.entries(extra)
