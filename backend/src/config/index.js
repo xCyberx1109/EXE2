@@ -21,6 +21,9 @@ const config = {
     length: parseInt(process.env.SETUP_PIN_LENGTH || '6', 10),
   },
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5174',
+  get corsOrigins() {
+    return this.corsOrigin.split(',').map(s => s.trim()).filter(Boolean);
+  },
   seed: {
     adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@store.com',
     adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Admin@123',

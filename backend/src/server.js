@@ -49,8 +49,25 @@ const startServer = async () => {
 };
 
 process.on('SIGINT', async () => {
+  console.log('SIGINT received — disconnecting Prisma and exiting');
   await prisma.$disconnect();
   process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received — disconnecting Prisma and exiting');
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION — server continues but this should be fixed:');
+  console.error(reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION — server continues but this should be fixed:');
+  console.error(err);
 });
 
 startServer();

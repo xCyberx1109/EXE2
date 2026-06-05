@@ -9,7 +9,21 @@ import prisma from './prisma/client.js';
 
 const app = express();
 
-app.use(cors({ origin: config.corsOrigin, credentials: true }));
+const allowedOrigins = config.corsOrigins;
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.some(o => origin.startsWith(o))) {
+      return cb(null, true);
+    }
+    if (config.nodeEnv !== 'production') {
+      return cb(null, true);
+    }
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    return cb(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
