@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   CheckCircle2,
@@ -80,6 +80,7 @@ export function BranchManagement() {
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
   const [form, setForm] = useState<BranchFormState>(createDefaultForm);
   const [error, setError] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const [resetPasswordBranch, setResetPasswordBranch] = useState<Branch | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -146,11 +147,15 @@ export function BranchManagement() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (isSubmittingRef.current) return;
+    if (saving) return;
+
     if (!form.name.trim() || !form.address.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('Vui lòng nhập đầy đủ tên chi nhánh, địa chỉ, số điện thoại và email');
       return;
     }
 
+    isSubmittingRef.current = true;
     try {
       setSaving(true);
       setError(null);
@@ -172,6 +177,7 @@ export function BranchManagement() {
     } catch (err: any) {
       setError(err.message || 'Lỗi khi lưu chi nhánh');
     } finally {
+      isSubmittingRef.current = false;
       setSaving(false);
     }
   };

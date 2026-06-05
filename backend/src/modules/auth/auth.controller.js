@@ -31,6 +31,6 @@ export const changeMyPassword = asyncHandler(async (req, res) => {
 });
 
 export const resetMyPassword = asyncHandler(async (req, res) => {
-  const result = await authService.resetPasswordForSelf(req.user.id);
+  const result = await authService.resetPasswordForSelf(req.user.id, req.requestId);
   sendSuccess(res, { message: 'Đặt lại mật khẩu thành công, mật khẩu mới đã được gửi tới email của bạn.', data: result });
 });

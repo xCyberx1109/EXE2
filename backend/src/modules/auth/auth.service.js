@@ -13,6 +13,8 @@ export const authService = {
   hashPassword: (password) => bcrypt.hash(password, SALT_ROUNDS),
 
   async register({ email, password, fullName }) {
+    console.log("[ACCOUNT_CREATE_HIT]", email, Date.now());
+
     const existing = await userRepository.findByEmail(email);
     if (existing) {
       throw new AppError('Email đã được sử dụng', 409);
@@ -108,13 +110,12 @@ export const authService = {
     return { success: true };
   },
 
-  async resetPasswordForSelf(userId) {
+  async resetPasswordForSelf(userId, requestId) {
     const currentUser = await userRepository.findRawById(userId);
     if (!currentUser) throw new AppError('Không tìm thấy người dùng', 404);
 
-    // Sinh mật khẩu ngẫu nhiên
     const crypto = await import('crypto');
-    const newPassword = crypto.randomBytes(4).toString('hex'); // 8 ký tự
+    const newPassword = crypto.randomBytes(4).toString('hex');
     const hashedPassword = await this.hashPassword(newPassword);
 
     await userRepository.updateById(userId, { 
@@ -123,7 +124,6 @@ export const authService = {
     });
     console.log(`[resetPasswordForSelf] DB password reset for user ${userId}`);
 
-    // Fire email asynchronously — non-blocking, never throws
     import('../../utils/sendMail.js').then(({ sendMail }) => {
       sendMail({
         to: currentUser.email,
@@ -136,10 +136,7 @@ export const authService = {
             <li>Mật khẩu mới: <b>${newPassword}</b></li>
           </ul>
           <p><b>Yêu cầu:</b> Vui lòng đăng nhập lại bằng mật khẩu mới này và thực hiện đổi mật khẩu ngay lập tức.</p>`,
-      }).then(() => {
-        console.log(`[resetPasswordForSelf] Email sent successfully to ${currentUser.email}`);
-      }).catch(err => {
-        console.error(`[resetPasswordForSelf] Email failed to ${currentUser.email}:`, err.message);
+        requestId,
       });
     }).catch(err => {
       console.error(`[resetPasswordForSelf] Failed to import sendMail:`, err.message);

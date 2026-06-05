@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -32,6 +33,11 @@ if (config.nodeEnv === 'development') {
 } else {
   app.use(morgan('combined'));
 }
+
+app.use((req, res, next) => {
+  req.requestId = crypto.randomUUID().slice(0, 8);
+  next();
+});
 
 app.use((req, res, next) => {
   req.setTimeout(25_000, () => {

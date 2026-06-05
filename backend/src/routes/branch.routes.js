@@ -8,6 +8,8 @@ import { sendMail } from '../utils/sendMail.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
 import { enforceBranchScope } from '../middlewares/branchScope.js';
 
+const pendingEmailLocks = new Map();
+
 const router = Router();
 
 router.use(authenticate);
@@ -71,33 +73,53 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
     });
   }
 
+  console.log("[ACCOUNT_CREATE_HIT]", email, Date.now());
+
+  if (pendingEmailLocks.has(email)) {
+    return sendError(res, {
+      statusCode: 429,
+      message: 'Yêu cầu tạo chi nhánh với email này đang được xử lý, vui lòng đợi',
+    });
+  }
+  pendingEmailLocks.set(email, Date.now());
+
   try {
     const password = crypto.randomBytes(4).toString('hex');
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const account = await prisma.account.create({
-      data: {
-        email,
-        password: hashedPassword,
-        fullName: fullName || name,
-        phone: phone || '',
-        active: active !== undefined ? Boolean(active) : true,
-      },
-    });
-    console.log(`[POST /api/branches] DB account created: ${account.id} (${email})`);
+    const account = await prisma.$transaction(async (tx) => {
+      const existing = await tx.account.findUnique({ where: { email } });
+      if (existing) {
+        throw Object.assign(new Error('Email quản lý đã được sử dụng'), { statusCode: 409 });
+      }
 
-    const perms = await prisma.permission.findMany({
-      where: { code: { in: ['BRANCH_VIEW', 'BRANCH_UPDATE'] } },
-      select: { id: true, code: true },
-    });
-
-    for (const p of perms) {
-      await prisma.accountPermission.upsert({
-        where: { accountId_permissionId: { accountId: account.id, permissionId: p.id } },
-        update: { allowed: true },
-        create: { accountId: account.id, permissionId: p.id, allowed: true },
+      const newAccount = await tx.account.create({
+        data: {
+          email,
+          password: hashedPassword,
+          fullName: fullName || name,
+          phone: phone || '',
+          active: active !== undefined ? Boolean(active) : true,
+        },
       });
-    }
+
+      const perms = await tx.permission.findMany({
+        where: { code: { in: ['BRANCH_VIEW', 'BRANCH_UPDATE'] } },
+        select: { id: true, code: true },
+      });
+
+      for (const p of perms) {
+        await tx.accountPermission.upsert({
+          where: { accountId_permissionId: { accountId: newAccount.id, permissionId: p.id } },
+          update: { allowed: true },
+          create: { accountId: newAccount.id, permissionId: p.id, allowed: true },
+        });
+      }
+
+      return newAccount;
+    });
+
+    console.log(`[POST /api/branches] DB account created: ${account.id} (${email})`);
 
     // Send response immediately — do NOT await email
     sendSuccess(res, {
@@ -118,18 +140,25 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
           <li>Mật khẩu: <b>${password}</b></li>
         </ul>
         <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>`,
-    }).then(() => {
-      console.log(`[POST /api/branches] Email sent successfully to ${email}`);
-    }).catch(err => {
-      console.error(`[POST /api/branches] Email failed to ${email}:`, err.message);
+      requestId: req.requestId,
     });
   } catch (err) {
     console.error('[POST /api/branches] Error:', err);
+
+    if (err.statusCode === 409) {
+      return sendError(res, {
+        statusCode: 409,
+        message: 'Email quản lý đã được sử dụng',
+      });
+    }
+
     return sendError(res, {
       statusCode: 500,
       message: 'Lỗi khi tạo chi nhánh',
       error: err.message,
     });
+  } finally {
+    pendingEmailLocks.delete(email);
   }
 }));
 
@@ -205,10 +234,7 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
         <p>Mật khẩu của bạn đã được đặt lại.</p>
         <p>Mật khẩu mới: <b>${newPassword}</b></p>
         <p>Vui lòng đăng nhập và đổi mật khẩu ngay sau khi đăng nhập.</p>`,
-    }).then(() => {
-      console.log(`[PUT /api/branches/reset-password] Email sent successfully to ${account.email}`);
-    }).catch(err => {
-      console.error(`[PUT /api/branches/reset-password] Email failed to ${account.email}:`, err.message);
+      requestId: req.requestId,
     });
   } catch (err) {
     console.error('[PUT /api/branches/:id/reset-password] Error:', err);
