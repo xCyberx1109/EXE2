@@ -7,7 +7,7 @@ export const posDeviceRepository = {
   findByIdWithBranch: (id) =>
     prisma.posDevice.findUnique({
       where: { id, deletedAt: null },
-      include: { branch: true, _count: { select: { orders: true } } },
+      include: { _count: { select: { orders: true } } },
     }),
 
   findByDeviceCode: (deviceCode) =>
@@ -16,13 +16,11 @@ export const posDeviceRepository = {
   findByPin: (pin) =>
     prisma.posDevice.findFirst({
       where: { devicePin: pin, deletedAt: null },
-      include: { branch: true },
     }),
 
   findByDeviceToken: (token) =>
     prisma.posDevice.findFirst({
       where: { deviceToken: token, deletedAt: null },
-      include: { branch: true },
     }),
 
   findByBranchId: (branchId) => {
@@ -56,7 +54,6 @@ export const posDeviceRepository = {
   findAll: (where = {}) =>
     prisma.posDevice.findMany({
       where: { deletedAt: null, ...where },
-      include: { branch: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     }),
 

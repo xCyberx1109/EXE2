@@ -172,7 +172,7 @@ async function getLowStockItems(branchWhere) {
 }
 
 async function getRecentActivities(branchWhere) {
-  if (!branchWhere.branchId) return [];
+  if (!branchWhere?.branchId) return [];
   const logs = await prisma.activityLog.findMany({
     where: branchWhere,
     orderBy: { createdAt: 'desc' },

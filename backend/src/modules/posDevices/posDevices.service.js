@@ -34,7 +34,7 @@ export const posDevicesService = {
     const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) throw new AppError('Account not found', 404);
 
-    const branchId = account.branchId;
+    const branchId = account.id;
 
     let deviceCode = generateDeviceCode();
     let existingCode = await posDeviceRepository.findDeviceCode(deviceCode);

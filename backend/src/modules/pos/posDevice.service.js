@@ -29,7 +29,7 @@ export const posDeviceService = {
     const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) throw new AppError('Tài khoản không tồn tại', 404);
 
-    const branchId = account.branchId;
+    const branchId = account.id;
 
     let deviceCode = generateDeviceCode();
     let existingCode = await posDeviceRepository.findDeviceCode(deviceCode);

@@ -38,7 +38,6 @@ async function generateUserToken(user) {
     {
       sub: user.id,
       type: 'user',
-      branchId: user.branchId,
       permissions,
     },
     config.jwt.secret,
@@ -64,7 +63,6 @@ const sanitizeUser = (user) => ({
   email: user.email,
   fullName: user.fullName,
   mustChangePassword: user.mustChangePassword,
-  branchId: user.branchId,
   createdAt: user.createdAt,
   permissions: user.permissions || [],
   permissionsVersion: user.permissionsVersion ?? 0,
@@ -198,10 +196,7 @@ export const unifiedAuthService = {
       ipAddress,
     });
 
-    const branch = await prisma.branch.findUnique({
-      where: { id: device.branchId },
-      select: { id: true, name: true, address: true },
-    });
+    const branch = null;
 
     const permissions = getPermissionsForDeviceType(device.type);
     const features = getFeaturesForDeviceType(device.type);

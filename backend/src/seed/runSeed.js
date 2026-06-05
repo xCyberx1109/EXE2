@@ -499,31 +499,10 @@ export async function runSeedIfEmpty() {
   }
 }
 
-/** BRANCH */
+/** BRANCH — hardcoded ID because the branches table no longer exists */
+const DEFAULT_BRANCH_ID = 'branch-default-001';
 async function getOrCreateDefaultBranch() {
-  const existing = await prisma.branch.findFirst({
-    where: { name: 'Main Branch' },
-  });
-
-  if (existing) {
-    return prisma.branch.update({
-      where: { id: existing.id },
-      data: {
-        address: existing.address || 'Default address',
-        phone: existing.phone || '0000000000',
-        active: true,
-      },
-    });
-  }
-
-  return prisma.branch.create({
-    data: {
-      name: 'Main Branch',
-      address: 'Default address',
-      phone: '0000000000',
-      active: true,
-    },
-  });
+  return { id: DEFAULT_BRANCH_ID };
 }
 
 /** SAMPLE ORDERS */

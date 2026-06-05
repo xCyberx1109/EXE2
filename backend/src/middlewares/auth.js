@@ -39,7 +39,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
 
   const user = await prisma.account.findUnique({
     where: { id: decoded.sub || decoded.userId },
-        select: { id: true, email: true, fullName: true, branchId: true },
+        select: { id: true, email: true, fullName: true },
   });
 
   if (!user) {
@@ -74,7 +74,6 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
       if (decoded.type === 'device') {
         device = await prisma.posDevice.findUnique({
           where: { id: decoded.sub, deletedAt: null },
-          include: { branch: true },
         });
       }
     }
@@ -87,7 +86,6 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
     const tokenHash = await hashToken(token);
     device = await prisma.posDevice.findFirst({
       where: { deviceTokenHash: tokenHash, deletedAt: null },
-      include: { branch: true },
     });
   }
 
@@ -100,7 +98,7 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
   }
 
   req.posDevice = device;
-  req.branch = device.branch;
+  req.branch = null;
   req.authType = 'device';
 
   const capabilities = await devicePermissionService.getDeviceCapabilities(device);
@@ -168,7 +166,7 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
     if (decoded.type === 'user') {
       const user = await prisma.account.findUnique({
         where: { id: decoded.sub },
-        select: { id: true, email: true, fullName: true, branchId: true },
+        select: { id: true, email: true, fullName: true },
       });
       if (user) {
         user.permissions = await permissionService.getEffectivePermissions(user.id);

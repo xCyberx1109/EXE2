@@ -5,7 +5,6 @@ import { AppError } from '../../utils/AppError.js';
 import { posDeviceRepository } from '../../repositories/posDevice.repository.js';
 import { shiftRepository } from '../../repositories/shift.repository.js';
 import { activityLogRepository } from '../../repositories/activityLog.repository.js';
-
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
 }
@@ -59,10 +58,7 @@ export const posAuthService = {
       });
     }
 
-    const branch = await prisma.branch.findUnique({
-      where: { id: device.branchId },
-      select: { id: true, name: true, address: true },
-    });
+    const branch = null;
 
     await activityLogRepository.create({
       branchId: device.branchId,
@@ -157,7 +153,7 @@ export const posAuthService = {
       status: device.status,
       active: device.active,
       lastActive: device.lastActive,
-      branch: device.branch ? { id: device.branch.id, name: device.branch.name } : null,
+      branch: null,
       currentShift: shift ? {
         id: shift.id,
         startTime: shift.startTime,

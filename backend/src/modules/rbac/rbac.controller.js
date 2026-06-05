@@ -26,10 +26,52 @@ export const rbacController = {
   // --- Account-level Direct Permissions (for PermissionManagement frontend) ---
   getAccounts: asyncHandler(async (req, res) => {
     const accounts = await prisma.account.findMany({
-      select: { id: true, fullName: true, email: true, status: true },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        status: true,
+        active: true,
+        createdAt: true,
+        accountPermissions: {
+          select: {
+            permissionId: true,
+            allowed: true,
+            permission: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                module: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { fullName: 'asc' },
     });
-    sendSuccess(res, { data: accounts });
+
+    // Map to include a friendly role representation
+    const data = accounts.map(({ accountPermissions, ...acc }) => {
+      const assignedPerms = accountPermissions.filter(ap => ap.allowed);
+      const modules = [...new Set(assignedPerms.map(ap => ap.permission.module))];
+      return {
+        ...acc,
+        accountId: acc.id,
+        username: acc.email,
+        assignedRoles: modules,
+        assignedPermissions: assignedPerms.map(ap => ({
+          permissionId: ap.permissionId,
+          permissionCode: ap.permission.code,
+          permissionName: ap.permission.name,
+          module: ap.permission.module,
+          allowed: ap.allowed,
+        })),
+        permissionCount: assignedPerms.length,
+      };
+    });
+
+    sendSuccess(res, { data });
   }),
 
   getAccountPermissions: asyncHandler(async (req, res) => {

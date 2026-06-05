@@ -1,0 +1,29 @@
+{
+  "version": "5.2",
+  "steps": [
+    {
+      "tag": "DropForeignKey",
+      "constraint": "accounts_branchId_fkey",
+      "table": "accounts"
+    },
+    {
+      "tag": "DropIndex",
+      "index": "accounts_branchId_idx",
+      "table": "accounts"
+    },
+    {
+      "tag": "AlterTable",
+      "table": "accounts",
+      "operations": [
+        {
+          "tag": "DropColumn",
+          "column": "branchId"
+        }
+      ]
+    },
+    {
+      "tag": "DropTable",
+      "table": "branches"
+    }
+  ]
+}

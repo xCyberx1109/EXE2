@@ -50,7 +50,6 @@ model BranchFeature {
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
   feature   Feature   @relation(fields: [featureId], references: [id], onDelete: Cascade)
 
   @@unique([branchId, featureId])
@@ -176,7 +175,6 @@ model Subscription {
   updatedAt   DateTime           @updatedAt
   deletedAt   DateTime?
   invoices    BillingInvoice[]
-  branch      Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
   plan        SubscriptionPlan   @relation(fields: [planId], references: [id])
 
   @@index([branchId, status])
@@ -208,41 +206,6 @@ model BillingInvoice {
   @@map("billing_invoices")
 }
 
-model Branch {
-  id                    String                 @id @default(cuid())
-  name                  String
-  address               String
-  phone                 String
-  email                 String?
-  logoUrl               String?
-  taxCode               String?
-  timezone              String                 @default("Asia/Ho_Chi_Minh")
-  currency              String                 @default("VND")
-  active                Boolean                @default(true)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  deletedAt             DateTime?
-  accounts              Account[]
-  activityLogs          ActivityLog[]
-  branchFeatures        BranchFeature[]
-  categories            Category[]
-  customers             Customer[]
-  ingredients           Ingredient[]
-  inventoryTransactions InventoryTransaction[]
-  kots                  Kot[]
-  loyaltyPoints         LoyaltyPoint[]
-  menuItems             MenuItem[]
-  orders                Order[]
-  posDevices            PosDevice[]
-  shifts                Shift[]
-  stockAlerts           StockAlert[]
-  stockAudits           StockAudit[]
-  subscriptions         Subscription[]
-  tables                Table[]
-  vouchers              Voucher[]
-
-  @@map("branches")
-}
 
 model Table {
   id        String      @id @default(cuid())
@@ -254,8 +217,7 @@ model Table {
   isActive  Boolean     @default(true)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
-  branch    Branch      @relation(fields: [branchId], references: [id])
-  orders    Order[]     @relation("TableOrders")
+  orders      Order[]     @relation("TableOrders")
 
   enabled   Boolean  @default(true)
   @@index([branchId])
@@ -264,7 +226,6 @@ model Table {
 
 model Account {
   id                    String                 @id @default(cuid())
-  branchId              String
   email                 String                 @unique
   password              String
   pinCode               String?
@@ -278,7 +239,6 @@ model Account {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   accountPermissions    AccountPermission[]
-  branch                Branch                 @relation(fields: [branchId], references: [id])
   activityLogs          ActivityLog[]
   inventoryTransactions InventoryTransaction[]
   orders                Order[]
@@ -286,7 +246,6 @@ model Account {
   staffSessions         StaffSession[]
   stockAudits           StockAudit[]
 
-  @@index([branchId])
   @@index([email])
   @@map("accounts")
 }
@@ -321,7 +280,6 @@ model PosDevice {
   deviceFeatureOverrides DeviceFeatureOverride[]
   deviceSessions         DeviceSession[]
   orders                 Order[]
-  branch                 Branch                  @relation(fields: [branchId], references: [id])
   shifts                 Shift[]
   staffSessions          StaffSession[]
   trustedDevices         TrustedDevice[]
@@ -410,7 +368,6 @@ model Category {
   deletedAt   DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  branch      Branch     @relation(fields: [branchId], references: [id])
   menuItems   MenuItem[]
 
   @@unique([branchId, slug])
@@ -431,7 +388,6 @@ model MenuItem {
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   deletedAt   DateTime?
-  branch      Branch               @relation(fields: [branchId], references: [id])
   category    Category             @relation(fields: [categoryId], references: [id])
   modifiers   MenuItemModifier[]
   ingredients MenuItemIngredient[]
@@ -488,7 +444,6 @@ model Ingredient {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   branchId              String
-  branch                Branch                 @relation(fields: [branchId], references: [id])
   inventoryTransactions InventoryTransaction[]
   menuItems             MenuItemIngredient[]
   stockAlerts           StockAlert[]
@@ -513,7 +468,6 @@ model StockAlert {
   resolvedBy   String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  branch       Branch     @relation(fields: [branchId], references: [id])
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 
   @@index([ingredientId])
@@ -533,7 +487,6 @@ model StockAudit {
   notes            String?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
-  branch           Branch     @relation(fields: [branchId], references: [id])
   ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   account          Account    @relation(fields: [accountId], references: [id])
 
@@ -556,7 +509,6 @@ model InventoryTransaction {
   note           String?
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
-  branch         Branch                   @relation(fields: [branchId], references: [id])
   account        Account                  @relation(fields: [createdBy], references: [id])
   ingredient     Ingredient               @relation(fields: [ingredientId], references: [id])
 
@@ -591,7 +543,6 @@ model Shift {
   deletedAt      DateTime?
   orders         Order[]
   account        Account?       @relation(fields: [accountId], references: [id])
-  branch         Branch         @relation(fields: [branchId], references: [id])
   posDevice      PosDevice?     @relation(fields: [posDeviceId], references: [id])
   staffSessions  StaffSession[]
 
@@ -636,7 +587,6 @@ model Order {
   deletedAt         DateTime?
   kots              Kot[]
   items             OrderItem[]
-  branch            Branch            @relation(fields: [branchId], references: [id])
   account           Account           @relation(fields: [createdBy], references: [id])
   customer          Customer?         @relation(fields: [customerId], references: [id])
   posDevice         PosDevice?        @relation(fields: [posDeviceId], references: [id])
@@ -705,7 +655,6 @@ model Kot {
   completedAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  branch      Branch        @relation(fields: [branchId], references: [id])
   order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   items       OrderItem[]
 
@@ -748,7 +697,6 @@ model Customer {
   deletedAt        DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
-  branch           Branch            @relation(fields: [branchId], references: [id])
   loyaltyPoints    LoyaltyPoint[]
   orders           Order[]
   redeemedVouchers RedeemedVoucher[]
@@ -769,7 +717,6 @@ model LoyaltyPoint {
   note       String?
   expiresAt  DateTime?
   createdAt  DateTime  @default(now())
-  branch     Branch    @relation(fields: [branchId], references: [id])
   customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
@@ -798,7 +745,6 @@ model Voucher {
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
   redeemedVouchers RedeemedVoucher[]
-  branch           Branch            @relation(fields: [branchId], references: [id])
 
   @@index([branchId, isActive])
   @@index([code])
@@ -835,7 +781,6 @@ model ActivityLog {
   userAgent   String?
   createdAt   DateTime @default(now())
   account     Account? @relation(fields: [accountId], references: [id])
-  branch      Branch?  @relation(fields: [branchId], references: [id])
   posDevice   PosDevice? @relation(fields: [posDeviceId], references: [id])
 
   @@index([branchId, createdAt])

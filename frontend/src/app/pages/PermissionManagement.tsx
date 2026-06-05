@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Lock, User, Plus, Save, Trash2, ChevronRight, CheckCircle2, Search } from 'lucide-react';
+import { Shield, Lock, User, Save, ChevronRight, Search, Calendar, BadgeCheck, Layers } from 'lucide-react';
 import { api } from '../api/client';
 
 interface Permission {
@@ -9,11 +9,27 @@ interface Permission {
   module: string;
 }
 
+interface AssignedPermission {
+  permissionId: string;
+  permissionCode: string;
+  permissionName: string;
+  module: string;
+  allowed: boolean;
+}
+
 interface Account {
   id: string;
-  fullName: string;
+  accountId: string;
   email: string;
+  fullName: string;
+  username: string;
   status: string;
+  active: boolean;
+  createdAt: string;
+  branchId: string;
+  assignedRoles: string[];
+  assignedPermissions: AssignedPermission[];
+  permissionCount: number;
 }
 
 interface AccountPermission {
@@ -121,10 +137,31 @@ export function PermissionManagement() {
     return acc;
   }, {} as Record<string, Permission[]>);
 
-  const filteredAccounts = accounts.filter(a => 
+  const filteredAccounts = accounts.filter(a =>
     a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.email.toLowerCase().includes(searchTerm.toLowerCase())
+    a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.accountId.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getStatusBadge = (status: string, active: boolean) => {
+    if (status === 'ACTIVE' && active) {
+      return { label: 'Hoạt động', className: 'bg-green-100 text-green-700 border border-green-200' };
+    }
+    return { label: 'Không hoạt động', className: 'bg-red-100 text-red-700 border border-red-200' };
+  };
+
+  const roleLabel = (roles: string[]) => {
+    if (!roles || roles.length === 0) return 'Chưa gán vai trò';
+    return roles.join(', ');
+  };
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Đang tải dữ liệu phân quyền...</div>;
@@ -167,35 +204,54 @@ export function PermissionManagement() {
                   className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              <p className="text-xs text-gray-400 mt-2">{filteredAccounts.length} tài khoản</p>
             </div>
             <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-              {filteredAccounts.map(account => (
-                <button
-                  key={account.id}
-                  onClick={() => setSelectedAccount(account)}
-                  className={`w-full text-left p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group ${
-                    selectedAccount?.id === account.id ? 'bg-blue-50' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      selectedAccount?.id === account.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      <User className="w-5 h-5" />
+              {filteredAccounts.map(account => {
+                const statusBadge = getStatusBadge(account.status, account.active);
+                return (
+                  <button
+                    key={account.id}
+                    onClick={() => setSelectedAccount(account)}
+                    className={`w-full text-left p-3 hover:bg-gray-50 transition-colors group ${
+                      selectedAccount?.id === account.id ? 'bg-blue-50 ring-1 ring-blue-200' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        selectedAccount?.id === account.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium text-sm truncate ${
+                            selectedAccount?.id === account.id ? 'text-blue-700' : 'text-gray-900'
+                          }`}>
+                            {account.fullName}
+                          </p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusBadge.className}`}>
+                            {statusBadge.label}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 truncate">{account.email}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-gray-400">
+                            {formatDate(account.createdAt)}
+                          </span>
+                          <span className="text-[10px] text-gray-300">|</span>
+                          <span className={`text-[10px] ${account.permissionCount > 0 ? 'text-blue-500' : 'text-gray-400'}`}>
+                            {account.permissionCount > 0 ? `${account.permissionCount} quyền` : 'Chưa gán vai trò'}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${
+                        selectedAccount?.id === account.id ? 'text-blue-500 translate-x-0.5' : 'text-gray-300'
+                      }`} />
                     </div>
-                    <div>
-                      <p className={`font-medium ${selectedAccount?.id === account.id ? 'text-blue-700' : 'text-gray-900'}`}>
-                        {account.fullName}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">{account.email}</p>
-
-                    </div>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 transition-transform ${
-                    selectedAccount?.id === account.id ? 'text-blue-500 translate-x-1' : 'text-gray-300'
-                  }`} />
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -204,17 +260,17 @@ export function PermissionManagement() {
         <div className="md:col-span-2">
           {selectedAccount ? (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6" />
+              <div className="p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                      <User className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">{selectedAccount.fullName}</h2>
+                      <p className="text-gray-500 text-sm">{selectedAccount.email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedAccount.fullName}</h2>
-                    <p className="text-gray-500 text-sm">{selectedAccount.email}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
                   <button
                     onClick={savePermissions}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
@@ -222,6 +278,25 @@ export function PermissionManagement() {
                     <Save className="w-4 h-4" />
                     Lưu quyền hạn
                   </button>
+                </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 border-t border-gray-100 pt-3">
+                  <span className="flex items-center gap-1">
+                    <BadgeCheck className="w-3.5 h-3.5" />
+                    ID: {selectedAccount.accountId}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Ngày tạo: {formatDate(selectedAccount.createdAt)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5" />
+                    Vai trò: {roleLabel(selectedAccount.assignedRoles)}
+                  </span>
+                  {selectedAccount.branchId && (
+                    <span className="flex items-center gap-1">
+                      Branch: {selectedAccount.branchId.substring(0, 8)}...
+                    </span>
+                  )}
                 </div>
               </div>
 

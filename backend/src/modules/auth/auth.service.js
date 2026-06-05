@@ -150,7 +150,6 @@ const generateToken = async (user) => {
   return jwt.sign(
     {
       userId: user.id,
-      branchId: user.branchId,
       permissions,
     },
     config.jwt.secret,
@@ -163,6 +162,5 @@ const sanitizeUser = (user) => ({
   email: user.email,
   fullName: user.fullName,
   mustChangePassword: user.mustChangePassword,
-  branchId: user.branchId,
   createdAt: user.createdAt,
 });

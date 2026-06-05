@@ -23,11 +23,10 @@ export function enforceBranchScope(req, _res, next) {
     return next(new AppError('Authentication required', 401));
   }
 
-  const canAccessAll = ctx.permissions?.includes('ADMIN_ALL') || ctx.permissions?.some(p => p.startsWith('BRANCH_'));
-  const branchId = canAccessAll ? null : (ctx.branchId || req.branch?.id);
+  const branchId = ctx.branchId;
 
   req.branchScope = {
-    hasAccess: !!canAccessAll,
+    hasAccess: true,
     branchId,
   };
 
@@ -45,18 +44,8 @@ export function enforceBranchScope(req, _res, next) {
 export function assertBranchAccess(resource, user, name = 'dữ liệu') {
   if (!resource || !user) return;
   if (user.permissions?.includes('ADMIN_ALL')) return;
-  if (user.permissions?.includes('BRANCH_ALL_ACCESS')) return;
-  if (user.permissions?.includes('CROSS_BRANCH_ACCESS')) return;
-  const userBranchId = user.branchId || (user.branch?.id);
+  const userBranchId = user.branchId;
   if (resource.branchId && userBranchId && resource.branchId !== userBranchId) {
-    console.error('[assertBranchAccess] Branch mismatch:', {
-      resourceType: name,
-      resourceId: resource.id,
-      resourceBranchId: resource.branchId,
-      userBranchId: userBranchId,
-      userId: user.id,
-      userPermissions: user.permissions,
-    });
     throw new AppError(`${name} này thuộc chi nhánh khác`, 403);
   }
 }
@@ -72,9 +61,7 @@ export function assertBranchAccess(resource, user, name = 'dữ liệu') {
 export function buildBranchWhere(user, additionalWhere = {}) {
   if (!user) return additionalWhere;
   if (user.permissions?.includes('ADMIN_ALL')) return additionalWhere;
-  if (user.permissions?.includes('BRANCH_ALL_ACCESS')) return additionalWhere;
-  if (user.permissions?.includes('CROSS_BRANCH_ACCESS')) return additionalWhere;
-  const branchId = user.branchId || (user.branch?.id);
+  const branchId = user.branchId;
   if (!branchId) return additionalWhere;
   return { ...additionalWhere, branchId };
 }
@@ -87,10 +74,8 @@ export function buildBranchWhere(user, additionalWhere = {}) {
  */
 export function branchDataForCreate(user) {
   if (!user) return {};
-  const branchId = user.branchId || (user.branch?.id);
+  const branchId = user.branchId;
   if (!branchId) return {};
   if (user.permissions?.includes('ADMIN_ALL') && !user.branchId) return {};
-  if (user.permissions?.includes('BRANCH_ALL_ACCESS') && !user.branchId) return {};
-  if (user.permissions?.includes('CROSS_BRANCH_ACCESS') && !user.branchId) return {};
   return { branchId };
 }
