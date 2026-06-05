@@ -121,10 +121,11 @@ export const authService = {
       password: hashedPassword, 
       mustChangePassword: true 
     });
+    console.log(`[resetPasswordForSelf] DB password reset for user ${userId}`);
 
-    const { sendMail } = await import('../../utils/sendMail.js');
-    try {
-      await sendMail({
+    // Fire email asynchronously — non-blocking, never throws
+    import('../../utils/sendMail.js').then(({ sendMail }) => {
+      sendMail({
         to: currentUser.email,
         subject: 'Đặt lại mật khẩu của bạn',
         html: `<p>Xin chào <b>${currentUser.fullName || 'Người dùng'}</b>,</p>
@@ -135,11 +136,14 @@ export const authService = {
             <li>Mật khẩu mới: <b>${newPassword}</b></li>
           </ul>
           <p><b>Yêu cầu:</b> Vui lòng đăng nhập lại bằng mật khẩu mới này và thực hiện đổi mật khẩu ngay lập tức.</p>`,
+      }).then(() => {
+        console.log(`[resetPasswordForSelf] Email sent successfully to ${currentUser.email}`);
+      }).catch(err => {
+        console.error(`[resetPasswordForSelf] Email failed to ${currentUser.email}:`, err.message);
       });
-    } catch (err) {
-      console.error('Lỗi khi gửi mail đặt lại mật khẩu cho chính mình:', err);
-      throw new AppError('Đặt lại mật khẩu thành công nhưng gửi email thất bại. Vui lòng liên hệ quản trị viên.', 500);
-    }
+    }).catch(err => {
+      console.error(`[resetPasswordForSelf] Failed to import sendMail:`, err.message);
+    });
 
     return { email: currentUser.email };
   },

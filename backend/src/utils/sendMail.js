@@ -36,10 +36,10 @@ export const sendMail = async ({ to, subject, html }) => {
       subject,
       html,
     });
-    console.log(`Email sent successfully: ${info.messageId}`);
+    console.log(`Email sent successfully to ${to}: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Lỗi khi gửi email:', error);
-    throw error;
+    console.error(`[sendMail] Failed to send email to ${to}:`, error.message);
+    return { success: false, error: error.message };
   }
 };

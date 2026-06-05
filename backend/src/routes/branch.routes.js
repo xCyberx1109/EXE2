@@ -71,12 +71,11 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
     });
   }
 
-  let account;
   try {
     const password = crypto.randomBytes(4).toString('hex');
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    account = await prisma.account.create({
+    const account = await prisma.account.create({
       data: {
         email,
         password: hashedPassword,
@@ -85,6 +84,7 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
         active: active !== undefined ? Boolean(active) : true,
       },
     });
+    console.log(`[POST /api/branches] DB account created: ${account.id} (${email})`);
 
     const perms = await prisma.permission.findMany({
       where: { code: { in: ['BRANCH_VIEW', 'BRANCH_UPDATE'] } },
@@ -99,33 +99,30 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
       });
     }
 
-    try {
-      await sendMail({
-        to: email,
-        subject: 'Tài khoản quản lý chi nhánh mới',
-        html: `<p>Xin chào,</p>
-          <p>Tài khoản <b>${name}</b> đã được tạo thành công.</p>
-          <p>Thông tin đăng nhập:</p>
-          <ul>
-            <li>Email: <b>${email}</b></li>
-            <li>Mật khẩu: <b>${password}</b></li>
-          </ul>
-          <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>`,
-      });
+    // Send response immediately — do NOT await email
+    sendSuccess(res, {
+      statusCode: 201,
+      message: 'Tạo chi nhánh thành công',
+      data: formatBranch(account),
+    });
 
-      return sendSuccess(res, {
-        statusCode: 201,
-        message: 'Tạo chi nhánh thành công, đã gửi email tài khoản quản lý',
-        data: formatBranch(account),
-      });
-    } catch (mailErr) {
-      console.error('[POST /api/branches] Gửi email thất bại:', mailErr);
-      return sendSuccess(res, {
-        statusCode: 201,
-        message: 'Tạo chi nhánh thành công nhưng gửi email thất bại',
-        data: formatBranch(account),
-      });
-    }
+    // Fire email asynchronously — non-blocking, never crashes the request
+    sendMail({
+      to: email,
+      subject: 'Tài khoản quản lý chi nhánh mới',
+      html: `<p>Xin chào,</p>
+        <p>Tài khoản <b>${name}</b> đã được tạo thành công.</p>
+        <p>Thông tin đăng nhập:</p>
+        <ul>
+          <li>Email: <b>${email}</b></li>
+          <li>Mật khẩu: <b>${password}</b></li>
+        </ul>
+        <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>`,
+    }).then(() => {
+      console.log(`[POST /api/branches] Email sent successfully to ${email}`);
+    }).catch(err => {
+      console.error(`[POST /api/branches] Email failed to ${email}:`, err.message);
+    });
   } catch (err) {
     console.error('[POST /api/branches] Error:', err);
     return sendError(res, {
@@ -187,24 +184,9 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
       where: { id },
       data: { password: hashedPassword, mustChangePassword: true },
     });
+    console.log(`[PUT /api/branches/reset-password] DB password reset for ${account.id}`);
 
-    try {
-      await sendMail({
-        to: account.email,
-        subject: `Đặt lại mật khẩu cho ${account.fullName}`,
-        html: `<p>Xin chào <b>${account.fullName}</b>,</p>
-          <p>Mật khẩu của bạn đã được đặt lại.</p>
-          <p>Mật khẩu mới: <b>${newPassword}</b></p>
-          <p>Vui lòng đăng nhập và đổi mật khẩu ngay sau khi đăng nhập.</p>`,
-      });
-    } catch (mailErr) {
-      console.error('[PUT /api/branches/reset-password] Gửi email thất bại:', mailErr);
-      return sendError(res, {
-        statusCode: 500,
-        message: 'Đặt lại mật khẩu thành công nhưng gửi email thất bại',
-      });
-    }
-
+    // Send response immediately — do NOT await email
     sendSuccess(res, {
       message: `Đặt lại mật khẩu thành công cho "${account.fullName}". Mật khẩu mới đã được gửi tới email ${account.email}.`,
       data: {
@@ -213,6 +195,20 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
         accountEmail: account.email,
         accountFullName: account.fullName,
       },
+    });
+
+    // Fire email asynchronously — non-blocking, never crashes the request
+    sendMail({
+      to: account.email,
+      subject: `Đặt lại mật khẩu cho ${account.fullName}`,
+      html: `<p>Xin chào <b>${account.fullName}</b>,</p>
+        <p>Mật khẩu của bạn đã được đặt lại.</p>
+        <p>Mật khẩu mới: <b>${newPassword}</b></p>
+        <p>Vui lòng đăng nhập và đổi mật khẩu ngay sau khi đăng nhập.</p>`,
+    }).then(() => {
+      console.log(`[PUT /api/branches/reset-password] Email sent successfully to ${account.email}`);
+    }).catch(err => {
+      console.error(`[PUT /api/branches/reset-password] Email failed to ${account.email}:`, err.message);
     });
   } catch (err) {
     console.error('[PUT /api/branches/:id/reset-password] Error:', err);
