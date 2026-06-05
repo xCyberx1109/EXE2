@@ -36,7 +36,6 @@ type BranchFormState = {
   subscriptionEnd: string;
   active: boolean;
   email: string;
-  fullName?: string;
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -51,7 +50,6 @@ const createDefaultForm = (): BranchFormState => ({
   subscriptionEnd: today,
   active: true,
   email: '',
-  fullName: '',
 });
 
 const toDateInputValue = (value?: string) => {
@@ -69,7 +67,7 @@ const toPayload = (form: BranchFormState): BranchPayload => ({
   subscriptionEnd: form.subscriptionEnd,
   active: form.active,
   email: form.email.trim(),
-  fullName: form.fullName?.trim() || '',
+  fullName: '',
 });
 
 export function BranchManagement() {
@@ -192,7 +190,6 @@ export function BranchManagement() {
       subscriptionEnd: toDateInputValue(branch.subscriptionEnd),
       active: branch.active,
       email: branch.account?.email ?? '',
-      fullName: branch.account?.fullName ?? '',
     });
   };
 
@@ -435,7 +432,7 @@ export function BranchManagement() {
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="VD: Chi nhánh Quận 1"
+                    placeholder="Nhập tên chi nhánh"
                   />
                 </label>
 
@@ -468,16 +465,6 @@ export function BranchManagement() {
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="Nhập email quản lý"
                     required
-                  />
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Tên quản lý</span>
-                  <input
-                    value={form.fullName}
-                    onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="Nhập tên quản lý (tùy chọn)"
                   />
                 </label>
 
@@ -596,7 +583,7 @@ export function BranchManagement() {
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="VD: Chi nhánh Quận 1"
+                    placeholder="Nhập tên chi nhánh"
                   />
                 </label>
 
@@ -629,16 +616,6 @@ export function BranchManagement() {
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="Nhập email quản lý"
                     required
-                  />
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Tên quản lý</span>
-                  <input
-                    value={form.fullName}
-                    onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="Nhập tên quản lý (tùy chọn)"
                   />
                 </label>
 
