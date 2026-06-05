@@ -142,7 +142,7 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
       statusCode: 201,
       message: 'Tạo chi nhánh thành công',
       data: {
-        ...formatBranch(account.account),
+        email,
         inviteLink,
       },
     });

@@ -189,7 +189,10 @@ export type BranchPayload = Pick<
   fullName?: string;
 };
 
-export type CreateBranchResult = Branch & { inviteLink?: string };
+export type CreateBranchResult = {
+  email: string;
+  inviteLink: string;
+};
 
 export const branchApi = {
   list: () => apiFetch<Branch[]>('/branches'),
