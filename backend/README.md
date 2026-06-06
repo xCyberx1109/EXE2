@@ -5,7 +5,7 @@ Backend REST API cho hệ thống quản lý cửa hàng F&B, phục vụ fronte
 ## Công nghệ
 
 - Node.js + Express.js
-- MySQL + Prisma ORM
+- PostgreSQL (Supabase) + Prisma ORM
 - JWT Authentication
 - bcrypt, cors, morgan, dotenv, express-validator
 
@@ -35,7 +35,7 @@ backend/
 ## Yêu cầu
 
 - Node.js >= 18
-- MySQL 8.x
+- PostgreSQL 15+ (Supabase)
 
 ## Cài đặt & chạy
 
@@ -48,11 +48,14 @@ npm install
 
 ### 2. Cấu hình database
 
-Tạo database MySQL:
+Tạo database PostgreSQL (hoặc dùng Supabase):
 
+Tạo database qua psql:
 ```sql
-CREATE DATABASE fnb_store CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE fnb_store;
 ```
+
+Hoặc tạo project Supabase tại https://supabase.com và lấy connection string.
 
 Copy và chỉnh `.env`:
 
@@ -63,7 +66,7 @@ cp .env.example .env
 Sửa `DATABASE_URL` trong `.env`:
 
 ```
-DATABASE_URL="mysql://root:YOUR_PASSWORD@localhost:3306/fnb_store"
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/fnb_store"
 ```
 
 ### 3. Migration

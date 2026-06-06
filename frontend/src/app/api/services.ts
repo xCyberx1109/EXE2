@@ -191,7 +191,6 @@ export type BranchPayload = Pick<
 
 export type CreateBranchResult = {
   email: string;
-  inviteLink: string;
 };
 
 export const branchApi = {

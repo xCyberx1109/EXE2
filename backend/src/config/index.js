@@ -31,6 +31,14 @@ const config = {
   },
   autoSeedOnStart: process.env.AUTO_SEED_ON_START === 'true',
   allowNegativeStock: process.env.ALLOW_NEGATIVE_STOCK === 'true',
+  email: {
+    host: process.env.SMTP_HOST || '',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.MAIL_FROM || 'noreply@fnbstore.local',
+  },
 };
 
 export default config;

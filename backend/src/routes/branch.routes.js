@@ -9,6 +9,7 @@ import { lockService } from '../utils/lockService.js';
 import { requestLogger } from '../utils/logger.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
 import { enforceBranchScope } from '../middlewares/branchScope.js';
+import { sendInviteEmail, sendCredentialsEmail } from '../services/email.service.js';
 
 const router = Router();
 
@@ -121,29 +122,22 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
         });
       }
 
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      await tx.inviteToken.create({
-        data: {
-          email,
-          token: rawToken,
-          accountId: newAccount.id,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
-      });
-
-      return { account: newAccount, rawToken };
+      return newAccount;
     });
 
-    const inviteLink = `${req.protocol}://${req.get('host')}/set-password?token=${account.rawToken}`;
+    requestLogger.log(requestId, `[BRANCH_CREATE] accountId=${account.id} email=${email}`);
 
-    requestLogger.log(requestId, `[BRANCH_CREATE] accountId=${account.account.id} email=${email}`);
+    sendCredentialsEmail({
+      email: account.email,
+      fullName: account.fullName,
+      password: tempPassword,
+    }).catch(() => {});
 
     sendSuccess(res, {
       statusCode: 201,
-      message: 'Tạo chi nhánh thành công',
+      message: `Tạo chi nhánh thành công. Mật khẩu đã được gửi đến email ${email}`,
       data: {
         email,
-        inviteLink,
       },
     });
   } catch (err) {
@@ -239,6 +233,14 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
     console.log(`[PUT /api/branches/reset-password] invite token generated for ${account.id}`);
 
     const inviteLink = `${req.protocol}://${req.get('host')}/set-password?token=${rawToken}`;
+
+    requestLogger.log(requestId, `[RESET_PASSWORD_INVITE] invite generated for accountId=${account.id} email=${account.email}`);
+
+    sendInviteEmail({
+      email: account.email,
+      fullName: account.fullName,
+      inviteLink,
+    }).catch(() => {});
 
     sendSuccess(res, {
       message: `Đã tạo link đặt lại mật khẩu cho "${account.fullName}".`,

@@ -10,6 +10,7 @@ import { activityLogRepository } from '../../repositories/activityLog.repository
 import prisma from '../../prisma/client.js';
 import { permissionService } from '../permissions/permission.service.js';
 import { getPermissionsForDeviceType, getFeaturesForDeviceType, getEnabledFeaturesForDeviceType } from '../permissions/devicePermissions.js';
+import { sendWelcomeEmail } from '../../services/email.service.js';
 
 const SALT_ROUNDS = 10;
 const DEVICE_TOKEN_EXPIRY_DAYS = 30;
@@ -70,19 +71,35 @@ const sanitizeUser = (user) => ({
 
 export const unifiedAuthService = {
   async loginWithEmail({ email, password }, req) {
+    console.log('[LOGIN] Service start — email:', email);
+
+    console.log('[LOGIN] Before DB query — findByEmail');
     const user = await userRepository.findByEmail(email);
+    console.log('[LOGIN] After DB query — user found:', !!user);
     if (!user) {
       throw new AppError('Email hoặc mật khẩu không đúng', 401);
     }
 
+    console.log('[LOGIN] Before bcrypt.compare');
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log('[LOGIN] After bcrypt.compare — match:', isMatch);
     if (!isMatch) {
       throw new AppError('Email hoặc mật khẩu không đúng', 401);
     }
 
+    console.log('[LOGIN] Before generateUserToken');
     const token = await generateUserToken(user);
+    console.log('[LOGIN] After generateUserToken');
+
+    console.log('[LOGIN] Before getEffectivePermissions');
     user.permissions = await permissionService.getEffectivePermissions(user.id);
+    console.log('[LOGIN] After getEffectivePermissions');
+
+    console.log('[LOGIN] Before getPermissionsVersion');
     user.permissionsVersion = await permissionService.getPermissionsVersion(user.id);
+    console.log('[LOGIN] After getPermissionsVersion');
+
+    console.log('[LOGIN] Service returning success');
     return { user: sanitizeUser(user), token };
   },
 
@@ -103,6 +120,9 @@ export const unifiedAuthService = {
     });
 
     const token = await generateUserToken(user);
+
+    sendWelcomeEmail({ email: user.email, fullName: user.fullName }).catch(() => {});
+
     return { user: sanitizeUser(user), token };
   },
 

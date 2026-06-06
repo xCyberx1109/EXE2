@@ -28,11 +28,13 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-if (config.nodeEnv === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
+morgan.token('client-ip', (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.socket?.remoteAddress
+    || req.ip;
+});
+
+app.use(morgan('[:date[iso]] :method :url :status :response-time[0]ms :res[content-length]B IP=:client-ip'));
 
 app.use((req, res, next) => {
   req.requestId = crypto.randomUUID().slice(0, 8);
@@ -52,20 +54,9 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  let aborted = false;
   req.on('close', () => {
-    aborted = true;
+    /* ghi nhận client đã ngắt, nhưng không chặn res.json */
   });
-  res.on('close', () => {
-    if (!res.writableFinished && !aborted) {
-      aborted = true;
-    }
-  });
-  const originalJson = res.json.bind(res);
-  res.json = function (body) {
-    if (aborted) return this;
-    return originalJson(body);
-  };
   next();
 });
 

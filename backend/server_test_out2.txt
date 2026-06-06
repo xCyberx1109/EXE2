@@ -1,0 +1,20 @@
+✓ Kết nối PostgreSQL thành công
+✓ Đã khởi động heartbeat check (timeout: 2 phút)
+[EMAIL] SMTP not fully configured — email sending disabled
+✓ Server chạy tại http://localhost:3000
+  API: http://localhost:3000/api
+  POS: http://localhost:3000/api/pos
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Server Startup Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  NODE_ENV        : development
+  PORT            : 3000
+  Database        : Connected
+  DB Provider     : PostgreSQL (Supabase)
+  DB URL          : postgresql://***@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5&pool_timeout=10
+  API Base URL    : http://localhost:3000/api
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[ACCOUNT_CREATE_HIT] test@example.com 1780685525708
+[ACCOUNT_CREATE_HIT] test@example.com 1780685526014
+[EMAIL][SYSTEM] EMAIL_HOST/USER/PASS not fully configured — skipping email send

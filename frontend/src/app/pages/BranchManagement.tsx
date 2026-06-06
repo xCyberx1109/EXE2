@@ -1,10 +1,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
   Building2,
   CheckCircle2,
   Copy,
   Edit3,
-  ExternalLink,
   Mail,
   MapPin,
   Phone,
@@ -96,10 +96,6 @@ export function BranchManagement() {
   const [confirmName, setConfirmName] = useState('');
   const [forceDeleting, setForceDeleting] = useState(false);
 
-  const [inviteResult, setInviteResult] = useState<{ email: string; inviteLink: string; fullName: string } | null>(null);
-  const [copiedEmail, setCopiedEmail] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
-
   const isEditing = Boolean(editingBranchId);
   const isEditModalOpen = Boolean(editingBranchId);
 
@@ -183,11 +179,7 @@ export function BranchManagement() {
         const result = await branchApi.create(payload);
         const data = await branchApi.list();
         setBranches(data);
-        setInviteResult({
-          email: result.email,
-          inviteLink: result.inviteLink,
-          fullName: form.name,
-        });
+        toast.success(`Đã gửi thông tin đăng nhập đến email ${result.email}`);
       }
 
       resetForm();
@@ -921,98 +913,6 @@ export function BranchManagement() {
         </div>
       )}
 
-      {inviteResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">Tạo tài khoản thành công</h2>
-              <button
-                type="button"
-                onClick={() => { setInviteResult(null); setCopiedEmail(false); setCopiedLink(false); }}
-                aria-label="Đóng"
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-700">
-                Vui lòng gửi link bên dưới cho quản lý chi nhánh để họ tự đặt mật khẩu lần đầu. Link có hiệu lực trong 24 giờ.
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-700">Email quản lý</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={inviteResult.email}
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(inviteResult.email);
-                      setCopiedEmail(true);
-                      setTimeout(() => setCopiedEmail(false), 2000);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Copy className="w-4 h-4" />
-                    {copiedEmail ? 'Đã sao chép' : 'Copy Email'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-700">Link đặt mật khẩu</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={inviteResult.inviteLink}
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(inviteResult.inviteLink);
-                      setCopiedLink(true);
-                      setTimeout(() => setCopiedLink(false), 2000);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Copy className="w-4 h-4" />
-                    {copiedLink ? 'Đã sao chép' : 'Copy Link'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const email = inviteResult.email;
-                    const gmailUrl =
-                      `https://mail.google.com/mail/?view=cm&fs=1` +
-                      `&to=${encodeURIComponent(email)}` +
-                      `&su=${encodeURIComponent('Thiết lập mật khẩu tài khoản')}` +
-                      `&body=${encodeURIComponent(
-                        `Xin chào,\n\nTài khoản của bạn đã được tạo.\n\nVui lòng thiết lập mật khẩu tại:\n\n${inviteResult.inviteLink}\n\nLink có hiệu lực trong 24 giờ.`
-                      )}`;
-                    window.open(gmailUrl, '_blank');
-                  }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  <Mail className="w-4 h-4" />
-                  Gửi qua Gmail
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

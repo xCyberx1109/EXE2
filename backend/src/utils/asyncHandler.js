@@ -6,8 +6,7 @@ export const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next))
     .catch((err) => {
       if (aborted) {
-        console.warn(`[Skipped Error] ${req.method} ${req.originalUrl} — client disconnected, err: ${err.message}`);
-        return;
+        console.warn(`[AsyncHandler] Request aborted — ${req.method} ${req.originalUrl}, err: ${err.message}`);
       }
       next(err);
     })
