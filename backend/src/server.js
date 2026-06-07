@@ -1,7 +1,7 @@
 import app from './app.js';
 import config from './config/index.js';
 import prisma from './prisma/client.js';
-import { runSeedIfEmpty, syncPermissions } from './seed/runSeed.js';
+import { syncPermissions } from './seed/runSeed.js';
 import { permissionService } from './modules/permissions/permission.service.js';
 import { startHeartbeatCheck } from './jobs/heartbeatCheck.js';
 import { verifyTransporter } from './services/email.service.js';
@@ -22,19 +22,17 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('✓ Kết nối PostgreSQL thành công');
 
-    if (config.autoSeedOnStart) {
-      try {
-        console.log('→ Khởi tạo dữ liệu hệ thống...');
-        // Luôn đồng bộ permissions trước, bất kể DB có data hay không
-        await syncPermissions();
-        permissionService.invalidateCache();
-        await runSeedIfEmpty();
-        console.log('✓ Hoàn tất khởi tạo dữ liệu');
-      } catch (seedError) {
-        console.error('⚠ Lỗi khi seed dữ liệu (server vẫn sẽ khởi động):', seedError.message);
-        // Không process.exit(1) ở đây để server vẫn có thể chạy nếu DB đã có data cũ
-      }
+    // Đồng bộ permissions khi start (nhẹ, chỉ upsert nếu cần)
+    try {
+      console.log('→ Đồng bộ permissions...');
+      await syncPermissions();
+      permissionService.invalidateCache();
+      console.log('✓ Hoàn tất đồng bộ permissions');
+    } catch (syncError) {
+      console.error('⚠ Lỗi đồng bộ permissions:', syncError.message);
     }
+
+    // Seed riêng qua CLI: npx prisma db seed
 
     startHeartbeatCheck();
 

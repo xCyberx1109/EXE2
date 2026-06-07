@@ -6,7 +6,6 @@ import config from './config/index.js';
 import apiRoutes from './routes/index.js';
 import { legacyOrdersRouter } from './modules/orders/order.routes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
-import prisma from './prisma/client.js';
 
 const app = express();
 

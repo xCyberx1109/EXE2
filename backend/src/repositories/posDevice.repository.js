@@ -4,10 +4,12 @@ export const posDeviceRepository = {
   findById: (id) =>
     prisma.posDevice.findUnique({ where: { id } }),
 
-  findByIdWithBranch: (id) =>
+  findByIdWithAccount: (id) =>
     prisma.posDevice.findUnique({
       where: { id, deletedAt: null },
-      include: { _count: { select: { orders: true } } },
+      include: {
+        _count: { select: { orders: true } },
+      },
     }),
 
   findByDeviceCode: (deviceCode) =>

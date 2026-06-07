@@ -33,7 +33,7 @@ export const deleteTable = asyncHandler(async (req, res) => {
 
 export const listPosTables = asyncHandler(async (req, res) => {
   const ctx = req.user || req.posDevice;
-  console.log('[listPosTables] authType:', req.authType, 'contextId:', ctx?.id, 'branchId:', ctx?.branchId);
+  console.log('[listPosTables] authType:', req.authType, 'contextId:', ctx?.id, 'accountId:', ctx?.accountId);
 
   const data = await tableService.getPosTables(ctx);
   if (!Array.isArray(data)) {

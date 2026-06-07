@@ -12,6 +12,7 @@ import type {
   CategoryItem,
   TableItem,
   DeleteDependencyReport,
+  InventoryIssue,
 } from '../types';
 
 // Payload used by menu create/update. Recipe rows are persisted to MenuItemIngredient.
@@ -83,9 +84,9 @@ export const deviceAuthApi = {
 
 // --- Categories ---
 export const categoryApi = {
-  list: (params?: { branchId?: string }) => {
+  list: (params?: { accountId?: string }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.accountId) q.set('accountId', params.accountId);
     const query = q.toString();
     const headers = getAuthHeaders();
     return apiFetch<CategoryItem[]>(`/categories${query ? `?${query}` : ''}`, { auth: false, headers });
@@ -106,12 +107,12 @@ export const categoryApi = {
 
 // --- Menu ---
 export const menuApi = {
-  list: (params?: { search?: string; category?: string; available?: string; branchId?: string }) => {
+  list: (params?: { search?: string; category?: string; available?: string; accountId?: string }) => {
     const q = new URLSearchParams();
     if (params?.search) q.set('search', params.search);
     if (params?.category && params.category !== 'all') q.set('category', params.category);
     if (params?.available) q.set('available', params.available);
-    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.accountId) q.set('accountId', params.accountId);
     const query = q.toString();
     const headers = getAuthHeaders();
     return apiFetch<MenuItem[]>(`/menu-items${query ? `?${query}` : ''}`, { auth: false, headers });
@@ -216,8 +217,8 @@ export const branchApi = {
 
   resetManagerPassword: (id: string, body?: { newPassword?: string }) =>
     apiFetch<{
-      branchId: string;
-      branchName: string;
+      accountId: string;
+      accountName: string;
       accountEmail: string;
       accountFullName: string;
       inviteLink?: string;
@@ -286,7 +287,8 @@ export const ordersApi = {
   listByDate: (date?: string, status?: string) => {
     const q = new URLSearchParams();
     if (date) q.set('date', date);
-    if (status && status !== 'all') q.set('status', status);
+    const s = status ? status.toUpperCase() : '';
+    if (s && s !== 'ALL') q.set('status', s);
     const query = q.toString();
     return apiFetch<DailyOrdersResponse>(`/orders/daily${query ? `?${query}` : ''}`);
   },
@@ -300,7 +302,7 @@ export const ordersApi = {
     const q = new URLSearchParams();
     if (params?.startDate) q.set('startDate', params.startDate);
     if (params?.endDate) q.set('endDate', params.endDate);
-    if (params?.status) q.set('status', params.status);
+    if (params?.status) q.set('status', params.status.toUpperCase());
     if (params?.source) q.set('source', params.source);
     const query = q.toString();
     return apiFetch<import('../types').OrderDetail[]>(`/orders/history${query ? `?${query}` : ''}`);
@@ -331,10 +333,12 @@ export const ordersApi = {
 
 // --- Order Queue POS ---
 export const ordersQueueApi = {
-  list: (params?: { search?: string; status?: string }) => {
+  list: (params?: { search?: string; status?: string; paymentStatus?: string }) => {
     const q = new URLSearchParams();
     if (params?.search) q.set('search', params.search);
-    if (params?.status && params.status !== 'all') q.set('status', params.status);
+    const status = params?.status ? params.status.toUpperCase() : '';
+    if (status && status !== 'ALL') q.set('status', status);
+    if (params?.paymentStatus) q.set('paymentStatus', params.paymentStatus.toUpperCase());
     const query = q.toString();
     return apiFetch<import('../types').OrderDetail[]>(`/orders/queue${query ? `?${query}` : ''}`);
   },
@@ -344,7 +348,7 @@ export const ordersQueueApi = {
       body: JSON.stringify(body),
     });
   },
-  update: (id: string, body: { items: Array<{ menuItemId: string; quantity: number }>; discount?: number }) => {
+  update: (id: string, body: { items?: Array<{ menuItemId: string; quantity: number }>; discount?: number; status?: string; note?: string }) => {
     return apiFetch<import('../types').OrderDetail>(`/orders/queue/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -356,7 +360,7 @@ export const ordersQueueApi = {
     });
   },
   pay: (id: string, paymentMethod: string = 'CASH') => {
-    return apiFetch<import('../types').OrderDetail>(`/orders/queue/${id}/payment`, {
+    return apiFetch<import('../types').OrderDetail | { inventoryIssues: InventoryIssue[]; orderId: string }>(`/orders/queue/${id}/payment`, {
       method: 'POST',
       body: JSON.stringify({ paymentMethod }),
     });

@@ -12,6 +12,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { PermissionManagement } from './pages/PermissionManagement';
 import { PosV2Dashboard } from './pages/PosV2Dashboard';
 import { PosDeviceManagerPage } from './pages/PosDeviceManagerPage';
+import NotFound from '../pages/NotFound';
 
 // === Device-Aware POS Modules ===
 import { ProtectedRoute } from '../shared/permissions/ProtectedRoute';
@@ -118,92 +119,98 @@ function PosModule() {
 
 export const router = createBrowserRouter([
   {
-    path: '/qrmenu',
-    Component: MenuQR,
-  },
-  {
-    path: '/login',
-    Component: LoginPage,
-  },
-  {
-    path: '/set-password',
-    Component: SetPasswordPage,
-  },
-  {
-    path: '/pos-v2/dashboard',
-    Component: PosV2Dashboard,
-  },
-  // === POS Routes (supports device + account CASHIER/KITCHEN) ===
-  {
-    path: '/pos',
-    Component: PosModule,
+    errorElement: createElement(NotFound),
     children: [
-      { index: true, element: createElement(Navigate, { to: '/pos-v2/dashboard', replace: true }) },
-      // Cashier routes
-      { path: 'order', element: withGuard(CashierPOS, deviceRouteConfig.CASHIER) },
-      { path: 'payment', element: withGuard(CashierPOS, { types: ['CASHIER', 'MANAGER'], perms: ['payment:process'], rbacPerms: ['payment:collect'] }) },
-      { path: 'receipt', element: withGuard(CashierPOS, { types: ['CASHIER', 'MANAGER'], perms: ['receipt:print'], rbacPerms: ['payment:collect'] }) },
-      { path: 'bill-split', element: withGuard(CashierPOS, { types: ['CASHIER', 'MANAGER'], perms: ['bill:split'], rbacPerms: ['payment:collect'] }) },
-      { path: 'customer', element: withGuard(CashierPOS, { types: ['CASHIER', 'WAITER', 'MANAGER'], perms: ['customer:read'], rbacPerms: ['customer:view'] }) },
-      // Order Queue POS
-      { path: 'order-queue', element: withGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },
-      // Kitchen routes
-      { path: 'kitchen-queue', element: withGuard(KitchenQueue, deviceRouteConfig.KITCHEN) },
-      { path: 'kitchen-timeline', element: withGuard(KitchenQueue, { types: ['KITCHEN', 'MANAGER'], perms: ['kitchen:view_queue'], rbacPerms: ['kitchen:view_queue'], moduleName: 'order-timeline' }) },
-      // Waiter routes
-      { path: 'waiter-order', element: withGuard(WaiterPOS, deviceRouteConfig.WAITER) },
-      { path: 'waiter-menu', element: withGuard(WaiterPOS, { types: ['WAITER', 'TABLET', 'CASHIER'], perms: ['menu:read'] }) },
-      // Kiosk routes
-      { path: 'kiosk', element: withGuard(KioskPOS, deviceRouteConfig.KIOSK) },
-      // Customer display
-      { path: 'display', element: withGuard(CustomerDisplay, deviceRouteConfig.DISPLAY) },
-      // Manager reports
-      { path: 'reports', element: withGuard(CashierPOS, deviceRouteConfig.REPORTS) },
-    ],
-  },
-  // Redirect old POS routes
-  {
-    path: '/pos-v2/setup',
-    element: createElement(Navigate, { to: '/login', replace: true }),
-  },
-  {
-    path: '/pos-v2/login',
-    element: createElement(Navigate, { to: '/login', replace: true }),
-  },
-  {
-    path: '/pos/login',
-    element: createElement(Navigate, { to: '/login', replace: true }),
-  },
-  {
-    path: '/pos/dashboard',
-    element: createElement(Navigate, { to: '/pos-v2/dashboard', replace: true }),
-  },
-  {
-    path: '/pos/setup',
-    element: createElement(Navigate, { to: '/login', replace: true }),
-  },
-  {
-    path: '/',
-    Component: RootRedirect,
-  },
-  // Admin/Manager pages (protected by Layout)
-  {
-    path: '/app',
-    Component: Layout,
-    children: [
-      { index: true, element: withGuard(Dashboard, { rbacPerms: ['DASHBOARD_VIEW'] }) },
-      { path: 'branch', element: withGuard(BranchManagement, { rbacPerms: ['BRANCH_VIEW'] }) },
-      { path: 'pos-devices', element: createElement(Navigate, { to: '/app/pos-devices-v2', replace: true }) },
-      { path: 'pos-devices-v2', element: withGuard(PosDeviceManagerPage, { rbacPerms: ['POS_DEVICE_VIEW'] }) },
-      { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_VIEW'] }) },
-      { path: 'inventory', element: withGuard(InventoryManagement, { rbacPerms: ['INVENTORY_VIEW'] }) },
-      { path: 'staff', element: withGuard(() => createElement('div', null, 'Staff Management - Coming Soon'), { rbacPerms: ['BRANCH_MANAGE'] }) },
-      { path: 'settings', element: withGuard(() => createElement('div', null, 'System Settings - Coming Soon'), { rbacPerms: ['SETTINGS_MANAGE'] }) },
-      { path: 'permissions', element: withGuard(PermissionManagement, { rbacPerms: ['PERMISSION_VIEW'] }) },
-      { path: 'order-queue', element: withGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },
-      { path: 'orders/history', element: withGuard(OrderHistoryPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
-      { path: 'orders/:orderId', element: withGuard(OrderDetailPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
-      { path: 'profile', Component: ProfilePage },
+      {
+        path: '/qrmenu',
+        Component: MenuQR,
+      },
+      {
+        path: '/login',
+        Component: LoginPage,
+      },
+      {
+        path: '/set-password',
+        Component: SetPasswordPage,
+      },
+      {
+        path: '/pos-v2/dashboard',
+        Component: PosV2Dashboard,
+      },
+      // === POS Routes (supports device + account CASHIER/KITCHEN) ===
+      {
+        path: '/pos',
+        Component: PosModule,
+        children: [
+          { index: true, element: createElement(Navigate, { to: '/pos-v2/dashboard', replace: true }) },
+          // Cashier routes
+          { path: 'order', element: withGuard(CashierPOS, deviceRouteConfig.CASHIER) },
+          { path: 'payment', element: withGuard(CashierPOS, { types: ['CASHIER', 'MANAGER'], perms: ['payment:process'], rbacPerms: ['payment:collect'] }) },
+          { path: 'receipt', element: withGuard(CashierPOS, { types: ['CASHIER', 'MANAGER'], perms: ['receipt:print'], rbacPerms: ['payment:collect'] }) },
+          { path: 'bill-split', element: withGuard(CashierPOS, { types: ['CASHIER', 'MANAGER'], perms: ['bill:split'], rbacPerms: ['payment:collect'] }) },
+          { path: 'customer', element: withGuard(CashierPOS, { types: ['CASHIER', 'WAITER', 'MANAGER'], perms: ['customer:read'], rbacPerms: ['customer:view'] }) },
+          // Order Queue POS
+          { path: 'order-queue', element: withGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },
+          // Kitchen routes
+          { path: 'kitchen-queue', element: withGuard(KitchenQueue, deviceRouteConfig.KITCHEN) },
+          { path: 'kitchen-timeline', element: withGuard(KitchenQueue, { types: ['KITCHEN', 'MANAGER'], perms: ['kitchen:view_queue'], rbacPerms: ['kitchen:view_queue'], moduleName: 'order-timeline' }) },
+          // Waiter routes
+          { path: 'waiter-order', element: withGuard(WaiterPOS, deviceRouteConfig.WAITER) },
+          { path: 'waiter-menu', element: withGuard(WaiterPOS, { types: ['WAITER', 'TABLET', 'CASHIER'], perms: ['menu:read'] }) },
+          // Kiosk routes
+          { path: 'kiosk', element: withGuard(KioskPOS, deviceRouteConfig.KIOSK) },
+          // Customer display
+          { path: 'display', element: withGuard(CustomerDisplay, deviceRouteConfig.DISPLAY) },
+          // Manager reports
+          { path: 'reports', element: withGuard(CashierPOS, deviceRouteConfig.REPORTS) },
+        ],
+      },
+      // Redirect old POS routes
+      {
+        path: '/pos-v2/setup',
+        element: createElement(Navigate, { to: '/login', replace: true }),
+      },
+      {
+        path: '/pos-v2/login',
+        element: createElement(Navigate, { to: '/login', replace: true }),
+      },
+      {
+        path: '/pos/login',
+        element: createElement(Navigate, { to: '/login', replace: true }),
+      },
+      {
+        path: '/pos/dashboard',
+        element: createElement(Navigate, { to: '/pos-v2/dashboard', replace: true }),
+      },
+      {
+        path: '/pos/setup',
+        element: createElement(Navigate, { to: '/login', replace: true }),
+      },
+      {
+        path: '/',
+        Component: RootRedirect,
+      },
+      // Admin/Manager pages (protected by Layout)
+      {
+        path: '/app',
+        Component: Layout,
+        children: [
+          { index: true, element: withGuard(Dashboard, { rbacPerms: ['DASHBOARD_VIEW'] }) },
+          { path: 'branch', element: withGuard(BranchManagement, { rbacPerms: ['BRANCH_VIEW'] }) },
+          { path: 'pos-devices', element: createElement(Navigate, { to: '/app/pos-devices-v2', replace: true }) },
+          { path: 'pos-devices-v2', element: withGuard(PosDeviceManagerPage, { rbacPerms: ['POS_DEVICE_VIEW'] }) },
+          { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_VIEW'] }) },
+          { path: 'inventory', element: withGuard(InventoryManagement, { rbacPerms: ['INVENTORY_VIEW'] }) },
+          { path: 'staff', element: withGuard(() => createElement('div', null, 'Staff Management - Coming Soon'), { rbacPerms: ['BRANCH_MANAGE'] }) },
+          { path: 'settings', element: withGuard(() => createElement('div', null, 'System Settings - Coming Soon'), { rbacPerms: ['SETTINGS_MANAGE'] }) },
+          { path: 'permissions', element: withGuard(PermissionManagement, { rbacPerms: ['PERMISSION_VIEW'] }) },
+          { path: 'order-queue', element: withGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },
+          { path: 'orders/history', element: withGuard(OrderHistoryPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
+          { path: 'orders/:orderId', element: withGuard(OrderDetailPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
+          { path: 'profile', Component: ProfilePage },
+        ],
+      },
+      { path: '*', element: createElement(NotFound) },
     ],
   },
 ]);

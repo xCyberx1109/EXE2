@@ -3,9 +3,9 @@ import prisma from '../prisma/client.js';
 export const activityLogRepository = {
   create: (data) => prisma.activityLog.create({ data }),
 
-  findByBranch: (branchId, limit = 50) =>
+  findByAccount: (accountId, limit = 50) =>
     prisma.activityLog.findMany({
-      where: { branchId },
+      where: { accountId },
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: { account: { select: { id: true, fullName: true } } },

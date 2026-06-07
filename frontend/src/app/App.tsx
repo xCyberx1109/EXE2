@@ -5,6 +5,8 @@ import { CategoryProvider } from './context/CategoryContext';
 import { Loader2 } from 'lucide-react';
 import { AppErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/app/components/ui/sonner';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { APP_NAME } from '@/shared/constants';
 
 function AppContent() {
@@ -31,6 +33,7 @@ export default function App() {
           <AppContent />
         </CategoryProvider>
         <Toaster position="top-right" richColors />
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover theme="light" />
       </AuthProvider>
     </AppErrorBoundary>
   );

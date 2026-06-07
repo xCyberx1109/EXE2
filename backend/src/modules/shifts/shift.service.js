@@ -46,8 +46,8 @@ export const shiftService = {
 
     await activityLogRepository.create({
       branchId: posDevice.branchId,
-      posDeviceId: posDevice.id,
       accountId: activeStaff[0]?.account?.id || null,
+      posDeviceId: posDevice.id,
       action: 'SHIFT_OPENED',
       module: 'SHIFTS',
       details: {
@@ -107,8 +107,8 @@ export const shiftService = {
 
     await activityLogRepository.create({
       branchId: posDevice.branchId,
-      posDeviceId: posDevice.id,
       accountId: shift.accountId,
+      posDeviceId: posDevice.id,
       action: 'SHIFT_CLOSED',
       module: 'SHIFTS',
       details: {

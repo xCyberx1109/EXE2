@@ -29,8 +29,6 @@ export const posDeviceService = {
     const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) throw new AppError('Tài khoản không tồn tại', 404);
 
-    const branchId = account.id;
-
     let deviceCode = generateDeviceCode();
     let existingCode = await posDeviceRepository.findDeviceCode(deviceCode);
     while (existingCode) {
@@ -46,14 +44,13 @@ export const posDeviceService = {
       mode: mode || 'CASHIER',
       deviceCode,
       devicePin,
-      branchId,
+      branchId: accountId,
       status: 'OFFLINE',
       active: true,
     });
 
     await activityLogRepository.create({
-      branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'CREATE_POS_DEVICE',
       module: 'POS',
@@ -68,7 +65,7 @@ export const posDeviceService = {
       mode: device.mode,
       deviceCode: device.deviceCode,
       devicePin: device.devicePin,
-      branchId: device.branchId,
+      accountId: device.branchId,
       status: device.status,
       active: device.active,
       createdAt: device.createdAt,
@@ -76,17 +73,19 @@ export const posDeviceService = {
   },
 
   async listDevices(user) {
-    if (!user.permissions?.includes('MANAGE_POS_DEVICES') || !user.branchId) {
+    const accountId = user.accountId || user.id;
+    if (!user.permissions?.includes('MANAGE_POS_DEVICES') || !accountId) {
       return [];
     }
-    return posDeviceRepository.findByBranchId(user.branchId);
+    return posDeviceRepository.findByBranchId(accountId);
   },
 
   async getDevice(id, user) {
-    const device = await posDeviceRepository.findByIdWithBranch(id);
+    const device = await posDeviceRepository.findByIdWithAccount(id);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (device.branchId !== user.branchId) {
+    const accountId = user.accountId || user.id;
+    if (device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền truy cập thiết bị này', 403);
     }
 
@@ -100,15 +99,14 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
     const updated = await posDeviceRepository.update(deviceId, { mode });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'POS_MODE_CHANGED',
       module: 'POS',
@@ -126,7 +124,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
@@ -138,8 +136,7 @@ export const posDeviceService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'RESET_POS_PIN',
       module: 'POS',
@@ -157,7 +154,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
@@ -169,8 +166,7 @@ export const posDeviceService = {
     await posDeviceRepository.update(id, updateData);
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: active ? 'ENABLE_POS_DEVICE' : 'DISABLE_POS_DEVICE',
       module: 'POS',
@@ -192,22 +188,19 @@ export const posDeviceService = {
       throw new AppError('Thiết bị đã bị xóa trước đó', 404);
     }
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
-    // Close any open shifts before soft-deleting
     await prisma.shift.updateMany({
       where: { posDeviceId: id, status: 'OPEN' },
       data: { status: 'CLOSED', endTime: new Date(), isOnline: false },
     });
 
-    // Soft delete: set deletedAt, deactivate, clear token
     await posDeviceRepository.softDelete(id);
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'DELETE_POS_DEVICE',
       module: 'POS',

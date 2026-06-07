@@ -78,5 +78,5 @@ export const menuSearchQuery = [
   query('category').optional().trim(),
   query('categoryId').optional().notEmpty(),
   query('available').optional().isIn(['true', 'false']),
-  query('branchId').optional().notEmpty().withMessage('branchId không hợp lệ'),
+  query('accountId').optional().notEmpty().withMessage('accountId không hợp lệ'),
 ];

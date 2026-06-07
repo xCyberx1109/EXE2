@@ -14,9 +14,9 @@ export const categoryRepository = {
       include: { _count: { select: { menuItems: true } } },
     }),
 
-  findByName: (name, branchId) => {
+  findByName: (name, accountId) => {
     const where = { name, deletedAt: null };
-    if (branchId) where.branchId = branchId;
+    if (accountId) where.accountId = accountId;
     return prisma.category.findFirst({ where });
   },
 

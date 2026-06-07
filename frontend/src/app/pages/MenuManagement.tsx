@@ -84,7 +84,7 @@ export function MenuManagement() {
   }, [categories]);
 
   const orderMap = topSelling.reduce((map, item) => {
-    map[item.menuItemId] = item.quantity;
+    map[item.menuItemId] = item.soldQuantity;
     return map;
   }, {} as Record<string, number>);
 

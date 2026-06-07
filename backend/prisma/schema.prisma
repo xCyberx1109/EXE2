@@ -19,7 +19,6 @@ model Feature {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   deletedAt                DateTime?
-  branchFeatures           BranchFeature[]
   deviceOverrides          DeviceFeatureOverride[]
   dependedBy               FeatureDependency[]       @relation("FeatureDependedBy")
   featureDependencies      FeatureDependency[]       @relation("FeatureDependencies")
@@ -40,23 +39,6 @@ model FeatureDependency {
 
   @@unique([featureId, dependsOnId])
   @@map("feature_dependencies")
-}
-
-model BranchFeature {
-  id        String    @id @default(cuid())
-  branchId  String
-  featureId String
-  enabled   Boolean   @default(true)
-  settings  Json?
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  feature   Feature   @relation(fields: [featureId], references: [id], onDelete: Cascade)
-
-  @@unique([branchId, featureId])
-  @@index([branchId, enabled])
-  @@index([expiresAt])
-  @@map("branch_features")
 }
 
 model FeaturePermission {
@@ -140,8 +122,8 @@ model SubscriptionPlan {
   name            String
   description     String?
   price           Decimal                     @db.Decimal(12, 2)
-  isActive        Boolean                     @default(true)
   billingInterval SubscriptionBillingInterval @default(MONTHLY)
+  isActive        Boolean                     @default(true)
   planFeatures    SubscriptionPlanFeature[]
   subscriptions   Subscription[]
 
@@ -178,9 +160,9 @@ model Subscription {
   invoices    BillingInvoice[]
   plan        SubscriptionPlan   @relation(fields: [planId], references: [id])
 
-  @@index([branchId, status])
   @@index([endDate])
   @@index([trialEndsAt])
+  @@index([branchId, status])
   @@map("subscriptions")
 }
 
@@ -207,7 +189,6 @@ model BillingInvoice {
   @@map("billing_invoices")
 }
 
-
 model Table {
   id        String      @id @default(cuid())
   branchId  String
@@ -218,35 +199,35 @@ model Table {
   isActive  Boolean     @default(true)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
-  orders      Order[]     @relation("TableOrders")
+  orders    Order[]     @relation("TableOrders")
 
-  enabled   Boolean  @default(true)
+  @@unique([branchId, tableCode])
   @@index([branchId])
   @@map("tables")
 }
 
 model Account {
-  id                    String                 @id @default(cuid())
-  email                 String                 @unique
-  password              String
-  pinCode               String?
-  fullName              String
-  phone                 String?
-  avatarUrl             String?
-  status                AccountStatus          @default(ACTIVE)
-  mustChangePassword    Boolean                @default(true)
-  active                Boolean                @default(true)
-  grantedAt             DateTime               @default(now())
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  accountPermissions    AccountPermission[]
-  inviteTokens          InviteToken[]
-  activityLogs          ActivityLog[]
-  inventoryTransactions InventoryTransaction[]
-  orders                Order[]
-  shifts                Shift[]
-  staffSessions         StaffSession[]
-  stockAudits           StockAudit[]
+  id                           String                 @id @default(cuid())
+  email                        String                 @unique
+  password                     String
+  pinCode                      String?
+  fullName                     String
+  phone                        String?
+  avatarUrl                    String?
+  status                       AccountStatus          @default(ACTIVE)
+  mustChangePassword           Boolean                @default(true)
+  active                       Boolean                @default(true)
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
+  grantedAt                    DateTime               @default(now())
+  accountPermissions           AccountPermission[]
+  activityLogs                 ActivityLog[]
+  inventoryTransactionsCreated InventoryTransaction[] @relation("InventoryTransactionCreatedBy")
+  inviteTokens                 InviteToken[]
+  ordersCreated                Order[]                @relation("OrderCreatedBy")
+  tenantOrders                 Order[]                @relation("TenantOrders")
+  shifts                       Shift[]
+  staffSessions                StaffSession[]
 
   @@index([email])
   @@map("accounts")
@@ -260,7 +241,6 @@ model PosDevice {
   devicePin              String?                 @unique
   deviceToken            String?                 @unique
   setupPinHash           String?                 @map("setup_pin_hash")
-  setupPinExpiresAt      DateTime?               @map("setup_pin_expires_at")
   activatedAt            DateTime?               @map("activated_at")
   activationAttempts     Int                     @default(0) @map("activation_attempts")
   deviceTokenHash        String?                 @map("device_token_hash")
@@ -285,15 +265,14 @@ model PosDevice {
   shifts                 Shift[]
   staffSessions          StaffSession[]
   trustedDevices         TrustedDevice[]
-  activityLogs           ActivityLog[]
 
-  @@index([branchId])
   @@index([deviceCode])
   @@index([deviceToken])
   @@index([status])
   @@index([mode])
   @@index([active])
   @@index([lastActive])
+  @@index([branchId])
   @@map("pos_devices")
 }
 
@@ -361,7 +340,7 @@ model StaffSession {
 
 model Category {
   id          String     @id @default(cuid())
-  branchId    String
+  accountId   String
   name        String
   slug        String
   description String?
@@ -372,31 +351,31 @@ model Category {
   updatedAt   DateTime   @updatedAt
   menuItems   MenuItem[]
 
-  @@unique([branchId, slug])
-  @@index([branchId])
+  @@unique([accountId, slug], map: "categories_branchId_slug_key")
   @@index([active])
+  @@index([accountId], map: "categories_branchId_idx")
   @@map("categories")
 }
+
 model MenuItem {
   id          String               @id @default(cuid())
-  branchId    String
+  accountId   String
   categoryId  String
   name        String
-  description String?
-  imageUrl    String?
   price       Decimal              @db.Decimal(10, 2)
   cost        Decimal              @db.Decimal(10, 2)
+  description String?
+  imageUrl    String?
   available   Boolean              @default(true)
+  deletedAt   DateTime?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
-  deletedAt   DateTime?
-  category    Category             @relation(fields: [categoryId], references: [id])
-  modifiers   MenuItemModifier[]
   ingredients MenuItemIngredient[]
+  modifiers   MenuItemModifier[]
+  category    Category             @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
 
-  @@index([branchId])
-  @@index([categoryId])
+  @@index([accountId, categoryId], map: "menu_items_branchId_categoryId_idx")
   @@map("menu_items")
 }
 
@@ -431,6 +410,7 @@ model MenuItemIngredient {
 
 model Ingredient {
   id                    String                 @id @default(cuid())
+  accountId             String
   name                  String
   unit                  IngredientUnit
   quantity              Decimal                @default(0) @db.Decimal(10, 2)
@@ -438,23 +418,22 @@ model Ingredient {
   maxQuantity           Decimal?               @db.Decimal(10, 2)
   price                 Decimal                @default(0) @db.Decimal(10, 2)
   supplier              String?
-  location              String?
   sku                   String?
+  location              String?
   barcode               String?
   available             Boolean                @default(true)
   lastUpdated           DateTime?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
-  branchId              String
   inventoryTransactions InventoryTransaction[]
   menuItems             MenuItemIngredient[]
   stockAlerts           StockAlert[]
   stockAudits           StockAudit[]
 
-  @@index([branchId])
   @@index([sku])
   @@index([barcode])
   @@index([name])
+  @@index([accountId], map: "ingredients_branchId_idx")
   @@map("ingredients")
 }
 
@@ -472,8 +451,6 @@ model StockAlert {
   updatedAt    DateTime   @updatedAt
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 
-  @@index([ingredientId])
-  @@index([branchId])
   @@map("stock_alerts")
 }
 
@@ -481,16 +458,15 @@ model StockAudit {
   id               String     @id @default(cuid())
   ingredientId     String
   branchId         String
-  accountId        String
-  auditDate        DateTime   @default(now())
   expectedQuantity Decimal    @db.Decimal(10, 2)
   actualQuantity   Decimal    @db.Decimal(10, 2)
   variance         Decimal    @db.Decimal(10, 2)
   notes            String?
+  auditDate        DateTime   @default(now())
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
+  accountId        String
   ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-  account          Account    @relation(fields: [accountId], references: [id])
 
   @@index([ingredientId])
   @@index([branchId, auditDate])
@@ -499,24 +475,21 @@ model StockAudit {
 
 model InventoryTransaction {
   id             String                   @id @default(cuid())
-  branchId       String
+  accountId      String
   ingredientId   String
   createdBy      String
   type           InventoryTransactionType
   quantity       Decimal                  @db.Decimal(10, 2)
   beforeQuantity Decimal?                 @db.Decimal(10, 2)
   afterQuantity  Decimal?                 @db.Decimal(10, 2)
+  note           String?
   referenceId    String?
   referenceType  String?
-  note           String?
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
-  account        Account                  @relation(fields: [createdBy], references: [id])
+  account        Account                  @relation("InventoryTransactionCreatedBy", fields: [createdBy], references: [id])
   ingredient     Ingredient               @relation(fields: [ingredientId], references: [id])
 
-  @@index([branchId])
-  @@index([ingredientId])
-  @@index([createdBy])
   @@map("inventory_transactions")
 }
 
@@ -527,19 +500,19 @@ model Shift {
   accountId      String?
   startTime      DateTime       @default(now())
   endTime        DateTime?
-  status         ShiftStatus    @default(OPEN)
+  lastActive     DateTime?
+  isOnline       Boolean        @default(true)
+  ipAddress      String?
+  userAgent      String?
   openingBalance Decimal        @default(0) @db.Decimal(12, 2)
   closingBalance Decimal?       @db.Decimal(12, 2)
   actualBalance  Decimal?       @db.Decimal(12, 2)
   cashSales      Decimal?       @default(0) @db.Decimal(12, 2)
   cardSales      Decimal?       @default(0) @db.Decimal(12, 2)
   otherSales     Decimal?       @default(0) @db.Decimal(12, 2)
-  totalOrders    Int            @default(0)
+  totalOrders    Int?           @default(0)
   note           String?
-  ipAddress      String?
-  userAgent      String?
-  isOnline       Boolean        @default(false)
-  lastActive     DateTime?
+  status         ShiftStatus    @default(OPEN)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   deletedAt      DateTime?
@@ -549,22 +522,20 @@ model Shift {
   staffSessions  StaffSession[]
 
   @@index([branchId, accountId])
-  @@index([posDeviceId])
-  @@index([isOnline])
-  @@index([lastActive])
   @@map("shifts")
 }
 
 model Order {
   id                String            @id @default(cuid())
-  branchId          String
+  accountId         String
   posDeviceId       String?
   createdBy         String
-  customerId        String?
-  tableId           String?           @map("table_id")
   shiftId           String?
+  customerId        String?
   orderNumber       String            @unique
+  source            String?           @default("POS")
   tableNumber       String?
+  tableId           String?           @map("table_id")
   status            OrderStatus
   kitchenStatus     KitchenStatus     @default(PENDING)
   paymentMethod     PaymentMethod?
@@ -580,7 +551,6 @@ model Order {
   cost              Decimal           @default(0) @db.Decimal(12, 2)
   profit            Decimal           @default(0) @db.Decimal(12, 2)
   note              String?
-  source            String?
   guestCount        Int?              @default(1)
   inventoryDeducted Boolean           @default(false)
   createdAt         DateTime          @default(now())
@@ -589,7 +559,8 @@ model Order {
   deletedAt         DateTime?
   kots              Kot[]
   items             OrderItem[]
-  account           Account           @relation(fields: [createdBy], references: [id])
+  account           Account           @relation("OrderCreatedBy", fields: [createdBy], references: [id])
+  tenantAccount     Account           @relation("TenantOrders", fields: [accountId], references: [id])
   customer          Customer?         @relation(fields: [customerId], references: [id])
   posDevice         PosDevice?        @relation(fields: [posDeviceId], references: [id])
   shift             Shift?            @relation(fields: [shiftId], references: [id])
@@ -597,13 +568,13 @@ model Order {
   payments          Payment[]
   redeemedVouchers  RedeemedVoucher[]
 
-  @@index([branchId, createdAt])
   @@index([shiftId])
-  @@index([branchId, status])
-  @@index([branchId, paymentStatus])
   @@index([orderNumber])
   @@index([tableNumber])
   @@index([tableId])
+  @@index([accountId, createdAt])
+  @@index([accountId, paymentStatus])
+  @@index([accountId, status])
   @@map("orders")
 }
 
@@ -661,8 +632,8 @@ model Kot {
   items       OrderItem[]
 
   @@index([orderId])
-  @@index([branchId, status])
   @@index([status])
+  @@index([branchId, status])
   @@map("kots")
 }
 
@@ -683,11 +654,12 @@ model Payment {
   @@index([createdAt])
   @@map("payments")
 }
+
 model Customer {
   id               String            @id @default(cuid())
   branchId         String
-  phone            String
-  fullName         String
+  name             String
+  phone            String?
   email            String?
   birthDate        DateTime?
   totalSpent       Decimal           @default(0) @db.Decimal(12, 2)
@@ -704,8 +676,8 @@ model Customer {
   redeemedVouchers RedeemedVoucher[]
 
   @@unique([branchId, phone])
-  @@index([branchId, tier])
   @@index([points])
+  @@index([branchId, tier])
   @@map("customers")
 }
 
@@ -722,8 +694,8 @@ model LoyaltyPoint {
   customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
-  @@index([branchId, createdAt])
   @@index([expiresAt])
+  @@index([branchId, createdAt])
   @@map("loyalty_points")
 }
 
@@ -748,9 +720,9 @@ model Voucher {
   deletedAt        DateTime?
   redeemedVouchers RedeemedVoucher[]
 
-  @@index([branchId, isActive])
   @@index([code])
   @@index([startDate, endDate])
+  @@index([branchId, isActive])
   @@map("vouchers")
 }
 
@@ -776,11 +748,11 @@ model InviteToken {
   email     String
   token     String    @unique
   accountId String
-  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([email])
@@ -799,17 +771,35 @@ model ActivityLog {
   userAgent   String?
   createdAt   DateTime @default(now())
   account     Account? @relation(fields: [accountId], references: [id])
-  posDevice   PosDevice? @relation(fields: [posDeviceId], references: [id])
 
-  @@index([branchId, createdAt])
   @@index([accountId, createdAt])
   @@index([module, action])
+  @@index([branchId, createdAt])
   @@map("activity_logs")
+}
+
+model revenue_reports {
+  id         String   @id
+  branchId   String
+  reportDate DateTime @db.Date
+  orderCount Int      @default(0)
+  revenue    Decimal  @default(0) @db.Decimal(14, 2)
+  cost       Decimal  @default(0) @db.Decimal(14, 2)
+  profit     Decimal  @default(0) @db.Decimal(14, 2)
+  cashTotal  Decimal  @default(0) @db.Decimal(14, 2)
+  cardTotal  Decimal  @default(0) @db.Decimal(14, 2)
+  otherTotal Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+
+  @@unique([branchId, reportDate])
+  @@index([branchId, reportDate])
 }
 
 enum AccountStatus {
   ACTIVE
   INACTIVE
+  SUSPENDED
 }
 
 enum PosDeviceType {
@@ -859,6 +849,8 @@ enum KitchenStatus {
 enum PaymentMethod {
   CASH
   CARD
+  BANKING
+  E_WALLET
   OTHER
 }
 
@@ -883,6 +875,7 @@ enum ShiftStatus {
 
 enum IngredientUnit {
   KG
+  G
   LITER
   ML
   PIECE

@@ -114,6 +114,7 @@ export const listOrderQueue = asyncHandler(async (req, res) => {
   const data = await orderService.listQueueOrders(ctx, {
     search: req.query.search,
     status: req.query.status,
+    paymentStatus: req.query.paymentStatus,
   });
   sendSuccess(res, { message: 'Lấy danh sách Order Queue thành công', data });
 });
@@ -133,7 +134,7 @@ export const updateOrderQueue = asyncHandler(async (req, res) => {
   console.log("URL:", req.method, req.originalUrl);
   console.log("Params:", JSON.stringify(req.params));
   console.log("Request body (full payload):", JSON.stringify(req.body, null, 2));
-  console.log("Auth context:", req.user ? `user=${req.user.id} branch=${req.user.branchId}` : (req.posDevice ? `device=${req.posDevice.id} branch=${req.posDevice.branchId}` : 'none'));
+  console.log("Auth context:", req.user ? `user=${req.user.id}` : (req.posDevice ? `device=${req.posDevice.id}` : 'none'));
   const ctx = req.user || req.posDevice;
   try {
     const data = await orderService.updateQueueOrder(req.params.id, req.body, ctx);
@@ -152,13 +153,40 @@ export const updateOrderQueue = asyncHandler(async (req, res) => {
 });
 
 export const payOrderQueue = asyncHandler(async (req, res) => {
+  console.log("[PAYMENT REQUEST]", JSON.stringify(req.body, null, 2));
+  console.log("[ORDER ID]", req.params.id);
+  console.log("[PAYMENT METHOD FROM BODY]", req.body.paymentMethod);
+  console.log("[TOTAL FROM BODY]", req.body.total);
+  console.log("[ITEMS FROM BODY]", JSON.stringify(req.body.items, null, 2));
+
   const ctx = req.user || req.posDevice;
-  const data = await orderService.completeQueuePayment(
-    req.params.id,
-    req.body.paymentMethod,
-    ctx
-  );
-  sendSuccess(res, { message: 'Thanh toán Order Queue thành công', data });
+  try {
+    const data = await orderService.completeQueuePayment(
+      req.params.id,
+      req.body.paymentMethod,
+      ctx
+    );
+
+    if (data && data.inventoryIssues) {
+      console.log("[PAYMENT INVENTORY ISSUES]", JSON.stringify(data.inventoryIssues, null, 2));
+      return sendSuccess(res, {
+        message: 'Kiểm tra tồn kho thất bại',
+        data: { inventoryIssues: data.inventoryIssues, orderId: data.orderId },
+      });
+    }
+
+    console.log("[PAYMENT SUCCESS]", JSON.stringify(data, null, 2));
+    sendSuccess(res, { message: 'Thanh toán Order Queue thành công', data });
+  } catch (error) {
+    console.error("[PAYMENT ERROR]", {
+      name: error.name,
+      message: error.message,
+      statusCode: error.statusCode || error.code,
+      stack: error.stack,
+      meta: error.meta,
+    });
+    throw error;
+  }
 });
 
 export const cancelOrderQueue = asyncHandler(async (req, res) => {

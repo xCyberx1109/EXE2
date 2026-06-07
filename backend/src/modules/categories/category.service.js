@@ -2,12 +2,12 @@ import { AppError } from '../../utils/AppError.js';
 import { slugify } from '../../utils/mappers.js';
 import { categoryRepository } from '../../repositories/category.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
-import { assertBranchAccess, buildBranchWhere, branchDataForCreate } from '../../middlewares/branchScope.js';
+import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 
 export const categoryService = {
-  async list(user, queryBranchId) {
-    const branchWhere = buildBranchWhere(user);
-    const where = branchWhere.branchId ? branchWhere : (queryBranchId ? { branchId: queryBranchId } : { deletedAt: null });
+  async list(user, queryAccountId) {
+    const accountWhere = buildBranchWhere(user, {}, 'accountId');
+    const where = accountWhere.accountId ? accountWhere : (queryAccountId ? { accountId: queryAccountId } : { deletedAt: null });
     if (!where.deletedAt) where.deletedAt = null;
     where.active = true;
     const categories = await categoryRepository.findAll(where);
@@ -43,10 +43,10 @@ export const categoryService = {
 
   async create(data, user) {
     const slug = slugify(data.name);
-    const branchId = user.branchId;
-    if (branchId) {
-      const existing = await categoryRepository.findByName(data.name, branchId);
-      if (existing) throw new AppError('Danh mục đã tồn tại trong chi nhánh này', 409);
+    const accountId = user.accountId || user.id;
+    if (accountId) {
+      const existing = await categoryRepository.findByName(data.name, accountId);
+      if (existing) throw new AppError('Danh mục đã tồn tại trong tài khoản này', 409);
     }
     const category = await categoryRepository.create({
       name: data.name,
@@ -54,7 +54,7 @@ export const categoryService = {
       description: data.description || null,
       sortOrder: data.sortOrder ?? 0,
       active: data.active ?? true,
-      ...branchDataForCreate(user),
+      accountId: accountId,
     });
     return {
       id: category.id,
@@ -75,8 +75,8 @@ export const categoryService = {
     assertBranchAccess(existing, user, 'danh mục');
 
     if (data.name && data.name !== existing.name) {
-      const duplicate = await categoryRepository.findByName(data.name, existing.branchId);
-      if (duplicate && duplicate.id !== id) throw new AppError('Tên danh mục đã tồn tại trong chi nhánh này', 409);
+      const duplicate = await categoryRepository.findByName(data.name, existing.accountId);
+      if (duplicate && duplicate.id !== id) throw new AppError('Tên danh mục đã tồn tại trong tài khoản này', 409);
     }
 
     const updateData = {};

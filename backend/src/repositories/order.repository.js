@@ -47,21 +47,21 @@ export const orderRepository = {
       data: { status: 'CANCELLED', deletedAt: new Date() },
     }),
 
-  aggregateTopItems: async (limit = 10, branchId) => {
-    const where = { order: { status: 'COMPLETED' }, menuItemId: { not: null } };
-    if (branchId) {
-      where.order.branchId = branchId;
+  aggregateTopItems: async (limit = 10, accountId) => {
+    const where = { order: { status: 'COMPLETED' }, menuItemId: { not: { equals: null } } };
+    if (accountId) {
+      where.order.accountId = accountId;
     }
     const result = await prisma.orderItem.groupBy({
       by: ['menuItemId'],
       where,
-      _sum: { quantity: true },
+      _sum: { quantity: true, total: true },
       orderBy: { _sum: { quantity: 'desc' } },
       take: limit,
     });
     return result.map((r) => ({
       menuItemId: r.menuItemId,
-      _sum: { quantity: r._sum.quantity },
+      _sum: { quantity: r._sum.quantity, total: r._sum.total },
     }));
   },
 };

@@ -1,17 +1,14 @@
 import { AppError } from '../utils/AppError.js';
 
 /**
- * Middleware: tự động inject branchId vào req.branchScope.
+ * Middleware: tự động inject accountId vào req.branchScope.
  * 
  * Hỗ trợ cả user auth (req.user) và device auth (req.posDevice).
- * 
- * - Có BRANCH_ALL_ACCESS → req.branchScope = { hasAccess: true, branchId: null }
- * - User thường → req.branchScope = { hasAccess: false, branchId: user.branchId }
- * - POS Device → req.branchScope = { hasAccess: false, branchId: posDevice.branchId }
+ * Với user auth, accountId = user.id (mỗi account là một tenant riêng).
+ * Với device auth, accountId = posDevice.accountId.
  * 
  * Sử dụng ở route:
  *   router.use(enforceBranchScope);
- *   router.get('/', listHandler);
  * 
  * Trong service/repository:
  *   const where = buildBranchWhere(req.user, { ... });
@@ -23,59 +20,60 @@ export function enforceBranchScope(req, _res, next) {
     return next(new AppError('Authentication required', 401));
   }
 
-  const branchId = ctx.branchId;
+  const accountId = ctx.accountId || ctx.id;
 
   req.branchScope = {
     hasAccess: true,
-    branchId,
+    accountId,
   };
 
   next();
 }
 
 /**
- * Kiểm tra resource có thuộc branch của user không.
+ * Kiểm tra resource có thuộc account của user không.
  * Ném 403 nếu không thuộc.
  *
- * @param {Object} resource - Resource từ database (phải có branchId)
+ * @param {Object} resource - Resource từ database (phải có accountId)
  * @param {Object} user - req.user hoặc context
  * @param {string} [name='dữ liệu'] - Tên resource cho message lỗi
  */
 export function assertBranchAccess(resource, user, name = 'dữ liệu') {
   if (!resource || !user) return;
   if (user.permissions?.includes('ADMIN_ALL')) return;
-  const userBranchId = user.branchId;
-  if (resource.branchId && userBranchId && resource.branchId !== userBranchId) {
-    throw new AppError(`${name} này thuộc chi nhánh khác`, 403);
+  const userAccountId = user.accountId || user.id;
+  const resourceId = resource.branchId || resource.accountId;
+  if (resourceId && userAccountId && resourceId !== userAccountId) {
+    throw new AppError(`${name} này thuộc tài khoản khác`, 403);
   }
 }
 
 /**
- * Build Prisma where clause with branch isolation.
+ * Build Prisma where clause với account isolation.
  * Hỗ trợ cả user auth và device auth.
  *
  * @param {Object} user - req.user hoặc context
  * @param {Object} additionalWhere - Additional where conditions
- * @returns {Object} Where clause an toàn branch
+ * @returns {Object} Where clause an toàn account
  */
-export function buildBranchWhere(user, additionalWhere = {}) {
+export function buildBranchWhere(user, additionalWhere = {}, fieldName = 'branchId') {
   if (!user) return additionalWhere;
   if (user.permissions?.includes('ADMIN_ALL')) return additionalWhere;
-  const branchId = user.branchId;
-  if (!branchId) return additionalWhere;
-  return { ...additionalWhere, branchId };
+  const id = user.accountId || user.id;
+  if (!id) return additionalWhere;
+  return { ...additionalWhere, [fieldName]: id };
 }
 
 /**
- * Trả về { branchId } cho create data, rỗng nếu là global admin.
+ * Trả về { accountId } cho create data, rỗng nếu là global admin.
  *
  * @param {Object} user - req.user
- * @returns {Object} { branchId } hoặc {}
+ * @returns {Object} { accountId } hoặc {}
  */
 export function branchDataForCreate(user) {
   if (!user) return {};
-  const branchId = user.branchId;
-  if (!branchId) return {};
-  if (user.permissions?.includes('ADMIN_ALL') && !user.branchId) return {};
-  return { branchId };
+  const accountId = user.accountId || user.id;
+  if (!accountId) return {};
+  if (user.permissions?.includes('ADMIN_ALL') && !user.accountId) return {};
+  return { accountId };
 }

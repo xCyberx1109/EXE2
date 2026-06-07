@@ -8,7 +8,7 @@ export function MenuQR() {
 
     const [params] = useSearchParams();
     const table = params.get("table");
-    const branchId = params.get("branchId");
+    const accountIdParam = params.get("accountId");
 
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [openItem, setOpenItem] = useState<string | null>(null);
@@ -19,9 +19,9 @@ export function MenuQR() {
     const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
     useEffect(() => {
-        menuApi.list({ available: 'true', ...(branchId ? { branchId } : {}) }).then(setMenuItems).catch(console.error);
+        menuApi.list({ available: 'true', ...(accountIdParam ? { accountId: accountIdParam } : {}) }).then(setMenuItems).catch(console.error);
         inventoryApi.list().then((inv) => setInventoryItems(Array.isArray(inv) ? inv : [])).catch(() => setInventoryItems([]));
-    }, [branchId]);
+    }, [accountIdParam]);
 
 
     const addToCart = (item: MenuItem) => {

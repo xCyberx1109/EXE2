@@ -26,7 +26,6 @@ interface Account {
   status: string;
   active: boolean;
   createdAt: string;
-  branchId: string;
   assignedRoles: string[];
   assignedPermissions: AssignedPermission[];
   permissionCount: number;
@@ -292,9 +291,9 @@ export function PermissionManagement() {
                     <Layers className="w-3.5 h-3.5" />
                     Vai trò: {roleLabel(selectedAccount.assignedRoles)}
                   </span>
-                  {selectedAccount.branchId && (
+                  {selectedAccount.id && (
                     <span className="flex items-center gap-1">
-                      Branch: {selectedAccount.branchId.substring(0, 8)}...
+                      ID: {selectedAccount.accountId.substring(0, 8)}...
                     </span>
                   )}
                 </div>

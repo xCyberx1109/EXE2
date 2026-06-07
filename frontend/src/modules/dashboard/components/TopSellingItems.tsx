@@ -33,7 +33,7 @@ export function TopSellingItems({ items }: { items: DashboardTopItem[] }) {
               </div>
               <div className="text-right shrink-0">
                 <p className="text-sm font-semibold text-gray-900">{formatVND(item.revenue)}</p>
-                <p className="text-xs text-gray-500">SL: {formatNumber(item.quantity)}</p>
+                <p className="text-xs text-gray-500">{formatNumber(item.soldQuantity)} đã bán</p>
               </div>
             </div>
           ))}

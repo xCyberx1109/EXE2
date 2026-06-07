@@ -52,7 +52,7 @@ export interface CategoryItem {
 
 export interface TopSellingItem {
   menuItemId: string;
-  quantity: number;
+  soldQuantity: number;
   name?: string;
   category?: string;
   price?: number;
@@ -119,6 +119,7 @@ export interface OrderDetail {
   tableNumber: number | null;
   status: string;
   paymentMethod: string | null;
+  paymentStatus?: string | null;
   subtotal: number;
   tax: number;
   total: number;
@@ -217,7 +218,7 @@ export interface DashboardTopItem {
   menuItemId: string;
   name: string;
   category: string;
-  quantity: number;
+  soldQuantity: number;
   revenue: number;
 }
 
@@ -300,7 +301,6 @@ export interface User {
   permissions?: string[];
   permissionsVersion?: number;
   mustChangePassword?: boolean;
-  branchId?: string;
   createdAt: string;
 }
 
@@ -323,7 +323,6 @@ export interface BranchAccount {
   id: string;
   email: string;
   fullName: string;
-  branchId: string;
 }
 
 // === POS Mode ===
@@ -414,7 +413,7 @@ export type ShiftStatus = 'OPEN' | 'CLOSED';
 
 export interface PosDeviceV2 {
   id: string;
-  branchId: string;
+  accountId: string;
   name: string;
   type: PosDeviceTypeV2;
   mode: PosMode;
@@ -432,7 +431,7 @@ export interface PosDeviceV2 {
     cashier: string | null;
   } | null;
   ordersToday: number;
-  branch?: { id: string; name: string };
+  account?: { id: string; name: string };
 }
 
 export interface CreatePosDeviceResponse {
@@ -441,7 +440,7 @@ export interface CreatePosDeviceResponse {
   type: string;
   mode: PosMode;
   setupPin: string;
-  branchId: string;
+  accountId: string;
   status: string;
   active: boolean;
   createdAt: string;
@@ -571,7 +570,7 @@ export interface PosTableOrder {
 
 export interface TableItem {
   id: string;
-  branchId: string;
+  accountId: string;
   tableCode: string;
   tableName: string | null;
   capacity: number;
@@ -601,3 +600,15 @@ export interface DeviceSessionInfo {
 }
 
 export type AuthMode = 'account' | 'device';
+
+export interface MissingIngredient {
+  ingredientName: string;
+  required: number;
+  available: number;
+}
+
+export interface InventoryIssue {
+  menuItemId: string;
+  menuItemName: string;
+  missingIngredients: MissingIngredient[];
+}

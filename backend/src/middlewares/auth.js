@@ -50,6 +50,9 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
   // Lấy permissions hiệu dụng realtime
   user.permissions = await permissionService.getEffectivePermissions(user.id);
 
+  // Gán accountId = user.id (mỗi account là một tenant riêng)
+  user.accountId = user.id;
+
   req.user = user;
   req.authType = 'user';
   next();
@@ -59,6 +62,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
 export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
   const token = extractToken(req);
   if (!token) {
+    console.warn('[DeviceAuth] No token provided - endpoint requires POS device auth');
     throw new AppError('Vui lòng đăng nhập thiết bị POS', 401);
   }
 
@@ -69,6 +73,7 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
       let decoded;
       try {
         decoded = jwt.verify(token, config.jwt.secret);
+        console.log(`[DeviceAuth] JWT decoded: type=${decoded.type}, sub=${decoded.sub}`);
       } catch {
         throw new AppError('Phiên đăng nhập thiết bị không hợp lệ hoặc đã hết hạn', 401);
       }
@@ -76,6 +81,8 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
         device = await prisma.posDevice.findUnique({
           where: { id: decoded.sub, deletedAt: null },
         });
+      } else {
+        console.warn(`[DeviceAuth] Token type is "${decoded.type}", expected "device". User tokens are not accepted here.`);
       }
     }
   } catch {
@@ -91,6 +98,7 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
   }
 
   if (!device) {
+    console.warn(`[DeviceAuth] No device found for token`);
     throw new AppError('Phiên đăng nhập thiết bị không hợp lệ', 401);
   }
 
@@ -101,6 +109,11 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
   req.posDevice = device;
   req.branch = null;
   req.authType = 'device';
+
+  // Ensure accountId is available for service context
+  if (device && !req.posDevice.accountId) {
+    req.posDevice.accountId = device.branchId;
+  }
 
   const capabilities = await devicePermissionService.getDeviceCapabilities(device);
   req.devicePermissions = capabilities.permissions;
@@ -134,7 +147,7 @@ export const requirePermission = (permissionCode) => (req, _res, next) => {
   next();
 };
 
-/** Kiểm tra quyền truy cập branch */
+/** Kiểm tra quyền truy cập account */
 export const requireBranchAccess = (req, _res, next) => {
   if (!req.user) {
     return next(new AppError('Vui lòng đăng nhập', 401));
@@ -142,15 +155,15 @@ export const requireBranchAccess = (req, _res, next) => {
 
   const hasAllBranchAccess = req.user.permissions?.includes('BRANCH_ALL_ACCESS');
 
-  if (req.params.branchId && !hasAllBranchAccess) {
-    if (req.params.branchId !== req.user.branchId) {
-      return next(new AppError('Bạn không có quyền truy cập branch này', 403));
+  if (req.params.accountId && !hasAllBranchAccess) {
+    if (req.params.accountId !== (req.user.accountId || req.user.id)) {
+      return next(new AppError('Bạn không có quyền truy cập tài khoản này', 403));
     }
   }
 
-  if (req.body && req.body.branchId && !hasAllBranchAccess) {
-    if (req.body.branchId !== req.user.branchId) {
-      return next(new AppError('Bạn không có quyền truy cập branch này', 403));
+  if (req.body && req.body.accountId && !hasAllBranchAccess) {
+    if (req.body.accountId !== (req.user.accountId || req.user.id)) {
+      return next(new AppError('Bạn không có quyền truy cập tài khoản này', 403));
     }
   }
 
@@ -171,6 +184,7 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
       });
       if (user) {
         user.permissions = await permissionService.getEffectivePermissions(user.id);
+        user.accountId = user.id;
         req.user = user;
         req.authType = 'user';
       }

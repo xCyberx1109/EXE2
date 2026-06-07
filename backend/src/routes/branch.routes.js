@@ -39,7 +39,7 @@ function formatBranch(account) {
       id: account.id,
       email: account.email,
       fullName: account.fullName,
-      branchId: account.id,
+      accountId: account.id,
     },
   };
 }
@@ -245,7 +245,7 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
     sendSuccess(res, {
       message: `Đã tạo link đặt lại mật khẩu cho "${account.fullName}".`,
       data: {
-        branchId: account.id,
+        accountId: account.id,
         branchName: account.fullName,
         accountEmail: account.email,
         accountFullName: account.fullName,

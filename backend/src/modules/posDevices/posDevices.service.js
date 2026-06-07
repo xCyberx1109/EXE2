@@ -34,8 +34,6 @@ export const posDevicesService = {
     const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) throw new AppError('Account not found', 404);
 
-    const branchId = account.id;
-
     let deviceCode = generateDeviceCode();
     let existingCode = await posDeviceRepository.findDeviceCode(deviceCode);
     while (existingCode) {
@@ -54,15 +52,14 @@ export const posDevicesService = {
       deviceCode,
       setupPinHash,
       setupPinExpiresAt,
-      branchId,
+      branchId: accountId,
       status: 'PENDING_ACTIVATION',
       active: true,
       metadata: metadata || null,
     });
 
     await activityLogRepository.create({
-      branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'CREATE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -77,7 +74,7 @@ export const posDevicesService = {
       mode: device.mode,
       setupPin,
       setupPinExpiresAt,
-      branchId: device.branchId,
+      accountId: device.branchId,
       status: device.status,
       active: device.active,
       createdAt: device.createdAt,
@@ -88,8 +85,8 @@ export const posDevicesService = {
     if (!user.permissions?.includes('MANAGE_POS_DEVICES')) {
       return [];
     }
-    const branchId = user.branchId;
-    const devices = await posDeviceRepository.findByBranchId(branchId);
+    const accountId = user.accountId || user.id;
+    const devices = await posDeviceRepository.findByBranchId(accountId);
     return devices.map((d) => ({
       id: d.id,
       name: d.name,
@@ -114,9 +111,10 @@ export const posDevicesService = {
   },
 
   async getDevice(id, user) {
-    const device = await posDeviceRepository.findByIdWithBranch(id);
+    const device = await posDeviceRepository.findByIdWithAccount(id);
     if (!device) throw new AppError('Device not found', 404);
-    if (device.branchId !== user.branchId && !user.permissions?.includes('ADMIN_ALL')) {
+    const accountId = user.accountId || user.id;
+    if (device.branchId !== accountId && !user.permissions?.includes('ADMIN_ALL')) {
       throw new AppError('Access denied to this device', 403);
     }
     return device;
@@ -128,7 +126,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -144,8 +142,7 @@ export const posDevicesService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'REGENERATE_SETUP_PIN',
       module: 'POS_DEVICES',
@@ -162,7 +159,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -186,8 +183,7 @@ export const posDevicesService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'REVOKE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -204,7 +200,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -242,8 +238,7 @@ export const posDevicesService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'RESET_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -260,7 +255,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -283,8 +278,7 @@ export const posDevicesService = {
     await posDeviceRepository.update(id, updateData);
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: active ? 'ENABLE_POS_DEVICE' : 'DISABLE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -301,15 +295,14 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
     const updated = await posDeviceRepository.update(deviceId, { mode });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'POS_MODE_CHANGED',
       module: 'POS_DEVICES',
@@ -327,7 +320,7 @@ export const posDevicesService = {
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
     if (device.deletedAt) throw new AppError('Device already deleted', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== account.branchId) {
+    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -344,8 +337,7 @@ export const posDevicesService = {
     await posDeviceRepository.softDelete(id);
 
     await activityLogRepository.create({
-      branchId: device.branchId,
-      accountId,
+      branchId: accountId,
       posDeviceId: device.id,
       action: 'DELETE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -357,7 +349,8 @@ export const posDevicesService = {
   async getActivityLogs(deviceId, user) {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (device.branchId !== user.branchId && !user.permissions?.includes('ADMIN_ALL')) {
+    const accountId = user.accountId || user.id;
+    if (device.branchId !== accountId && !user.permissions?.includes('ADMIN_ALL')) {
       throw new AppError('Access denied', 403);
     }
     return activityLogRepository.findByDevice(deviceId, 100);

@@ -8,7 +8,7 @@ function getClientIp(req) {
 
 function logDenied(req, action, details) {
   activityLogRepository.create({
-    branchId: req.posDevice?.branchId,
+    accountId: req.posDevice?.accountId,
     posDeviceId: req.posDevice?.id,
     action,
     module: 'DEVICE_PERMISSION',

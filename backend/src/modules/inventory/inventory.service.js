@@ -7,8 +7,8 @@ import { inventoryTransactionRepository } from '../../repositories/inventoryTran
 export const inventoryService = {
   async listIngredients({ search, lowStock }, user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId) {
-      where.branchId = user.branchId;
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      where.accountId = user.accountId || user.id;
     }
     let items = await ingredientRepository.findMany(where);
 
@@ -31,8 +31,11 @@ export const inventoryService = {
   async getIngredient(id, user) {
     const item = await ingredientRepository.findById(id);
     if (!item) throw new AppError('Không tìm thấy nguyên liệu', 404);
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId && item.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền xem nguyên liệu này', 403);
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      const accountId = user.accountId || user.id;
+      if (accountId && item.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền xem nguyên liệu này', 403);
+      }
     }
     return mapIngredient(item);
   },
@@ -47,7 +50,7 @@ export const inventoryService = {
       supplier: body.supplier,
       lastUpdated: new Date(),
     };
-    if (user && user.branchId) data.branchId = user.branchId;
+    if (user) data.accountId = user.accountId || user.id;
     const item = await ingredientRepository.create(data);
     return mapIngredient(item);
   },
@@ -56,8 +59,11 @@ export const inventoryService = {
     const existing = await ingredientRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId && existing.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      const accountId = user.accountId || user.id;
+      if (accountId && existing.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+      }
     }
 
     const item = await ingredientRepository.update(id, {
@@ -71,8 +77,11 @@ export const inventoryService = {
     const existing = await ingredientRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId && existing.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      const accountId = user.accountId || user.id;
+      if (accountId && existing.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+      }
     }
 
     await ingredientRepository.delete(id);
@@ -80,8 +89,8 @@ export const inventoryService = {
 
   async getLowStock(user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId) {
-      where.branchId = user.branchId;
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      where.accountId = user.accountId || user.id;
     }
     const items = await ingredientRepository.findMany(where);
     return items
@@ -91,8 +100,8 @@ export const inventoryService = {
 
   async getStats(user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId) {
-      where.branchId = user.branchId;
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      where.accountId = user.accountId || user.id;
     }
     const items = await ingredientRepository.findMany(where);
     const lowStockCount = items.filter(
@@ -122,8 +131,11 @@ export const inventoryService = {
   async getTransactionHistory(ingredientId, user) {
     const ingredient = await ingredientRepository.findById(ingredientId);
     if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId && ingredient.branchId !== user.branchId) {
-      throw new AppError('Bạn không có quyền xem lịch sử nguyên liệu này', 403);
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      const accountId = user.accountId || user.id;
+      if (accountId && ingredient.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền xem lịch sử nguyên liệu này', 403);
+      }
     }
     const txs = await inventoryTransactionRepository.findByIngredient(ingredientId);
     return txs.map(mapInventoryTransaction);
@@ -131,8 +143,8 @@ export const inventoryService = {
 
   async listAllTransactions(user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId) {
-      where.ingredient = { branchId: user.branchId };
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      where.ingredient = { accountId: user.accountId || user.id };
     }
     const txs = await inventoryTransactionRepository.findMany(where);
     return txs.map(mapInventoryTransaction);
@@ -143,11 +155,14 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
   const ingredient = await ingredientRepository.findById(ingredientId);
   if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
-  if (user && !user.permissions?.includes('ADMIN_ALL') && user.branchId && ingredient.branchId !== user.branchId) {
-    throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
-  }
+    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      const accountId = user.accountId || user.id;
+      if (accountId && ingredient.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
+      }
+    }
 
-  const qty = Number(quantity);
+    const qty = Number(quantity);
   const current = Number(ingredient.quantity);
 
   if (type === 'OUT' && current < qty) {
@@ -156,22 +171,25 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
 
   const newQty = type === 'IN' ? current + qty : current - qty;
 
+  const txData = {
+    ingredientId,
+    accountId: ingredient.accountId,
+    type,
+    quantity: qty,
+    beforeQuantity: current,
+    afterQuantity: newQty,
+    note,
+    createdBy: user?.id || 'system',
+  };
+  console.log("[INVENTORY TRANSACTION CREATE]", JSON.stringify(txData, null, 2));
+
   const [updated, transaction] = await prisma.$transaction([
     prisma.ingredient.update({
       where: { id: ingredientId },
       data: { quantity: newQty, lastUpdated: new Date() },
     }),
     prisma.inventoryTransaction.create({
-      data: {
-        ingredientId,
-        branchId: ingredient.branchId,
-        type,
-        quantity: qty,
-        beforeQuantity: current,
-        afterQuantity: newQty,
-        note,
-        createdBy: user?.id || 'system',
-      },
+      data: txData,
       include: {
         ingredient: true,
         account: { select: { id: true, fullName: true } },

@@ -48,7 +48,6 @@ export const deviceAuthService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
       posDeviceId: device.id,
       action: 'DEVICE_TOKEN_REFRESHED',
       module: 'DEVICE_AUTH',
@@ -81,7 +80,6 @@ export const deviceAuthService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
       posDeviceId: device.id,
       action: 'DEVICE_LOGOUT',
       module: 'DEVICE_AUTH',

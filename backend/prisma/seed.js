@@ -1,5 +1,5 @@
 import { seedDatabase } from '../src/seed/runSeed.js';
-import prisma from '../src/prisma/client.js';
+import { disconnectPrisma } from '../src/prisma/client.js';
 
 seedDatabase()
   .catch((e) => {
@@ -7,5 +7,5 @@ seedDatabase()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await disconnectPrisma();
   });

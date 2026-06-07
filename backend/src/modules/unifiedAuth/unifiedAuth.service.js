@@ -33,8 +33,8 @@ function generateRefreshToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-async function generateUserToken(user) {
-  const permissions = await permissionService.getEffectivePermissions(user.id);
+async function generateUserToken(user, existingPermissions) {
+  const permissions = existingPermissions || await permissionService.getEffectivePermissions(user.id);
   return jwt.sign(
     {
       sub: user.id,
@@ -51,7 +51,7 @@ function generateDeviceJwt(device) {
     {
       sub: device.id,
       type: 'device',
-      branchId: device.branchId,
+      accountId: device.accountId,
       tokenVersion: device.tokenVersion,
     },
     config.jwt.secret,
@@ -71,36 +71,24 @@ const sanitizeUser = (user) => ({
 
 export const unifiedAuthService = {
   async loginWithEmail({ email, password }, req) {
-    console.log('[LOGIN] Service start — email:', email);
-
-    console.log('[LOGIN] Before DB query — findByEmail');
     const user = await userRepository.findByEmail(email);
-    console.log('[LOGIN] After DB query — user found:', !!user);
     if (!user) {
       throw new AppError('Email hoặc mật khẩu không đúng', 401);
     }
 
-    console.log('[LOGIN] Before bcrypt.compare');
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log('[LOGIN] After bcrypt.compare — match:', isMatch);
     if (!isMatch) {
       throw new AppError('Email hoặc mật khẩu không đúng', 401);
     }
 
-    console.log('[LOGIN] Before generateUserToken');
-    const token = await generateUserToken(user);
-    console.log('[LOGIN] After generateUserToken');
+    const permissions = await permissionService.getEffectivePermissions(user.id);
+    const permissionsVersion = await permissionService.getPermissionsVersion(user.id);
+    const token = await generateUserToken(user, permissions);
 
-    console.log('[LOGIN] Before getEffectivePermissions');
-    user.permissions = await permissionService.getEffectivePermissions(user.id);
-    console.log('[LOGIN] After getEffectivePermissions');
-
-    console.log('[LOGIN] Before getPermissionsVersion');
-    user.permissionsVersion = await permissionService.getPermissionsVersion(user.id);
-    console.log('[LOGIN] After getPermissionsVersion');
-
-    console.log('[LOGIN] Service returning success');
-    return { user: sanitizeUser(user), token };
+    return {
+      user: sanitizeUser({ ...user, permissions, permissionsVersion }),
+      token,
+    };
   },
 
   async register({ email, password, fullName }) {
@@ -206,7 +194,7 @@ export const unifiedAuthService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
+      accountId: device.accountId,
       posDeviceId: device.id,
       action: device.activatedAt ? 'DEVICE_RELOGIN' : 'DEVICE_ACTIVATED',
       module: 'UNIFIED_AUTH',
@@ -290,7 +278,7 @@ export const unifiedAuthService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
+      accountId: device.accountId,
       posDeviceId: device.id,
       action: 'DEVICE_TOKEN_REFRESHED',
       module: 'UNIFIED_AUTH',
@@ -324,7 +312,7 @@ export const unifiedAuthService = {
     });
 
     await activityLogRepository.create({
-      branchId: device.branchId,
+      accountId: device.accountId,
       posDeviceId: device.id,
       action: 'DEVICE_LOGOUT',
       module: 'UNIFIED_AUTH',
@@ -345,7 +333,7 @@ export const unifiedAuthService = {
     const device = await posDeviceRepository.findById(session.deviceId);
     if (device) {
       await activityLogRepository.create({
-        branchId: device.branchId,
+        accountId: device.accountId,
         posDeviceId: device.id,
         action: 'DEVICE_SESSION_REVOKED',
         module: 'UNIFIED_AUTH',

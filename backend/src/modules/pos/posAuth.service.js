@@ -62,7 +62,6 @@ export const posAuthService = {
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: null,
       posDeviceId: device.id,
       action: 'POS_LOGIN',
       module: 'POS',
@@ -104,7 +103,6 @@ export const posAuthService = {
 
     await activityLogRepository.create({
       branchId: device.branchId,
-      accountId: null,
       posDeviceId: device.id,
       action: 'POS_LOGOUT',
       module: 'POS',
@@ -131,7 +129,7 @@ export const posAuthService = {
   },
 
   async getProfile(posDevice) {
-    const device = await posDeviceRepository.findByIdWithBranch(posDevice.id);
+    const device = await posDeviceRepository.findByIdWithAccount(posDevice.id);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
     const shift = await shiftRepository.findOpenShiftByDevice(posDevice.id);

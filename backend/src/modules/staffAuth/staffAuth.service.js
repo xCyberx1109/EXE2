@@ -45,10 +45,8 @@ export const staffAuthService = {
 
     const account = await prisma.account.findFirst({
       where: {
-        branchId: posDevice.branchId,
         pinCode,
         active: true,
-        deletedAt: null,
         status: 'ACTIVE',
       },
     });
@@ -95,7 +93,6 @@ export const staffAuthService = {
     });
 
     await activityLogRepository.create({
-      branchId: posDevice.branchId,
       accountId: account.id,
       posDeviceId: posDevice.id,
       action: 'STAFF_LOGIN_PIN',
@@ -125,7 +122,6 @@ export const staffAuthService = {
     }
 
     await activityLogRepository.create({
-      branchId: posDevice.branchId,
       posDeviceId: posDevice.id,
       action: 'STAFF_LOGOUT',
       module: 'STAFF_AUTH',

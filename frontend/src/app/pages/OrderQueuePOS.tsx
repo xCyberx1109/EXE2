@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { menuApi, ordersQueueApi, inventoryApi } from '../api/services';
-import { MenuItem, OrderDetail, InventoryItem } from '../types';
+import { MenuItem, OrderDetail, InventoryItem, InventoryIssue } from '../types';
 import { APP_NAME } from '../../shared/constants';
 import {
   Clock,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
+import { OrdersToMakePanel } from '../components/OrdersToMakePanel';
 
 type QueueLine = {
   menuItemId: string;
@@ -109,7 +110,10 @@ export function OrderQueuePOS() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const persistLoadingRef = useRef(false);
   const [orderSearch, setOrderSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -120,6 +124,18 @@ export function OrderQueuePOS() {
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [labels, setLabels] = useState<OrderLabelMap>(() => loadStoredLabels());
   const [error, setError] = useState<string | null>(null);
+  const [ordersToMakeRefresh, setOrdersToMakeRefresh] = useState(0);
+  const [inventoryIssues, setInventoryIssues] = useState<InventoryIssue[]>([]);
+  const [inventoryStatus, setInventoryStatus] = useState<'VALID' | 'INVALID' | 'NEEDS_REVALIDATION'>('VALID');
+
+  const affectedMenuItemIds = useMemo(
+    () => new Set(inventoryIssues.map(issue => issue.menuItemId)),
+    [inventoryIssues]
+  );
+
+  const hasInventoryIssues = inventoryIssues.length > 0;
+  const isInventoryInvalid = inventoryStatus === 'INVALID';
+  const needsRevalidation = inventoryStatus === 'NEEDS_REVALIDATION';
 
   const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
@@ -155,7 +171,8 @@ export function OrderQueuePOS() {
 
       if (!canUpdate) return;
 
-      setSaving(true);
+      if (persistLoadingRef.current) return;
+      persistLoadingRef.current = true;
       setError(null);
       const payload = {
         items: lines.map(line => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
@@ -172,9 +189,9 @@ export function OrderQueuePOS() {
           loadOrders();
         })
         .finally(() => {
-          setSaving(false);
+          persistLoadingRef.current = false;
         });
-    }, 10000);
+    }, 800);
   };
 
   const activeOrder = useMemo(
@@ -202,7 +219,7 @@ export function OrderQueuePOS() {
 
   const sortedOpenOrders = useMemo(() => {
     return [...orders]
-      .filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)))
+      .filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)) && normalizeStatus(order.paymentStatus) !== 'PAID')
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders]);
 
@@ -236,7 +253,7 @@ export function OrderQueuePOS() {
     setLoading(true);
     setError(null);
     ordersQueueApi
-      .list({ status: 'PENDING' })
+      .list({ paymentStatus: 'UNPAID' })
       .then(data => {
         const openOrders = data.filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)));
         const sorted = [...openOrders].sort(
@@ -274,6 +291,8 @@ export function OrderQueuePOS() {
     setOrderLines(toQueueLines(activeOrder));
     setDiscount(Number(activeOrder?.discount || 0));
     setOrderNote((activeOrder as any)?.note || '');
+    setInventoryIssues([]);
+    setInventoryStatus('VALID');
   }, [activeOrder]);
 
   useEffect(() => {
@@ -332,9 +351,8 @@ export function OrderQueuePOS() {
     console.log("=== CREATE NEW ORDER ===");
     console.log("Cart state (orderLines):", JSON.stringify(orderLines));
     console.log("Active order ID:", activeOrderId);
-    console.log("Saving state:", saving);
 
-    setSaving(true);
+    setCreateLoading(true);
     setError(null);
     try {
       const payload = { items: [] };
@@ -353,7 +371,7 @@ export function OrderQueuePOS() {
       console.error("Error response:", e.response ? JSON.stringify(e.response) : 'No response');
       setError(e.message || 'Không thể tạo order mới.');
     } finally {
-      setSaving(false);
+      setCreateLoading(false);
     }
   };
 
@@ -390,6 +408,7 @@ export function OrderQueuePOS() {
 
     setOrderLines(nextLines);
     updateLocalOrderFromCart(activeOrderId, nextLines);
+    setInventoryStatus('NEEDS_REVALIDATION');
     schedulePersist();
   };
 
@@ -406,6 +425,7 @@ export function OrderQueuePOS() {
 
     setOrderLines(nextLines);
     updateLocalOrderFromCart(activeOrderId, nextLines);
+    setInventoryStatus('NEEDS_REVALIDATION');
     schedulePersist();
   };
 
@@ -426,7 +446,7 @@ export function OrderQueuePOS() {
       return;
     }
 
-    setSaving(true);
+    setDeleteLoading(true);
     setError(null);
     try {
       await ordersQueueApi.cancel(order.id);
@@ -435,7 +455,7 @@ export function OrderQueuePOS() {
     } catch (e: any) {
       setError(e.message || 'Không thể hủy order.');
     } finally {
-      setSaving(false);
+      setDeleteLoading(false);
     }
   };
 
@@ -448,6 +468,7 @@ export function OrderQueuePOS() {
       const nextDiscount = latestDiscountRef.current;
       const nextNote = latestNoteRef.current;
       if (id && canUpdate) {
+        console.log("[FLUSH PERSIST] Saving via debounce flush, order:", id);
         return ordersQueueApi
           .update(id, {
             items: lines.map(line => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
@@ -455,12 +476,18 @@ export function OrderQueuePOS() {
             note: nextNote,
           } as any)
           .then(updated => {
+            console.log("[FLUSH PERSIST] Save successful");
             setOrders(current => current.map(order => (order.id === id ? updated : order)));
           })
           .catch((e: any) => {
+            console.log("[FLUSH PERSIST] Save failed:", e.message);
             setError(e.message || 'Không thể lưu order.');
           });
+      } else {
+        console.log("[FLUSH PERSIST] Skipped — no id or no update permission");
       }
+    } else {
+      console.log("[FLUSH PERSIST] No pending debounce timer, skipping");
     }
     return Promise.resolve();
   };
@@ -473,34 +500,77 @@ export function OrderQueuePOS() {
       return;
     }
 
-    console.log("=== PROCESS PAYMENT ===");
-    console.log("Order ID:", activeOrder.id);
-    console.log("Order number:", activeOrder.orderNumber);
-    console.log("Cart (orderLines):", JSON.stringify(orderLines));
-    console.log("Payment method:", paymentMethod);
-    console.log("Total:", payableTotal);
-
+    // Cancel any pending debounced save to avoid race conditions
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
 
-    setSaving(true);
+    // Capture local variables immediately — do NOT rely on React state after async ops
+    const orderId = activeOrder.id;
+    const method = paymentMethod;
+    const lines = orderLines.map(l => ({ ...l }));
+    const discountValue = discount;
+    const noteValue = orderNote;
+
+    console.log("=== PROCESS PAYMENT (1st click) ===");
+    console.log("Order ID:", orderId);
+    console.log("Order lines:", JSON.stringify(lines));
+    console.log("Payment method:", method);
+    console.log("Payable total:", payableTotal);
+
+    setCheckoutLoading(true);
     setError(null);
     try {
-      const paidOrder = await ordersQueueApi.pay(activeOrder.id, paymentMethod);
+      // ALWAYS save cart to backend before payment — do NOT rely on flushPersist debounce timer
+      console.log("[STEP 1] Flush persist: saving cart to backend...");
+      try {
+        const savedOrder = await ordersQueueApi.update(orderId, {
+          items: lines.map(line => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
+          discount: discountValue,
+          note: noteValue,
+        } as any);
+        console.log("[STEP 1] Flush persist: save completed");
+        setOrders(current => current.map(order => (order.id === orderId ? savedOrder : order)));
+      } catch (saveErr: any) {
+        console.log("[STEP 1] Flush persist: save FAILED — aborting payment", saveErr.message);
+        setError(saveErr.message || 'Không thể lưu order trước khi thanh toán.');
+        setCheckoutLoading(false);
+        return;
+      }
+
+      console.log("[STEP 2] Calling pay API...");
+      const result = await ordersQueueApi.pay(orderId, method);
+      console.log("[STEP 2] Pay API response:", JSON.stringify(result));
+
+      if (result && 'inventoryIssues' in result) {
+        console.log("[INVENTORY ISSUES] Blocking payment, issues:", result.inventoryIssues?.length);
+        setInventoryStatus('INVALID');
+        setInventoryIssues(result.inventoryIssues || []);
+        toast.error('Kiểm tra tồn kho thất bại', {
+          description: 'Vui lòng điều chỉnh số lượng hoặc xóa món không đủ nguyên liệu.',
+        });
+        setCheckoutLoading(false);
+        return;
+      }
+
+      const paidOrder = result as OrderDetail;
+      console.log("[PAYMENT SUCCESS] Order completed:", paidOrder.orderNumber);
+      setInventoryStatus('VALID');
+      setInventoryIssues([]);
       toast.success(`Thanh toán thành công • ${paidOrder.orderNumber}`, {
-        description: `${paymentMethod === 'CASH' ? 'Tiền mặt' : paymentMethod === 'CARD' ? 'Thẻ' : 'QR'} • ${Number(paidOrder.total).toLocaleString()}₫`,
+        description: `${method === 'CASH' ? 'Tiền mặt' : method === 'CARD' ? 'Thẻ' : 'QR'} • ${Number(paidOrder.total).toLocaleString()}₫`,
       });
-      setOrders(current => current.filter(order => order.id !== activeOrder.id));
-      setActiveOrderId(current => (current === activeOrder.id ? null : current));
+      setOrders(current => current.filter(order => order.id !== orderId));
+      setActiveOrderId(current => (current === orderId ? null : current));
+      setOrdersToMakeRefresh(k => k + 1);
 
       const receipt = [
         `${APP_NAME} Order Queue Receipt`,
         `Order: #${paidOrder.orderNumber}`,
         `Customer: ${getCustomerLabel(activeOrder)}`,
         `Time: ${new Date().toLocaleString()}`,
-        `Payment: ${paymentMethod}`,
+        `Payment: ${method}`,
         `Items:`,
         ...paidOrder.items.map(item => `- ${item.name} x${item.quantity}: ${item.lineTotal.toLocaleString()}₫`),
         `Total: ${paidOrder.total.toLocaleString()}₫`,
@@ -513,10 +583,12 @@ export function OrderQueuePOS() {
         receiptWindow.print();
       }
     } catch (e: any) {
+      console.log("[PAYMENT ERROR]", e);
       toast.error('Thanh toán thất bại', { description: e.message || 'Không thể thanh toán order.' });
       setError(e.message || 'Không thể thanh toán order.');
     } finally {
-      setSaving(false);
+      setCheckoutLoading(false);
+      console.log("=== PROCESS PAYMENT COMPLETE ===");
     }
   };
 
@@ -527,17 +599,17 @@ export function OrderQueuePOS() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900">{APP_NAME} Order Queue</h1>
-            <p className="text-xs lg:text-sm text-slate-500">Single-screen cashier workflow • Open orders • Fast checkout</p>
+            <p className="text-xs lg:text-sm text-slate-500">Menu • Open Orders • Production Queue</p>
           </div>
           <div className="flex items-center gap-2">
             {loading && <Loader2 className="h-5 w-5 animate-spin text-blue-600" />}
             {canCreate && (
               <button
                 onClick={createNewOrder}
-                disabled={saving}
+                disabled={createLoading}
                 className="flex min-h-10 items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:opacity-60 text-sm"
               >
-                {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                {createLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
                 New Order
               </button>
             )}
@@ -546,10 +618,10 @@ export function OrderQueuePOS() {
         {error && <div className="mt-2 rounded-xl border border-red-200 bg-red-50 p-2 text-sm font-medium text-red-700">{error}</div>}
       </div>
 
-      {/* Main content: side-by-side panels */}
+      {/* Main content: 3-column layout */}
       <div className="flex-1 flex gap-3 lg:gap-4 overflow-hidden px-3 lg:px-4 pb-3 lg:pb-4">
-        {/* Left: Product Menu */}
-        <section className="flex flex-col lg:flex-[40] min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        {/* Left: Product Menu (30%) */}
+        <section className="flex flex-col lg:flex-[3] min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="shrink-0 p-3 lg:p-4 border-b border-slate-100">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
@@ -613,7 +685,7 @@ export function OrderQueuePOS() {
                     <button
                       type="button"
                       onClick={outOfStock ? undefined : () => addProduct(item)}
-                      disabled={!activeOrderId || saving || !canUpdate || outOfStock}
+                      disabled={!activeOrderId || !canUpdate || outOfStock}
                       className={`group flex flex-col rounded-2xl lg:rounded-3xl border bg-gradient-to-br from-white to-slate-50 p-2 lg:p-4 text-left shadow-sm transition min-h-28 lg:min-h-36 w-full ${
                         outOfStock
                           ? 'opacity-50 grayscale border-slate-200 cursor-not-allowed'
@@ -646,16 +718,16 @@ export function OrderQueuePOS() {
           </div>
         </section>
 
-        {/* Right: Orders Panel */}
-        <aside className="flex flex-col lg:flex-[60] min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        {/* Center: Open Orders (50%) */}
+        <aside className="flex flex-col lg:flex-[5] min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           {/* Fixed header + search */}
           <div className="shrink-0 border-b border-slate-100 p-3 lg:p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <h2 className="text-sm lg:text-lg font-black text-slate-900">Open Orders</h2>
-                <p className="text-xs lg:text-sm text-slate-500">Newest first • {filteredOrders.length} open</p>
+                <p className="text-xs lg:text-sm text-slate-500">Oldest first • {filteredOrders.length} unpaid</p>
               </div>
-              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 lg:px-3 lg:py-1 text-xs lg:text-sm font-black text-emerald-700">OPEN</span>
+              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 lg:px-3 lg:py-1 text-xs lg:text-sm font-black text-emerald-700">UNPAID</span>
             </div>
             <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -674,6 +746,7 @@ export function OrderQueuePOS() {
                   const badge = ORDER_STATUS_BADGE[normalizeStatus(order.status)] || ORDER_STATUS_BADGE.PENDING;
                   const label = getCustomerLabel(order);
                   const displayLabel = label.startsWith('Guest') ? 'Guest' : label;
+                  const orderHasIssues = activeOrderId === order.id && hasInventoryIssues;
                   return (
                     <button
                       key={order.id}
@@ -683,17 +756,28 @@ export function OrderQueuePOS() {
                       className={`shrink-0 flex flex-col items-start justify-center min-w-[140px] h-16 p-3 rounded-2xl text-left whitespace-nowrap ${
                         selected
                           ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                          : orderHasIssues
+                            ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-300'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                       }`}
                     >
                       <div className="flex items-center gap-1 w-full">
-                        <span className={`text-[10px] leading-none ${selected ? 'text-blue-200' : ''}`}>{badge.dot}</span>
-                        <span className={`text-[10px] leading-none font-semibold ${selected ? 'text-blue-200' : 'text-slate-500'}`}>{badge.label}</span>
+                        {orderHasIssues ? (
+                          <>
+                            <span className="text-[10px] leading-none text-red-600">🔴</span>
+                            <span className="text-[10px] leading-none font-semibold text-red-600">Inventory Issue</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className={`text-[10px] leading-none ${selected ? 'text-blue-200' : ''}`}>{badge.dot}</span>
+                            <span className={`text-[10px] leading-none font-semibold ${selected ? 'text-blue-200' : 'text-slate-500'}`}>{badge.label}</span>
+                          </>
+                        )}
                       </div>
-                      <span className={`text-xs font-bold leading-tight w-full ${selected ? 'text-white' : 'text-slate-900'}`}>
+                      <span className={`text-xs font-bold leading-tight w-full ${selected ? 'text-white' : orderHasIssues ? 'text-red-900' : 'text-slate-900'}`}>
                         {displayLabel}
                       </span>
-                      <span className={`text-[10px] leading-tight font-medium ${selected ? 'text-blue-200' : 'text-slate-500'}`}>
+                      <span className={`text-[10px] leading-tight font-medium ${selected ? 'text-blue-200' : orderHasIssues ? 'text-red-500' : 'text-slate-500'}`}>
                         {getShortOrderNumber(order)}
                       </span>
                     </button>
@@ -706,6 +790,37 @@ export function OrderQueuePOS() {
           {/* Active order detail section */}
           {activeOrderId && activeOrder ? (
             <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Inventory issue warning banner - red for INVALID */}
+              {isInventoryInvalid && (
+                <div className="shrink-0 mx-3 lg:mx-4 mt-2 rounded-xl border border-red-300 bg-red-50 p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-600 text-lg leading-none shrink-0 mt-0.5">⚠</span>
+                    <div>
+                      <p className="text-sm font-bold text-red-800">Inventory Issue</p>
+                      <p className="text-xs text-red-700">
+                        {inventoryIssues.length} items in this order cannot be prepared due to insufficient ingredients.
+                        Please adjust quantities or remove affected items.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Needs revalidation warning banner - yellow (only when existing issues need re-check) */}
+              {needsRevalidation && hasInventoryIssues && (
+                <div className="shrink-0 mx-3 lg:mx-4 mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-amber-600 text-lg leading-none shrink-0 mt-0.5">⚠</span>
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Order Changed</p>
+                      <p className="text-xs text-amber-700">
+                        Order modified. Inventory needs revalidation.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Customer info - fixed */}
               <div className="shrink-0 px-3 lg:px-4 pt-2 lg:pt-3 pb-1 lg:pb-2 border-b border-slate-100">
                 <div className="flex items-center justify-between gap-2 mb-1">
@@ -713,9 +828,15 @@ export function OrderQueuePOS() {
                     <UserRound className="h-4 w-4 text-slate-500 shrink-0" />
                     <span className="text-sm lg:text-base font-black text-slate-900 truncate">{getCustomerLabel(activeOrder)}</span>
                     <span className="shrink-0 text-[10px] lg:text-xs font-semibold text-slate-400" title={`#${activeOrder.orderNumber}`}>{getShortOrderNumber(activeOrder)}</span>
-                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] lg:text-xs font-black text-amber-700">
-                      {(ORDER_STATUS_BADGE[normalizeStatus(activeOrder.status)] || ORDER_STATUS_BADGE.PENDING).dot} {activeOrder.status}
-                    </span>
+                    {hasInventoryIssues ? (
+                      <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] lg:text-xs font-black text-red-700">
+                        🔴 INVENTORY ISSUE
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] lg:text-xs font-black text-amber-700">
+                        {(ORDER_STATUS_BADGE[normalizeStatus(activeOrder.status)] || ORDER_STATUS_BADGE.PENDING).dot} {activeOrder.status}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <label className="flex items-center gap-2">
@@ -736,15 +857,36 @@ export function OrderQueuePOS() {
                     Chưa có món. Chọn sản phẩm ở menu bên trái.
                   </div>
                 )}
-                {orderLines.map(line => (
-                  <div key={line.menuItemId} className="rounded-xl lg:rounded-2xl border border-slate-200 bg-white p-2 lg:p-3">
+                {orderLines.map(line => {
+                  const issue = inventoryIssues.find(i => i.menuItemId === line.menuItemId);
+                  const hasIssue = !!issue;
+                  return (
+                  <div
+                    key={line.menuItemId}
+                    className={`rounded-xl lg:rounded-2xl border p-2 lg:p-3 ${
+                      hasIssue
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
                     <div className="mb-1 lg:mb-2 flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-xs lg:text-sm font-black text-slate-900 truncate">{line.name}</div>
+                        <div className="flex items-center gap-1">
+                          {hasIssue && <span className="text-red-600 text-sm leading-none">🔴</span>}
+                          <div className="text-xs lg:text-sm font-black text-slate-900 truncate">{line.name}</div>
+                        </div>
                         <div className="text-[10px] lg:text-sm text-slate-500">{formatMoney(line.price)} x {line.quantity}</div>
                       </div>
                       <div className="shrink-0 text-xs lg:text-sm font-black text-slate-900">{formatMoney(line.price * line.quantity)}</div>
                     </div>
+                    {hasIssue && issue && (
+                      <div className="mb-1 lg:mb-2 text-[10px] lg:text-xs text-red-700">
+                        <div className="font-semibold">Thiếu nguyên liệu:</div>
+                        {issue.missingIngredients.map((mi, idx) => (
+                          <div key={idx} className="ml-1">• {mi.ingredientName} (cần {mi.required}g, còn {mi.available}g)</div>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center justify-end gap-1 lg:gap-2">
                       <button
                         type="button"
@@ -765,7 +907,8 @@ export function OrderQueuePOS() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Notes - fixed */}
@@ -773,7 +916,7 @@ export function OrderQueuePOS() {
                 <textarea
                   value={orderNote}
                   onChange={e => setOrderNote(e.target.value)}
-                  onBlur={() => schedulePersist()}
+                  onBlur={() => flushPersist()}
                   placeholder="Ghi chú order..."
                   rows={1}
                   className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs lg:text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
@@ -806,7 +949,7 @@ export function OrderQueuePOS() {
                   <button
                     type="button"
                     onClick={processPayment}
-                    disabled={saving || orderLines.length === 0 || !canPayment}
+                    disabled={checkoutLoading || orderLines.length === 0 || !canPayment}
                     className="flex h-9 lg:min-h-11 items-center justify-center gap-1 lg:gap-2 rounded-2xl bg-emerald-600 px-3 text-xs lg:text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
                     <CreditCard className="h-4 w-4 lg:h-5 lg:w-5" />
@@ -816,7 +959,7 @@ export function OrderQueuePOS() {
                 <button
                   type="button"
                   onClick={() => cancelOrder(activeOrder)}
-                  disabled={saving || !canDelete}
+                  disabled={deleteLoading || !canDelete}
                   className="flex h-9 lg:min-h-11 w-full items-center justify-center gap-1 lg:gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 text-xs lg:text-sm font-black text-red-700 hover:bg-red-100 disabled:opacity-60"
                 >
                   <Trash2 className="h-4 w-4 lg:h-5 lg:w-5" />
@@ -873,6 +1016,11 @@ export function OrderQueuePOS() {
             </div>
           )}
         </aside>
+
+        {/* Right: Orders To Make (20%) */}
+        <div className="lg:flex-[2] min-w-[280px] flex flex-col">
+          <OrdersToMakePanel refreshKey={ordersToMakeRefresh} />
+        </div>
       </div>
     </div>
   );

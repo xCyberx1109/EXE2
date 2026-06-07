@@ -7,7 +7,7 @@ function getContext(req) {
 }
 
 export const listCategories = asyncHandler(async (req, res) => {
-  const data = await categoryService.list(getContext(req), req.query.branchId);
+  const data = await categoryService.list(getContext(req), req.query.accountId);
   sendSuccess(res, { message: 'Lấy danh sách danh mục thành công', data });
 });
 

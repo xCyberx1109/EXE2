@@ -5,7 +5,7 @@ const includeIngredients = { ingredients: { include: { ingredient: true } } };
 
 const ALLOWED_FIELDS = [
   'name', 'categoryId', 'price', 'cost', 'description', 'imageUrl',
-  'available', 'deletedAt', 'branchId',
+  'available', 'deletedAt', 'accountId',
 ];
 
 function sanitizePayload(data) {

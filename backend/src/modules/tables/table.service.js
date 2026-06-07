@@ -1,6 +1,6 @@
 import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
-import { assertBranchAccess, buildBranchWhere, branchDataForCreate } from '../../middlewares/branchScope.js';
+import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 import { tableRepository } from '../../repositories/table.repository.js';
 
 export const tableService = {
@@ -18,11 +18,11 @@ export const tableService = {
   },
 
   async create(data, user) {
-    const branchId = user.branchId;
-    if (!branchId) throw new AppError('Không xác định được chi nhánh', 400);
+    const accountId = user.accountId || user.id;
+    if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
 
-    const existing = await tableRepository.findByBranchTableCode(branchId, data.tableCode);
-    if (existing) throw new AppError('Mã bàn đã tồn tại trong chi nhánh này', 409);
+    const existing = await tableRepository.findByBranchTableCode(accountId, data.tableCode);
+    if (existing) throw new AppError('Mã bàn đã tồn tại trong tài khoản này', 409);
 
     return tableRepository.create({
       data: {
@@ -30,7 +30,7 @@ export const tableService = {
         tableName: data.tableName || null,
         capacity: data.capacity,
         status: data.status || 'AVAILABLE',
-        branchId,
+        branchId: accountId,
       },
     });
   },
@@ -42,7 +42,7 @@ export const tableService = {
 
     if (data.tableCode && data.tableCode !== existing.tableCode) {
       const duplicate = await tableRepository.findByBranchTableCode(existing.branchId, data.tableCode);
-      if (duplicate) throw new AppError('Mã bàn đã tồn tại trong chi nhánh này', 409);
+      if (duplicate) throw new AppError('Mã bàn đã tồn tại trong tài khoản này', 409);
     }
 
     const updateData = {};
@@ -68,8 +68,8 @@ export const tableService = {
   },
 
   async getPosTables(user) {
-    const branchId = user?.branchId || user?.branch?.id;
-    console.log('[getPosTables] branchId:', branchId, 'user:', user?.id || 'device:' + user?.id);
+    const accountId = user?.accountId || user?.id || user?.branch?.id;
+    console.log('[getPosTables] accountId:', accountId, 'user:', user?.id || 'device:' + user?.id);
 
     const where = buildBranchWhere(user, { isActive: true });
     console.log('[getPosTables] query where:', JSON.stringify(where));

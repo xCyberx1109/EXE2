@@ -22,6 +22,21 @@ import {
 } from './data.js';
 
 const SALT_ROUNDS = 10;
+const DEFAULT_ACCOUNT_ID = 'account-default-001';
+
+/**
+ * Chạy concurrent Promise.all với giới hạn số lượng parallel.
+ * Tránh gửi quá nhiều query cùng lúc gây exhaustion connection pool.
+ */
+async function mapConcurrent(items, fn, concurrency = 5) {
+  const results = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+  }
+  return results;
+}
 
 /** Seed đầy đủ database */
 export async function seedDatabase() {
@@ -35,10 +50,10 @@ export async function seedDatabase() {
   const planMap = await syncSubscriptionPlans();
 
   // =========================
-  // BRANCH
+  // ACCOUNT / TENANT
   // =========================
-  const defaultBranch = await getOrCreateDefaultBranch();
-  const branchId = defaultBranch.id;
+  const defaultAccount = await getOrCreateDefaultAccount();
+  const accountId = defaultAccount.id;
 
   // =========================
   // SUBSCRIPTION
@@ -48,15 +63,15 @@ export async function seedDatabase() {
   subscriptionEnd.setFullYear(subscriptionEnd.getFullYear() + 5);
 
   await prisma.subscription.upsert({
-    where: { id: `sub-${branchId}` },
+    where: { id: `sub-${accountId}` },
     update: {
       planId: planMap['basic'],
       status: SubscriptionStatus.ACTIVE,
       endDate: subscriptionEnd,
     },
     create: {
-      id: `sub-${branchId}`,
-      branchId,
+      id: `sub-${accountId}`,
+      branchId: accountId,
       planId: planMap['basic'],
       status: SubscriptionStatus.ACTIVE,
       startDate: subscriptionStart,
@@ -67,23 +82,12 @@ export async function seedDatabase() {
   console.log(`  ✓ Subscription created`);
 
   // =========================
-  // BRANCH FEATURES (enable all core features)
-  // =========================
-  for (const feat of features.filter(f => f.isCore)) {
-    await prisma.branchFeature.upsert({
-      where: { branchId_featureId: { branchId, featureId: featureMap[feat.code] } },
-      update: { enabled: true },
-      create: { branchId, featureId: featureMap[feat.code], enabled: true },
-    });
-  }
-
-  // =========================
   // POS DEVICE
   // =========================
   const cashierPos = await prisma.posDevice.upsert({
     where: { deviceCode: 'POS-CASHIER-01' },
     update: {
-      branchId,
+      branchId: accountId,
       name: 'POS Thu ngân',
       type: PosDeviceType.CASHIER,
       mode: 'CASHIER',
@@ -91,7 +95,7 @@ export async function seedDatabase() {
       active: true,
     },
     create: {
-      branchId,
+      branchId: accountId,
       name: 'POS Thu ngân',
       deviceCode: 'POS-CASHIER-01',
       type: PosDeviceType.CASHIER,
@@ -104,7 +108,7 @@ export async function seedDatabase() {
   await prisma.posDevice.upsert({
     where: { deviceCode: 'POS-KITCHEN-01' },
     update: {
-      branchId,
+      branchId: accountId,
       name: 'POS Bếp',
       type: PosDeviceType.TABLET,
       mode: 'KITCHEN',
@@ -112,7 +116,7 @@ export async function seedDatabase() {
       active: true,
     },
     create: {
-      branchId,
+      branchId: accountId,
       name: 'POS Bếp',
       deviceCode: 'POS-KITCHEN-01',
       type: PosDeviceType.TABLET,
@@ -125,7 +129,7 @@ export async function seedDatabase() {
   await prisma.posDevice.upsert({
     where: { deviceCode: 'POS-HYBRID-01' },
     update: {
-      branchId,
+      branchId: accountId,
       name: 'POS Hybrid',
       type: PosDeviceType.TABLET,
       mode: 'HYBRID',
@@ -133,7 +137,7 @@ export async function seedDatabase() {
       active: true,
     },
     create: {
-      branchId,
+      branchId: accountId,
       name: 'POS Hybrid',
       deviceCode: 'POS-HYBRID-01',
       type: PosDeviceType.TABLET,
@@ -152,63 +156,47 @@ export async function seedDatabase() {
 
   const admin = await prisma.account.upsert({
     where: { email: config.seed.adminEmail },
-    update: { branchId, status: AccountStatus.ACTIVE },
+    update: { status: AccountStatus.ACTIVE },
     create: {
       email: config.seed.adminEmail,
       password: hashedPassword,
       fullName: config.seed.adminName,
-      branchId,
       status: AccountStatus.ACTIVE,
     },
   });
 
-  // Grant all permissions to admin
-  for (const permCode of Object.keys(permissionMap)) {
+  // Grant all permissions to admin (batch với concurrency)
+  const permEntries = Object.entries(permissionMap);
+  await mapConcurrent(permEntries, async ([permCode, permId]) => {
     await prisma.accountPermission.upsert({
-      where: { accountId_permissionId: { accountId: admin.id, permissionId: permissionMap[permCode] } },
+      where: { accountId_permissionId: { accountId: admin.id, permissionId: permId } },
       update: {},
-      create: { accountId: admin.id, permissionId: permissionMap[permCode] },
+      create: { accountId: admin.id, permissionId: permId },
     });
-  }
+  }, 10);
 
   // MANAGER DEMO
   const managerPassword = await bcrypt.hash('Manager@123', SALT_ROUNDS);
   const manager = await prisma.account.upsert({
     where: { email: 'manager@store.com' },
-    update: { branchId },
+    update: {},
     create: {
       email: 'manager@store.com',
       password: managerPassword,
       fullName: 'Quản lý chi nhánh',
-      branchId,
       status: AccountStatus.ACTIVE,
     },
   });
 
-  // Grant key permissions to manager (standardized permission codes)
   const managerPerms = [
-    // Orders: manage covers create/update/delete
-    'ORDER_VIEW',
-    'ORDER_MANAGE',
-    'order:cancel',
-
+    'ORDER_VIEW', 'ORDER_MANAGE', 'order:cancel',
     'payment:collect',
-
-    // Menu
-    'MENU_VIEW',
-    'MENU_MANAGE',
-
-    // Inventory
-    'INVENTORY_VIEW',
-    'INVENTORY_MANAGE',
-
-    // Customers
-    'CUSTOMER_VIEW',
-    'CUSTOMER_MANAGE',
-
+    'MENU_VIEW', 'MENU_MANAGE',
+    'INVENTORY_VIEW', 'INVENTORY_MANAGE',
+    'CUSTOMER_VIEW', 'CUSTOMER_MANAGE',
   ];
 
-  for (const permCode of managerPerms) {
+  await mapConcurrent(managerPerms, async (permCode) => {
     if (permissionMap[permCode]) {
       await prisma.accountPermission.upsert({
         where: { accountId_permissionId: { accountId: manager.id, permissionId: permissionMap[permCode] } },
@@ -216,7 +204,7 @@ export async function seedDatabase() {
         create: { accountId: manager.id, permissionId: permissionMap[permCode] },
       });
     }
-  }
+  }, 10);
 
   console.log(`  ✓ Admin + Manager accounts with permissions`);
 
@@ -224,12 +212,11 @@ export async function seedDatabase() {
   // CATEGORIES
   // =========================
   const categoryMap = {};
-
   for (const cat of categories) {
     const created = await prisma.category.upsert({
-      where: { branchId_slug: { branchId, slug: cat.slug } },
+      where: { accountId_slug: { accountId: accountId, slug: cat.slug } },
       update: { description: cat.description },
-      create: { ...cat, branchId },
+      create: { ...cat, accountId: accountId },
     });
     categoryMap[cat.name] = created.id;
   }
@@ -238,10 +225,9 @@ export async function seedDatabase() {
   // MENU ITEMS
   // =========================
   const menuMap = {};
-
   for (const item of menuItems) {
     const existing = await prisma.menuItem.findFirst({
-      where: { name: item.name, branchId },
+      where: { name: item.name, accountId: accountId },
     });
 
     const created = existing
@@ -265,7 +251,7 @@ export async function seedDatabase() {
             description: item.description,
             imageUrl: item.imageUrl,
             available: true,
-            branchId,
+            accountId: accountId,
           },
         });
 
@@ -276,37 +262,36 @@ export async function seedDatabase() {
   // INGREDIENTS
   // =========================
   const ingredientMap = {};
-
   for (const ing of ingredients) {
     const existing = await prisma.ingredient.findFirst({
-      where: { name: ing.name, branchId },
+      where: { name: ing.name, accountId: accountId },
     });
 
     const created = existing
       ? await prisma.ingredient.update({
           where: { id: existing.id },
-      data: {
-        unit: ing.unit,
-        quantity: ing.quantity,
-        warningQuantity: ing.minQuantity ?? 0,
-        price: ing.price,
-        supplier: ing.supplier,
-        available: true,
-        lastUpdated: new Date(),
-      },
-    })
-  : await prisma.ingredient.create({
-      data: {
-        name: ing.name,
-        unit: ing.unit,
-        quantity: ing.quantity,
-        warningQuantity: ing.minQuantity ?? 0,
-        price: ing.price,
-        supplier: ing.supplier,
-        available: true,
-        branchId,
-        lastUpdated: new Date(),
-      },
+          data: {
+            unit: ing.unit,
+            quantity: ing.quantity,
+            warningQuantity: ing.minQuantity ?? 0,
+            price: ing.price,
+            supplier: ing.supplier,
+            available: true,
+            lastUpdated: new Date(),
+          },
+        })
+      : await prisma.ingredient.create({
+          data: {
+            name: ing.name,
+            unit: ing.unit,
+            quantity: ing.quantity,
+            warningQuantity: ing.minQuantity ?? 0,
+            price: ing.price,
+            supplier: ing.supplier,
+            available: true,
+            accountId: accountId,
+            lastUpdated: new Date(),
+          },
         });
 
     ingredientMap[ing.name] = created.id;
@@ -339,142 +324,92 @@ export async function seedDatabase() {
   // =========================
   // SAMPLE ORDERS
   // =========================
-  await seedSampleOrders(admin.id, branchId, posDeviceId);
+  await seedSampleOrders(admin.id, accountId, posDeviceId);
 
   // =========================
   // INVENTORY TRANSACTIONS
   // =========================
-  await seedInventoryTransactions(ingredientMap, admin.id, branchId);
+  await seedInventoryTransactions(ingredientMap, admin.id, accountId);
 
   // =========================
   // CUSTOMER DEMO
   // =========================
-  await seedDemoCustomers(branchId);
+  await seedDemoCustomers(accountId);
 
   console.log('✓ Seed database hoàn tất');
   console.log(`  Admin: ${config.seed.adminEmail} / ${config.seed.adminPassword}`);
 }
 
 /**
- * Map các tài khoản cần được gán tự động các quyền bắt buộc.
- * accountId -> [permissionId, ...]
- * Khi syncPermissions chạy, các quyền này sẽ được đảm bảo tồn tại.
- */
-const REQUIRED_ACCOUNT_PERMISSIONS = {
-  'cmpxn8g0n003l0w2000bf7loj': [
-    'cmpxn80mo00110w207j8e84li',
-    'cmpxn80sr00120w20dmjuh7wu',
-  ],
-};
-
-/** 
- * Đồng bộ danh sách permissions từ file data.js vào database.
- * Luôn chạy khi server start để cập nhật các quyền mới.
+ * Đồng bộ danh sách permissions — dùng mapConcurrent để tránh pool exhaustion.
+ * Không grant permissions ở đây (đã xử lý ở seedDatabase).
  */
 export async function syncPermissions() {
   console.log('→ Đồng bộ permissions...');
   const permissionMap = {};
-  for (const perm of permissions) {
+
+  const results = await mapConcurrent(permissions, async (perm) => {
     const created = await prisma.permission.upsert({
       where: { code: perm.code },
-      update: { 
-        name: perm.name, 
-        module: perm.module, 
-        isSystem: perm.isSystem || false 
+      update: {
+        name: perm.name,
+        module: perm.module,
+        isSystem: perm.isSystem || false,
       },
       create: perm,
     });
-    permissionMap[perm.code] = created.id;
+    return { code: perm.code, id: created.id };
+  }, 10);
+
+  for (const r of results) {
+    permissionMap[r.code] = r.id;
   }
   console.log(`  ✓ ${permissions.length} permissions synchronized`);
-
-  // Grant all permissions to admin account (nếu đã tồn tại)
-  try {
-    const admin = await prisma.account.findFirst({
-      where: { email: config.seed.adminEmail },
-      select: { id: true },
-    });
-    if (admin) {
-      for (const permId of Object.values(permissionMap)) {
-        await prisma.accountPermission.upsert({
-          where: { accountId_permissionId: { accountId: admin.id, permissionId: permId } },
-          update: {},
-          create: { accountId: admin.id, permissionId: permId },
-        });
-      }
-      console.log('  ✓ Gán tất cả quyền cho tài khoản ADMIN');
-    }
-  } catch (err) {
-    // Admin chưa tồn tại (lần chạy đầu tiên), bỏ qua
-  }
-
-  // Gán các quyền bắt buộc cho các tài khoản đặc biệt
-  for (const [accountId, permissionIds] of Object.entries(REQUIRED_ACCOUNT_PERMISSIONS)) {
-    try {
-      const account = await prisma.account.findUnique({
-        where: { id: accountId },
-        select: { id: true },
-      });
-      if (account) {
-        for (const permissionId of permissionIds) {
-          // Kiểm tra quyền đã tồn tại trong DB sau syncPermissions ở trên
-          const permExists = Object.values(permissionMap).includes(permissionId) ||
-            await prisma.permission.findUnique({ where: { id: permissionId }, select: { id: true } });
-          if (!permExists) {
-            console.warn(`  ⚠ Permission ${permissionId} không tồn tại trong DB, bỏ qua`);
-            continue;
-          }
-          await prisma.accountPermission.upsert({
-            where: { accountId_permissionId: { accountId, permissionId } },
-            update: {},
-            create: { accountId, permissionId, allowed: true },
-          });
-        }
-        console.log(`  ✓ Đảm bảo quyền bắt buộc cho tài khoản ${accountId}`);
-      }
-    } catch (err) {
-      // Tài khoản chưa tồn tại, bỏ qua
-    }
-  }
 
   return permissionMap;
 }
 
-/** 
- * Đồng bộ danh sách features từ file data.js vào database.
+/**
+ * Đồng bộ features với concurrency control.
  */
 export async function syncFeatures() {
   console.log('→ Đồng bộ features...');
   const featureMap = {};
-  for (const feat of features) {
+
+  const results = await mapConcurrent(features, async (feat) => {
     const created = await prisma.feature.upsert({
       where: { code: feat.code },
-      update: { 
-        name: feat.name, 
-        module: feat.module, 
-        isCore: feat.isCore, 
-        sortOrder: feat.sortOrder 
+      update: {
+        name: feat.name,
+        module: feat.module,
+        isCore: feat.isCore,
+        sortOrder: feat.sortOrder,
       },
       create: feat,
     });
-    featureMap[feat.code] = created.id;
+    return { code: feat.code, id: created.id };
+  }, 10);
+
+  for (const r of results) {
+    featureMap[r.code] = r.id;
   }
   console.log(`  ✓ ${features.length} features synchronized`);
   return featureMap;
 }
 
-/** 
- * Đồng bộ các gói đăng ký (Subscription Plans).
+/**
+ * Đồng bộ subscription plans với concurrency control.
  */
 export async function syncSubscriptionPlans() {
   console.log('→ Đồng bộ subscription plans...');
   const planMap = {};
-  for (const plan of subscriptionPlans) {
+
+  const results = await mapConcurrent(subscriptionPlans, async (plan) => {
     const created = await prisma.subscriptionPlan.upsert({
       where: { code: plan.code },
-      update: { 
-        name: plan.name, 
-        price: plan.price, 
+      update: {
+        name: plan.name,
+        price: plan.price,
       },
       create: {
         code: plan.code,
@@ -483,13 +418,17 @@ export async function syncSubscriptionPlans() {
         billingInterval: plan.billingInterval,
       },
     });
-    planMap[plan.code] = created.id;
+    return { code: plan.code, id: created.id };
+  }, 10);
+
+  for (const r of results) {
+    planMap[r.code] = r.id;
   }
   console.log(`  ✓ ${subscriptionPlans.length} plans synchronized`);
   return planMap;
 }
 
-/** Run seed if empty */
+/** Run seed if empty — dùng cho CLI, không gọi từ server runtime */
 export async function runSeedIfEmpty() {
   const userCount = await prisma.account.count();
   if (userCount === 0) {
@@ -499,21 +438,19 @@ export async function runSeedIfEmpty() {
   }
 }
 
-/** BRANCH — hardcoded ID because the branches table no longer exists */
-const DEFAULT_BRANCH_ID = 'branch-default-001';
-async function getOrCreateDefaultBranch() {
-  return { id: DEFAULT_BRANCH_ID };
+async function getOrCreateDefaultAccount() {
+  return { id: DEFAULT_ACCOUNT_ID };
 }
 
 /** SAMPLE ORDERS */
-async function seedSampleOrders(createdBy, branchId, posDeviceId) {
+async function seedSampleOrders(createdBy, accountId, posDeviceId) {
   const existingOrders = await prisma.order.count({
-    where: { status: OrderStatus.COMPLETED, branchId },
+    where: { status: OrderStatus.COMPLETED, accountId: accountId },
   });
 
   if (existingOrders > 0) return;
 
-  const menuEntries = await prisma.menuItem.findMany({ where: { branchId } });
+  const menuEntries = await prisma.menuItem.findMany({ where: { accountId: accountId } });
 
   for (const item of menuEntries) {
     for (let b = 0; b < 3; b++) {
@@ -524,7 +461,7 @@ async function seedSampleOrders(createdBy, branchId, posDeviceId) {
 
       await prisma.order.create({
         data: {
-          branchId,
+          accountId: accountId,
           posDeviceId,
           orderNumber: `SEED-${item.name}-${b}-${Date.now()}`,
           tableNumber: `Bàn ${(b % 5) + 1}`,
@@ -563,17 +500,24 @@ async function seedSampleOrders(createdBy, branchId, posDeviceId) {
 }
 
 /** INVENTORY */
-async function seedInventoryTransactions(ingredientMap, createdBy, branchId) {
-  const existing = await prisma.inventoryTransaction.count({ where: { branchId } });
+async function seedInventoryTransactions(ingredientMap, createdBy, accountId) {
+  const existing = await prisma.inventoryTransaction.count({ where: { accountId } });
   if (existing > 0) return;
 
   const firstIngredient = Object.values(ingredientMap)[0];
   if (!firstIngredient) return;
 
+  console.log("[INVENTORY TRANSACTION CREATE]", JSON.stringify({
+    ingredientId: firstIngredient,
+    accountId,
+    type: 'IMPORT',
+    quantity: 50,
+  }, null, 2));
+
   await prisma.inventoryTransaction.create({
     data: {
       ingredientId: firstIngredient,
-      branchId,
+      accountId,
       type: InventoryTransactionType.IMPORT,
       quantity: 50,
       note: 'Nhập kho ban đầu',
@@ -583,14 +527,14 @@ async function seedInventoryTransactions(ingredientMap, createdBy, branchId) {
 }
 
 /** DEMO CUSTOMERS */
-async function seedDemoCustomers(branchId) {
-  const existing = await prisma.customer.count({ where: { branchId } });
+async function seedDemoCustomers(accountId) {
+  const existing = await prisma.customer.count({ where: { branchId: accountId } });
   if (existing > 0) return;
 
   await prisma.customer.create({
     data: {
-      branchId,
-      fullName: 'Nguyễn Văn A',
+      branchId: accountId,
+      name: 'Nguyễn Văn A',
       phone: '0901234567',
       email: 'nguyenvana@example.com',
       totalSpent: 1250000,
@@ -602,8 +546,8 @@ async function seedDemoCustomers(branchId) {
 
   await prisma.customer.create({
     data: {
-      branchId,
-      fullName: 'Trần Thị B',
+      branchId: accountId,
+      name: 'Trần Thị B',
       phone: '0907654321',
       email: 'tranthib@example.com',
       totalSpent: 450000,

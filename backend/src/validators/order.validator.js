@@ -18,5 +18,5 @@ export const orderIdParam = [param('id').isString().notEmpty().withMessage('ID �
 
 export const ordersByDateQuery = [
   query('date').optional().matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('date phải có dạng YYYY-MM-DD'),
-  query('status').optional().isIn(['all', 'PENDING', 'PREPARING', 'COMPLETED', 'CANCELLED', 'pending', 'preparing', 'completed', 'cancelled']),
+  query('status').optional().isIn(['all', 'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'COMPLETED', 'CANCELLED', 'REFUNDED']),
 ];

@@ -120,6 +120,7 @@ export const mapPosOrder = (order) => {
     tableNumber: order.tableNumber,
     status: order.status,
     paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
     subtotal: Number(order.subtotal || 0),
     tax: Number(order.tax || 0),
     total: Number(order.total || 0),
