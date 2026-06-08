@@ -1,51 +1,46 @@
-## Vercel Web Analytics Implementation
+# Vercel Speed Insights Installation
 
-Successfully installed and configured Vercel Web Analytics for this Vite + React project.
+## Summary
+Successfully installed and configured Vercel Speed Insights for this Vite + React project following the latest official Vercel documentation.
 
-### Changes Made
+## Changes Made
 
-**Modified Files:**
-- `src/app/App.tsx` - Added Analytics component import and integration
-- `package.json` - Added @vercel/analytics dependency (version ^2.0.1)
-- `package-lock.json` - Updated to reflect the new dependency
+### 1. Package Installation
+- **Package**: `@vercel/speed-insights` (v2.0.0)
+- **Method**: npm install
+- **Files Modified**: 
+  - `package.json` - Added @vercel/speed-insights to dependencies
+  - `package-lock.json` - Updated with new dependency tree
 
-### Implementation Details
+### 2. Code Integration
+- **File Modified**: `src/app/App.tsx`
+- **Changes**:
+  - Added import: `import { SpeedInsights } from '@vercel/speed-insights/react';`
+  - Added component: `<SpeedInsights />` component placed alongside existing `<Analytics />` component
 
-Following the official Vercel Analytics documentation (https://vercel.com/docs/analytics/quickstart), I implemented the React/Vite-specific integration:
+### 3. Implementation Approach
+Following the Vercel Speed Insights Quickstart documentation (https://vercel.com/docs/speed-insights/quickstart), I used the **React** integration pattern which is appropriate for Vite + React projects:
+- Used `@vercel/speed-insights/react` import path (React-specific)
+- Placed the `<SpeedInsights />` component at the root level of the App component
+- This ensures Speed Insights will track all page views and performance metrics across the entire application
 
-1. **Package Installation**: The `@vercel/analytics` package was added to the project dependencies.
+### 4. Verification
+- ✅ Build completed successfully with `npm run build`
+- ✅ No TypeScript errors
+- ✅ No build warnings related to the new integration
+- ✅ Component follows existing pattern used for Vercel Analytics
 
-2. **Analytics Integration**: Added the `<Analytics />` component from `@vercel/analytics/react` to the main App component (`src/app/App.tsx`). The component was placed at the root level within the `AppErrorBoundary` wrapper to ensure it tracks all page views and user interactions throughout the application.
+## Integration Pattern
+The SpeedInsights component was added in the same location as the existing Analytics component, maintaining consistency with the project's structure. Both Vercel services are now integrated at the root App level, outside the AuthProvider to ensure they load regardless of authentication state.
 
-3. **Code Structure**: The Analytics component was added after all the provider components to ensure it has access to the full application context while not interfering with the existing app structure.
+## Next Steps
+After deployment to Vercel:
+1. Enable Speed Insights in the Vercel dashboard for this project
+2. Speed Insights routes will be available at `/_vercel/speed-insights/*`
+3. Performance metrics will start appearing in the Vercel dashboard after user visits
 
-### Implementation Approach
-
-- Imported `Analytics` from `@vercel/analytics/react`
-- Placed the `<Analytics />` component at the end of the App component's return statement, right before the closing `</AppErrorBoundary>` tag
-- This position ensures analytics tracking is active across all routes and pages in the application
-
-### Build Verification
-
-- Dependencies installed successfully using npm
-- Production build completed without errors (4.87s build time)
-- All transformations and chunk rendering completed successfully
-- Output bundle sizes:
-  - index.html: 0.42 kB (gzip: 0.27 kB)
-  - CSS: 135.54 kB (gzip: 21.95 kB)
-  - JavaScript: 1,080.98 kB (gzip: 306.40 kB)
-
-### Next Steps for Deployment
-
-To activate Vercel Web Analytics:
-1. Deploy the application to Vercel using `vercel deploy`
-2. Enable Analytics in the Vercel dashboard (Project Settings → Analytics → Enable)
-3. Verify the integration by checking the browser's Network tab for `/_vercel/insights/*` requests after deployment
-4. Analytics data will begin appearing in the Vercel dashboard after users visit the deployed site
-
-### Notes
-
-- The Analytics component is lightweight and will automatically track page views
-- It works seamlessly with the existing React Router setup
-- No additional configuration is required for basic analytics tracking
-- For advanced features (custom events, etc.), refer to the Vercel Analytics documentation
+## Notes
+- The project already had `@vercel/analytics` installed, making this integration straightforward
+- Used the same React pattern for consistency
+- No additional configuration files needed for Vite
+- The component is lightweight and won't impact app performance
