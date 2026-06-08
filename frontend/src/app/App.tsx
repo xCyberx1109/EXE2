@@ -9,6 +9,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { APP_NAME } from '@/shared/constants';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 function AppContent() {
   const { isReady } = useAuth();
@@ -37,6 +38,7 @@ export default function App() {
         <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover theme="light" />
       </AuthProvider>
       <Analytics />
+      <SpeedInsights />
     </AppErrorBoundary>
   );
 }
