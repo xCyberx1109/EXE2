@@ -8,6 +8,7 @@ import { Toaster } from '@/app/components/ui/sonner';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { APP_NAME } from '@/shared/constants';
+import { Analytics } from '@vercel/analytics/react';
 
 function AppContent() {
   const { isReady } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
         <Toaster position="top-right" richColors />
         <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover theme="light" />
       </AuthProvider>
+      <Analytics />
     </AppErrorBoundary>
   );
 }
