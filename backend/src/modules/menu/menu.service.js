@@ -3,6 +3,7 @@ import { mapMenuItem, slugify } from '../../utils/mappers.js';
 import { categoryRepository } from '../../repositories/category.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { orderRepository } from '../../repositories/order.repository.js';
+import { requestLogger } from '../../utils/logger.js';
 import prisma from '../../prisma/client.js';
 
 export const menuService = {
@@ -127,49 +128,103 @@ export const menuService = {
   },
 
   async createMenuItem(body, user) {
-    const categoryId = await resolveCategoryId(body);
+    const accountId = user?.accountId || user?.id;
+    if (!accountId) {
+      requestLogger.error('SYSTEM', 'createMenuItem: missing accountId');
+      throw new AppError('Thiếu thông tin tài khoản', 400);
+    }
 
-    if (categoryId) {
-      const category = await categoryRepository.findById(categoryId);
-      if (!category) {
-        throw new AppError('Danh mục không tồn tại', 400);
+    const categoryId = await resolveCategoryId(body, accountId);
+
+    if (!categoryId || categoryId.trim() === '') {
+      requestLogger.error('SYSTEM', 'createMenuItem: invalid categoryId after resolve', { categoryId });
+      throw new AppError('Danh mục không hợp lệ hoặc không được để trống', 400);
+    }
+
+    const category = await categoryRepository.findById(categoryId);
+    if (!category) {
+      requestLogger.error('SYSTEM', 'createMenuItem: category not found', { categoryId });
+      throw new AppError('Danh mục không tồn tại', 400);
+    }
+
+    const price = Number(body.price);
+    const cost = Number(body.cost);
+    if (isNaN(price) || !isFinite(price) || price <= 0) {
+      requestLogger.error('SYSTEM', 'createMenuItem: invalid price', { price: body.price });
+      throw new AppError('Giá bán phải là số hợp lệ và lớn hơn 0', 400);
+    }
+    if (isNaN(cost) || !isFinite(cost) || cost < 0) {
+      requestLogger.error('SYSTEM', 'createMenuItem: invalid cost', { cost: body.cost });
+      throw new AppError('Giá vốn phải là số hợp lệ và không âm', 400);
+    }
+
+    const ingredients = body.ingredients && Array.isArray(body.ingredients) ? body.ingredients : [];
+    const invalidIngredientIds = [];
+
+    for (const ing of ingredients) {
+      if (!ing.ingredientId || (typeof ing.ingredientId === 'string' && ing.ingredientId.trim() === '')) {
+        invalidIngredientIds.push({ ingredientId: ing.ingredientId, reason: 'ingredientId is empty' });
+        continue;
+      }
+      if (ing.amount === undefined || ing.amount === null || isNaN(Number(ing.amount)) || Number(ing.amount) <= 0) {
+        requestLogger.error('SYSTEM', 'createMenuItem: invalid ingredient amount', { ingredientId: ing.ingredientId, amount: ing.amount });
+        throw new AppError(`Số lượng nguyên liệu ${ing.ingredientId} phải lớn hơn 0`, 400);
       }
     }
 
+    if (invalidIngredientIds.length > 0) {
+      requestLogger.error('SYSTEM', 'createMenuItem: invalid ingredient IDs', invalidIngredientIds);
+      throw new AppError(`Có ${invalidIngredientIds.length} nguyên liệu không hợp lệ`, 400, invalidIngredientIds);
+    }
+
+    if (ingredients.length > 0) {
+      const ingredientIds = ingredients.map(ing => ing.ingredientId);
+      const existingIngredients = await prisma.ingredient.findMany({
+        where: { id: { in: ingredientIds } },
+        select: { id: true },
+      });
+      const existingIds = new Set(existingIngredients.map(i => i.id));
+      const notFoundIds = ingredientIds.filter(id => !existingIds.has(id));
+
+      if (notFoundIds.length > 0) {
+        requestLogger.error('SYSTEM', 'createMenuItem: ingredients not found', { notFoundIds });
+        throw new AppError(`Nguyên liệu không tồn tại: ${notFoundIds.join(', ')}`, 400, notFoundIds);
+      }
+    }
+
+    requestLogger.log('SYSTEM', 'createMenuItem: starting transaction');
     const item = await prisma.$transaction(async (tx) => {
       const menuItem = await tx.menuItem.create({
         data: {
           name: body.name,
           categoryId,
-          price: Number(body.price),
-          cost: Number(body.cost),
+          price,
+          cost,
           description: body.description || '',
           imageUrl: body.imageUrl || null,
           available: body.available ?? true,
-          ...(user ? { accountId: user.accountId || user.id } : {}),
+          accountId,
         },
         include: { category: true, ingredients: { include: { ingredient: true } } },
       });
 
-      if (body.ingredients && Array.isArray(body.ingredients)) {
-        for (const ing of body.ingredients) {
-          if (ing.ingredientId && ing.amount !== undefined && ing.amount !== null) {
-            const ingredientExists = await tx.ingredient.findUnique({ where: { id: ing.ingredientId } });
-            if (ingredientExists) {
-              const amount = Number(ing.amount);
-              if (amount > 0) {
-                await tx.menuItemIngredient.create({
-                  data: { menuItemId: menuItem.id, ingredientId: ing.ingredientId, amount },
-                });
-              }
-            }
-          }
-        }
+      if (ingredients.length > 0) {
+        await tx.menuItemIngredient.createMany({
+          data: ingredients.map(ing => ({
+            menuItemId: menuItem.id,
+            ingredientId: ing.ingredientId,
+            amount: Number(ing.amount),
+          })),
+        });
       }
 
-      return menuItem;
+      return tx.menuItem.findUnique({
+        where: { id: menuItem.id },
+        include: { category: true, ingredients: { include: { ingredient: true } } },
+      });
     });
 
+    requestLogger.log('SYSTEM', 'createMenuItem: transaction completed', { menuItemId: item.id });
     return mapMenuItem(item);
   },
 
@@ -191,17 +246,51 @@ export const menuService = {
       }
     }
 
+    const ingredients = body.ingredients && Array.isArray(body.ingredients) ? body.ingredients : [];
+
+    if (ingredients.length > 0) {
+      for (const ing of ingredients) {
+        if (!ing.ingredientId || (typeof ing.ingredientId === 'string' && ing.ingredientId.trim() === '')) {
+          throw new AppError('ingredientId không hợp lệ', 400);
+        }
+        if (ing.amount === undefined || ing.amount === null || isNaN(Number(ing.amount)) || Number(ing.amount) <= 0) {
+          throw new AppError(`Số lượng nguyên liệu ${ing.ingredientId} phải lớn hơn 0`, 400);
+        }
+      }
+
+      const ingredientIds = ingredients.map(ing => ing.ingredientId);
+      const existingIngredients = await prisma.ingredient.findMany({
+        where: { id: { in: ingredientIds } },
+        select: { id: true },
+      });
+      const existingIds = new Set(existingIngredients.map(i => i.id));
+      const notFoundIds = ingredientIds.filter(id => !existingIds.has(id));
+      if (notFoundIds.length > 0) {
+        throw new AppError(`Nguyên liệu không tồn tại: ${notFoundIds.join(', ')}`, 400, notFoundIds);
+      }
+    }
+
     const item = await prisma.$transaction(async (tx) => {
       const updateData = {};
       if (body.name) updateData.name = body.name;
-      if (body.price !== undefined) updateData.price = Number(body.price);
-      if (body.cost !== undefined) updateData.cost = Number(body.cost);
+      if (body.price !== undefined) {
+        const p = Number(body.price);
+        if (isNaN(p) || !isFinite(p) || p <= 0) throw new AppError('Giá bán phải lớn hơn 0', 400);
+        updateData.price = p;
+      }
+      if (body.cost !== undefined) {
+        const c = Number(body.cost);
+        if (isNaN(c) || !isFinite(c) || c < 0) throw new AppError('Giá vốn không được âm', 400);
+        updateData.cost = c;
+      }
       if (body.description !== undefined) updateData.description = body.description || '';
       if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
       if (body.available !== undefined) updateData.available = !!body.available;
 
       if (body.categoryId || body.category) {
-        updateData.categoryId = await resolveCategoryId(body);
+        const catId = await resolveCategoryId(body, user?.accountId || user?.id);
+        if (!catId) throw new AppError('Danh mục không hợp lệ', 400);
+        updateData.categoryId = catId;
       }
 
       const updated = await tx.menuItem.update({
@@ -210,27 +299,24 @@ export const menuService = {
         include: { category: true, ingredients: { include: { ingredient: true } } },
       });
 
-      if (body.ingredients && Array.isArray(body.ingredients)) {
+      if (ingredients.length > 0) {
         await tx.menuItemIngredient.deleteMany({
           where: { menuItemId: id },
         });
 
-        for (const ing of body.ingredients) {
-          if (ing.ingredientId && ing.amount !== undefined && ing.amount !== null) {
-            const ingredientExists = await tx.ingredient.findUnique({ where: { id: ing.ingredientId } });
-            if (ingredientExists) {
-              const amount = Number(ing.amount);
-              if (amount > 0) {
-                await tx.menuItemIngredient.create({
-                  data: { menuItemId: id, ingredientId: ing.ingredientId, amount },
-                });
-              }
-            }
-          }
-        }
+        await tx.menuItemIngredient.createMany({
+          data: ingredients.map(ing => ({
+            menuItemId: id,
+            ingredientId: ing.ingredientId,
+            amount: Number(ing.amount),
+          })),
+        });
       }
 
-      return updated;
+      return tx.menuItem.findUnique({
+        where: { id },
+        include: { category: true, ingredients: { include: { ingredient: true } } },
+      });
     });
 
     return mapMenuItem(item);
@@ -305,17 +391,18 @@ export const menuService = {
   },
 };
 
-async function resolveCategoryId(body) {
+async function resolveCategoryId(body, accountId) {
   if (body.categoryId && body.categoryId.trim() !== '') {
     return body.categoryId;
   }
 
   if (body.category && body.category.trim() !== '') {
-    let cat = await categoryRepository.findByName(body.category);
+    let cat = await categoryRepository.findByName(body.category, accountId);
     if (!cat) {
       cat = await categoryRepository.create({
         name: body.category,
         slug: body.category.toLowerCase().replace(/ /g, '-'),
+        accountId,
       });
     }
     return cat.id;
