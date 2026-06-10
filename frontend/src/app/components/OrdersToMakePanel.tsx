@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ordersQueueApi } from '../api/services';
+import { useState } from 'react';
+import { useOrderQueue } from '../api/hooks';
 import { OrderDetail } from '../types';
 import { OrderProductionModal } from './OrderProductionModal';
 import { Clock, Coffee, Loader2, RefreshCw } from 'lucide-react';
@@ -17,50 +17,23 @@ function getShortOrderNumber(order: OrderDetail): string {
 }
 
 export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
-  const [orders, setOrders] = useState<OrderDetail[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: orders = [], isLoading, refetch } = useOrderQueue({ paymentStatus: 'PAID' });
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
-  const isFirstLoad = useRef(true);
 
-  const loadOrders = () => {
-    if (isFirstLoad.current) {
-      setLoading(true);
-    }
-    ordersQueueApi
-      .list({ paymentStatus: 'PAID' })
-      .then(data => {
-        const sorted = [...data].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        setOrders(sorted);
-      })
-      .catch(() => setOrders([]))
-      .finally(() => {
-        setLoading(false);
-        isFirstLoad.current = false;
-      });
-  };
+  const sortedOrders = [...orders].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  useEffect(() => {
-    if (!isFirstLoad.current) {
-      loadOrders();
-    }
-  }, [refreshKey]);
-
-  const bodyContent = loading ? (
+  const bodyContent = isLoading ? (
     <div className="flex items-center justify-center py-12">
       <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
     </div>
-  ) : orders.length === 0 ? (
+  ) : sortedOrders.length === 0 ? (
     <div className="rounded-3xl border border-dashed border-slate-300 p-6 text-center text-slate-500 text-sm">
       Không có đơn cần làm
     </div>
   ) : (
-    orders.map(order => (
+    sortedOrders.map(order => (
       <article
         key={order.id}
         onClick={() => setSelectedOrder(order)}
@@ -105,12 +78,12 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
               <span className="truncate">Orders To Make</span>
             </h2>
             <p className="text-xs lg:text-sm text-slate-500">
-              {loading ? 'Đang tải...' : `${orders.length} orders`}
+              {isLoading ? 'Đang tải...' : `${sortedOrders.length} orders`}
             </p>
           </div>
           <button
             type="button"
-            onClick={loadOrders}
+            onClick={() => refetch()}
             className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition shrink-0"
             title="Làm mới"
           >
@@ -127,7 +100,7 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
         <OrderProductionModal
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
-          onStatusChange={loadOrders}
+          onStatusChange={() => refetch()}
         />
       )}
     </section>

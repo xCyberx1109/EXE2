@@ -1,31 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../app/components/ui/card';
 import { Badge } from '../../app/components/ui/badge';
 import { Button } from '../../app/components/ui/button';
 import { Clock, ChefHat, CheckCircle2, ArrowUpDown, Timer, AlertTriangle } from 'lucide-react';
 import { APP_NAME } from '../../shared/constants';
 import { useAuth } from '../../app/context/AuthContext';
-import { apiFetch } from '../../app/api/client';
-
-interface KitchenOrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  note?: string;
-}
-
-interface KitchenOrder {
-  id: string;
-  orderNumber: string;
-  tableNumber: string | null;
-  kotNumber: string;
-  status: string;
-  priority: number;
-  note?: string;
-  items: KitchenOrderItem[];
-  createdAt: string;
-  elapsed: number;
-}
+import { useKitchenQueue, useUpdateKitchenStatusMutation } from '../../app/api/hooks';
+import type { KitchenOrder } from '../../app/api/hooks';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; nextStatus: string | null; icon: any }> = {
   PENDING: { label: 'Chờ', color: 'bg-gray-100 text-gray-700', nextStatus: 'RECEIVED', icon: Timer },
@@ -40,70 +21,31 @@ type SortMode = 'time' | 'priority' | 'status';
 type FilterStatus = 'all' | 'PENDING' | 'RECEIVED' | 'PREPARING' | 'READY';
 
 export function KitchenQueue() {
-  const { hasDevicePermission, hasDeviceFeature, enabledFeatures } = useAuth();
-  const [orders, setOrders] = useState<KitchenOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { hasDevicePermission } = useAuth();
+  const { data: orders = [], isLoading, error: queryError } = useKitchenQueue();
+  const updateStatusMutation = useUpdateKitchenStatusMutation();
   const [sortMode, setSortMode] = useState<SortMode>('priority');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-  const [error, setError] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const canUpdateStatus = hasDevicePermission('kitchen:update_status');
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      const data = await apiFetch<{ kots: any[]; orders: any[] }>('/orders/kitchen-queue', { auth: false });
-      const now = Date.now();
-      const mapped: KitchenOrder[] = (data.kots || data.orders || []).map((o: any) => ({
-        id: o.id,
-        orderNumber: o.orderNumber || o.order?.orderNumber || '',
-        tableNumber: o.tableNumber || o.order?.tableNumber || null,
-        kotNumber: o.kotNumber || o.id?.slice(0, 8),
-        status: o.status || o.kitchenStatus || 'PENDING',
-        priority: o.priority || 0,
-        note: o.note || o.order?.note,
-        items: o.items || o.orderItems || [],
-        createdAt: o.createdAt,
-        elapsed: now - new Date(o.createdAt).getTime(),
-      }));
-      setOrders(mapped);
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải dữ liệu bếp');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchOrders();
-    if (!autoRefresh) return;
-    const interval = setInterval(fetchOrders, 5000);
-    return () => clearInterval(interval);
-  }, [fetchOrders, autoRefresh]);
-
-  const updateStatus = async (orderId: string, newStatus: string) => {
-    try {
-      await apiFetch(`/orders/${orderId}/kitchen-status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
-        auth: false,
-      } as any);
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)),
-      );
-    } catch (err: any) {
-      setError(err.message || 'Không thể cập nhật trạng thái');
-    }
+  const handleUpdateStatus = (orderId: string, newStatus: string) => {
+    updateStatusMutation.mutate({ orderId, status: newStatus });
   };
 
-  const filteredOrders = orders
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Không thể tải dữ liệu bếp') : '';
+
+  const filteredOrders = useMemo(() => orders
     .filter((o) => filterStatus === 'all' || o.status === filterStatus)
     .filter((o) => o.status !== 'SERVED' && o.status !== 'CANCELLED')
     .sort((a, b) => {
-      if (sortMode === 'priority') return b.priority - a.priority || a.elapsed - b.elapsed;
-      if (sortMode === 'time') return a.elapsed - b.elapsed;
+      const elapsedA = Date.now() - new Date(a.createdAt).getTime();
+      const elapsedB = Date.now() - new Date(b.createdAt).getTime();
+      if (sortMode === 'priority') return b.priority - a.priority || elapsedA - elapsedB;
+      if (sortMode === 'time') return elapsedA - elapsedB;
       return a.status.localeCompare(b.status);
-    });
+    }), [orders, filterStatus, sortMode]);
 
   const formatElapsed = (ms: number) => {
     const mins = Math.floor(ms / 60000);
@@ -112,7 +54,7 @@ export function KitchenQueue() {
     return `${hrs}h${mins % 60}m`;
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
         <Clock className="w-6 h-6 animate-spin mr-2" />
@@ -236,7 +178,8 @@ export function KitchenQueue() {
                     <Button
                       size="sm"
                       className="w-full mt-3"
-                      onClick={() => updateStatus(order.id, statusCfg.nextStatus!)}
+                      onClick={() => handleUpdateStatus(order.id, statusCfg.nextStatus!)}
+                      disabled={updateStatusMutation.isPending}
                     >
                       Chuyển → {STATUS_CONFIG[statusCfg.nextStatus]?.label}
                     </Button>
