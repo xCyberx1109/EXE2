@@ -16,8 +16,8 @@ export const menuItemRules = [
     .custom((value) => {
       if (value === null || value === '') return false;
       const num = Number(value);
-      return !isNaN(num) && isFinite(num) && num > 0;
-    }).withMessage('Giá bán phải là số > 0'),
+      return !isNaN(num) && isFinite(num) && num >= 0;
+    }).withMessage('Giá bán phải là số >= 0'),
 
   body('cost')
     .exists().withMessage('Giá vốn là bắt buộc')
@@ -35,16 +35,6 @@ export const menuItemRules = [
   body('available')
     .optional()
     .custom((value) => typeof value === 'boolean').withMessage('available phải là boolean'),
-
-  body('ingredients')
-    .optional()
-    .isArray().withMessage('ingredients phải là mảng'),
-  body('ingredients.*.ingredientId')
-    .if(body('ingredients').isArray({ min: 1 }))
-    .notEmpty().withMessage('ingredientId không hợp lệ'),
-  body('ingredients.*.amount')
-    .if(body('ingredients').isArray({ min: 1 }))
-    .isFloat({ min: 0.01 }).withMessage('Số lượng nguyên liệu phải > 0'),
 ];
 
 export const menuItemUpdateRules = [

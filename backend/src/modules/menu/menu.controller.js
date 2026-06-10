@@ -1,7 +1,7 @@
+import { validationResult } from 'express-validator';
 import { menuService } from './menu.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
-import { requestLogger } from '../../utils/logger.js';
 
 // Helper: lấy unified context từ user auth hoặc device auth
 function getContext(req) {
@@ -41,17 +41,49 @@ export const getMenuItem = asyncHandler(async (req, res) => {
 });
 
 export const createMenuItem = asyncHandler(async (req, res) => {
-  requestLogger.log(req.requestId, 'createMenuItem body:', JSON.stringify(req.body, null, 2));
-  const data = await menuService.createMenuItem(req.body, getContext(req));
-  requestLogger.log(req.requestId, 'createMenuItem success:', data?.id);
-  sendSuccess(res, { message: 'Thêm món thành công', data, statusCode: 201 });
+  const vr = validationResult(req);
+  if (!vr.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Dữ liệu tạo món không hợp lệ',
+      details: vr.array(),
+    });
+  }
+
+  try {
+    const data = await menuService.createMenuItem(req.body, getContext(req));
+    sendSuccess(res, { message: 'Thêm món thành công', data, statusCode: 201 });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || 'Lỗi thêm món ăn',
+      details: error.errors || error,
+    });
+  }
 });
 
 export const updateMenuItem = asyncHandler(async (req, res) => {
-  requestLogger.log(req.requestId, 'updateMenuItem body:', JSON.stringify(req.body, null, 2));
-  const data = await menuService.updateMenuItem(req.params.id, req.body, getContext(req));
-  requestLogger.log(req.requestId, 'updateMenuItem success:', data?.id);
-  sendSuccess(res, { message: 'Cập nhật món thành công', data });
+  const vr = validationResult(req);
+  if (!vr.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Dữ liệu cập nhật không hợp lệ',
+      details: vr.array(),
+    });
+  }
+
+  try {
+    const data = await menuService.updateMenuItem(req.params.id, req.body, getContext(req));
+    sendSuccess(res, { message: 'Cập nhật món thành công', data });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || 'Lỗi cập nhật món ăn',
+      details: error.errors || error,
+    });
+  }
 });
 
 export const toggleAvailability = asyncHandler(async (req, res) => {
