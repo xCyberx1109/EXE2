@@ -1,19 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Plus, Edit, Trash2, Search, AlertTriangle, TrendingDown, Loader2 } from 'lucide-react';
-import { inventoryApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import type { InventoryItem, InventoryStats, DeleteDependencyReport } from '../types';
+import {
+  useInventoryItems, useInventoryStats,
+  useCreateInventoryItemMutation, useUpdateInventoryItemMutation,
+  useDeleteInventoryItemMutation,
+} from '../api/hooks';
+import { useDebounce } from '../../shared/hooks/useDebounce';
+import type { InventoryItem, DeleteDependencyReport } from '../types';
 
 type StockStatus = 'all' | 'LOW_STOCK' | 'NORMAL';
 
 export function InventoryManagement() {
   const { isReady, hasPermission } = useAuth();
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [stats, setStats] = useState<InventoryStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [stockStatus, setStockStatus] = useState<StockStatus>('all');
+  const debouncedSearch = useDebounce(searchTerm, 300);
+  const { data: inventoryItems = [], isLoading } = useInventoryItems({
+    search: debouncedSearch || undefined,
+    status: stockStatus !== 'all' ? stockStatus : undefined,
+  });
+  const { data: stats } = useInventoryStats();
+  const createMutation = useCreateInventoryItemMutation();
+  const updateMutation = useUpdateInventoryItemMutation();
+  const deleteMutation = useDeleteInventoryItemMutation();
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [formData, setFormData] = useState({
@@ -26,31 +37,6 @@ export function InventoryManagement() {
     lastUpdated: new Date().toISOString().split('T')[0],
   });
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [items, s] = await Promise.all([
-        inventoryApi.list({
-          search: searchTerm || undefined,
-          status: stockStatus !== 'all' ? stockStatus : undefined,
-        }),
-        inventoryApi.stats(),
-      ]);
-      setInventoryItems(items);
-      setStats(s);
-    } catch (err) {
-      console.error(err);
-      alert('Không tải được tồn kho. Kiểm tra backend.');
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm, stockStatus]);
-
-  useEffect(() => {
-    if (isReady) loadData();
-  }, [isReady, loadData]);
-
-  const filteredItems = inventoryItems;
   const lowStockCount = stats?.lowStockCount ?? inventoryItems.filter(i => i.quantity <= i.warningQuantity).length;
   const totalValue = stats?.totalValue ?? inventoryItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
 
@@ -68,11 +54,10 @@ export function InventoryManagement() {
         supplier: formData.supplier,
       };
       if (editingItem) {
-        await inventoryApi.update(editingItem.id, payload);
+        await updateMutation.mutateAsync({ id: editingItem.id, ...payload });
       } else {
-        await inventoryApi.create(payload);
+        await createMutation.mutateAsync(payload);
       }
-      await loadData();
       resetForm();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Lưu thất bại');
@@ -110,9 +95,9 @@ export function InventoryManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc muốn lưu trữ (archive) mặt hàng này? Hàng hóa đã lưu trữ sẽ không hiển thị trong danh sách.')) return;
+    if (!confirm('Bạn có chắc muốn lưu trữ (archive) mặt hàng này?')) return;
     try {
-      const report = await inventoryApi.delete(id) as DeleteDependencyReport;
+      const report = await deleteMutation.mutateAsync(id) as unknown as DeleteDependencyReport;
       const deps = report.dependencies;
       const parts: string[] = [];
       if (deps.menuRecipes.length > 0) {
@@ -133,7 +118,6 @@ export function InventoryManagement() {
         msg += `\n\nNguyên liệu này vẫn đang được tham chiếu bởi:\n${parts.join('\n')}\n\nDữ liệu lịch sử được giữ nguyên.`;
       }
       alert(msg);
-      await loadData();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Xóa thất bại');
     }
@@ -147,7 +131,7 @@ export function InventoryManagement() {
     );
   }
 
-  if (loading && inventoryItems.length === 0) {
+  if (isLoading && inventoryItems.length === 0) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-500">
         <Loader2 className="w-8 h-8 animate-spin mr-2" />
@@ -174,7 +158,6 @@ export function InventoryManagement() {
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between">
@@ -206,7 +189,6 @@ export function InventoryManagement() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
@@ -242,27 +224,26 @@ export function InventoryManagement() {
         </div>
       </div>
 
-      {/* Inventory Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên hàng hóa</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngưỡng cảnh báo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn giá</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trị</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nhà cung cấp</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cập nhật</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên hàng hóa</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số lượng</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngưỡng cảnh báo</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đơn giá</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá trị</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nhà cung cấp</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cập nhật</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredItems.map((item) => {
+              {inventoryItems.map((item) => {
                 const isLowStock = item.quantity <= item.warningQuantity;
-                const totalValue = item.quantity * item.price;
+                const itemTotalValue = item.quantity * item.price;
                 return (
                   <tr key={item.id} className={`hover:bg-gray-50 ${isLowStock ? 'bg-orange-50' : ''}`}>
                     <td className="px-6 py-4">
@@ -289,23 +270,17 @@ export function InventoryManagement() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{item.price.toLocaleString()} ₫</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{totalValue.toLocaleString()} ₫</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{itemTotalValue.toLocaleString()} ₫</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.supplier}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.lastUpdated}</td>
                     <td className="px-6 py-4 text-right text-sm">
                       {hasPermission('INVENTORY_MANAGE') && (
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
+                        <button onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-900 mr-3">
                           <Edit className="w-4 h-4" />
                         </button>
                       )}
                       {hasPermission('INVENTORY_MANAGE') && (
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
+                        <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
@@ -318,7 +293,6 @@ export function InventoryManagement() {
         </div>
       </div>
 
-      {/* Add/Edit Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -333,7 +307,7 @@ export function InventoryManagement() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -344,7 +318,7 @@ export function InventoryManagement() {
                     required
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
                 <div>
@@ -352,7 +326,7 @@ export function InventoryManagement() {
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   >
                     <option value="KG">Kg</option>
                     <option value="LITER">Lít</option>
@@ -363,15 +337,14 @@ export function InventoryManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ngưỡng cảnh báo ({formData.unit})</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ngưỡng cảnh báo</label>
                   <input
                     type="number"
                     min="0"
                     step="0.1"
                     value={formData.warningQuantity}
                     onChange={(e) => setFormData({ ...formData, warningQuantity: e.target.value })}
-                    placeholder="Nhập ngưỡng cảnh báo"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
                 <div>
@@ -381,7 +354,7 @@ export function InventoryManagement() {
                     required
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
               </div>
@@ -392,22 +365,14 @@ export function InventoryManagement() {
                   required
                   value={formData.supplier}
                   onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
               </div>
               <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
+                <button type="button" onClick={resetForm} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
                   Hủy
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
+                <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
                   {saving ? 'Đang lưu...' : editingItem ? 'Cập nhật' : 'Thêm mới'}
                 </button>
               </div>

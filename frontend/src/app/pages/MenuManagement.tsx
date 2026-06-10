@@ -1,9 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Loader2, X, AlertCircle } from 'lucide-react';
-import { menuApi, inventoryApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import { useCategories } from '../../shared/hooks/useCategories';
-import type { MenuItem, TopSellingItem, InventoryItem } from '../types';
+import {
+  useMenuItems, useTopSellingMenuItems, useInventoryItems,
+  useCreateMenuItemMutation, useUpdateMenuItemMutation,
+  useToggleMenuItemAvailabilityMutation, useDeleteMenuItemMutation,
+} from '../api/hooks';
+import { useDebounce } from '../../shared/hooks/useDebounce';
+import type { MenuItem } from '../types';
 
 type RecipeRow = {
   ingredientId: string;
@@ -14,14 +19,23 @@ const emptyRecipeRow: RecipeRow = { ingredientId: '', amount: '' };
 
 export function MenuManagement() {
   const { isReady } = useAuth();
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [topSelling, setTopSelling] = useState<TopSellingItem[]>([]);
-  const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([{ ...emptyRecipeRow }]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const { categories, loading: catsLoading, error: catsError } = useCategories();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const debouncedSearch = useDebounce(searchTerm, 300);
+  const { data: menuItems = [], isLoading } = useMenuItems({
+    search: debouncedSearch || undefined,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+  });
+  const { data: topSelling = [] } = useTopSellingMenuItems();
+  const { data: ingredients = [] } = useInventoryItems();
+  const createMutation = useCreateMenuItemMutation();
+  const updateMutation = useUpdateMenuItemMutation();
+  const toggleMutation = useToggleMenuItemAvailabilityMutation();
+  const deleteMutation = useDeleteMenuItemMutation();
+
+  const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([{ ...emptyRecipeRow }]);
+  const [saving, setSaving] = useState(false);
+  const { categories, loading: catsLoading, error: catsError } = useCategories();
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [formData, setFormData] = useState({
@@ -32,50 +46,6 @@ export function MenuManagement() {
     description: '',
     available: true,
   });
-  const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
-  const [ingredientsLoading, setIngredientsLoading] = useState(false);
-  const fetchIngredients = useCallback(async () => {
-    setIngredientsLoading(true);
-    try {
-      const data = await inventoryApi.list();
-
-      console.log('🔥 RAW INVENTORY DATA:', data);
-
-      setIngredients(data);
-    } catch (err) {
-      console.error('❌ Inventory API failed:', err);
-    } finally {
-      setIngredientsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (showForm) fetchIngredients();
-  }, [showForm, fetchIngredients]);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [items, top] = await Promise.all([
-        menuApi.list({
-          search: searchTerm || undefined,
-          category: selectedCategory !== 'all' ? selectedCategory : undefined,
-        }),
-        menuApi.topSelling(),
-      ]);
-      setMenuItems(items);
-      setTopSelling(top);
-    } catch (err) {
-      console.error(err);
-      alert('Không tải được menu. Kiểm tra backend đang chạy.');
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm, selectedCategory]);
-
-  useEffect(() => {
-    if (isReady) loadData();
-  }, [isReady, loadData]);
 
   useEffect(() => {
     if (categories.length > 0 && formData.categoryId === '') {
@@ -158,19 +128,11 @@ export function MenuManagement() {
         ingredients: recipeIngredients,
       };
 
-      // Log payload thực tế trước API call
-      console.log('Menu Payload:', JSON.stringify(payload, null, 2));
-      console.log('price type:', typeof payload.price, 'cost type:', typeof payload.cost);
-      console.log('available type:', typeof payload.available);
-      console.log('description type:', typeof payload.description, 'value:', JSON.stringify(payload.description));
-      console.log('ingredients:', payload.ingredients?.length || 0, 'items');
-
       if (editingItem) {
-        await menuApi.update(editingItem.id, payload);
+        await updateMutation.mutateAsync({ id: editingItem.id, ...payload });
       } else {
-        await menuApi.create(payload);
+        await createMutation.mutateAsync(payload);
       }
-      await loadData();
       resetForm();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Lưu thất bại');
@@ -202,39 +164,31 @@ export function MenuManagement() {
     setShowForm(true);
   };
 
-  const handleEdit = async (item: MenuItem) => {
-    try {
-      const detail = await menuApi.getById(item.id);
-      console.log('Editing item details:', detail);
-      setEditingItem(detail);
-      setFormData({
-        name: detail.name,
-        categoryId: detail.categoryId || '',
-        price: String(detail.price),
-        cost: String(detail.cost),
-        description: detail.description,
-        available: detail.available,
-      });
-      setRecipeRows(
-        detail.ingredients?.length
-          ? detail.ingredients.map((row) => ({
-            ingredientId: row.ingredient?.id ?? row.ingredientId ?? '',
-            amount: String(row.amount ?? 0),
-          }))
-          : [{ ...emptyRecipeRow }]
-      );
-      setShowForm(true);
-    } catch (err) {
-      console.error(err);
-      alert('Không thể tải thông tin món ăn');
-    }
+  const handleEdit = (item: MenuItem) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      categoryId: item.categoryId || '',
+      price: String(item.price),
+      cost: String(item.cost),
+      description: item.description,
+      available: item.available,
+    });
+    setRecipeRows(
+      item.ingredients?.length
+        ? item.ingredients.map((row) => ({
+          ingredientId: row.ingredient?.id ?? row.ingredientId ?? '',
+          amount: String(row.amount ?? 0),
+        }))
+        : [{ ...emptyRecipeRow }]
+    );
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc muốn xóa món ăn này?')) return;
     try {
-      await menuApi.delete(id);
-      await loadData();
+      await deleteMutation.mutateAsync(id);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Xóa thất bại');
     }
@@ -242,14 +196,13 @@ export function MenuManagement() {
 
   const handleToggleAvailability = async (id: string) => {
     try {
-      await menuApi.toggleAvailability(id);
-      await loadData();
+      await toggleMutation.mutateAsync(id);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Cập nhật thất bại');
     }
   };
 
-  if (loading && menuItems.length === 0) {
+  if (isLoading && menuItems.length === 0) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-500">
         <Loader2 className="w-8 h-8 animate-spin mr-2" />
@@ -283,7 +236,6 @@ export function MenuManagement() {
               placeholder="Tìm kiếm món ăn..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadData()}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -463,7 +415,6 @@ export function MenuManagement() {
                 </div>
               </div>
 
-              {/* Recipe ingredients are saved to MenuItemIngredient and used for automatic stock deduction */}
               <div className="border border-gray-200 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -480,49 +431,45 @@ export function MenuManagement() {
                   </button>
                 </div>
 
-                {recipeRows.map((row, index) => {
-                  return (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-start">
-                      <div className="col-span-7">
-                        <select
-                          value={row.ingredientId}
-                          onChange={(e) => updateRecipeRow(index, { ingredientId: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        >
-                          <option value="">-- Chọn nguyên liệu --</option>
-                          {ingredients.map((i) => (
-                            <option key={i.id} value={i.id}>
-                              {i.name} ({i.quantity} {i.unit})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-span-4">
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.001"
-                            value={row.amount}
-                            onChange={(e) => updateRecipeRow(index, { amount: e.target.value })}
-                            placeholder="Số lượng"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-12"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-span-1 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => removeRecipeRow(index)}
-                          className="p-2 text-gray-400 hover:text-red-600"
-                          title="Xóa dòng"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                {recipeRows.map((row, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-start">
+                    <div className="col-span-7">
+                      <select
+                        value={row.ingredientId}
+                        onChange={(e) => updateRecipeRow(index, { ingredientId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option value="">-- Chọn nguyên liệu --</option>
+                        {ingredients.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.name} ({i.quantity} {i.unit})
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  );
-                })}
+                    <div className="col-span-4">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={row.amount}
+                        onChange={(e) => updateRecipeRow(index, { amount: e.target.value })}
+                        placeholder="Số lượng"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-12"
+                      />
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeRecipeRow(index)}
+                        className="p-2 text-gray-400 hover:text-red-600"
+                        title="Xóa dòng"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div>

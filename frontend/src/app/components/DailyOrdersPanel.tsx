@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Loader2, Receipt } from 'lucide-react';
-import { ordersApi } from '../api/services';
-import type { DailyOrdersResponse, OrderDetail } from '../types';
+import { useDailyOrders } from '../api/hooks';
+import type { OrderDetail } from '../types';
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'Chờ xử lý', className: 'bg-yellow-100 text-yellow-800' },
@@ -27,25 +27,8 @@ interface DailyOrdersPanelProps {
 export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
   const [selectedDate, setSelectedDate] = useState(initialDate || todayStr());
   const [statusFilter, setStatusFilter] = useState('all');
-  const [data, setData] = useState<DailyOrdersResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useDailyOrders(selectedDate, statusFilter);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const result = await ordersApi.listByDate(selectedDate, statusFilter);
-        setData(result);
-      } catch (err) {
-        console.error(err);
-        setData(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [selectedDate, statusFilter]);
 
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -112,7 +95,7 @@ export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
         </div>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-12 text-gray-500">
           <Loader2 className="w-6 h-6 animate-spin mr-2" />
           Đang tải đơn hàng...

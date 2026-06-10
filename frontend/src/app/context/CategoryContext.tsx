@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { categoryApi } from '../api/services';
+import { createContext, useContext, useCallback, type ReactNode } from 'react';
+import { useCategories as useQueryCategories } from '../api/hooks';
 import type { CategoryItem } from '../types';
 
 export interface UseCategoriesResult {
@@ -15,36 +15,22 @@ interface CategoryContextValue extends UseCategoriesResult {}
 const CategoryContext = createContext<CategoryContextValue | null>(null);
 
 export function CategoryProvider({ children }: { children: ReactNode }) {
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: categories = [], isLoading, error: queryError, refetch } = useQueryCategories();
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await categoryApi.list();
-      setCategories(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải danh mục');
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const refresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
-  useEffect(() => {
-    fetch();
-  }, [fetch]);
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Không thể tải danh mục') : null;
 
   return (
     <CategoryContext.Provider
       value={{
         categories,
-        loading,
+        loading: isLoading,
         error,
-        isEmpty: !loading && !error && categories.length === 0,
-        refresh: fetch,
+        isEmpty: !isLoading && !error && categories.length === 0,
+        refresh,
       }}
     >
       {children}

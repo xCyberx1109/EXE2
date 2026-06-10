@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { tableApi } from '../../app/api/services';
+import { useState } from 'react';
+import { useTablesPos, useCheckInTableMutation } from '../../app/api/hooks';
 import type { TableItem } from '../../app/types';
 import { TableOrderDialog } from './TableOrderDialog';
 
@@ -17,30 +17,9 @@ interface Props {
 }
 
 export function TableGridView({ onTableSelect }: Props) {
-  const [tables, setTables] = useState<TableItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: tables = [], isLoading, error: queryError, refetch } = useTablesPos();
+  const checkInMutation = useCheckInTableMutation();
   const [orderTable, setOrderTable] = useState<TableItem | null>(null);
-
-  const fetchTables = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await tableApi.listPos();
-      setTables(data ?? []);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Không thể tải danh sách bàn';
-      console.error('[TableGridView] fetch error:', msg);
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchTables();
-    const interval = setInterval(fetchTables, 5000);
-    return () => clearInterval(interval);
-  }, [fetchTables]);
 
   const handleClick = (table: TableItem) => {
     if (onTableSelect) {
@@ -56,13 +35,13 @@ export function TableGridView({ onTableSelect }: Props) {
         break;
       case 'RESERVED':
         if (window.confirm(`Check-in bàn ${table.tableCode}?`)) {
-          tableApi.checkIn(table.id).then(() => fetchTables());
+          checkInMutation.mutate(table.id);
         }
         break;
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-gray-400">
         Đang tải sơ đồ bàn...
@@ -70,12 +49,12 @@ export function TableGridView({ onTableSelect }: Props) {
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-3">
-        <span className="text-red-400">⚠️ {error}</span>
+        <span className="text-red-400">⚠️ {queryError instanceof Error ? queryError.message : 'Không thể tải danh sách bàn'}</span>
         <button
-          onClick={() => { setLoading(true); fetchTables(); }}
+          onClick={() => refetch()}
           className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
         >
           Thử lại
@@ -143,7 +122,7 @@ export function TableGridView({ onTableSelect }: Props) {
         <TableOrderDialog
           table={orderTable}
           onClose={() => setOrderTable(null)}
-          onSuccess={fetchTables}
+          onSuccess={() => refetch()}
         />
       )}
     </>

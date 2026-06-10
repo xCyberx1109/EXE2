@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { ordersQueueApi } from '../api/services';
+import { useUpdateOrderQueueMutation } from '../api/hooks';
 import { OrderDetail } from '../types';
 import { X, CheckCircle, Clock, FileText } from 'lucide-react';
 
@@ -23,19 +23,16 @@ function getShortOrderNumber(order: OrderDetail): string {
 }
 
 export function OrderProductionModal({ order, onClose, onStatusChange }: OrderProductionModalProps) {
-  const [updating, setUpdating] = useState(false);
+  const updateMutation = useUpdateOrderQueueMutation();
 
   const handleComplete = async () => {
-    setUpdating(true);
     try {
-      await ordersQueueApi.update(order.id, { status: 'COMPLETED' });
+      await updateMutation.mutateAsync({ id: order.id, status: 'COMPLETED' });
       toast.success(`Hoàn thành ${getShortOrderNumber(order)}`);
       onStatusChange();
       onClose();
     } catch (e: any) {
       toast.error('Không thể hoàn thành', { description: e.message });
-    } finally {
-      setUpdating(false);
     }
   };
 
@@ -92,16 +89,16 @@ export function OrderProductionModal({ order, onClose, onStatusChange }: OrderPr
           <button
             type="button"
             onClick={handleComplete}
-            disabled={updating}
+            disabled={updateMutation.isPending}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
           >
             <CheckCircle className="h-5 w-5" />
-            {updating ? 'Đang cập nhật...' : 'Hoàn thành'}
+            {updateMutation.isPending ? 'Đang cập nhật...' : 'Hoàn thành'}
           </button>
           <button
             type="button"
             onClick={onClose}
-            disabled={updating}
+            disabled={updateMutation.isPending}
             className="flex h-11 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
           >
             Đóng

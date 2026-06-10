@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../app/components/ui/card';
 import { Badge } from '../../app/components/ui/badge';
 import { useAuth } from '../../app/context/AuthContext';
-import { apiFetch } from '../../app/api/client';
+import { useCustomerDisplayOrders } from '../../app/api/hooks';
 import { APP_NAME } from '../../shared/constants';
 import { ChefHat, Timer } from 'lucide-react';
 
@@ -16,21 +15,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 export function CustomerDisplay() {
   const { branchInfo } = useAuth();
-  const [orders, setOrders] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const data = await apiFetch<{ orders: any[] }>('/orders/daily?status=PREPARING,READY', { auth: false });
-        setOrders(data.orders || []);
-      } catch {
-        // silent
-      }
-    };
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data: orders = [] } = useCustomerDisplayOrders();
 
   return (
     <div className="h-full overflow-y-auto bg-gradient-to-br from-orange-50 to-red-50 p-6">
