@@ -28,9 +28,7 @@ const prisma =
   globalForPrisma.__prisma ||
   new PrismaClient(prismaClientConfig);
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.__prisma = prisma;
-}
+globalForPrisma.__prisma = prisma;
 
 export default prisma;
 
