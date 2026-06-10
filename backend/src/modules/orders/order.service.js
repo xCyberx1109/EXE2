@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { mapPosOrder, mapOrderDetail } from '../../utils/mappers.js';
@@ -363,7 +362,7 @@ export const orderService = {
       console.log("[STEP 3.5 RESULT] Inventory validation passed");
 
       const updated = await prisma.$transaction(async (tx) => {
-        console.log("[TRANSACTION] Starting payment transaction");
+        console.log("[TRANSACTION START] Payment transaction for order:", id);
 
         const lockedOrder = await tx.order.findUnique({
           where: { id },
@@ -427,6 +426,7 @@ export const orderService = {
         return updatedOrder;
       });
 
+      console.log(`[TRANSACTION END] Payment transaction committed for order: ${id}`);
       return mapPosOrder(updated);
     } catch (error) {
       console.error("[PAYMENT ERROR] ===== START =====");
@@ -754,42 +754,41 @@ async function validateInventoryForOrder(order) {
  * Deduct inventory inside an existing Prisma transaction.
  */
 async function deductInventoryForOrderTx(tx, order, createdBy) {
-  console.log(`[INVENTORY] Deduct inventory for order ${order.orderNumber} (${order.id})`);
+  console.log(`[INVENTORY DEDUCT] Start for order ${order.orderNumber} (${order.id})`);
 
   const orderItems = order.items || [];
-  console.log(`[INVENTORY] Found ${orderItems.length} order items`);
+  console.log(`[INVENTORY DEDUCT] ${orderItems.length} order items to process`);
 
   for (const orderItem of orderItems) {
     if (!orderItem.menuItemId) {
-      console.log(`[INVENTORY] Skip item "${orderItem.name}" - no menuItemId`);
+      console.log(`[INVENTORY DEDUCT] Skip item "${orderItem.name}" - no menuItemId`);
       continue;
     }
 
+    console.log(`[INVENTORY DEDUCT] Looking up recipes for item "${orderItem.name}" x${orderItem.quantity}`);
     const recipes = await tx.menuItemIngredient.findMany({
       where: { menuItemId: orderItem.menuItemId },
       include: { ingredient: true },
     });
-
-    console.log(`[INVENTORY] Item "${orderItem.name}" x${orderItem.quantity}: ${recipes.length} recipe(s)`);
+    console.log(`[INVENTORY DEDUCT] Found ${recipes.length} recipe(s) for "${orderItem.name}"`);
 
     for (const recipe of recipes) {
       const totalUsage = Number(recipe.amount) * orderItem.quantity;
-      const ingredient = await tx.ingredient.findUnique({
-        where: { id: recipe.ingredientId },
-      });
+      const ingredient = recipe.ingredient;
 
       if (!ingredient) {
-        console.log(`[INVENTORY] Ingredient ${recipe.ingredientId} not found, skip`);
+        console.log(`[INVENTORY DEDUCT] Ingredient ${recipe.ingredientId} not found, skip`);
         continue;
       }
 
-      const newQuantity = Number(ingredient.quantity) - totalUsage;
+      const currentQty = Number(ingredient.quantity);
+      const newQuantity = currentQty - totalUsage;
 
-      console.log(`[INVENTORY] Deduct ${ingredient.name}: ${ingredient.quantity} - ${totalUsage} = ${newQuantity}`);
+      console.log(`[INVENTORY DEDUCT] ${ingredient.name}: ${currentQty} - ${totalUsage} = ${newQuantity}`);
 
       if (newQuantity < 0) {
         throw new AppError(
-          `Không đủ nguyên liệu: ${ingredient.name}. Cần ${totalUsage}, có ${ingredient.quantity}`,
+          `Không đủ nguyên liệu: ${ingredient.name}. Cần ${totalUsage}, có ${currentQty}`,
           400
         );
       }
@@ -798,15 +797,6 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
         where: { id: recipe.ingredientId },
         data: { quantity: newQuantity, lastUpdated: new Date() },
       });
-
-      console.log("[INVENTORY TRANSACTION CREATE]", JSON.stringify({
-        ingredientId: recipe.ingredientId,
-        accountId: order.accountId,
-        type: 'OUT',
-        quantity: totalUsage,
-        referenceType: 'ORDER',
-        referenceId: order.id,
-      }, null, 2));
 
       await tx.inventoryTransaction.create({
         data: {
@@ -825,7 +815,7 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
     }
   }
 
-  console.log(`[INVENTORY] Deduction complete for order ${order.orderNumber}`);
+  console.log(`[INVENTORY DEDUCT] Complete for order ${order.orderNumber}`);
 }
 
 /** Chuẩn hóa items từ POS (full MenuItem) hoặc QR (itemId, name, price) */
