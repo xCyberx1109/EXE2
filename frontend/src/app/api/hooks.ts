@@ -429,7 +429,25 @@ export function useUpdateOrderQueueMutation() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: string; items?: Array<{ menuItemId: string; quantity: number }>; discount?: number; status?: string; note?: string }) =>
       ordersQueueApi.update(id, body),
-    onSuccess: () => {
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['orders', 'queue'] });
+      const previousQueries = queryClient.getQueriesData({ queryKey: ['orders', 'queue'] });
+      if (status === 'COMPLETED') {
+        queryClient.setQueriesData({ queryKey: ['orders', 'queue'] }, (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.filter((item: any) => item.id !== id);
+        });
+      }
+      return { previousQueries };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
     },
   });

@@ -575,6 +575,8 @@ model Order {
   @@index([accountId, createdAt])
   @@index([accountId, paymentStatus])
   @@index([accountId, status])
+  @@index([source, paymentStatus, status])
+  @@index([source, deletedAt])
   @@map("orders")
 }
 

@@ -149,19 +149,7 @@ export const orderService = {
         { note: { contains: search } },
       ];
     }
-    const orders = await orderRepository.findMany(where);
-    console.log("[ORDERS TO MAKE]", JSON.stringify(orders.map(o => ({
-      id: o.id,
-      orderNumber: o.orderNumber,
-      status: o.status,
-      paymentStatus: o.paymentStatus,
-      itemCount: o.items?.length || 0,
-      items: o.items?.map(i => ({
-        menuItemId: i.menuItemId,
-        name: i.name,
-        quantity: i.quantity,
-      }))
-    })), null, 2));
+    const orders = await orderRepository.findManyLight(where);
     return orders.map(mapPosOrder);
   },
 
@@ -240,7 +228,11 @@ export const orderService = {
 
   /** Cập nhật Order Queue */
   async updateQueueOrder(id, body, user = null) {
-    const order = await orderRepository.findById(id);
+    // Use lightweight permission check when not updating items
+    const needsItems = !!body.items;
+    const order = needsItems
+      ? await orderRepository.findById(id)
+      : await orderRepository.findByIdLight(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
     if (user && !user.permissions?.includes('ADMIN_ALL')) {
       const accountId = user.accountId || user.id;
@@ -259,7 +251,7 @@ export const orderService = {
     if (body.note !== undefined) updateData.note = body.note;
     if (body.orderType) updateData.orderType = body.orderType;
     if (body.discount !== undefined) updateData.discount = Number(body.discount);
-    if (body.items) {
+    if (needsItems) {
       const normalizedItems = await normalizeOrderItems(body.items);
       let subtotal = 0;
       let cost = 0;
@@ -291,10 +283,10 @@ export const orderService = {
       };
     }
 
-    const updated = await orderRepository.update(id, updateData);
-    const savedItems = await prisma.orderItem.findMany({ where: { orderId: id } });
-    console.log("[ORDER ITEMS DB - after update]", JSON.stringify(savedItems.map(i => ({ id: i.id, name: i.name, menuItemId: i.menuItemId, quantity: i.quantity, price: Number(i.price), lineTotal: Number(i.price) * i.quantity }))));
-    console.log("[ORDER TOTAL]", Number(updated.total));
+    // Use lighter update when only changing status (no items/discount)
+    const updated = needsItems
+      ? await orderRepository.update(id, updateData)
+      : await orderRepository.updateStatus(id, updateData);
     return mapPosOrder(updated);
   },
 

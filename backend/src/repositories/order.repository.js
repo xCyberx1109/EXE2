@@ -8,11 +8,36 @@ const includeItems = {
   },
 };
 
+/** Lightweight includes for queue list queries — no deep menuItem/category join */
+const includeItemsLight = {
+  items: {
+    select: {
+      id: true,
+      menuItemId: true,
+      name: true,
+      price: true,
+      cost: true,
+      quantity: true,
+      note: true,
+      discount: true,
+      total: true,
+    },
+  },
+};
+
 export const orderRepository = {
   findMany: (where = {}) =>
     prisma.order.findMany({
       where,
       include: includeItems,
+      orderBy: { createdAt: 'desc' },
+    }),
+
+  /** Lightweight version for queue lists — skips menuItem/category join */
+  findManyLight: (where = {}) =>
+    prisma.order.findMany({
+      where,
+      include: includeItemsLight,
       orderBy: { createdAt: 'desc' },
     }),
 
@@ -29,11 +54,22 @@ export const orderRepository = {
   findById: (id) =>
     prisma.order.findUnique({ where: { id }, include: includeItems }),
 
+  /** Lightweight find for permission checks only */
+  findByIdLight: (id, select) =>
+    prisma.order.findUnique({
+      where: { id },
+      select: select ?? { id: true, accountId: true, items: { select: { id: true, menuItemId: true, quantity: true } } },
+    }),
+
   create: (data) =>
     prisma.order.create({ data, include: includeItems }),
 
   update: (id, data) =>
     prisma.order.update({ where: { id }, data, include: includeItems }),
+
+  /** Minimal update without heavy includes — for status-only changes */
+  updateStatus: (id, data) =>
+    prisma.order.update({ where: { id }, data }),
 
   delete: (id) =>
     prisma.order.update({
