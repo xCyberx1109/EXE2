@@ -1,8 +1,28 @@
 @custom-variant dark (&:is(.dark *));
 
+html {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
 html, body, #root {
   height: 100%;
   overflow: hidden;
+}
+
+*, *::before, *::after {
+  transition-property: color, background-color, border-color;
+  transition-duration: 250ms;
+  transition-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0s !important;
+  }
 }
 
 :root {
@@ -23,8 +43,8 @@ html, body, #root {
   --accent-foreground: #030213;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
+  --border: #d4d4d8;
+  --input: #c7c7cc;
   --input-background: #f3f3f5;
   --switch-background: #cbced4;
   --font-weight-medium: 500;
@@ -65,6 +85,8 @@ html, body, #root {
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
+  --input-background: oklch(0.205 0 0);
+  --switch-background: oklch(0.333 0 0);
   --ring: oklch(0.439 0 0);
   --font-weight-medium: 500;
   --font-weight-normal: 400;

@@ -65,10 +65,10 @@ function getShortOrderNumber(order: OrderDetail): string {
 }
 
 const ORDER_STATUS_BADGE: Record<string, { label: string; cell: string; dot: string }> = {
-  PENDING: { label: 'Pending', cell: 'bg-amber-100 text-amber-700', dot: '🟡' },
-  PREPARING: { label: 'Preparing', cell: 'bg-blue-100 text-blue-700', dot: '🔵' },
-  READY: { label: 'Ready', cell: 'bg-emerald-100 text-emerald-700', dot: '🟢' },
-  OPEN: { label: 'Open', cell: 'bg-emerald-100 text-emerald-700', dot: '🟢' },
+  PENDING: { label: 'Pending', cell: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', dot: '🟡' },
+  PREPARING: { label: 'Preparing', cell: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300', dot: '🔵' },
+  READY: { label: 'Ready', cell: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400', dot: '🟢' },
+  OPEN: { label: 'Open', cell: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400', dot: '🟢' },
 };
 
 function loadStoredLabels(): OrderLabelMap {
@@ -600,16 +600,16 @@ export function OrderQueuePOS() {
       <div className="shrink-0 px-3 lg:px-4 pt-3 lg:pt-4 pb-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900">{APP_NAME} Order Queue</h1>
-            <p className="text-xs lg:text-sm text-slate-500">Menu • Open Orders • Production Queue</p>
+            <h1 className="text-xl lg:text-2xl font-black tracking-tight text-foreground">{APP_NAME} Order Queue</h1>
+            <p className="text-xs lg:text-sm text-muted-foreground">Menu • Open Orders • Production Queue</p>
           </div>
           <div className="flex items-center gap-2">
-            {loading && <Loader2 className="h-5 w-5 animate-spin text-blue-600" />}
+            {loading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
             {canCreate && (
               <button
                 onClick={createNewOrder}
                 disabled={createLoading}
-                className="flex min-h-10 items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:opacity-60 text-sm"
+                className="flex min-h-10 items-center gap-2 rounded-2xl bg-primary px-4 py-2 font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-primary/90 disabled:opacity-60 text-sm"
               >
                 {createLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
                 New Order
@@ -617,45 +617,45 @@ export function OrderQueuePOS() {
             )}
           </div>
         </div>
-        {error && <div className="mt-2 rounded-xl border border-red-200 bg-red-50 p-2 text-sm font-medium text-red-700">{error}</div>}
+        {error && <div className="mt-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-2 text-sm font-medium text-red-700 dark:text-red-400">{error}</div>}
       </div>
 
       {/* Main content: 3-column layout */}
       <div className="flex-1 flex gap-3 lg:gap-4 overflow-hidden px-3 lg:px-4 pb-3 lg:pb-4">
         {/* Left: Product Menu (30%) */}
-        <section className="flex flex-col lg:flex-[3] min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="shrink-0 p-3 lg:p-4 border-b border-slate-100">
+        <section className="flex flex-col lg:flex-[3] min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="shrink-0 p-3 lg:p-4 border-b border-border">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
-                <h2 className="flex items-center gap-2 text-base lg:text-lg font-black text-slate-900">
-                  <ShoppingCart className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600 shrink-0" />
+                <h2 className="flex items-center gap-2 text-base lg:text-lg font-black text-foreground">
+                  <ShoppingCart className="h-4 w-4 lg:h-5 lg:w-5 text-primary shrink-0" />
                   <span className="truncate">Product Menu</span>
                 </h2>
-                <p className="text-xs lg:text-sm text-slate-500 truncate">
+                <p className="text-xs lg:text-sm text-muted-foreground truncate">
                   {activeOrder ? `Adding to ${getCustomerLabel(activeOrder)}` : 'Create or select an order to add products'}
                 </p>
               </div>
               <div className="relative w-full lg:max-w-xs shrink-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   value={productSearch}
                   onChange={e => setProductSearch(e.target.value)}
                   placeholder="Search products..."
-                  className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                  className="h-10 w-full rounded-2xl border border-border bg-muted pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:bg-input-background focus:ring-4 focus:ring-primary/20"
                 />
               </div>
             </div>
           </div>
 
           {/* Category pills */}
-          <div className="shrink-0 flex gap-2 overflow-x-auto px-3 lg:px-4 py-2 border-b border-slate-100">
+          <div className="shrink-0 flex gap-2 overflow-x-auto px-3 lg:px-4 py-2 border-b border-border">
             <button
               type="button"
               onClick={() => setSelectedCategory('all')}
               className={`shrink-0 rounded-2xl px-3 py-1.5 text-xs lg:text-sm font-bold transition whitespace-nowrap ${
                 selectedCategory === 'all'
                   ? 'bg-slate-900 text-white'
-                  : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  : 'border border-border bg-card text-foreground hover:bg-accent'
               }`}
             >
               All
@@ -668,7 +668,7 @@ export function OrderQueuePOS() {
                 className={`shrink-0 rounded-2xl px-3 py-1.5 text-xs lg:text-sm font-bold transition whitespace-nowrap ${
                   selectedCategory === category
                     ? 'bg-slate-900 text-white'
-                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    : 'border border-border bg-card text-foreground hover:bg-accent'
                 }`}
               >
                 {category}
@@ -688,18 +688,18 @@ export function OrderQueuePOS() {
                       type="button"
                       onClick={outOfStock ? undefined : () => addProduct(item)}
                       disabled={!activeOrderId || !canUpdate || outOfStock}
-                      className={`group flex flex-col rounded-2xl lg:rounded-3xl border bg-gradient-to-br from-white to-slate-50 p-2 lg:p-4 text-left shadow-sm transition min-h-28 lg:min-h-36 w-full ${
+                      className={`group flex flex-col rounded-2xl lg:rounded-3xl border bg-gradient-to-br from-card to-muted p-2 lg:p-4 text-left shadow-sm transition min-h-28 lg:min-h-36 w-full ${
                         outOfStock
-                          ? 'opacity-50 grayscale border-slate-200 cursor-not-allowed'
-                          : 'border-slate-200 hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50'
+                          ? 'opacity-50 grayscale border-border cursor-not-allowed'
+                          : 'border-border hover:-translate-y-0.5 hover:border-primary hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50'
                       }`}
                     >
-                      <div className="mb-2 flex h-8 w-8 lg:h-12 lg:w-12 items-center justify-center rounded-xl lg:rounded-2xl bg-blue-50 font-black text-blue-700 text-xs lg:text-base group-hover:bg-blue-600 group-hover:text-white">
+                      <div className="mb-2 flex h-8 w-8 lg:h-12 lg:w-12 items-center justify-center rounded-xl lg:rounded-2xl bg-accent font-black text-primary text-xs lg:text-base group-hover:bg-primary group-hover:text-white">
                         {item.name.slice(0, 2).toUpperCase()}
                       </div>
-                      <div className="text-xs lg:text-sm font-black text-slate-900 overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</div>
-                      <div className="mt-1 text-[10px] lg:text-xs font-semibold uppercase tracking-wide text-slate-400 truncate">{item.category}</div>
-                      <div className="mt-auto pt-1 lg:pt-2 text-sm lg:text-lg font-black text-blue-700">{formatMoney(item.price)}</div>
+                      <div className="text-xs lg:text-sm font-black text-foreground overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</div>
+                      <div className="mt-1 text-[10px] lg:text-xs font-semibold uppercase tracking-wide text-muted-foreground truncate">{item.category}</div>
+                      <div className="mt-auto pt-1 lg:pt-2 text-sm lg:text-lg font-black text-primary">{formatMoney(item.price)}</div>
                     </button>
                     {outOfStock && (
                       <div className="absolute inset-0 flex items-start justify-center pt-2 lg:pt-3 pointer-events-none">
@@ -712,7 +712,7 @@ export function OrderQueuePOS() {
                 );
               })}
               {filteredMenuItems.length === 0 && (
-                <div className="col-span-full rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500 text-sm">
+                <div className="col-span-full rounded-2xl border border-dashed border-border p-6 text-center text-muted-foreground text-sm">
                   Không có sản phẩm phù hợp.
                 </div>
               )}
@@ -721,23 +721,23 @@ export function OrderQueuePOS() {
         </section>
 
         {/* Center: Open Orders (50%) */}
-        <aside className="flex flex-col lg:flex-[5] min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <aside className="flex flex-col lg:flex-[5] min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
           {/* Fixed header + search */}
-          <div className="shrink-0 border-b border-slate-100 p-3 lg:p-4">
+          <div className="shrink-0 border-b border-border p-3 lg:p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="text-sm lg:text-lg font-black text-slate-900">Open Orders</h2>
-                <p className="text-xs lg:text-sm text-slate-500">Oldest first • {filteredOrders.length} unpaid</p>
+                <h2 className="text-sm lg:text-lg font-black text-foreground">Open Orders</h2>
+                <p className="text-xs lg:text-sm text-muted-foreground">Oldest first • {filteredOrders.length} unpaid</p>
               </div>
-              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 lg:px-3 lg:py-1 text-xs lg:text-sm font-black text-emerald-700">UNPAID</span>
+              <span className="shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 lg:px-3 lg:py-1 text-xs lg:text-sm font-black text-emerald-700 dark:text-emerald-400">UNPAID</span>
             </div>
             <div className="relative mb-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 value={orderSearch}
                 onChange={e => setOrderSearch(e.target.value)}
                 placeholder="Search..."
-                className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                className="h-10 w-full rounded-2xl border border-border bg-muted pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:bg-input-background focus:ring-4 focus:ring-primary/20"
               />
             </div>
             {/* Order tabs - touch-friendly cards */}
@@ -757,29 +757,29 @@ export function OrderQueuePOS() {
                       title={`#${order.orderNumber}`}
                       className={`shrink-0 flex flex-col items-start justify-center min-w-[140px] h-16 p-3 rounded-2xl text-left whitespace-nowrap ${
                         selected
-                          ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
+                          ? 'bg-primary text-white shadow-md ring-2 ring-primary/40'
                           : orderHasIssues
-                            ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-300'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                            ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-300 dark:border-red-800'
+                            : 'bg-muted text-foreground hover:bg-accent border border-border'
                       }`}
                     >
                       <div className="flex items-center gap-1 w-full">
                         {orderHasIssues ? (
                           <>
-                            <span className="text-[10px] leading-none text-red-600">🔴</span>
-                            <span className="text-[10px] leading-none font-semibold text-red-600">Inventory Issue</span>
+                            <span className="text-[10px] leading-none text-red-600 dark:text-red-400">🔴</span>
+                            <span className="text-[10px] leading-none font-semibold text-red-600 dark:text-red-400">Inventory Issue</span>
                           </>
                         ) : (
                           <>
-                            <span className={`text-[10px] leading-none ${selected ? 'text-blue-200' : ''}`}>{badge.dot}</span>
-                            <span className={`text-[10px] leading-none font-semibold ${selected ? 'text-blue-200' : 'text-slate-500'}`}>{badge.label}</span>
+                            <span className={`text-[10px] leading-none ${selected ? 'text-blue-200 dark:text-blue-300' : ''}`}>{badge.dot}</span>
+                            <span className={`text-[10px] leading-none font-semibold ${selected ? 'text-blue-200 dark:text-blue-300' : 'text-muted-foreground'}`}>{badge.label}</span>
                           </>
                         )}
                       </div>
-                      <span className={`text-xs font-bold leading-tight w-full ${selected ? 'text-white' : orderHasIssues ? 'text-red-900' : 'text-slate-900'}`}>
+                      <span className={`text-xs font-bold leading-tight w-full ${selected ? 'text-white' : orderHasIssues ? 'text-red-900 dark:text-red-300' : 'text-foreground'}`}>
                         {displayLabel}
                       </span>
-                      <span className={`text-[10px] leading-tight font-medium ${selected ? 'text-blue-200' : orderHasIssues ? 'text-red-500' : 'text-slate-500'}`}>
+                      <span className={`text-[10px] leading-tight font-medium ${selected ? 'text-blue-200 dark:text-blue-300' : orderHasIssues ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>
                         {getShortOrderNumber(order)}
                       </span>
                     </button>
@@ -794,12 +794,12 @@ export function OrderQueuePOS() {
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Inventory issue warning banner - red for INVALID */}
               {isInventoryInvalid && (
-                <div className="shrink-0 mx-3 lg:mx-4 mt-2 rounded-xl border border-red-300 bg-red-50 p-3">
+                <div className="shrink-0 mx-3 lg:mx-4 mt-2 rounded-xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3">
                   <div className="flex items-start gap-2">
-                    <span className="text-red-600 text-lg leading-none shrink-0 mt-0.5">⚠</span>
+                    <span className="text-red-600 dark:text-red-400 text-lg leading-none shrink-0 mt-0.5">⚠</span>
                     <div>
-                      <p className="text-sm font-bold text-red-800">Inventory Issue</p>
-                      <p className="text-xs text-red-700">
+                      <p className="text-sm font-bold text-red-800 dark:text-red-300">Inventory Issue</p>
+                      <p className="text-xs text-red-700 dark:text-red-400">
                         {inventoryIssues.length} items in this order cannot be prepared due to insufficient ingredients.
                         Please adjust quantities or remove affected items.
                       </p>
@@ -810,12 +810,12 @@ export function OrderQueuePOS() {
 
               {/* Needs revalidation warning banner - yellow (only when existing issues need re-check) */}
               {needsRevalidation && hasInventoryIssues && (
-                <div className="shrink-0 mx-3 lg:mx-4 mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                <div className="shrink-0 mx-3 lg:mx-4 mt-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3">
                   <div className="flex items-start gap-2">
-                    <span className="text-amber-600 text-lg leading-none shrink-0 mt-0.5">⚠</span>
+                    <span className="text-amber-600 dark:text-amber-400 text-lg leading-none shrink-0 mt-0.5">⚠</span>
                     <div>
-                      <p className="text-sm font-bold text-amber-800">Order Changed</p>
-                      <p className="text-xs text-amber-700">
+                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Order Changed</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
                         Order modified. Inventory needs revalidation.
                       </p>
                     </div>
@@ -824,30 +824,30 @@ export function OrderQueuePOS() {
               )}
 
               {/* Customer info - fixed */}
-              <div className="shrink-0 px-3 lg:px-4 pt-2 lg:pt-3 pb-1 lg:pb-2 border-b border-slate-100">
+              <div className="shrink-0 px-3 lg:px-4 pt-2 lg:pt-3 pb-1 lg:pb-2 border-b border-border">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    <UserRound className="h-4 w-4 text-slate-500 shrink-0" />
-                    <span className="text-sm lg:text-base font-black text-slate-900 truncate">{getCustomerLabel(activeOrder)}</span>
-                    <span className="shrink-0 text-[10px] lg:text-xs font-semibold text-slate-400" title={`#${activeOrder.orderNumber}`}>{getShortOrderNumber(activeOrder)}</span>
+                    <UserRound className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm lg:text-base font-black text-foreground truncate">{getCustomerLabel(activeOrder)}</span>
+                    <span className="shrink-0 text-[10px] lg:text-xs font-semibold text-muted-foreground" title={`#${activeOrder.orderNumber}`}>{getShortOrderNumber(activeOrder)}</span>
                     {hasInventoryIssues ? (
-                      <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] lg:text-xs font-black text-red-700">
+                      <span className="shrink-0 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] lg:text-xs font-black text-red-700 dark:text-red-400">
                         🔴 INVENTORY ISSUE
                       </span>
                     ) : (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] lg:text-xs font-black text-amber-700">
+                      <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] lg:text-xs font-black text-amber-700 dark:text-amber-400">
                         {(ORDER_STATUS_BADGE[normalizeStatus(activeOrder.status)] || ORDER_STATUS_BADGE.PENDING).dot} {activeOrder.status}
                       </span>
                     )}
                   </div>
                 </div>
                 <label className="flex items-center gap-2">
-                  <Tag className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-slate-400 shrink-0" />
+                  <Tag className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-muted-foreground shrink-0" />
                   <input
                     value={labels[activeOrder.id] ?? ''}
                     onChange={e => updateCustomerLabel(activeOrder.id, e.target.value)}
                     placeholder={`Guest ${getShortOrderNumber(activeOrder)}`}
-                    className="h-8 lg:h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs lg:text-sm font-bold outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    className="h-8 lg:h-9 w-full rounded-xl border border-border bg-input-background px-2.5 text-xs lg:text-sm font-bold outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/20"
                   />
                 </label>
               </div>
@@ -855,7 +855,7 @@ export function OrderQueuePOS() {
               {/* Order items - scrollable only section */}
               <div className="flex-1 overflow-y-auto px-3 lg:px-4 py-2 space-y-1.5 lg:space-y-2">
                 {orderLines.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-xs lg:text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border p-4 text-center text-xs lg:text-sm text-muted-foreground">
                     Chưa có món. Chọn sản phẩm ở menu bên trái.
                   </div>
                 )}
@@ -867,22 +867,22 @@ export function OrderQueuePOS() {
                     key={line.menuItemId}
                     className={`rounded-xl lg:rounded-2xl border p-2 lg:p-3 ${
                       hasIssue
-                        ? 'border-red-300 bg-red-50'
-                        : 'border-slate-200 bg-white'
+                        ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30'
+                        : 'border-border bg-card'
                     }`}
                   >
                     <div className="mb-1 lg:mb-2 flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1">
-                          {hasIssue && <span className="text-red-600 text-sm leading-none">🔴</span>}
-                          <div className="text-xs lg:text-sm font-black text-slate-900 truncate">{line.name}</div>
+                          {hasIssue && <span className="text-red-600 dark:text-red-400 text-sm leading-none">🔴</span>}
+                          <div className="text-xs lg:text-sm font-black text-foreground truncate">{line.name}</div>
                         </div>
-                        <div className="text-[10px] lg:text-sm text-slate-500">{formatMoney(line.price)} x {line.quantity}</div>
+                        <div className="text-[10px] lg:text-sm text-muted-foreground">{formatMoney(line.price)} x {line.quantity}</div>
                       </div>
-                      <div className="shrink-0 text-xs lg:text-sm font-black text-slate-900">{formatMoney(line.price * line.quantity)}</div>
+                      <div className="shrink-0 text-xs lg:text-sm font-black text-foreground">{formatMoney(line.price * line.quantity)}</div>
                     </div>
                     {hasIssue && issue && (
-                      <div className="mb-1 lg:mb-2 text-[10px] lg:text-xs text-red-700">
+                      <div className="mb-1 lg:mb-2 text-[10px] lg:text-xs text-red-700 dark:text-red-400">
                         <div className="font-semibold">Thiếu nguyên liệu:</div>
                         {issue.missingIngredients.map((mi, idx) => (
                           <div key={idx} className="ml-1">• {mi.ingredientName} (cần {mi.required}g, còn {mi.available}g)</div>
@@ -892,7 +892,7 @@ export function OrderQueuePOS() {
                     <div className="flex items-center justify-end gap-1 lg:gap-2">
                       <button
                         type="button"
-                        className="flex h-7 w-7 lg:h-9 lg:w-9 items-center justify-center rounded-lg lg:rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100"
+                        className="flex h-7 w-7 lg:h-9 lg:w-9 items-center justify-center rounded-lg lg:rounded-xl border border-border bg-muted hover:bg-accent"
                         onClick={() => changeQuantity(line.menuItemId, -1)}
                         aria-label={`Giảm số lượng ${line.name}`}
                       >
@@ -901,7 +901,7 @@ export function OrderQueuePOS() {
                       <span className="w-6 lg:w-8 text-center text-sm lg:text-lg font-black">{line.quantity}</span>
                       <button
                         type="button"
-                        className="flex h-7 w-7 lg:h-9 lg:w-9 items-center justify-center rounded-lg lg:rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                        className="flex h-7 w-7 lg:h-9 lg:w-9 items-center justify-center rounded-lg lg:rounded-xl bg-primary text-white hover:bg-primary/90"
                         onClick={() => changeQuantity(line.menuItemId, 1)}
                         aria-label={`Tăng số lượng ${line.name}`}
                       >
@@ -921,16 +921,16 @@ export function OrderQueuePOS() {
                   onBlur={() => flushPersist()}
                   placeholder="Ghi chú order..."
                   rows={1}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs lg:text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-border bg-input-background px-2.5 py-1.5 text-xs lg:text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/20"
                 />
               </div>
 
               {/* Totals - fixed */}
               <div className="shrink-0 px-3 lg:px-4 pb-1">
-                <div className="rounded-xl lg:rounded-2xl bg-slate-50 p-2 lg:p-3">
+                <div className="rounded-xl lg:rounded-2xl bg-muted p-2 lg:p-3">
                   <div className="flex justify-between text-sm lg:text-xl font-black">
                     <span>Total</span>
-                    <span className="text-blue-700">{formatMoney(payableTotal)}</span>
+                    <span className="text-primary">{formatMoney(payableTotal)}</span>
                   </div>
                 </div>
               </div>
@@ -942,7 +942,7 @@ export function OrderQueuePOS() {
                     aria-label="Phương thức thanh toán"
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
-                    className="h-9 lg:min-h-11 rounded-2xl border border-slate-200 bg-white px-2 text-xs lg:text-sm font-bold"
+                    className="h-9 lg:min-h-11 rounded-2xl border border-border bg-input-background px-2 text-xs lg:text-sm font-bold"
                   >
                     <option value="CASH">Cash</option>
                     <option value="CARD">Card</option>
@@ -952,7 +952,7 @@ export function OrderQueuePOS() {
                     type="button"
                     onClick={processPayment}
                     disabled={checkoutLoading || orderLines.length === 0 || !canPayment}
-                    className="flex h-9 lg:min-h-11 items-center justify-center gap-1 lg:gap-2 rounded-2xl bg-emerald-600 px-3 text-xs lg:text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-60"
+                    className="flex h-9 lg:min-h-11 items-center justify-center gap-1 lg:gap-2 rounded-2xl bg-emerald-600 dark:bg-emerald-700 px-3 text-xs lg:text-sm font-black text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 disabled:opacity-60"
                   >
                     <CreditCard className="h-4 w-4 lg:h-5 lg:w-5" />
                     Checkout
@@ -962,7 +962,7 @@ export function OrderQueuePOS() {
                   type="button"
                   onClick={() => cancelOrder(activeOrder)}
                   disabled={deleteLoading || !canDelete}
-                  className="flex h-9 lg:min-h-11 w-full items-center justify-center gap-1 lg:gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 text-xs lg:text-sm font-black text-red-700 hover:bg-red-100 disabled:opacity-60"
+                  className="flex h-9 lg:min-h-11 w-full items-center justify-center gap-1 lg:gap-2 rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-3 text-xs lg:text-sm font-black text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-60"
                 >
                   <Trash2 className="h-4 w-4 lg:h-5 lg:w-5" />
                   Cancel Order
@@ -977,32 +977,32 @@ export function OrderQueuePOS() {
                   <article
                     key={order.id}
                     onClick={() => setActiveOrderId(order.id)}
-                    className="cursor-pointer rounded-2xl lg:rounded-3xl border border-slate-200 bg-white p-3 lg:p-4 transition hover:border-blue-300 hover:bg-slate-50"
+                    className="cursor-pointer rounded-2xl lg:rounded-3xl border border-border bg-card p-3 lg:p-4 transition hover:border-primary/60 hover:bg-accent"
                   >
                     <div className="mb-2 flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-sm lg:text-lg font-black text-blue-700" title={`#${order.orderNumber}`}>{getShortOrderNumber(order)}</div>
-                        <div className="mt-0.5 flex items-center gap-1 text-xs lg:text-sm font-semibold text-slate-600">
+                        <div className="text-sm lg:text-lg font-black text-primary" title={`#${order.orderNumber}`}>{getShortOrderNumber(order)}</div>
+                        <div className="mt-0.5 flex items-center gap-1 text-xs lg:text-sm font-semibold text-muted-foreground">
                           <UserRound className="h-3 w-3 lg:h-4 lg:w-4 shrink-0" />
                           <span className="truncate">{getCustomerLabel(order)}</span>
                         </div>
                       </div>
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] lg:text-xs font-black text-amber-700">
+                      <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] lg:text-xs font-black text-amber-700 dark:text-amber-400">
                         {(ORDER_STATUS_BADGE[normalizeStatus(order.status)] || ORDER_STATUS_BADGE.PENDING).dot} {order.status}
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-1 lg:gap-2 text-xs lg:text-sm">
-                      <div className="rounded-xl lg:rounded-2xl bg-slate-50 p-1.5 lg:p-2">
-                        <div className="text-slate-400 text-[10px] lg:text-xs">Items</div>
-                        <div className="font-black text-slate-900">{order.itemCount || 0}</div>
+                      <div className="rounded-xl lg:rounded-2xl bg-muted p-1.5 lg:p-2">
+                        <div className="text-muted-foreground text-[10px] lg:text-xs">Items</div>
+                        <div className="font-black text-foreground">{order.itemCount || 0}</div>
                       </div>
-                      <div className="rounded-xl lg:rounded-2xl bg-slate-50 p-1.5 lg:p-2">
-                        <div className="text-slate-400 text-[10px] lg:text-xs">Total</div>
-                        <div className="font-black text-slate-900 text-xs lg:text-sm truncate">{formatMoney(order.total)}</div>
+                      <div className="rounded-xl lg:rounded-2xl bg-muted p-1.5 lg:p-2">
+                        <div className="text-muted-foreground text-[10px] lg:text-xs">Total</div>
+                        <div className="font-black text-foreground text-xs lg:text-sm truncate">{formatMoney(order.total)}</div>
                       </div>
-                      <div className="rounded-xl lg:rounded-2xl bg-slate-50 p-1.5 lg:p-2">
-                        <div className="text-slate-400 text-[10px] lg:text-xs">Time</div>
-                        <div className="flex items-center gap-1 font-black text-slate-900 text-xs lg:text-sm">
+                      <div className="rounded-xl lg:rounded-2xl bg-muted p-1.5 lg:p-2">
+                        <div className="text-muted-foreground text-[10px] lg:text-xs">Time</div>
+                        <div className="flex items-center gap-1 font-black text-foreground text-xs lg:text-sm">
                           <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
                           {formatTime(order.createdAt)}
                         </div>
@@ -1011,7 +1011,7 @@ export function OrderQueuePOS() {
                   </article>
                 ))
               ) : (
-                <div className="rounded-3xl border border-dashed border-slate-300 p-6 text-center text-slate-500 text-sm">
+                <div className="rounded-3xl border border-dashed border-border p-6 text-center text-muted-foreground text-sm">
                   {loading ? 'Đang tải...' : 'Không có OPEN order phù hợp.'}
                 </div>
               )}

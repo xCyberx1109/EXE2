@@ -1,9 +1,10 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router';
 import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig';
 import { APP_NAME } from '../../shared/constants';
+import { useTheme } from 'next-themes';
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
@@ -33,6 +34,19 @@ export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isReady, isAuthenticated, isDeviceMode, user, logout, hasPermission } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { visibleGroups, flatMenuItems } = useMemo(() => {
     const flatItems: AppMenuItem[] = [];
@@ -59,7 +73,7 @@ export function Layout() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="w-8 h-8 animate-spin mr-2" />
         Đang kết nối server...
       </div>
@@ -79,14 +93,14 @@ export function Layout() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50">
+    <div className="h-screen flex overflow-hidden bg-background">
       {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 px-4 py-3 z-40">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-card border-b border-border px-4 py-3 z-40">
         <div className="flex items-center justify-between">
-          <h1 className="font-semibold text-lg">{APP_NAME}</h1>
+          <h1 className="font-semibold text-lg text-foreground">{APP_NAME}</h1>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-md hover:bg-gray-100"
+            className="p-2 rounded-md hover:bg-accent text-foreground"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -94,13 +108,15 @@ export function Layout() {
       </div>
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">{APP_NAME}</h1>
-            <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý {APP_NAME}</p>
+          <div className="p-6 border-b border-sidebar-border">
+              <div>
+                <h1 className="text-xl font-bold text-sidebar-foreground">{APP_NAME}</h1>
+                <p className="text-sm text-sidebar-foreground/60 mt-1">Hệ thống quản lý {APP_NAME}</p>
+              </div>
           </div>
           
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -108,7 +124,7 @@ export function Layout() {
               if (!group.children) return null;
               return (
                 <div key={group.name} className="mb-4">
-                  <p className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {group.name}
                   </p>
                   {group.children.map((item) => {
@@ -121,8 +137,8 @@ export function Layout() {
                         onClick={() => setMobileMenuOpen(false)}
                         className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                           isActive
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-gray-700 hover:bg-gray-100'
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                            : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                         }`}
                       >
                         <Icon className="w-5 h-5" />
@@ -135,32 +151,60 @@ export function Layout() {
             })}
           </nav>
 
-          {/* User info + Logout */}
-          <div className="p-4 border-t border-gray-200 space-y-3">
+          {/* User info + Dropdown */}
+          <div ref={profileRef} className="p-4 border-t border-sidebar-border relative">
             {user && (
-              <Link
-                to="/app/profile"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                </div>
-              </Link>
-            )}
+              <>
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center gap-2 w-full px-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+                >
+                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium text-sidebar-foreground truncate">{user.fullName}</p>
+                    <p className="text-xs text-sidebar-foreground/60 truncate">{user.email}</p>
+                  </div>
+                </button>
 
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Đăng xuất
-            </button>
-            <div className="text-xs text-gray-400 px-2">
+                {profileOpen && (
+                  <div className="absolute left-full bottom-0 ml-3 w-56 rounded-lg border border-border bg-card shadow-xl overflow-hidden z-50">
+                    <div className="px-3 py-3 border-b border-border">
+                      <p className="text-sm font-medium text-foreground truncate">{user.fullName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      to="/app/profile"
+                      onClick={() => { setMobileMenuOpen(false); setProfileOpen(false); }}
+                      className="flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                    >
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        const modes = ["light", "dark", "system"];
+                        const idx = modes.indexOf(theme ?? "light");
+                        setTheme(modes[(idx + 1) % modes.length]);
+                      }}
+                      className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                    >
+                      <span className="text-muted-foreground">Theme</span>
+                      <span className="font-medium capitalize">{theme ?? "system"}</span>
+                    </button>
+                    <button
+                      onClick={logout}
+                      className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+            <div className="text-xs text-muted-foreground px-2 mt-3">
               <p>© 2026 {APP_NAME}</p>
             </div>
           </div>
@@ -170,7 +214,7 @@ export function Layout() {
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}

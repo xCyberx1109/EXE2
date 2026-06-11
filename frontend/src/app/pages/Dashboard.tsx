@@ -13,8 +13,8 @@ export function Dashboard() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tổng quan</h1>
-            <p className="text-gray-500 text-sm mt-1">Tổng quan hoạt động kinh doanh</p>
+            <h1 className="text-2xl font-bold text-foreground">Tổng quan</h1>
+            <p className="text-muted-foreground text-sm mt-1">Tổng quan hoạt động kinh doanh</p>
           </div>
         </div>
         <BusinessOverview data={null} loading />
@@ -45,8 +45,8 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tổng quan</h1>
-          <p className="text-gray-500 text-sm mt-1">Tổng quan hoạt động kinh doanh</p>
+          <h1 className="text-2xl font-bold text-foreground">Tổng quan</h1>
+          <p className="text-muted-foreground text-sm mt-1">Tổng quan hoạt động kinh doanh</p>
         </div>
       </div>
 

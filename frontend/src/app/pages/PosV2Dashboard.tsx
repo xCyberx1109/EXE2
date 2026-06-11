@@ -307,8 +307,8 @@ export function PosV2Dashboard() {
       case 'AVAILABLE': return 'bg-green-100 text-green-800 border-green-300';
       case 'OCCUPIED': return 'bg-red-100 text-red-800 border-red-300';
       case 'RESERVED': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'CHECKING_OUT': return 'bg-blue-100 text-blue-800 border-blue-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'CHECKING_OUT': return 'bg-accent text-primary border-primary/30';
+      default: return 'bg-muted text-gray-800 border-input';
     }
   };
 
@@ -339,13 +339,13 @@ export function PosV2Dashboard() {
     <div className="h-full space-y-4 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{APP_NAME}</h1>
-          <p className="text-gray-500 mt-1">Quản lý đơn hàng và thanh toán</p>
+          <h1 className="text-2xl font-bold text-foreground">{APP_NAME}</h1>
+          <p className="text-muted-foreground mt-1">Quản lý đơn hàng và thanh toán</p>
         </div>
         {selectedTable && (
-          <div className="flex items-center gap-3 bg-blue-50 px-4 py-2 rounded-lg">
-            <span className="font-semibold text-blue-900">Bàn {selectedTable.tableCode}</span>
-            <button onClick={handleBackToTables} className="text-blue-600 hover:text-blue-800">
+          <div className="flex items-center gap-3 bg-accent px-4 py-2 rounded-lg">
+            <span className="font-semibold text-primary">Bàn {selectedTable.tableCode}</span>
+            <button onClick={handleBackToTables} className="text-primary hover:text-primary/80">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -358,8 +358,8 @@ export function PosV2Dashboard() {
           {!selectedTable ? (
             <>
               {/* Table grid */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Chọn bàn</h2>
+              <div className="bg-card rounded-lg border border-border p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Chọn bàn</h2>
                 <div className="grid grid-cols-4 gap-3">
                   {tables.map((table) => {
                     const orderCount = getQRTableCount(table);
@@ -372,7 +372,7 @@ export function PosV2Dashboard() {
                         className={`p-4 rounded-lg border-2 transition-all relative ${getTableStatusStyle(table.status)} hover:shadow-md ${table.status === 'DISABLED' ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
                         {orderCount > 0 && (
-                          <div className="absolute -top-2 -right-2 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                          <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
                             {orderCount}
                           </div>
                         )}
@@ -381,7 +381,7 @@ export function PosV2Dashboard() {
                           <div className="text-xs mt-1">{getTableStatusText(table.status)}</div>
                           {table.currentOrder && (
                             <>
-                              <div className="flex items-center justify-center gap-1 text-xs mt-2 bg-white bg-opacity-50 rounded px-2 py-1">
+                              <div className="flex items-center justify-center gap-1 text-xs mt-2 bg-card/50 rounded px-2 py-1">
                                 <Smartphone className="w-3 h-3" />
                                 <span>QR Order</span>
                               </div>
@@ -398,41 +398,41 @@ export function PosV2Dashboard() {
               </div>
 
               {/* QR Orders overview */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Đơn hàng từ QR Code</h2>
+              <div className="bg-card rounded-lg border border-border p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Đơn hàng từ QR Code</h2>
                 {activeOrderTables.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-muted-foreground">
                     <Smartphone className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>Chưa có đơn hàng nào từ QR</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {activeOrderTables.map((table) => (
-                      <div key={table.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                      <div key={table.id} className="border border-border rounded-lg p-4 hover:border-primary/30 transition-colors">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <span className={`inline-flex items-center justify-center w-10 h-10 rounded-full font-bold ${getTableStatusStyle(table.status)}`}>
                               {table.tableCode}
                             </span>
                             <div>
-                              <div className="font-semibold text-gray-900">Bàn {table.tableCode}</div>
-                              {table.tableName && <div className="text-xs text-gray-500">{table.tableName}</div>}
+                              <div className="font-semibold text-foreground">Bàn {table.tableCode}</div>
+                              {table.tableName && <div className="text-xs text-muted-foreground">{table.tableName}</div>}
                             </div>
                           </div>
                           <button
                             onClick={() => handleTableSelect(table)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
                           >
                             Xử lý
                           </button>
                         </div>
                         {table.currentOrder && (
                           <>
-                            <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
-                              <span className="text-sm font-medium text-gray-600">
+                            <div className="mt-3 pt-3 border-t border-border flex justify-between items-center">
+                              <span className="text-sm font-medium text-muted-foreground">
                                 {table.currentOrder.itemCount} món
                               </span>
-                              <span className="text-lg font-bold text-blue-600">
+                              <span className="text-lg font-bold text-primary">
                                 {table.currentOrder.total.toLocaleString()} ₫
                               </span>
                             </div>
@@ -447,11 +447,11 @@ export function PosV2Dashboard() {
           ) : (
             <>
               {/* Category filter */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="bg-card rounded-lg border border-border p-4">
                 <div className="flex gap-2 flex-wrap mb-3">
                   <button
                     onClick={() => setSelectedCategory('all')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-accent'}`}
                   >
                     Tất cả
                   </button>
@@ -459,14 +459,14 @@ export function PosV2Dashboard() {
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === cat.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-accent'}`}
                     >
                       {cat.name}
                     </button>
                   ))}
                 </div>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     className="pl-9"
                     placeholder="Tìm món ăn..."
@@ -477,27 +477,27 @@ export function PosV2Dashboard() {
               </div>
 
               {/* Menu grid */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="bg-card rounded-lg border border-border p-4">
                 {filteredMenuItems.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">Không có món nào</div>
+                  <div className="text-center py-8 text-muted-foreground">Không có món nào</div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {filteredMenuItems.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => addToOrder(item)}
-                        className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all text-left"
+                        className="p-4 bg-muted rounded-lg border border-border hover:bg-accent hover:border-primary/30 transition-all text-left"
                       >
                         {item.imageUrl ? (
                           <img src={item.imageUrl} alt={item.name} className="w-full h-24 object-cover rounded-lg mb-2" />
                         ) : (
-                          <div className="w-full h-24 bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-gray-300">
+                          <div className="w-full h-24 bg-muted rounded-lg mb-2 flex items-center justify-center text-gray-300">
                             <Utensils className="w-8 h-8" />
                           </div>
                         )}
-                        <div className="font-semibold text-gray-900 mb-1">{item.name}</div>
-                        <div className="text-sm text-gray-500 mb-2">{item.category}</div>
-                        <div className="text-lg font-bold text-blue-600">{item.price.toLocaleString()} ₫</div>
+                        <div className="font-semibold text-foreground mb-1">{item.name}</div>
+                        <div className="text-sm text-muted-foreground mb-2">{item.category}</div>
+                        <div className="text-lg font-bold text-primary">{item.price.toLocaleString()} ₫</div>
                       </button>
                     ))}
                   </div>
@@ -509,22 +509,22 @@ export function PosV2Dashboard() {
 
         {/* Right: Order cart */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-4 max-h-[calc(100vh-8rem)] flex flex-col">
+          <div className="bg-card rounded-lg border border-border p-4 sticky top-4 max-h-[calc(100vh-8rem)] flex flex-col">
             <div className="flex items-center gap-2 mb-4 shrink-0">
-              <ShoppingCart className="w-5 h-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Đơn hàng</h2>
-              <span className="ml-auto bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+              <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">Đơn hàng</h2>
+              <span className="ml-auto bg-accent text-primary px-2 py-1 rounded-full text-xs font-medium">
                 {orderItems.reduce((sum, i) => sum + i.quantity, 0)} món
               </span>
             </div>
 
             {!selectedTable ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>Chọn bàn để bắt đầu</p>
               </div>
             ) : orderItems.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>Chưa có món nào</p>
               </div>
@@ -532,23 +532,23 @@ export function PosV2Dashboard() {
               <>
                 <div className="flex-1 space-y-3 overflow-y-auto mb-4 min-h-0">
                   {orderItems.map((item) => (
-                    <div key={item.menuItemId} className="flex items-start gap-2 pb-3 border-b border-gray-100">
+                    <div key={item.menuItemId} className="flex items-start gap-2 pb-3 border-b border-border">
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{item.name}</div>
-                        <div className="text-sm text-gray-500">{item.price.toLocaleString()} ₫</div>
+                        <div className="font-medium text-foreground truncate">{item.name}</div>
+                        <div className="text-sm text-muted-foreground">{item.price.toLocaleString()} ₫</div>
                         {item.source === 'qr' && (
-                          <div className="flex items-center gap-1 text-xs text-blue-600 mt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-primary mt-0.5">
                             <Smartphone className="w-3 h-3" />
                             QR
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => updateQuantity(item.menuItemId, -1)} className="w-7 h-7 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                        <button onClick={() => updateQuantity(item.menuItemId, -1)} className="w-7 h-7 rounded bg-muted hover:bg-accent flex items-center justify-center">
                           <Minus className="w-4 h-4" />
                         </button>
                         <span className="w-8 text-center font-medium">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.menuItemId, 1)} className="w-7 h-7 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                        <button onClick={() => updateQuantity(item.menuItemId, 1)} className="w-7 h-7 rounded bg-muted hover:bg-accent flex items-center justify-center">
                           <Plus className="w-4 h-4" />
                         </button>
                         <button onClick={() => removeItem(item.menuItemId)} className="w-7 h-7 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center ml-1">
@@ -559,18 +559,18 @@ export function PosV2Dashboard() {
                   ))}
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 space-y-2 shrink-0">
+                <div className="border-t border-border pt-4 space-y-2 shrink-0">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tạm tính:</span>
+                    <span className="text-muted-foreground">Tạm tính:</span>
                     <span className="font-medium">{calculateTotal().toLocaleString()} ₫</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">VAT (10%):</span>
+                    <span className="text-muted-foreground">VAT (10%):</span>
                     <span className="font-medium">{(calculateTotal() * 0.1).toLocaleString()} ₫</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
                     <span>Tổng cộng:</span>
-                    <span className="text-blue-600">{(calculateTotal() * 1.1).toLocaleString()} ₫</span>
+                    <span className="text-primary">{(calculateTotal() * 1.1).toLocaleString()} ₫</span>
                   </div>
                 </div>
 
@@ -584,14 +584,14 @@ export function PosV2Dashboard() {
                   </button>
                   <button
                     onClick={() => setShowPayment(true)}
-                    className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                   >
                     <CreditCard className="w-5 h-5" />
                     Thanh toán
                   </button>
                   <button
                     onClick={() => alert('In hóa đơn tạm')}
-                    className="w-full py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2 border border-input text-foreground rounded-lg font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2"
                   >
                     <Printer className="w-4 h-4" />
                     In tạm
@@ -606,20 +606,20 @@ export function PosV2Dashboard() {
       {/* Payment modal */}
       {showPayment && selectedTable && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Thanh toán - Bàn {selectedTable.tableCode}</h2>
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="bg-card rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-foreground mb-4">Thanh toán - Bàn {selectedTable.tableCode}</h2>
+            <div className="bg-muted rounded-lg p-4 mb-6">
               <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Tổng tiền:</span>
+                <span className="text-muted-foreground">Tổng tiền:</span>
                 <span className="font-semibold">{calculateTotal().toLocaleString()} ₫</span>
               </div>
               <div className="flex justify-between mb-2">
-                <span className="text-gray-600">VAT (10%):</span>
+                <span className="text-muted-foreground">VAT (10%):</span>
                 <span className="font-semibold">{(calculateTotal() * 0.1).toLocaleString()} ₫</span>
               </div>
-              <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+              <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
                 <span>Khách cần trả:</span>
-                <span className="text-blue-600">{(calculateTotal() * 1.1).toLocaleString()} ₫</span>
+                <span className="text-primary">{(calculateTotal() * 1.1).toLocaleString()} ₫</span>
               </div>
             </div>
             <div className="space-y-3">
@@ -627,11 +627,11 @@ export function PosV2Dashboard() {
                 <Banknote className="w-5 h-5" />
                 Tiền mặt
               </button>
-              <button onClick={() => handlePayment('card')} className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+              <button onClick={() => handlePayment('card')} className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
                 <CreditCard className="w-5 h-5" />
                 Thẻ / Chuyển khoản
               </button>
-              <button onClick={() => setShowPayment(false)} className="w-full py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+              <button onClick={() => setShowPayment(false)} className="w-full py-2 border border-input text-foreground rounded-lg font-medium hover:bg-accent transition-colors">
                 Hủy
               </button>
             </div>
@@ -642,8 +642,8 @@ export function PosV2Dashboard() {
   );
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      <header className="bg-white border-b shadow-sm shrink-0">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <header className="bg-card border-b shadow-sm shrink-0">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold">{APP_NAME}</h1>
@@ -735,20 +735,20 @@ export function PosV2Dashboard() {
                 <CardContent className="space-y-4">
                   {currentShift && currentShift.status === 'OPEN' && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-blue-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-gray-500">Opening Balance</div>
+                      <div className="bg-accent rounded-lg p-4 text-center">
+                        <div className="text-sm text-muted-foreground">Opening Balance</div>
                         <div className="text-2xl font-bold">{currentShift.openingBalance.toLocaleString()}</div>
                       </div>
                       <div className="bg-green-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-gray-500">Cash Sales</div>
+                        <div className="text-sm text-muted-foreground">Cash Sales</div>
                         <div className="text-2xl font-bold text-green-600">{currentShift.cashSales.toLocaleString()}</div>
                       </div>
                       <div className="bg-purple-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-gray-500">Card Sales</div>
+                        <div className="text-sm text-muted-foreground">Card Sales</div>
                         <div className="text-2xl font-bold text-purple-600">{currentShift.cardSales.toLocaleString()}</div>
                       </div>
                       <div className="bg-amber-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-gray-500">Total Orders</div>
+                        <div className="text-sm text-muted-foreground">Total Orders</div>
                         <div className="text-2xl font-bold">{currentShift.totalOrders}</div>
                       </div>
                     </div>
@@ -797,16 +797,16 @@ export function PosV2Dashboard() {
                 </CardHeader>
                 <CardContent>
                   {activeStaff.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No staff logged in</p>
+                    <p className="text-muted-foreground text-sm">No staff logged in</p>
                   ) : (
                     <div className="space-y-3">
                       {activeStaff.map((s) => (
-                        <div key={s.sessionId} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <div key={s.sessionId} className="flex items-center justify-between p-2 bg-muted rounded-lg">
                           <div>
                             <div className="font-medium">{s.account.fullName}</div>
 
                           </div>
-                          <div className="text-xs text-gray-400">{new Date(s.loginAt).toLocaleTimeString()}</div>
+                          <div className="text-xs text-muted-foreground">{new Date(s.loginAt).toLocaleTimeString()}</div>
                         </div>
                       ))}
                       <Button variant="outline" size="sm" className="w-full" onClick={handleStaffLogout}>Logout All Staff</Button>
@@ -824,16 +824,16 @@ export function PosV2Dashboard() {
             </CardHeader>
             <CardContent>
               {activeStaff.length === 0 ? (
-                <p className="text-gray-500">No active staff sessions. Log in with a PIN first.</p>
+                <p className="text-muted-foreground">No active staff sessions. Log in with a PIN first.</p>
               ) : (
                 <div className="space-y-2">
                   {activeStaff.map((s) => (
-                    <div key={s.sessionId} className="flex items-center justify-between p-3 bg-white border rounded-lg">
+                    <div key={s.sessionId} className="flex items-center justify-between p-3 bg-card border rounded-lg">
                       <div>
                         <div className="font-medium">{s.account.fullName}</div>
 
                       </div>
-                      <div className="text-sm text-gray-400">Since {new Date(s.loginAt).toLocaleTimeString()}</div>
+                      <div className="text-sm text-muted-foreground">Since {new Date(s.loginAt).toLocaleTimeString()}</div>
                     </div>
                   ))}
                 </div>

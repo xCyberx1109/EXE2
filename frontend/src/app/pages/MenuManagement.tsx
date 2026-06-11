@@ -204,7 +204,7 @@ export function MenuManagement() {
 
   if (isLoading && menuItems.length === 0) {
     return (
-      <div className="flex items-center justify-center py-24 text-gray-500">
+      <div className="flex items-center justify-center py-24 text-muted-foreground">
         <Loader2 className="w-8 h-8 animate-spin mr-2" />
         Đang tải menu...
       </div>
@@ -215,42 +215,42 @@ export function MenuManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Menu</h1>
-          <p className="text-gray-500 mt-1">Quản lý danh sách món ăn và thức uống</p>
+          <h1 className="text-2xl font-bold text-foreground">Quản lý Menu</h1>
+          <p className="text-muted-foreground mt-1">Quản lý danh sách món ăn và thức uống</p>
         </div>
         <button
           onClick={openCreateForm}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-5 h-5" />
           Thêm món mới
         </button>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-card rounded-lg border border-border p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input
               type="text"
               placeholder="Tìm kiếm món ăn..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setSelectedCategory('all')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-foreground hover:bg-accent'
                 }`}
             >
               Tất cả
             </button>
             {catsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Đang tải danh mục...
               </div>
@@ -265,8 +265,8 @@ export function MenuManagement() {
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.name)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === cat.name
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-foreground hover:bg-accent'
                     }`}
                 >
                   {cat.name}
@@ -277,37 +277,37 @@ export function MenuManagement() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-lg border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên món</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Công thức</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá bán</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá vốn</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lợi nhuận</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Tên món</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Danh mục</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Công thức</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Giá bán</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Giá vốn</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Lợi nhuận</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Trạng thái</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {filteredItems.map((item) => {
                 const profit = item.price - item.cost;
                 const profitMargin = item.price > 0 ? ((profit / item.price) * 100).toFixed(1) : '0';
                 return (
-                  <tr key={item.id} className="hover:bg-gray-50">
+                  <tr key={item.id} className="hover:bg-accent">
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{item.name}</div>
-                      <div className="text-sm text-gray-500">{item.description}</div>
+                      <div className="font-medium text-foreground">{item.name}</div>
+                      <div className="text-sm text-muted-foreground">{item.description}</div>
                     </td>
                     <td className="px-6 py-4 text-sm">{item.category}</td>
                     <td className="px-6 py-4 text-sm">
                       {item.ingredients?.length ? (
                         <div className="space-y-1">
                           {item.ingredients.slice(0, 3).map((row) => (
-                            <div key={row.id} className="text-gray-600">
+                            <div key={row.id} className="text-muted-foreground">
                               {row.ingredient?.name || 'Nguyên liệu'}:{' '}
                               <span className="font-medium">
                                 {Number(row.amount).toLocaleString()}{' '}
@@ -316,30 +316,30 @@ export function MenuManagement() {
                             </div>
                           ))}
                           {item.ingredients.length > 3 && (
-                            <div className="text-xs text-gray-400">+{item.ingredients.length - 3} nguyên liệu</div>
+                            <div className="text-xs text-muted-foreground">+{item.ingredients.length - 3} nguyên liệu</div>
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-400">Chưa có</span>
+                        <span className="text-muted-foreground">Chưa có</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium">{item.price.toLocaleString()} ₫</td>
                     <td className="px-6 py-4 text-sm">{item.cost.toLocaleString()} ₫</td>
                     <td className="px-6 py-4 text-sm">
                       <div className="text-green-600 font-medium">{profit.toLocaleString()} ₫</div>
-                      <div className="text-xs text-gray-500">{profitMargin}%</div>
+                      <div className="text-xs text-muted-foreground">{profitMargin}%</div>
                     </td>
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleToggleAvailability(item.id)}
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${item.available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${item.available ? 'bg-green-100 text-green-800' : 'bg-muted text-foreground'
                           }`}
                       >
                         {item.available ? 'Khả dụng' : 'Ngừng bán'}
                       </button>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-900 mr-3">
+                      <button onClick={() => handleEdit(item)} className="text-primary hover:text-primary/80 mr-3">
                         <Edit className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900">
@@ -356,7 +356,7 @@ export function MenuManagement() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-card rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">{editingItem ? 'Chỉnh sửa món ăn' : 'Thêm món ăn mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -366,7 +366,7 @@ export function MenuManagement() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-input rounded-lg"
                 />
               </div>
               <div>
@@ -374,7 +374,7 @@ export function MenuManagement() {
                 <select
                   value={formData.categoryId}
                   onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-input rounded-lg"
                   disabled={catsLoading}
                 >
                   {catsLoading ? (
@@ -399,7 +399,7 @@ export function MenuManagement() {
                     required
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-input rounded-lg"
                   />
                 </div>
                 <div>
@@ -410,21 +410,21 @@ export function MenuManagement() {
                     required
                     value={formData.cost}
                     onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-input rounded-lg"
                   />
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div className="border border-border rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <label className="block text-sm font-medium">Công thức nguyên liệu</label>
-                    <p className="text-xs text-gray-500 mt-1">Nhập số lượng nguyên liệu cần dùng cho 1 phần món</p>
+                    <p className="text-xs text-muted-foreground mt-1">Nhập số lượng nguyên liệu cần dùng cho 1 phần món</p>
                   </div>
                   <button
                     type="button"
                     onClick={addRecipeRow}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-accent text-primary rounded-lg hover:bg-accent"
                   >
                     <Plus className="w-4 h-4" />
                     Thêm dòng
@@ -437,7 +437,7 @@ export function MenuManagement() {
                       <select
                         value={row.ingredientId}
                         onChange={(e) => updateRecipeRow(index, { ingredientId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-input rounded-lg text-sm"
                       >
                         <option value="">-- Chọn nguyên liệu --</option>
                         {ingredients.map((i) => (
@@ -455,14 +455,14 @@ export function MenuManagement() {
                         value={row.amount}
                         onChange={(e) => updateRecipeRow(index, { amount: e.target.value })}
                         placeholder="Số lượng"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-12"
+                        className="w-full px-3 py-2 border border-input rounded-lg text-sm pr-12"
                       />
                     </div>
                     <div className="col-span-1 flex justify-end">
                       <button
                         type="button"
                         onClick={() => removeRecipeRow(index)}
-                        className="p-2 text-gray-400 hover:text-red-600"
+                        className="p-2 text-muted-foreground hover:text-destructive"
                         title="Xóa dòng"
                       >
                         <X className="w-4 h-4" />
@@ -478,7 +478,7 @@ export function MenuManagement() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-input rounded-lg"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -498,7 +498,7 @@ export function MenuManagement() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
                 >
                   {saving ? 'Đang lưu...' : editingItem ? 'Cập nhật' : 'Thêm mới'}
                 </button>
