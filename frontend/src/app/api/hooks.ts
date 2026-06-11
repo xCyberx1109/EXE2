@@ -400,11 +400,16 @@ export function useCompletePaymentMutation() {
    Order Queue Hooks
    ======================================================================== */
 
-export function useOrderQueue(params?: { search?: string; status?: string; paymentStatus?: string }) {
+export function useOrderQueue(
+  params?: { search?: string; status?: string; paymentStatus?: string },
+  extraOptions?: { refetchInterval?: number | false; staleTime?: number }
+) {
   return useQuery({
     queryKey: queryKeys.ordersQueue.all(params as Record<string, string | undefined>),
     queryFn: () => ordersQueueApi.list(params),
     staleTime: 1000 * 15,
+    ...(extraOptions?.refetchInterval != null && { refetchInterval: extraOptions.refetchInterval }),
+    ...(extraOptions?.staleTime != null && { staleTime: extraOptions.staleTime }),
   });
 }
 

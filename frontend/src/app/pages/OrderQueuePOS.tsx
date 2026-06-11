@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { menuApi, ordersQueueApi, inventoryApi } from '../api/services';
 import { MenuItem, OrderDetail, InventoryItem, InventoryIssue } from '../types';
 import { APP_NAME } from '../../shared/constants';
+import { queryClient } from '../api/queryClient';
 import {
   Clock,
   CreditCard,
@@ -564,6 +565,7 @@ export function OrderQueuePOS() {
       setOrders(current => current.filter(order => order.id !== orderId));
       setActiveOrderId(current => (current === orderId ? null : current));
       setOrdersToMakeRefresh(k => k + 1);
+      queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
 
       const receipt = [
         `${APP_NAME} Order Queue Receipt`,
