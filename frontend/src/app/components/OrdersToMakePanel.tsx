@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useRef } from 'react';
 import { useOrderQueue } from '../api/hooks';
 import { OrderDetail } from '../types';
 import { OrderProductionModal } from './OrderProductionModal';
@@ -19,13 +19,16 @@ function getShortOrderNumber(order: OrderDetail): string {
 export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
   const { data: orders = [], isLoading, refetch } = useOrderQueue(
     { paymentStatus: 'PAID' },
-    { refetchInterval: 5000, staleTime: 0 }
+    { refetchInterval: 5000 }
   );
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
 
-  useEffect(() => {
-    refetch();
-  }, [refreshKey, refetch]);
+  // Re-fetch when parent signals a data change (e.g. new order created)
+  const prevKey = useRef(refreshKey);
+  if (prevKey.current !== refreshKey) {
+    prevKey.current = refreshKey;
+    queueMicrotask(() => refetch());
+  }
 
   const sortedOrders = [...orders].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -107,7 +110,6 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
         <OrderProductionModal
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
-          onStatusChange={() => refetch()}
         />
       )}
     </section>

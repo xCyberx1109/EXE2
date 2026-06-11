@@ -1,14 +1,11 @@
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { useUpdateOrderQueueMutation } from '../api/hooks';
-import { queryClient } from '../api/queryClient';
 import { OrderDetail } from '../types';
 import { X, CheckCircle, Clock, FileText } from 'lucide-react';
 
 interface OrderProductionModalProps {
   order: OrderDetail;
   onClose: () => void;
-  onStatusChange: () => void;
 }
 
 function formatTime(value?: string) {
@@ -23,19 +20,18 @@ function getShortOrderNumber(order: OrderDetail): string {
   return `#${num.slice(-4)}`;
 }
 
-export function OrderProductionModal({ order, onClose, onStatusChange }: OrderProductionModalProps) {
+export function OrderProductionModal({ order, onClose }: OrderProductionModalProps) {
   const updateMutation = useUpdateOrderQueueMutation();
 
-  const handleComplete = async () => {
-    try {
-      await updateMutation.mutateAsync({ id: order.id, status: 'COMPLETED' });
-      toast.success(`Hoàn thành ${getShortOrderNumber(order)}`);
-      queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
-      onStatusChange();
-      onClose();
-    } catch (e: any) {
-      toast.error('Không thể hoàn thành', { description: e.message });
-    }
+  const handleComplete = () => {
+    updateMutation.mutate(
+      { id: order.id, status: 'COMPLETED' },
+      {
+        onSuccess: () => toast.success(`Hoàn thành ${getShortOrderNumber(order)}`),
+        onError: (e: any) => toast.error('Không thể hoàn thành', { description: e.message }),
+      }
+    );
+    onClose();
   };
 
   return (
@@ -91,17 +87,15 @@ export function OrderProductionModal({ order, onClose, onStatusChange }: OrderPr
           <button
             type="button"
             onClick={handleComplete}
-            disabled={updateMutation.isPending}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-200/20 transition hover:bg-emerald-700 disabled:opacity-60"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-200/20 transition hover:bg-emerald-700"
           >
             <CheckCircle className="h-5 w-5" />
-            {updateMutation.isPending ? 'Đang cập nhật...' : 'Hoàn thành'}
+            Hoàn thành
           </button>
           <button
             type="button"
             onClick={onClose}
-            disabled={updateMutation.isPending}
-            className="flex h-11 w-full items-center justify-center rounded-2xl border border-border bg-card text-sm font-bold text-foreground transition hover:bg-accent disabled:opacity-60"
+            className="flex h-11 w-full items-center justify-center rounded-2xl border border-border bg-card text-sm font-bold text-foreground transition hover:bg-accent"
           >
             Đóng
           </button>

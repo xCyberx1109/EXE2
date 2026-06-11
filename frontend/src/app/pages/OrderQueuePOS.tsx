@@ -180,12 +180,15 @@ export function OrderQueuePOS() {
         discount: nextDiscount,
         note: nextNote,
       };
+      console.log("[schedulePersist] SAVING", scheduledOrderId, `items=${lines.length}`, lines.map(l => `${l.name} x${l.quantity}`).join(', '));
       ordersQueueApi
         .update(scheduledOrderId, payload as any)
         .then(updated => {
+          console.log("[schedulePersist] API SUCCESS → setOrders", updated.orderNumber, `items=${updated.items.length}`);
           setOrders(current => current.map(order => (order.id === scheduledOrderId ? updated : order)));
         })
         .catch((e: any) => {
+          console.log("[schedulePersist] API ERROR", e.message, "→ loadOrders()");
           setError(e.message || 'Không thể lưu order.');
           loadOrders();
         })
@@ -251,6 +254,7 @@ export function OrderQueuePOS() {
   }
 
   const loadOrders = () => {
+    console.log("[loadOrders] fetching unpaid orders...");
     setLoading(true);
     setError(null);
     ordersQueueApi
@@ -261,9 +265,11 @@ export function OrderQueuePOS() {
           (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
 
+        console.log("[loadOrders] got", sorted.length, "orders, IDs:", sorted.map(o => o.id.slice(0, 8)).join(', '));
         setOrders(sorted);
         setActiveOrderId(current => {
           if (current && sorted.some(order => order.id === current)) return current;
+          console.log("[loadOrders] activeOrderId changed:", current, "→", sorted[0]?.id || null);
           return sorted[0]?.id || null;
         });
       })
@@ -288,13 +294,23 @@ export function OrderQueuePOS() {
     persistLabels(labels);
   }, [labels]);
 
+  const prevActiveOrderIdRef = useRef(activeOrderId);
+
+  // Only reset local editing state when user selects a DIFFERENT order,
+  // NOT every time activeOrder reference changes (which happens on every
+  // optimistic update, API response, etc.). This prevents race conditions
+  // where server responses overwrite the user's in-progress edits.
   useEffect(() => {
-    setOrderLines(toQueueLines(activeOrder));
-    setDiscount(Number(activeOrder?.discount || 0));
-    setOrderNote((activeOrder as any)?.note || '');
-    setInventoryIssues([]);
-    setInventoryStatus('VALID');
-  }, [activeOrder]);
+    if (prevActiveOrderIdRef.current !== activeOrderId) {
+      console.log("[ORDER SWITCH]", prevActiveOrderIdRef.current, "→", activeOrderId);
+      prevActiveOrderIdRef.current = activeOrderId;
+      setOrderLines(toQueueLines(activeOrder));
+      setDiscount(Number(activeOrder?.discount || 0));
+      setOrderNote((activeOrder as any)?.note || '');
+      setInventoryIssues([]);
+      setInventoryStatus('VALID');
+    }
+  }, [activeOrderId, activeOrder]);
 
   useEffect(() => {
     return () => {
@@ -320,6 +336,8 @@ export function OrderQueuePOS() {
     const subtotal = lines.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const nextTax = Math.max(0, Math.round((subtotal - nextDiscount) * 0.1));
     const total = Math.max(0, subtotal - nextDiscount + nextTax);
+
+    console.log("[updateLocalOrderFromCart] orderId=", orderId, "lines=", lines.map(l => `${l.name} x${l.quantity}`).join(', '), "total=", total);
 
     setOrders(current =>
       current.map(order =>
@@ -402,10 +420,7 @@ export function OrderQueuePOS() {
       ];
     })();
 
-    console.log("=== ADD PRODUCT ===");
-    console.log("Product added:", product.name, "ID:", product.id);
-    console.log("Updated cart (orderLines):", JSON.stringify(nextLines));
-    console.log("Cart item count:", nextLines.length);
+    console.log("[addProduct]", product.name, `x${1}`, `→ cart:`, nextLines.map(l => `${l.name} x${l.quantity}`).join(', '));
 
     setOrderLines(nextLines);
     updateLocalOrderFromCart(activeOrderId, nextLines);
@@ -423,6 +438,10 @@ export function OrderQueuePOS() {
           : line
       )
       .filter(line => line.quantity > 0);
+
+    const removed = orderLines.find(l => l.menuItemId === menuItemId && l.quantity + delta <= 0);
+    console.log("[changeQuantity]", menuItemId, delta, removed ? `→ REMOVED` : `→ qty changed`);
+    console.log("[orderLines]", nextLines.map(l => `${l.name} x${l.quantity}`).join(', '));
 
     setOrderLines(nextLines);
     updateLocalOrderFromCart(activeOrderId, nextLines);
@@ -609,7 +628,7 @@ export function OrderQueuePOS() {
               <button
                 onClick={createNewOrder}
                 disabled={createLoading}
-                className="flex min-h-10 items-center gap-2 rounded-2xl bg-primary px-4 py-2 font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-primary/90 disabled:opacity-60 text-sm"
+                className="flex min-h-10 items-center gap-2 rounded-2xl bg-primary px-4 py-2 font-bold text-primary-foreground shadow-lg shadow-primary/30 transition hover:bg-primary/90 disabled:opacity-60 text-sm"
               >
                 {createLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
                 New Order
@@ -694,7 +713,7 @@ export function OrderQueuePOS() {
                           : 'border-border hover:-translate-y-0.5 hover:border-primary hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50'
                       }`}
                     >
-                      <div className="mb-2 flex h-8 w-8 lg:h-12 lg:w-12 items-center justify-center rounded-xl lg:rounded-2xl bg-accent font-black text-primary text-xs lg:text-base group-hover:bg-primary group-hover:text-white">
+                      <div className="mb-2 flex h-8 w-8 lg:h-12 lg:w-12 items-center justify-center rounded-xl lg:rounded-2xl bg-accent font-black text-primary text-xs lg:text-base group-hover:bg-primary group-hover:text-primary-foreground">
                         {item.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="text-xs lg:text-sm font-black text-foreground overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</div>
@@ -757,7 +776,7 @@ export function OrderQueuePOS() {
                       title={`#${order.orderNumber}`}
                       className={`shrink-0 flex flex-col items-start justify-center min-w-[140px] h-16 p-3 rounded-2xl text-left whitespace-nowrap ${
                         selected
-                          ? 'bg-primary text-white shadow-md ring-2 ring-primary/40'
+                          ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary/40'
                           : orderHasIssues
                             ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-300 dark:border-red-800'
                             : 'bg-muted text-foreground hover:bg-accent border border-border'
@@ -771,15 +790,15 @@ export function OrderQueuePOS() {
                           </>
                         ) : (
                           <>
-                            <span className={`text-[10px] leading-none ${selected ? 'text-blue-200 dark:text-blue-300' : ''}`}>{badge.dot}</span>
-                            <span className={`text-[10px] leading-none font-semibold ${selected ? 'text-blue-200 dark:text-blue-300' : 'text-muted-foreground'}`}>{badge.label}</span>
+                            <span className={`text-[10px] leading-none ${selected ? 'text-primary-foreground/70' : ''}`}>{badge.dot}</span>
+                            <span className={`text-[10px] leading-none font-semibold ${selected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{badge.label}</span>
                           </>
                         )}
                       </div>
-                      <span className={`text-xs font-bold leading-tight w-full ${selected ? 'text-white' : orderHasIssues ? 'text-red-900 dark:text-red-300' : 'text-foreground'}`}>
+                      <span className={`text-xs font-bold leading-tight w-full ${selected ? 'text-primary-foreground' : orderHasIssues ? 'text-red-900 dark:text-red-300' : 'text-foreground'}`}>
                         {displayLabel}
                       </span>
-                      <span className={`text-[10px] leading-tight font-medium ${selected ? 'text-blue-200 dark:text-blue-300' : orderHasIssues ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>
+                      <span className={`text-[10px] leading-tight font-medium ${selected ? 'text-primary-foreground/70' : orderHasIssues ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>
                         {getShortOrderNumber(order)}
                       </span>
                     </button>
@@ -901,7 +920,7 @@ export function OrderQueuePOS() {
                       <span className="w-6 lg:w-8 text-center text-sm lg:text-lg font-black">{line.quantity}</span>
                       <button
                         type="button"
-                        className="flex h-7 w-7 lg:h-9 lg:w-9 items-center justify-center rounded-lg lg:rounded-xl bg-primary text-white hover:bg-primary/90"
+                        className="flex h-7 w-7 lg:h-9 lg:w-9 items-center justify-center rounded-lg lg:rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
                         onClick={() => changeQuantity(line.menuItemId, 1)}
                         aria-label={`Tăng số lượng ${line.name}`}
                       >
