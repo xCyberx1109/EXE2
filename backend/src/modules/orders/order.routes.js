@@ -21,19 +21,27 @@ router.post('/orders', optionalAuth, createOrderRules, validate, createOrder);
 router.delete('/orders/:id', optionalAuth, orderIdParam, validate, deleteOrder);
 router.post('/orders/complete-payment', optionalAuth, completeTablePayment);
 
+// No-cache middleware for order queue endpoints (fresh data always)
+const noCache = (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+};
+
 // Order Queue POS endpoints - independent no-table POS workflow
-router.get('/orders/queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_VIEW'), listOrderQueue);
-router.post('/orders/queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_CREATE'), createOrderQueueRules, validate, createOrderQueue);
-router.put('/orders/queue/:id', optionalAuth, requirePermission('POS_ORDER_QUEUE_UPDATE'), orderIdParam, validate, updateOrderQueue);
-router.post('/orders/queue/:id/payment', optionalAuth, requirePermission('POS_ORDER_QUEUE_PAYMENT'), orderIdParam, validate, payOrderQueue);
-router.post('/orders/queue/:id/cancel', optionalAuth, requirePermission('POS_ORDER_QUEUE_DELETE'), orderIdParam, validate, cancelOrderQueue);
+router.get('/orders/queue', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_VIEW'), listOrderQueue);
+router.post('/orders/queue', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_CREATE'), createOrderQueueRules, validate, createOrderQueue);
+router.put('/orders/queue/:id', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_UPDATE'), orderIdParam, validate, updateOrderQueue);
+router.post('/orders/queue/:id/payment', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_PAYMENT'), orderIdParam, validate, payOrderQueue);
+router.post('/orders/queue/:id/cancel', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_DELETE'), orderIdParam, validate, cancelOrderQueue);
 
 // Backward-compatible aliases for older clients
-router.get('/orders/order-queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_VIEW'), listOrderQueue);
-router.post('/orders/order-queue', optionalAuth, requirePermission('POS_ORDER_QUEUE_CREATE'), createOrderQueueRules, validate, createOrderQueue);
-router.patch('/orders/order-queue/:id', optionalAuth, requirePermission('POS_ORDER_QUEUE_UPDATE'), orderIdParam, validate, updateOrderQueue);
-router.post('/orders/order-queue/:id/payment', optionalAuth, requirePermission('POS_ORDER_QUEUE_PAYMENT'), orderIdParam, validate, payOrderQueue);
-router.delete('/orders/order-queue/:id', optionalAuth, requirePermission('POS_ORDER_QUEUE_DELETE'), orderIdParam, validate, cancelOrderQueue);
+router.get('/orders/order-queue', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_VIEW'), listOrderQueue);
+router.post('/orders/order-queue', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_CREATE'), createOrderQueueRules, validate, createOrderQueue);
+router.patch('/orders/order-queue/:id', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_UPDATE'), orderIdParam, validate, updateOrderQueue);
+router.post('/orders/order-queue/:id/payment', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_PAYMENT'), orderIdParam, validate, payOrderQueue);
+router.delete('/orders/order-queue/:id', noCache, optionalAuth, requirePermission('POS_ORDER_QUEUE_DELETE'), orderIdParam, validate, cancelOrderQueue);
 
 // Table-order endpoints
 router.get('/orders/by-table/:tableId', optionalAuth, getActiveTableOrder);

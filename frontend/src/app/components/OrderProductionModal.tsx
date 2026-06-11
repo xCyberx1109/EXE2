@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useUpdateOrderQueueMutation } from '../api/hooks';
+import { queryClient } from '../api/queryClient';
 import { OrderDetail } from '../types';
 import { X, CheckCircle, Clock, FileText } from 'lucide-react';
 
@@ -29,6 +30,7 @@ export function OrderProductionModal({ order, onClose, onStatusChange }: OrderPr
     try {
       await updateMutation.mutateAsync({ id: order.id, status: 'COMPLETED' });
       toast.success(`Hoàn thành ${getShortOrderNumber(order)}`);
+      queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
       onStatusChange();
       onClose();
     } catch (e: any) {

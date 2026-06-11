@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useOrderQueue } from '../api/hooks';
 import { OrderDetail } from '../types';
 import { OrderProductionModal } from './OrderProductionModal';
@@ -17,8 +17,15 @@ function getShortOrderNumber(order: OrderDetail): string {
 }
 
 export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
-  const { data: orders = [], isLoading, refetch } = useOrderQueue({ paymentStatus: 'PAID' });
+  const { data: orders = [], isLoading, refetch } = useOrderQueue(
+    { paymentStatus: 'PAID' },
+    { refetchInterval: 5000, staleTime: 0 }
+  );
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
+
+  useEffect(() => {
+    refetch();
+  }, [refreshKey, refetch]);
 
   const sortedOrders = [...orders].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
