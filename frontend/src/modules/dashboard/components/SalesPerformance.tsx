@@ -11,15 +11,15 @@ export function SalesPerformance({
   if (loading && !data) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5 animate-pulse">
-          <div className="h-5 bg-gray-200 rounded w-40 mb-6" />
-          <div className="h-64 bg-gray-100 rounded" />
+        <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5 animate-pulse">
+          <div className="h-5 bg-muted rounded w-40 mb-6" />
+          <div className="h-64 bg-muted rounded" />
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse">
-          <div className="h-5 bg-gray-200 rounded w-32 mb-6" />
+        <div className="bg-card rounded-xl border border-border p-5 animate-pulse">
+          <div className="h-5 bg-muted rounded w-32 mb-6" />
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-12 bg-gray-100 rounded" />
+              <div key={i} className="h-12 bg-muted rounded" />
             ))}
           </div>
         </div>
@@ -31,7 +31,7 @@ export function SalesPerformance({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
+      <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5">
         <SectionHeader title="Phân tích doanh thu">
           <ChartRangeSelector value={chartRange} onChange={onChartRangeChange} />
         </SectionHeader>

@@ -33,10 +33,10 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
 
   const bodyContent = isLoading ? (
     <div className="flex items-center justify-center py-12">
-      <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
     </div>
   ) : sortedOrders.length === 0 ? (
-    <div className="rounded-3xl border border-dashed border-slate-300 p-6 text-center text-slate-500 text-sm">
+    <div className="rounded-3xl border border-dashed border-border p-6 text-center text-muted-foreground text-sm">
       Không có đơn cần làm
     </div>
   ) : (
@@ -44,13 +44,13 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
       <article
         key={order.id}
         onClick={() => setSelectedOrder(order)}
-        className="cursor-pointer rounded-2xl lg:rounded-3xl border border-slate-200 bg-white p-3 lg:p-4 transition hover:border-amber-300 hover:bg-amber-50/50"
+        className="cursor-pointer rounded-2xl lg:rounded-3xl border border-border bg-card p-3 lg:p-4 transition hover:border-amber-500 dark:hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20"
       >
         <div className="mb-2 flex items-start justify-between gap-2">
-          <div className="text-sm lg:text-lg font-black text-amber-700" title={`#${order.orderNumber}`}>
+          <div className="text-sm lg:text-lg font-black text-amber-700 dark:text-amber-400" title={`#${order.orderNumber}`}>
             {getShortOrderNumber(order)}
           </div>
-          <div className="flex items-center gap-1 text-xs text-slate-500">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
             {formatTime(order.createdAt)}
           </div>
@@ -60,13 +60,13 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
           {order.items.slice(0, 3).map(item => (
             <span
               key={item.id}
-              className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] lg:text-xs font-semibold text-slate-600 truncate max-w-[120px]"
+              className="rounded-lg bg-muted px-2 py-0.5 text-[10px] lg:text-xs font-semibold text-muted-foreground truncate max-w-[120px]"
             >
               {item.name} x{item.quantity}
             </span>
           ))}
           {order.items.length > 3 && (
-            <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+            <span className="rounded-lg bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
               +{order.items.length - 3}
             </span>
           )}
@@ -76,22 +76,22 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
   );
 
   return (
-    <section className="flex flex-col h-full min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="shrink-0 border-b border-slate-100 p-3 lg:p-4">
+    <section className="flex flex-col h-full min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="shrink-0 border-b border-border p-3 lg:p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-base lg:text-lg font-black text-slate-900">
-              <Coffee className="h-4 w-4 lg:h-5 lg:w-5 text-amber-600 shrink-0" />
+            <h2 className="flex items-center gap-2 text-base lg:text-lg font-black text-foreground">
+              <Coffee className="h-4 w-4 lg:h-5 lg:w-5 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="truncate">Orders To Make</span>
             </h2>
-            <p className="text-xs lg:text-sm text-slate-500">
+            <p className="text-xs lg:text-sm text-muted-foreground">
               {isLoading ? 'Đang tải...' : `${sortedOrders.length} orders`}
             </p>
           </div>
           <button
             type="button"
             onClick={() => refetch()}
-            className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition shrink-0"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent transition shrink-0"
             title="Làm mới"
           >
             <RefreshCw className="h-4 w-4" />

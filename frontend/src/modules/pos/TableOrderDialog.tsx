@@ -136,15 +136,15 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/50">
-      <div className="flex flex-col w-full h-full bg-white">
+      <div className="flex flex-col w-full h-full bg-card">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-muted shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-gray-800">Bàn {table.tableCode}</h2>
             {table.tableName && (
-              <span className="text-sm text-gray-500">({table.tableName})</span>
+              <span className="text-sm text-muted-foreground">({table.tableName})</span>
             )}
-            <span className="text-sm text-gray-400">Sức chứa: {table.capacity} người</span>
+            <span className="text-sm text-muted-foreground">Sức chứa: {table.capacity} người</span>
             {existingOrder && (
               <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                 Đơn #{existingOrder.orderNumber}
@@ -168,14 +168,14 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
                 onClick={() => setSelectedCategory('all')}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-muted-foreground hover:bg-gray-200'
                 }`}
               >
                 Tất cả
               </button>
               {catsLoading ? (
-                <div className="flex items-center gap-2 px-4 text-sm text-gray-400">
+                <div className="flex items-center gap-2 px-4 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Đang tải...
                 </div>
@@ -186,8 +186,8 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
                     onClick={() => setSelectedCategory(cat.id)}
                     className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                       selectedCategory === cat.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 text-muted-foreground hover:bg-gray-200'
                     }`}
                   >
                     {cat.name}
@@ -199,11 +199,11 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
             {/* Menu items grid */}
             <div className="flex-1 overflow-y-auto p-6">
               {loading ? (
-                <div className="flex items-center justify-center h-full text-gray-400">
+                <div className="flex items-center justify-center h-full text-muted-foreground">
                   Đang tải thực đơn...
                 </div>
               ) : availableItems.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-gray-400">
+                <div className="flex items-center justify-center h-full text-muted-foreground">
                   Không có món nào
                 </div>
               ) : (
@@ -214,7 +214,7 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
                       <div key={item.id} className="relative">
                         <button
                           onClick={outOfStock ? undefined : () => addToCart(item)}
-                          className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 bg-white transition-all text-center w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed border-gray-200' : 'border-gray-200 hover:border-blue-400 hover:shadow-md active:scale-95'}`}
+                          className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 bg-card transition-all text-center w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed border-border' : 'border-border hover:border-blue-400 hover:shadow-md active:scale-95'}`}
                         >
                           {item.imageUrl ? (
                             <img
@@ -230,7 +230,7 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
                           <span className="text-sm font-semibold text-gray-800 line-clamp-2">
                             {item.name}
                           </span>
-                          <span className="text-sm font-bold text-blue-600 mt-1">
+                          <span className="text-sm font-bold text-primary mt-1">
                             {item.price.toLocaleString()}₫
                           </span>
                         </button>
@@ -250,13 +250,13 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
           </div>
 
           {/* Right: Cart */}
-          <div className="w-80 border-l bg-gray-50 flex flex-col shrink-0">
-            <div className="px-4 py-3 border-b bg-white shrink-0">
+          <div className="w-80 border-l bg-muted flex flex-col shrink-0">
+            <div className="px-4 py-3 border-b bg-card shrink-0">
               <h3 className="font-semibold flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4" />
                 Giỏ hàng
                 {cart.length > 0 && (
-                  <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">
                     {cart.reduce((s, i) => s + i.quantity, 0)}
                   </span>
                 )}
@@ -265,17 +265,17 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
 
             <div className="flex-1 overflow-y-auto px-4 py-2">
               {cart.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">Chưa chọn món</p>
+                <p className="text-sm text-muted-foreground text-center py-8">Chưa chọn món</p>
               ) : (
                 <div className="space-y-2">
                   {cart.map((item) => (
                     <div
                       key={item.menuItemId}
-                      className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0"
+                      className="flex items-center justify-between py-2 border-b border-border last:border-0"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.name}</p>
-                        <p className="text-xs text-gray-500">{item.price.toLocaleString()}₫</p>
+                        <p className="text-xs text-muted-foreground">{item.price.toLocaleString()}₫</p>
                       </div>
                       <div className="flex items-center gap-1 ml-2">
                         <button
@@ -300,10 +300,10 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
               )}
             </div>
 
-            <div className="px-4 py-3 border-t bg-white shrink-0 space-y-3">
+            <div className="px-4 py-3 border-t bg-card shrink-0 space-y-3">
               <div className="flex justify-between text-base font-bold">
                 <span>Tổng cộng</span>
-                <span className="text-blue-600">{subtotal.toLocaleString()}₫</span>
+                <span className="text-primary">{subtotal.toLocaleString()}₫</span>
               </div>
               <button
                 onClick={handleSubmit}

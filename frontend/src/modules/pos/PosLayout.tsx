@@ -62,7 +62,7 @@ function PosNavbar() {
 
   if (!isReady || !isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="w-8 h-8 animate-spin mr-2" />
         Đang tải...
       </div>
@@ -91,25 +91,25 @@ function PosNavbar() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b shadow-sm sticky top-0 z-20">
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-20">
         <div className="max-w-full mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/login" className="text-gray-400 hover:text-gray-600">
+            <Link to="/login" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-lg font-bold">{deviceLabel}</h1>
-              {branchName && <p className="text-xs text-gray-500">{branchName}</p>}
+              <h1 className="text-lg font-bold text-foreground">{deviceLabel}</h1>
+              {branchName && <p className="text-xs text-muted-foreground">{branchName}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+            <span className="text-xs px-2 py-0.5 bg-accent text-primary rounded-full font-medium">
               {authMode === 'device' ? (deviceType || APP_NAME) : 'STAFF'}
             </span>
             <button
               onClick={handleLogout}
-              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
               title="Đăng xuất"
             >
               <LogOut className="w-5 h-5" />
@@ -119,7 +119,7 @@ function PosNavbar() {
       </header>
 
       {navItems.length > 1 && (
-        <div className="bg-white border-b">
+        <div className="bg-card border-b border-border">
           <div className="max-w-full mx-auto px-4">
             <div className="flex gap-1 overflow-x-auto py-2">
               {navItems.map((item) => {
@@ -131,8 +131,8 @@ function PosNavbar() {
                     to={item.path}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-accent text-primary'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                   >
                     <Icon className="w-4 h-4" />

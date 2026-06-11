@@ -24,14 +24,14 @@ const SOURCE_OPTIONS = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-700',
-  CONFIRMED: 'bg-blue-100 text-blue-700',
-  PREPARING: 'bg-indigo-100 text-indigo-700',
-  READY: 'bg-emerald-100 text-emerald-700',
-  SERVED: 'bg-teal-100 text-teal-700',
-  COMPLETED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-red-100 text-red-700',
-  REFUNDED: 'bg-gray-100 text-gray-700',
+  PENDING: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+  CONFIRMED: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+  PREPARING: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400',
+  READY: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+  SERVED: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
+  COMPLETED: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+  CANCELLED: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+  REFUNDED: 'bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300',
 };
 
 function formatMoney(value?: number) {
@@ -97,23 +97,23 @@ export function OrderHistoryPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Lịch sử đơn hàng</h1>
-          <p className="text-gray-500 text-sm">Tra cứu đơn hàng đã hoàn tất</p>
+          <h1 className="text-2xl font-bold text-foreground">Lịch sử đơn hàng</h1>
+          <p className="text-muted-foreground text-sm">Tra cứu đơn hàng đã hoàn tất</p>
         </div>
         <button
           onClick={loadOrders}
           disabled={loading}
-          className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-lg border border-input bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-60"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Làm mới
         </button>
       </div>
 
-      <form onSubmit={handleFilter} className="rounded-xl border border-gray-200 bg-white p-4">
+      <form onSubmit={handleFilter} className="rounded-xl border border-border bg-card p-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
               <Calendar className="inline h-3 w-3 mr-1" />
               Từ ngày
             </label>
@@ -121,11 +121,11 @@ export function OrderHistoryPage() {
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
               <Calendar className="inline h-3 w-3 mr-1" />
               Đến ngày
             </label>
@@ -133,18 +133,18 @@ export function OrderHistoryPage() {
               type="date"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
               <Filter className="inline h-3 w-3 mr-1" />
               Trạng thái
             </label>
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             >
               {ORDER_STATUS_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -152,14 +152,14 @@ export function OrderHistoryPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
               <Filter className="inline h-3 w-3 mr-1" />
               Nguồn
             </label>
             <select
               value={sourceFilter}
               onChange={e => setSourceFilter(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             >
               {SOURCE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -169,7 +169,7 @@ export function OrderHistoryPage() {
           <div className="flex items-end">
             <button
               type="submit"
-              className="h-10 w-full rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 transition"
+              className="h-10 w-full rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
             >
               Tra cứu
             </button>
@@ -178,71 +178,71 @@ export function OrderHistoryPage() {
       </form>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Tìm theo mã đơn hàng..."
-          className="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="h-10 w-full rounded-lg border border-input bg-input-background pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
         />
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-muted">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Mã đơn</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Ngày</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Tổng tiền</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Trạng thái</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Nguồn</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Thao tác</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mã đơn</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ngày</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tổng tiền</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nguồn</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                   <Loader2 className="inline h-6 w-6 animate-spin" />
                   <span className="ml-2">Đang tải...</span>
                 </td>
               </tr>
             ) : filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                   Không có đơn hàng nào.
                 </td>
               </tr>
             ) : (
               filteredOrders.map(order => (
-                <tr key={order.id} className="hover:bg-gray-50 transition">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                <tr key={order.id} className="hover:bg-accent transition">
+                  <td className="px-4 py-3 text-sm font-medium text-foreground">
                     {order.orderNumber}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {formatDate(order.createdAt)}
                   </td>
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+                  <td className="px-4 py-3 text-sm font-semibold text-foreground text-right">
                     {formatMoney(order.total)}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[order.status] || 'bg-gray-100 text-gray-700'}`}>
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[order.status] || 'bg-muted text-foreground'}`}>
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-500">
+                  <td className="px-4 py-3 text-center text-sm text-muted-foreground">
                     {order.source || '-'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() => navigate(`/app/orders/${order.id}`)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
+                      className="inline-flex items-center gap-1 rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition"
                     >
                       <Eye className="h-3.5 w-3.5" />
                       Xem chi tiết

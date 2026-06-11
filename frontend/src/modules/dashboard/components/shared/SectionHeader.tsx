@@ -7,11 +7,11 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
       <div className="flex items-center gap-3">
         {children}
         {actionLabel && actionHref && (
-          <Link to={actionHref} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+          <Link to={actionHref} className="text-sm text-primary hover:text-primary/80 font-medium">
             {actionLabel} →
           </Link>
         )}
