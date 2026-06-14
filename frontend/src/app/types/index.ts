@@ -48,6 +48,19 @@ export interface CategoryItem {
   itemCount: number;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  pagination: PaginationMeta;
 }
 
 export interface TopSellingItem {

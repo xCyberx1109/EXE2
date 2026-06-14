@@ -8,27 +8,6 @@ function getContext(req) {
   return req.user || req.posDevice || null;
 }
 
-// Categories
-export const listCategories = asyncHandler(async (req, res) => {
-  const data = await menuService.listCategories(getContext(req), req.query.accountId);
-  sendSuccess(res, { message: 'Lấy danh sách danh mục thành công', data });
-});
-
-export const createCategory = asyncHandler(async (req, res) => {
-  const data = await menuService.createCategory(req.body, getContext(req));
-  sendSuccess(res, { message: 'Tạo danh mục thành công', data, statusCode: 201 });
-});
-
-export const updateCategory = asyncHandler(async (req, res) => {
-  const data = await menuService.updateCategory(req.params.id, req.body, getContext(req));
-  sendSuccess(res, { message: 'Cập nhật danh mục thành công', data });
-});
-
-export const deleteCategory = asyncHandler(async (req, res) => {
-  await menuService.deleteCategory(req.params.id, getContext(req));
-  sendSuccess(res, { message: 'Xóa danh mục thành công', data: null });
-});
-
 // Menu items
 export const listMenuItems = asyncHandler(async (req, res) => {
   const data = await menuService.listMenuItems(req.query, getContext(req));

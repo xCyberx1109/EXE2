@@ -6,15 +6,9 @@ import { orderRepository } from '../../repositories/order.repository.js';
 import prisma from '../../prisma/client.js';
 
 export const menuService = {
-  // --- Categories ---
-  async listCategories(user, queryAccountId) {
-    const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      where.accountId = user.accountId || user.id;
-    } else if (queryAccountId) {
-      where.accountId = queryAccountId;
-    }
-    const categories = await categoryRepository.findAll(where);
+  // --- Categories (shared, global — no account scoping) ---
+  async listCategories() {
+    const categories = await categoryRepository.findMany();
     return categories.map((c) => ({
       id: c.id,
       name: c.name,
@@ -24,24 +18,16 @@ export const menuService = {
     }));
   },
 
-  async createCategory({ name, description }, user) {
+  async createCategory({ name, description }) {
     const slug = slugify(name);
     const data = { name, slug, description };
-    if (user) data.accountId = user.accountId || user.id;
     const category = await categoryRepository.create(data);
     return category;
   },
 
-  async updateCategory(id, data, user) {
+  async updateCategory(id, data) {
     const existing = await categoryRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
-
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      const accountId = user.accountId || user.id;
-      if (accountId && existing.accountId !== accountId) {
-        throw new AppError('Bạn không có quyền thao tác với danh mục này', 403);
-      }
-    }
 
     const updateData = { ...data };
     if (data.name) updateData.slug = slugify(data.name);
@@ -49,22 +35,15 @@ export const menuService = {
     return categoryRepository.update(id, updateData);
   },
 
-  async deleteCategory(id, user) {
+  async deleteCategory(id) {
     const existing = await categoryRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
-
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      const accountId = user.accountId || user.id;
-      if (accountId && existing.accountId !== accountId) {
-        throw new AppError('Bạn không có quyền thao tác với danh mục này', 403);
-      }
-    }
 
     const count = await menuItemRepository.count({ categoryId: id });
     if (count > 0) {
       throw new AppError('Không thể xóa danh mục đang có món ăn', 400);
     }
-    await categoryRepository.delete(id);
+    await categoryRepository.softDelete(id);
   },
 
   // --- Menu Items ---
@@ -74,8 +53,7 @@ export const menuService = {
     if (categoryId) {
       where.categoryId = categoryId;
     } else if (category && category !== 'all') {
-      const scopedAccountId = user?.accountId || user?.id || queryAccountId;
-      const cat = await categoryRepository.findByName(category, scopedAccountId);
+      const cat = await categoryRepository.findByName(category);
       if (cat) where.categoryId = cat.id;
     }
 

@@ -214,9 +214,9 @@ export async function seedDatabase() {
   const categoryMap = {};
   for (const cat of categories) {
     const created = await prisma.category.upsert({
-      where: { accountId_slug: { accountId: accountId, slug: cat.slug } },
-      update: { description: cat.description },
-      create: { ...cat, accountId: accountId },
+      where: { slug: cat.slug },
+      update: { name: cat.name, description: cat.description, sortOrder: cat.sortOrder ?? 0, active: cat.active ?? true },
+      create: { name: cat.name, slug: cat.slug, description: cat.description, sortOrder: cat.sortOrder ?? 0, active: cat.active ?? true },
     });
     categoryMap[cat.name] = created.id;
   }

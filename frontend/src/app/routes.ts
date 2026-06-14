@@ -23,6 +23,7 @@ import { WaiterPOS } from '../modules/waiter/WaiterPOS';
 import { KioskPOS } from '../modules/kiosk/KioskPOS';
 import { CustomerDisplay } from '../modules/customerDisplay/CustomerDisplay';
 import { OrderQueuePOS } from './pages/OrderQueuePOS';
+import { CategoryManagement } from './pages/CategoryManagement';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 
@@ -197,6 +198,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: withGuard(Dashboard, { rbacPerms: ['DASHBOARD_VIEW'] }) },
           { path: 'branch', element: withGuard(BranchManagement, { rbacPerms: ['BRANCH_VIEW'] }) },
+          { path: 'categories', element: withGuard(CategoryManagement, { rbacPerms: ['CATEGORY_VIEW'] }) },
           { path: 'pos-devices', element: createElement(Navigate, { to: '/app/pos-devices-v2', replace: true }) },
           { path: 'pos-devices-v2', element: withGuard(PosDeviceManagerPage, { rbacPerms: ['POS_DEVICE_VIEW'] }) },
           { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_VIEW'] }) },

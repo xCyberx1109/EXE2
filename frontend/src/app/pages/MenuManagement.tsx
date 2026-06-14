@@ -366,7 +366,7 @@ export function MenuManagement() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-lg"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-input-background text-foreground"
                 />
               </div>
               <div>
@@ -374,7 +374,7 @@ export function MenuManagement() {
                 <select
                   value={formData.categoryId}
                   onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-lg"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-input-background text-foreground"
                   disabled={catsLoading}
                 >
                   {catsLoading ? (
@@ -399,7 +399,7 @@ export function MenuManagement() {
                     required
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-3 py-2 border border-input rounded-lg"
+                    className="w-full px-3 py-2 border border-input rounded-lg bg-input-background text-foreground"
                   />
                 </div>
                 <div>
@@ -410,7 +410,7 @@ export function MenuManagement() {
                     required
                     value={formData.cost}
                     onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                    className="w-full px-3 py-2 border border-input rounded-lg"
+                    className="w-full px-3 py-2 border border-input rounded-lg bg-input-background text-foreground"
                   />
                 </div>
               </div>
@@ -437,7 +437,7 @@ export function MenuManagement() {
                       <select
                         value={row.ingredientId}
                         onChange={(e) => updateRecipeRow(index, { ingredientId: e.target.value })}
-                        className="w-full px-3 py-2 border border-input rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-input-background text-foreground"
                       >
                         <option value="">-- Chọn nguyên liệu --</option>
                         {ingredients.map((i) => (
@@ -455,7 +455,7 @@ export function MenuManagement() {
                         value={row.amount}
                         onChange={(e) => updateRecipeRow(index, { amount: e.target.value })}
                         placeholder="Số lượng"
-                        className="w-full px-3 py-2 border border-input rounded-lg text-sm pr-12"
+                        className="w-full px-3 py-2 border border-input rounded-lg text-sm pr-12 bg-input-background text-foreground"
                       />
                     </div>
                     <div className="col-span-1 flex justify-end">
@@ -478,7 +478,7 @@ export function MenuManagement() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-input rounded-lg"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-input-background text-foreground"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -492,7 +492,7 @@ export function MenuManagement() {
                 <label htmlFor="available" className="text-sm">Món ăn khả dụng</label>
               </div>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={resetForm} className="flex-1 px-4 py-2 border rounded-lg">
+                <button type="button" onClick={resetForm} className="flex-1 px-4 py-2 border border-input rounded-lg bg-input-background text-foreground">
                   Hủy
                 </button>
                 <button

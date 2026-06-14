@@ -340,9 +340,8 @@ model StaffSession {
 
 model Category {
   id          String     @id @default(cuid())
-  accountId   String
   name        String
-  slug        String
+  slug        String     @unique
   description String?
   sortOrder   Int        @default(0)
   active      Boolean    @default(true)
@@ -351,9 +350,7 @@ model Category {
   updatedAt   DateTime   @updatedAt
   menuItems   MenuItem[]
 
-  @@unique([accountId, slug], map: "categories_branchId_slug_key")
   @@index([active])
-  @@index([accountId], map: "categories_branchId_idx")
   @@map("categories")
 }
 
