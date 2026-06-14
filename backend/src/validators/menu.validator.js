@@ -1,10 +1,5 @@
 import { body, param, query } from 'express-validator';
 
-export const categoryRules = [
-  body('name').trim().notEmpty().withMessage('Tên danh mục là bắt buộc'),
-  body('description').optional().trim(),
-];
-
 export const menuItemRules = [
   body('name').trim().notEmpty().withMessage('Tên món là bắt buộc'),
 

@@ -99,7 +99,7 @@ export function PosV2Dashboard() {
         categoryApi.list(),
         menuApi.list({ available: 'true' }),
       ]);
-      setCategories(cats);
+      setCategories(cats.items ?? []);
       setMenuItems(items);
     } catch {
       // silently fail

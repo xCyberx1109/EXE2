@@ -13,6 +13,7 @@ import type {
   TableItem,
   DeleteDependencyReport,
   InventoryIssue,
+  PaginatedResponse,
 } from '../types';
 
 // Payload used by menu create/update. Recipe rows are persisted to MenuItemIngredient.
@@ -84,25 +85,44 @@ export const deviceAuthApi = {
 
 // --- Categories ---
 export const categoryApi = {
-  list: (params?: { accountId?: string }) => {
+  list: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sort?: string;
+    sortOrder?: string;
+    active?: boolean;
+    includeDeleted?: boolean;
+    deleted?: boolean;
+  }) => {
     const q = new URLSearchParams();
-    if (params?.accountId) q.set('accountId', params.accountId);
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.search) q.set('search', params.search);
+    if (params?.sort) q.set('sort', params.sort);
+    if (params?.sortOrder) q.set('sortOrder', params.sortOrder);
+    if (params?.active !== undefined) q.set('active', String(params.active));
+    if (params?.includeDeleted) q.set('includeDeleted', 'true');
+    if (params?.deleted) q.set('deleted', 'true');
     const query = q.toString();
     const headers = getAuthHeaders();
-    return apiFetch<CategoryItem[]>(`/categories${query ? `?${query}` : ''}`, { auth: false, headers });
+    return apiFetch<PaginatedResponse<CategoryItem>>(`/categories${query ? `?${query}` : ''}`, { auth: false, headers });
   },
 
   get: (id: string) =>
     apiFetch<CategoryItem>(`/categories/${id}`),
 
-  create: (body: { name: string; description?: string; sortOrder?: number; active?: boolean }) =>
+  create: (body: { name: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
     apiFetch<CategoryItem>('/categories', { method: 'POST', body: JSON.stringify(body) }),
 
-  update: (id: string, body: { name?: string; description?: string; sortOrder?: number; active?: boolean }) =>
+  update: (id: string, body: { name?: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
     apiFetch<CategoryItem>(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   delete: (id: string) =>
     apiFetch<null>(`/categories/${id}`, { method: 'DELETE' }),
+
+  restore: (id: string) =>
+    apiFetch<CategoryItem>(`/categories/${id}/restore`, { method: 'PATCH' }),
 };
 
 // --- Menu ---

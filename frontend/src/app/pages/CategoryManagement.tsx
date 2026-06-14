@@ -1,352 +1,494 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-  Edit3,
-  FolderTree,
-  Plus,
-  Save,
-  Trash2,
-  X,
+  Plus, Search, Loader2, FolderTree, RotateCcw, Trash2, Edit3,
 } from 'lucide-react';
-import { categoryApi } from '../api/services';
+import { useDebounce } from '../../shared/hooks/useDebounce';
 import { useAuth } from '../context/AuthContext';
+import {
+  useCategoryList, useCreateCategoryMutation,
+  useUpdateCategoryMutation, useDeleteCategoryMutation, useRestoreCategoryMutation,
+} from '../api/hooks';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '../components/ui/dialog';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+} from '../components/ui/alert-dialog';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '../components/ui/select';
+import {
+  Pagination, PaginationContent, PaginationItem, PaginationLink,
+  PaginationNext, PaginationPrevious,
+} from '../components/ui/pagination';
 import type { CategoryItem } from '../types';
 
-type CategoryFormState = {
+type FilterTab = 'all' | 'active' | 'inactive' | 'deleted';
+type SortField = 'sortOrder' | 'name' | 'createdAt';
+
+interface CategoryForm {
   name: string;
+  slug: string;
   description: string;
   sortOrder: string;
   active: boolean;
-};
+}
 
-const createDefaultForm = (): CategoryFormState => ({
+const emptyForm = (): CategoryForm => ({
   name: '',
+  slug: '',
   description: '',
   sortOrder: '0',
   active: true,
 });
 
+const FILTER_TABS: { key: FilterTab; label: string }[] = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'active', label: 'Hoạt động' },
+  { key: 'inactive', label: 'Ẩn' },
+  { key: 'deleted', label: 'Đã xóa' },
+];
+
+const PER_PAGE = 20;
+
 export function CategoryManagement() {
   const { hasPermission } = useAuth();
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [form, setForm] = useState<CategoryFormState>(createDefaultForm);
-  const [error, setError] = useState<string | null>(null);
+  const canCreate = hasPermission('CATEGORY_CREATE');
+  const canUpdate = hasPermission('CATEGORY_UPDATE');
+  const canDelete = hasPermission('CATEGORY_DELETE');
 
-  const isEditing = Boolean(editingCategoryId);
-  const isEditModalOpen = Boolean(editingCategoryId);
+  const [search, setSearch] = useState('');
+  const [filterTab, setFilterTab] = useState<FilterTab>('active');
+  const [sort, setSort] = useState<SortField>('sortOrder');
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebounce(search, 300);
 
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await categoryApi.list();
-      setCategories(data);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải danh sách danh mục');
-    } finally {
-      setLoading(false);
-    }
+  const queryFilters = {
+    page,
+    limit: PER_PAGE,
+    search: debouncedSearch || undefined,
+    sort,
+    active: filterTab === 'active' ? true : filterTab === 'inactive' ? false : undefined,
+    includeDeleted: filterTab === 'all' ? true : undefined,
+    deleted: filterTab === 'deleted' ? true : undefined,
   };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  const { data, isLoading, isFetching } = useCategoryList(queryFilters);
+  const items = data?.items ?? [];
+  const pagination = data?.pagination;
+
+  const createMutation = useCreateCategoryMutation();
+  const updateMutation = useUpdateCategoryMutation();
+  const deleteMutation = useDeleteCategoryMutation();
+  const restoreMutation = useRestoreCategoryMutation();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<CategoryItem | null>(null);
+  const [form, setForm] = useState<CategoryForm>(emptyForm());
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const isEditing = !!editing;
 
   const resetForm = () => {
-    setIsCreateModalOpen(false);
-    setEditingCategoryId(null);
-    setForm(createDefaultForm());
+    setDialogOpen(false);
+    setEditing(null);
+    setForm(emptyForm());
+    setFormError(null);
   };
 
-  const handleOpenCreateModal = () => {
-    setError(null);
-    setEditingCategoryId(null);
-    setForm(createDefaultForm());
-    setIsCreateModalOpen(true);
+  const openCreate = () => {
+    resetForm();
+    setDialogOpen(true);
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const openEdit = (cat: CategoryItem) => {
+    setEditing(cat);
+    setForm({
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description || '',
+      sortOrder: String(cat.sortOrder),
+      active: cat.active,
+    });
+    setFormError(null);
+    setDialogOpen(true);
+  };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!form.name.trim()) {
-      setError('Tên danh mục là bắt buộc');
+      setFormError('Tên danh mục là bắt buộc');
       return;
     }
-
     const sortOrder = parseInt(form.sortOrder, 10);
     if (isNaN(sortOrder) || sortOrder < 0) {
-      setError('Thứ tự phải là số không âm');
+      setFormError('Thứ tự phải là số không âm');
       return;
     }
 
+    setSaving(true);
+    setFormError(null);
     try {
-      setSaving(true);
-      setError(null);
+      const payload = {
+        name: form.name.trim(),
+        slug: form.slug.trim() || undefined,
+        description: form.description.trim() || undefined,
+        sortOrder,
+        active: form.active,
+      };
 
-      if (editingCategoryId) {
-        const updated = await categoryApi.update(editingCategoryId, {
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-          sortOrder,
-          active: form.active,
-        });
-        setCategories((current) =>
-          current.map((c) => (c.id === editingCategoryId ? updated : c))
-        );
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, ...payload });
       } else {
-        const created = await categoryApi.create({
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-          sortOrder,
-          active: form.active,
-        });
-        setCategories((current) =>
-          [...current, created].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-        );
+        await createMutation.mutateAsync(payload);
       }
-
       resetForm();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi lưu danh mục');
+      setFormError(err?.message || 'Lỗi khi lưu danh mục');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleEdit = (category: CategoryItem) => {
-    setIsCreateModalOpen(false);
-    setEditingCategoryId(category.id);
-    setError(null);
-    setForm({
-      name: category.name,
-      description: category.description || '',
-      sortOrder: String(category.sortOrder),
-      active: category.active,
-    });
-  };
-
-  const handleDelete = async (category: CategoryItem) => {
-    if (category.itemCount > 0) {
-      setError(`Không thể xóa danh mục "${category.name}" vì đang có ${category.itemCount} món ăn.`);
-      return;
-    }
-
-    const confirmed = window.confirm(`Bạn có chắc muốn xóa danh mục "${category.name}"?`);
-    if (!confirmed) return;
-
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      setDeletingId(category.id);
-      setError(null);
-      await categoryApi.delete(category.id);
-      setCategories((current) => current.filter((c) => c.id !== category.id));
-
-      if (editingCategoryId === category.id) {
-        resetForm();
-      }
+      await deleteMutation.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi xóa danh mục');
+      alert(err?.message || 'Lỗi khi xóa danh mục');
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
+
+  const handleRestore = async (id: string) => {
+    try {
+      await restoreMutation.mutateAsync(id);
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi khôi phục danh mục');
+    }
+  };
+
+  const handleTabChange = (tab: FilterTab) => {
+    setFilterTab(tab);
+    setPage(1);
+  };
+
+  const handleSortChange = (value: string) => {
+    setSort(value as SortField);
+    setPage(1);
+  };
+
+  const goToPage = (p: number) => {
+    setPage(p);
+  };
+
+  const totalPages = pagination?.totalPages ?? 1;
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <FolderTree className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý danh mục</h1>
-              <p className="text-sm text-gray-500 mt-1">Quản lý danh mục món ăn trong chi nhánh.</p>
-            </div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+            <FolderTree className="w-6 h-6 text-purple-600" />
           </div>
-
-          {hasPermission('CATEGORY_CREATE') && (
-            <button
-              type="button"
-              onClick={handleOpenCreateModal}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 font-medium text-white hover:bg-purple-700"
-            >
-              <Plus className="w-4 h-4" />
-              Thêm danh mục
-            </button>
-          )}
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Quản lý danh mục</h1>
+            <p className="text-sm text-muted-foreground mt-1">Quản lý danh mục món ăn toàn hệ thống</p>
+          </div>
         </div>
+        {canCreate && (
+          <Button variant="default" size="sm" onClick={() => { setForm(emptyForm()); setIsDialogOpen(true); }}>
+            <Plus className="w-4 h-4 mr-1" />
+            Thêm danh mục
+          </Button>
+        )}
       </div>
 
-      {error && !isCreateModalOpen && !isEditModalOpen && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-      )}
+      <div className="bg-card rounded-xl border border-border">
+        <div className="p-4 border-b border-border space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Tìm kiếm theo tên hoặc slug..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="pl-9"
+              />
+            </div>
+            <Select value={sort} onValueChange={handleSortChange}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sortOrder">Thứ tự</SelectItem>
+                <SelectItem value="name">Tên A-Z</SelectItem>
+                <SelectItem value="createdAt">Ngày tạo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Đang tải danh sách danh mục...</div>
-        ) : categories.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">Chưa có danh mục nào.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 font-medium text-gray-700">Thứ tự</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Tên danh mục</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Mô tả</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Số món</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Trạng thái</th>
-                  <th className="px-6 py-4 font-medium text-gray-700 text-right">Thao tác</th>
+          <div className="flex gap-1 flex-wrap">
+            {FILTER_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => handleTabChange(tab.key)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  filterTab === tab.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              Đang tải...
+            </div>
+          ) : items.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground">
+              {debouncedSearch ? 'Không tìm thấy danh mục phù hợp' : 'Chưa có danh mục nào'}
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-muted border-b border-border">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase w-16">STT</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Tên</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase hidden md:table-cell">Slug</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase hidden lg:table-cell">Mô tả</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase w-20">Số món</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase w-24">Trạng thái</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase w-36">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {categories.map((category) => (
-                  <tr key={category.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-gray-600">{category.sortOrder}</td>
-                    <td className="px-6 py-4 font-semibold text-gray-900">{category.name}</td>
-                    <td className="px-6 py-4 text-gray-600 max-w-xs truncate">{category.description || '—'}</td>
-                    <td className="px-6 py-4 text-gray-600">{category.itemCount}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${category.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
-                        {category.active ? 'Hoạt động' : 'Ẩn'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        {hasPermission('CATEGORY_UPDATE') && (
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(category)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            Sửa
-                          </button>
+              <tbody className="divide-y divide-border">
+                {items.map((cat) => {
+                  const isDeleted = !!cat.deletedAt;
+                  return (
+                    <tr key={cat.id} className={`hover:bg-accent/50 transition-colors ${isDeleted ? 'opacity-60' : ''}`}>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{cat.sortOrder}</td>
+                      <td className="px-4 py-3">
+                        <span className={`font-medium ${isDeleted ? 'line-through' : ''}`}>{cat.name}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{cat.slug}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell max-w-[200px] truncate">
+                        {cat.description || '\u2014'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">{cat.itemCount}</td>
+                      <td className="px-4 py-3 text-center">
+                        {isDeleted ? (
+                          <Badge variant="destructive">Đã xóa</Badge>
+                        ) : cat.active ? (
+                          <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Hoạt động</Badge>
+                        ) : (
+                          <Badge variant="secondary">Ẩn</Badge>
                         )}
-                        {hasPermission('CATEGORY_DELETE') && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(category)}
-                            disabled={deletingId === category.id || category.itemCount > 0}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            title={category.itemCount > 0 ? 'Không thể xóa danh mục đang có món ăn' : undefined}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            {deletingId === category.id ? 'Đang xóa...' : 'Xóa'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {isDeleted ? (
+                            canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRestore(cat.id)}
+                                title="Khôi phục"
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </Button>
+                            )
+                          ) : (
+                            <>
+                              {canUpdate && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEdit(cat)}
+                                  title="Sửa"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDeleteTarget(cat)}
+                                  disabled={cat.itemCount > 0}
+                                  title={cat.itemCount > 0 ? 'Không thể xóa danh mục đang có món ăn' : 'Xóa'}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          )}
+        </div>
+
+        {pagination && totalPages > 1 && (
+          <div className="p-4 border-t border-border">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => goToPage(Math.max(1, page - 1))}
+                    className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .map((p, idx, arr) => (
+                    <span key={p} className="contents">
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <PaginationItem>
+                          <span className="flex h-9 w-9 items-center justify-center text-sm">...</span>
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink
+                          isActive={p === page}
+                          onClick={() => goToPage(p)}
+                          className="cursor-pointer"
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </span>
+                  ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => goToPage(Math.min(totalPages, page + 1))}
+                    className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         )}
       </div>
 
-      {(isCreateModalOpen || isEditModalOpen) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <form onSubmit={handleSubmit} className="space-y-5 p-6">
-              <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {isEditing ? 'Cập nhật danh mục' : 'Thêm danh mục mới'}
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {isEditing ? 'Chỉnh sửa thông tin danh mục.' : 'Tạo danh mục mới trong chi nhánh.'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50"
-                >
-                  <X className="w-4 h-4" />
-                  Đóng
-                </button>
+      {/* Create / Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Cập nhật danh mục' : 'Thêm danh mục'}</DialogTitle>
+            <DialogDescription>
+              {isEditing ? 'Chỉnh sửa thông tin danh mục' : 'Tạo danh mục mới trong hệ thống'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {formError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {formError}
               </div>
-
-              {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Tên danh mục *</span>
-                  <input
-                    value={form.name}
-                    onChange={(e) => setForm((cur) => ({ ...cur, name: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
-                    placeholder="VD: Đồ uống"
-                  />
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Thứ tự</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.sortOrder}
-                    onChange={(e) => setForm((cur) => ({ ...cur, sortOrder: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
-                  />
-                </label>
-
-                <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-gray-700">Mô tả</span>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => setForm((cur) => ({ ...cur, description: e.target.value }))}
-                    rows={3}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
-                    placeholder="Mô tả danh mục (không bắt buộc)"
-                  />
-                </label>
-
-                <label className="flex items-center gap-3 py-2">
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tên danh mục *</label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="VD: Đồ uống"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Slug</label>
+              <Input
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                placeholder="Để trống để tự động sinh từ tên"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Mô tả</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={3}
+                className="w-full rounded-lg border border-input bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Mô tả (không bắt buộc)"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Thứ tự</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={form.sortOrder}
+                  onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 flex items-end pb-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.active}
-                    onChange={(e) => setForm((cur) => ({ ...cur, active: e.target.checked }))}
-                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Hoạt động</span>
+                  <span className="text-sm font-medium">Hoạt động</span>
                 </label>
               </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={resetForm}>Hủy</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Thêm danh mục'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? (
-                    'Đang lưu...'
-                  ) : (
-                    <>
-                      {isEditing ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                      {isEditing ? 'Lưu thay đổi' : 'Thêm danh mục'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa danh mục</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc muốn xóa danh mục <strong>{deleteTarget?.name}</strong>?
+              Danh mục sẽ được xóa tạm thời và có thể khôi phục sau.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Đang xóa...' : 'Xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

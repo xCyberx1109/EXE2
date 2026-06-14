@@ -12,7 +12,7 @@ import type {
   MenuItem, InventoryItem, DashboardDataV2, CategoryItem,
   TableItem, OrderDetail, DailyOrdersResponse, InventoryStats,
   ActiveStaff, CurrentShift, ShiftResponse, PosDeviceV2,
-  DeleteDependencyReport, InventoryIssue,
+  DeleteDependencyReport, InventoryIssue, PaginatedResponse,
 } from '../types';
 import type { MenuItemPayload } from './services';
 
@@ -52,22 +52,47 @@ export function useLoginMutation() {
    Category Hooks
    ======================================================================== */
 
-export function useCategories(options?: { accountId?: string }) {
+export function useCategories() {
   return useQuery({
     queryKey: queryKeys.categories.all,
-    queryFn: () => categoryApi.list(options),
+    queryFn: () => categoryApi.list({ limit: 1000, active: true }),
     staleTime: 1000 * 60 * 5,
-    select: (data) => Array.isArray(data) ? data : [],
+    select: (data) => data?.items ?? [],
+  });
+}
+
+export function useCategoryList(filters?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort?: string;
+  sortOrder?: string;
+  active?: boolean;
+  includeDeleted?: boolean;
+  deleted?: boolean;
+}) {
+  return useQuery({
+    queryKey: queryKeys.categories.list(filters as Record<string, string | number | boolean | undefined>),
+    queryFn: () => categoryApi.list(filters),
+    staleTime: 1000 * 30,
+  });
+}
+
+export function useCategory(id: string) {
+  return useQuery({
+    queryKey: queryKeys.categories.detail(id),
+    queryFn: () => categoryApi.get(id),
+    enabled: !!id,
   });
 }
 
 export function useCreateCategoryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; description?: string; sortOrder?: number; active?: boolean }) =>
+    mutationFn: (body: { name: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
       categoryApi.create(body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 }
@@ -75,10 +100,10 @@ export function useCreateCategoryMutation() {
 export function useUpdateCategoryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string; sortOrder?: number; active?: boolean }) =>
+    mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
       categoryApi.update(id, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 }
@@ -88,7 +113,17 @@ export function useDeleteCategoryMutation() {
   return useMutation({
     mutationFn: (id: string) => categoryApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
+export function useRestoreCategoryMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => categoryApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 }

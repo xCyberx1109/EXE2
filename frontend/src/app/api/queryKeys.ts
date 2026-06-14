@@ -10,8 +10,10 @@ export const queryKeys = {
     sessions: ['auth', 'sessions'] as const,
   },
   categories: {
-    all: ['categories'] as const,
-    detail: (id: string) => ['categories', id] as const,
+    all: ['categories', 'list'] as const,
+    list: (filters?: Record<string, string | number | boolean | undefined>) =>
+      ['categories', 'list', filters] as const,
+    detail: (id: string) => ['categories', 'detail', id] as const,
   },
   menu: {
     all: (filters?: Record<string, string | undefined>) =>
