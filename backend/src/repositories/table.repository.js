@@ -54,9 +54,9 @@ export const tableRepository = {
     return prisma.table.update({ where: { id }, data: { isActive: false } });
   },
 
-  findByBranchTableCode: (branchId, tableCode) => {
-    if (!branchId || !tableCode) return Promise.resolve(null);
-    return prisma.table.findUnique({ where: { branchId_tableCode: { branchId, tableCode } } });
+  findByAccountTableCode: (accountId, tableCode) => {
+    if (!accountId || !tableCode) return Promise.resolve(null);
+    return prisma.table.findUnique({ where: { accountId_tableCode: { accountId, tableCode } } });
   },
 
   findActiveOrderForTable: (tableId) => {

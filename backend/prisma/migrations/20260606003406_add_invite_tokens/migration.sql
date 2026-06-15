@@ -1,4 +1,4 @@
-﻿-- CreateTable
+-- CreateTable
 CREATE TABLE "invite_tokens" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,

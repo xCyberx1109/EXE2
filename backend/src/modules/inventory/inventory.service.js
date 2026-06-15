@@ -5,12 +5,25 @@ import { ingredientRepository } from '../../repositories/ingredient.repository.j
 import { inventoryTransactionRepository } from '../../repositories/inventoryTransaction.repository.js';
 
 export const inventoryService = {
-  async listIngredients({ search, lowStock }, user) {
+  async listIngredients({ search, lowStock, status }, user) {
     const where = {};
     if (user && !user.permissions?.includes('ADMIN_ALL')) {
       where.accountId = user.accountId || user.id;
     }
-    let items = await ingredientRepository.findMany(where);
+
+    const validStatuses = ['ACTIVE', 'INACTIVE'];
+    const normalizedStatus = typeof status === 'string' ? status.toUpperCase() : undefined;
+    const effectiveStatus = validStatuses.includes(normalizedStatus) ? normalizedStatus : undefined;
+
+    let items;
+    if (effectiveStatus === 'ACTIVE') {
+      items = await ingredientRepository.findMany(where);
+    } else if (effectiveStatus === 'INACTIVE') {
+      items = await ingredientRepository.findMany(where, { includeInactive: true });
+      items = items.filter((i) => !i.available);
+    } else {
+      items = await ingredientRepository.findMany(where);
+    }
 
     if (lowStock === 'true') {
       items = items.filter((i) => Number(i.quantity) <= Number(i.warningQuantity));

@@ -5,7 +5,7 @@ import { tableRepository } from '../../repositories/table.repository.js';
 
 export const tableService = {
   async list(user) {
-    const where = buildBranchWhere(user, { isActive: true });
+    const where = buildBranchWhere(user, { isActive: true }, 'accountId');
     const tables = await tableRepository.findMany(where);
     return Array.isArray(tables) ? tables : [];
   },
@@ -21,7 +21,7 @@ export const tableService = {
     const accountId = user.accountId || user.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
 
-    const existing = await tableRepository.findByBranchTableCode(accountId, data.tableCode);
+    const existing = await tableRepository.findByAccountTableCode(accountId, data.tableCode);
     if (existing) throw new AppError('Mã bàn đã tồn tại trong tài khoản này', 409);
 
     return tableRepository.create({
@@ -29,8 +29,11 @@ export const tableService = {
         tableCode: data.tableCode,
         tableName: data.tableName || null,
         capacity: data.capacity,
+        tableType: data.tableType || 'POOL',
+        posX: data.posX ?? 0,
+        posY: data.posY ?? 0,
         status: data.status || 'AVAILABLE',
-        branchId: accountId,
+        accountId,
       },
     });
   },
@@ -41,7 +44,7 @@ export const tableService = {
     assertBranchAccess(existing, user, 'bàn');
 
     if (data.tableCode && data.tableCode !== existing.tableCode) {
-      const duplicate = await tableRepository.findByBranchTableCode(existing.branchId, data.tableCode);
+      const duplicate = await tableRepository.findByAccountTableCode(existing.accountId, data.tableCode);
       if (duplicate) throw new AppError('Mã bàn đã tồn tại trong tài khoản này', 409);
     }
 
@@ -49,6 +52,9 @@ export const tableService = {
     if (data.tableCode !== undefined) updateData.tableCode = data.tableCode;
     if (data.tableName !== undefined) updateData.tableName = data.tableName;
     if (data.capacity !== undefined) updateData.capacity = data.capacity;
+    if (data.tableType !== undefined) updateData.tableType = data.tableType;
+    if (data.posX !== undefined) updateData.posX = data.posX;
+    if (data.posY !== undefined) updateData.posY = data.posY;
     if (data.status !== undefined) updateData.status = data.status;
 
     return tableRepository.update(id, updateData);
@@ -71,7 +77,7 @@ export const tableService = {
     const accountId = user?.accountId || user?.id || user?.branch?.id;
     console.log('[getPosTables] accountId:', accountId, 'user:', user?.id || 'device:' + user?.id);
 
-    const where = buildBranchWhere(user, { isActive: true });
+    const where = buildBranchWhere(user, { isActive: true }, 'accountId');
     console.log('[getPosTables] query where:', JSON.stringify(where));
 
     let tables;
@@ -95,10 +101,13 @@ export const tableService = {
 
       return {
         id: t.id,
-        branchId: t.branchId,
+        accountId: t.accountId,
         tableCode: t.tableCode,
         tableName: t.tableName,
         capacity: t.capacity,
+        tableType: t.tableType,
+        posX: t.posX,
+        posY: t.posY,
         status: t.status,
         currentOrderId: activeOrder?.id || null,
         currentOrder: activeOrder

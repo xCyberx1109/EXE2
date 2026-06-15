@@ -53,6 +53,12 @@ export const APP_MENU: AppMenuItem[] = [
     ],
   },
   {
+    name: 'Bi-a',
+    children: [
+      { name: 'Quản lý bàn bi-a', href: '/app/billiard', icon: 'CircleDot', requiredPermission: 'TABLE_VIEW' },
+    ],
+  },
+  {
     name: 'POS',
     children: [
       { name: `${APP_NAME} Order Queue`, href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },

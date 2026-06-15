@@ -675,6 +675,25 @@ export const orderService = {
        completed.push(mapPosOrder(updated));
      }
 
+      // --- Update table(s) status to AVAILABLE ---
+      const tableIds = [...new Set(orders.map(o => o.tableId).filter(Boolean))];
+      if (tableIds.length > 0) {
+        await prisma.table.updateMany({
+          where: { id: { in: tableIds } },
+          data: { status: 'AVAILABLE' },
+        });
+        console.log(`[CHECKOUT] Released ${tableIds.length} table(s) to AVAILABLE`);
+      } else {
+        const accountId = user?.accountId || user?.id;
+        if (accountId) {
+          await prisma.table.updateMany({
+            where: { tableCode: String(tableNumber), accountId },
+            data: { status: 'AVAILABLE' },
+          });
+          console.log(`[CHECKOUT] Released table by code ${tableNumber}`);
+        }
+      }
+
       return completed;
      },
 };

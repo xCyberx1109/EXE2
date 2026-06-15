@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import {
   listTables, getTable, createTable, updateTable, deleteTable,
-  listPosTables, assignOrder, releaseTable, updateTableStatus, checkInReservation,
+  listPosTables, assignOrder, releaseTable, updateTableStatus, checkInReservation, updateTableLayout,
 } from './table.controller.js';
-import { tableRules, tableUpdateRules, tableIdParam, tablePosStatusRules } from './table.validation.js';
+import { tableRules, tableUpdateRules, tableIdParam, tablePosStatusRules, tableLayoutRules } from './table.validation.js';
 import { validate } from '../../middlewares/validate.js';
 import { authenticate, requirePermission, optionalAuth } from '../../middlewares/auth.js';
 import { requireDevicePermission } from '../../middlewares/devicePermission.js';
@@ -16,6 +16,9 @@ router.get('/:id', authenticate, requirePermission('TABLE_VIEW'), tableIdParam, 
 router.post('/', authenticate, requirePermission('TABLE_CREATE'), tableRules, validate, createTable);
 router.put('/:id', authenticate, requirePermission('TABLE_UPDATE'), [...tableIdParam, ...tableUpdateRules], validate, updateTable);
 router.delete('/:id', authenticate, requirePermission('TABLE_DELETE'), tableIdParam, validate, deleteTable);
+
+// Layout
+router.put('/layout', authenticate, requirePermission('TABLE_LAYOUT_EDIT'), tableLayoutRules, validate, updateTableLayout);
 
 // POS endpoints
 router.get('/pos/list', optionalAuth, listPosTables);

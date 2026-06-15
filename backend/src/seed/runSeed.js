@@ -21,6 +21,19 @@ import {
   subscriptionPlans,
 } from './data.js';
 
+const FEATURE_PERMISSIONS = [
+  // BILLIARD_TABLE
+  { featureCode: 'billiard_table', permissionCodes: ['TABLE_VIEW', 'TABLE_CREATE', 'TABLE_UPDATE', 'TABLE_DELETE', 'TABLE_LAYOUT_EDIT', 'TABLE_PLAY_NOW', 'TABLE_RESERVE', 'TABLE_CHECKIN'] },
+  // BILLIARD_SESSION
+  { featureCode: 'billiard_session', permissionCodes: ['SESSION_VIEW', 'SESSION_START', 'SESSION_EXTEND', 'SESSION_FINISH'] },
+  // BILLIARD_RESERVATION
+  { featureCode: 'billiard_reservation', permissionCodes: ['RESERVATION_VIEW', 'RESERVATION_CREATE', 'RESERVATION_CANCEL', 'TABLE_CHECKIN'] },
+  // BILLIARD_LAYOUT
+  { featureCode: 'billiard_layout', permissionCodes: ['TABLE_VIEW', 'TABLE_LAYOUT_EDIT'] },
+  // BILLIARD_REPORT
+  { featureCode: 'billiard_report', permissionCodes: ['BILLIARD_REPORT_VIEW'] },
+];
+
 const SALT_ROUNDS = 10;
 const DEFAULT_ACCOUNT_ID = 'account-default-001';
 
@@ -47,6 +60,7 @@ export async function seedDatabase() {
   // =========================
   const featureMap = await syncFeatures();
   const permissionMap = await syncPermissions();
+  await syncFeaturePermissions(featureMap, permissionMap);
   const planMap = await syncSubscriptionPlans();
 
   // =========================
@@ -429,6 +443,35 @@ export async function syncSubscriptionPlans() {
 }
 
 /** Run seed if empty — dùng cho CLI, không gọi từ server runtime */
+/**
+ * Đồng bộ Feature ↔ Permission associations.
+ */
+export async function syncFeaturePermissions(featureMap, permissionMap) {
+  console.log('→ Đồng bộ feature-permissions...');
+  let count = 0;
+  for (const fp of FEATURE_PERMISSIONS) {
+    const featureId = featureMap[fp.featureCode];
+    if (!featureId) {
+      console.warn(`  ⚠ Feature not found: ${fp.featureCode}`);
+      continue;
+    }
+    for (const permCode of fp.permissionCodes) {
+      const permissionId = permissionMap[permCode];
+      if (!permissionId) {
+        console.warn(`  ⚠ Permission not found: ${permCode}`);
+        continue;
+      }
+      await prisma.featurePermission.upsert({
+        where: { featureId_permissionId: { featureId, permissionId } },
+        update: {},
+        create: { featureId, permissionId },
+      });
+      count++;
+    }
+  }
+  console.log(`  ✓ ${count} feature-permissions synchronized`);
+}
+
 export async function runSeedIfEmpty() {
   const userCount = await prisma.account.count();
   if (userCount === 0) {

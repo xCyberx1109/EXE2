@@ -1,4 +1,5 @@
 import { tableService } from './table.service.js';
+import { billiardService } from '../billiard/billiard.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
 
@@ -52,6 +53,11 @@ export const assignOrder = asyncHandler(async (req, res) => {
 export const releaseTable = asyncHandler(async (req, res) => {
   const data = await tableService.releaseTable(req.params.id, req.user || req.posDevice);
   sendSuccess(res, { message: 'Giải phóng bàn thành công', data });
+});
+
+export const updateTableLayout = asyncHandler(async (req, res) => {
+  const data = await billiardService.updateLayout(req.body.tables, req.user || req.posDevice);
+  sendSuccess(res, { message: 'Cập nhật sơ đồ bàn thành công', data });
 });
 
 export const updateTableStatus = asyncHandler(async (req, res) => {

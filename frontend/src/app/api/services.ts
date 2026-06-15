@@ -386,3 +386,109 @@ export const ordersQueueApi = {
     });
   },
 };
+
+// --- Billiard ---
+export interface BilliardTable {
+  id: string;
+  accountId: string;
+  tableCode: string;
+  tableName: string | null;
+  capacity: number;
+  tableType: 'POOL' | 'SNOOKER' | 'VIP';
+  posX: number;
+  posY: number;
+  status: import('../types').TableStatus;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BilliardPlaySession {
+  id: string;
+  tableId: string;
+  startTime: string;
+  expectedEndTime: string;
+  endTime: string | null;
+  durationMinutes: number;
+  tableFee: number;
+  status: 'PLAYING' | 'FINISHED' | 'CANCELLED';
+}
+
+export interface BilliardReservation {
+  id: string;
+  tableId: string;
+  branchId: string;
+  customerName: string;
+  phone: string | null;
+  reservationTime: string;
+  durationMinutes: number;
+  note: string | null;
+  status: 'PENDING' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED';
+}
+
+export type BilliardTableWithSession = BilliardTable & {
+  currentSession?: BilliardPlaySession | null;
+  currentReservation?: BilliardReservation | null;
+};
+
+export const billiardApi = {
+  listTables: () =>
+    apiFetch<BilliardTableWithSession[]>('/billiard/tables', { auth: false, headers: getAuthHeaders() }),
+
+  create: (body: { tableCode: string; tableName?: string; tableType: string; capacity?: number; posX?: number; posY?: number }) =>
+    apiFetch<BilliardTable>('/billiard/tables', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, capacity: body.capacity ?? 4 }),
+    }),
+
+  updateLayout: (tables: { id: string; posX: number; posY: number }[]) =>
+    apiFetch<BilliardTable[]>('/billiard/tables/layout', {
+      method: 'PUT',
+      body: JSON.stringify({ tables }),
+    }),
+
+  playNow: (tableId: string, body: { durationMinutes: number; customerName?: string; phone?: string }) =>
+    apiFetch<{ session: BilliardPlaySession; order: import('../types').PosOrder }>(
+      `/billiard/tables/${tableId}/play-now`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  reserve: (tableId: string, body: { customerName: string; phone?: string; reservationTime: string; durationMinutes?: number; note?: string }) =>
+    apiFetch<BilliardReservation>(
+      `/billiard/tables/${tableId}/reserve`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  checkIn: (tableId: string) =>
+    apiFetch<{ session: BilliardPlaySession; order: import('../types').PosOrder; reservation: BilliardReservation }>(
+      `/billiard/tables/${tableId}/check-in`,
+      { method: 'POST' }
+    ),
+
+  cancelReservation: (tableId: string) =>
+    apiFetch<{ id: string; status: string }>(
+      `/billiard/tables/${tableId}/cancel-reservation`,
+      { method: 'POST' }
+    ),
+
+  getCurrentSession: (tableId: string) =>
+    apiFetch<BilliardPlaySession | null>(`/billiard/tables/${tableId}/current-session`, { auth: false, headers: getAuthHeaders() }),
+
+  extendSession: (sessionId: string, additionalMinutes: number) =>
+    apiFetch<BilliardPlaySession>(
+      `/billiard/sessions/${sessionId}/extend`,
+      { method: 'POST', body: JSON.stringify({ additionalMinutes }) }
+    ),
+
+  finishSession: (tableId: string) =>
+    apiFetch<{ id: string; status: string }>(
+      `/billiard/tables/${tableId}/finish-session`,
+      { method: 'POST' }
+    ),
+
+  addOrderItem: (orderId: string, body: { menuItemId: string; quantity: number }) =>
+    apiFetch<{ order: import('../types').OrderDetail; item: import('../types').OrderItemDetail }>(
+      `/billiard/orders/${orderId}/items`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+};

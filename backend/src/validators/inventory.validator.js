@@ -28,6 +28,6 @@ export const ingredientIdParam = [param('id').isString().notEmpty().withMessage(
 export const inventoryListQuery = [
   query('search').optional().trim(),
   query('lowStock').optional().isIn(['true', 'false']),
-  query('status').optional().isIn(['LOW_STOCK', 'NORMAL']),
+  query('status').optional().trim(),
   query('includeInactive').optional().isIn(['true', 'false']),
 ];
