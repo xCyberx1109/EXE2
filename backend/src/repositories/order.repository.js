@@ -84,20 +84,39 @@ export const orderRepository = {
     }),
 
   aggregateTopItems: async (limit = 10, accountId) => {
-    const where = { order: { status: 'COMPLETED' }, menuItemId: { not: { equals: null } } };
-    if (accountId) {
-      where.order.accountId = accountId;
-    }
-    const result = await prisma.orderItem.groupBy({
-      by: ['menuItemId'],
-      where,
-      _sum: { quantity: true, total: true },
-      orderBy: { _sum: { quantity: 'desc' } },
-      take: limit,
-    });
-    return result.map((r) => ({
-      menuItemId: r.menuItemId,
-      _sum: { quantity: r._sum.quantity, total: r._sum.total },
-    }));
+    const accountFilter = accountId ? { order: { accountId } } : {};
+    const whereMenu = { order: { status: 'COMPLETED' }, menuItemId: { not: { equals: null } }, ...accountFilter };
+    const whereInv = { order: { status: 'COMPLETED' }, inventoryId: { not: { equals: null } }, menuItemId: null, ...accountFilter };
+
+    const [menuResult, invResult] = await Promise.all([
+      prisma.orderItem.groupBy({
+        by: ['menuItemId'],
+        where: whereMenu,
+        _sum: { quantity: true, total: true },
+        orderBy: { _sum: { quantity: 'desc' } },
+        take: limit,
+      }),
+      prisma.orderItem.groupBy({
+        by: ['inventoryId'],
+        where: whereInv,
+        _sum: { quantity: true, total: true },
+        orderBy: { _sum: { quantity: 'desc' } },
+        take: limit,
+      }),
+    ]);
+
+    const result = [
+      ...menuResult.map((r) => ({
+        menuItemId: r.menuItemId,
+        _sum: { quantity: r._sum.quantity, total: r._sum.total },
+      })),
+      ...invResult.map((r) => ({
+        menuItemId: r.inventoryId,
+        _sum: { quantity: r._sum.quantity, total: r._sum.total },
+      })),
+    ];
+
+    result.sort((a, b) => (b._sum.quantity || 0) - (a._sum.quantity || 0));
+    return result.slice(0, limit);
   },
 };

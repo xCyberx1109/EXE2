@@ -39,12 +39,13 @@ interface TableFloorProps {
   selectedId: string | null;
   onSelect: (table: BilliardTableWithSession) => void;
   onRefresh: () => void;
+  layoutMode: boolean;
+  onLayoutModeChange: (mode: boolean) => void;
 }
 
-export function TableFloor({ tables, selectedId, onSelect, onRefresh }: TableFloorProps) {
+export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
   const { hasPermission } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
-  const [layoutMode, setLayoutMode] = useState(false);
   const [positions, setPositions] = useState<Record<string, { posX: number; posY: number }>>({});
   const updateLayout = useUpdateLayout();
 
@@ -60,7 +61,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh }: TableFlo
     const pos: Record<string, { posX: number; posY: number }> = {};
     tables.forEach((t) => { pos[t.id] = { posX: t.posX, posY: t.posY }; });
     setPositions(pos);
-    setLayoutMode(true);
+    onLayoutModeChange(true);
   };
 
   const handleDragStart = useCallback((e: React.MouseEvent, tableId: string) => {
@@ -106,7 +107,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh }: TableFlo
     try {
       await updateLayout.mutateAsync(payload);
       toast.success('Đã lưu bố cục bàn thành công');
-      setLayoutMode(false);
+      onLayoutModeChange(false);
       onRefresh();
     } catch {
       toast.error('Lưu bố cục thất bại');
@@ -114,7 +115,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh }: TableFlo
   };
 
   const handleCancelLayout = () => {
-    setLayoutMode(false);
+    onLayoutModeChange(false);
     setPositions({});
   };
 
@@ -180,8 +181,8 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh }: TableFlo
             <TableCard
               key={table.id}
               table={table}
-              selected={!layoutMode && selectedId === table.id}
-              onSelect={layoutMode ? () => {} : onSelect}
+              selected={selectedId === table.id}
+              onSelect={onSelect}
               draggable={layoutMode}
               onDragStart={handleDragStart}
               position={positions[table.id]}

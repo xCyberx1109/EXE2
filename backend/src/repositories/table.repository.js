@@ -22,7 +22,7 @@ const tableWithActiveOrder = {
         orderNumber: true,
         status: true,
         total: true,
-        items: { select: { id: true, name: true, quantity: true, price: true } },
+        items: { select: { id: true, menuItemId: true, name: true, quantity: true, price: true, total: true } },
       },
     },
     _count: { select: { orders: true } },

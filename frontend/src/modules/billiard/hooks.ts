@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { billiardApi, tableApi } from '@/app/api/services';
 import type { BilliardTableWithSession, BilliardPlaySession, BilliardReservation } from './types';
+import type { BilliardOrderSummary } from '@/app/api/services';
 
 export function useBilliardTables() {
   return useQuery<BilliardTableWithSession[]>({
@@ -118,34 +119,48 @@ export function useUpdateLayout() {
 export function useAddOrderItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ orderId, tableId, menuItemId, quantity }: { orderId: string; tableId: string; menuItemId: string; quantity: number }) =>
-      billiardApi.addOrderItem(orderId, { menuItemId, quantity }),
+    mutationFn: ({ orderId, tableId, menuItemId, inventoryId, quantity }: { orderId: string; tableId: string; menuItemId?: string; inventoryId?: string; quantity: number }) =>
+      billiardApi.addOrderItem(orderId, { menuItemId, inventoryId, quantity }),
     onSuccess: (data, variables) => {
-      qc.setQueryData(['orders', 'byTable', variables.tableId], (old: any) => {
-        if (!old) return old;
-        const lineTotal = Number(data.price ?? data.total ?? 0);
-        const newItem = {
-          id: data.id,
-          menuItemId: data.menuItemId,
-          name: data.name,
-          price: Number(data.price),
-          cost: Number(data.cost),
-          quantity: data.quantity,
-          lineTotal,
-          category: '',
-          description: '',
-          available: true,
-        };
-        return {
-          ...old,
-          items: [...(old.items || []), newItem],
-          subtotal: Number(old.subtotal || 0) + lineTotal,
-          total: Number(old.total || 0) + lineTotal,
-          itemCount: (old.itemCount || 0) + data.quantity,
-        };
-      });
+      qc.invalidateQueries({ queryKey: ['billiard', 'orderSummary', variables.tableId] });
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['billiard', 'tables'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
     },
+  });
+}
+
+export function useUpdateOrderItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, itemId, quantity, tableId }: { orderId: string; itemId: string; quantity: number; tableId: string }) =>
+      billiardApi.updateOrderItem(orderId, itemId, { quantity }),
+    onSuccess: (data, variables) => {
+      qc.invalidateQueries({ queryKey: ['billiard', 'orderSummary', variables.tableId] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useRemoveOrderItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, itemId, tableId }: { orderId: string; itemId: string; tableId: string }) =>
+      billiardApi.removeOrderItem(orderId, itemId),
+    onSuccess: (data, variables) => {
+      qc.invalidateQueries({ queryKey: ['billiard', 'orderSummary', variables.tableId] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useTableOrderSummary(tableId: string) {
+  return useQuery<BilliardOrderSummary>({
+    queryKey: ['billiard', 'orderSummary', tableId],
+    queryFn: () => billiardApi.getOrderSummary(tableId),
+    enabled: !!tableId,
+    refetchInterval: 10_000,
   });
 }

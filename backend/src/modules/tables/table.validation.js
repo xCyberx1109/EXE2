@@ -12,6 +12,7 @@ export const tableRules = [
   body('posX').optional().isFloat().withMessage('posX phải là số'),
   body('posY').optional().isFloat().withMessage('posY phải là số'),
   body('status').optional().isIn(TABLE_STATUSES).withMessage('Trạng thái không hợp lệ'),
+  body('hourlyRate').optional().isFloat({ min: 0 }).withMessage('Phí theo giờ phải là số >= 0'),
 ];
 
 export const tableUpdateRules = [
@@ -22,6 +23,7 @@ export const tableUpdateRules = [
   body('posX').optional().isFloat().withMessage('posX phải là số'),
   body('posY').optional().isFloat().withMessage('posY phải là số'),
   body('status').optional().isIn(TABLE_STATUSES).withMessage('Trạng thái không hợp lệ'),
+  body('hourlyRate').optional().isFloat({ min: 0 }).withMessage('Phí theo giờ phải là số >= 0'),
 ];
 
 export const tableIdParam = [param('id').trim().notEmpty()];

@@ -154,50 +154,93 @@ async function getTopSellingItems(ctx, orderWhere) {
   const canAccessAll = ctx?.permissions?.includes('BRANCH_ALL_ACCESS') || ctx?.permissions?.includes('CROSS_BRANCH_ACCESS');
   const accountId = !canAccessAll ? orderWhere.accountId : undefined;
 
-  const where = { menuItemId: { not: { equals: null } }, order: { status: 'COMPLETED' } };
-  if (accountId) where.order.accountId = accountId;
+  const accountFilter = accountId ? { order: { accountId } } : {};
 
-  const grouped = await prisma.orderItem.groupBy({
+  // MenuItem-based top selling
+  const menuItemWhere = { menuItemId: { not: { equals: null } }, order: { status: 'COMPLETED' }, ...accountFilter };
+  const menuItemGrouped = await prisma.orderItem.groupBy({
     by: ['menuItemId'],
-    where,
+    where: { ...menuItemWhere, menuItemId: { not: { equals: null } } },
     _sum: { quantity: true },
     orderBy: { _sum: { quantity: 'desc' } },
     take: 5,
   });
 
-  console.log("[TOP SELLING ITEMS grouped]", JSON.stringify(grouped, null, 2));
+  // Direct inventory top selling (items with inventoryId and no menuItemId)
+  const inventoryWhere = { inventoryId: { not: { equals: null } }, menuItemId: null, order: { status: 'COMPLETED' }, ...accountFilter };
+  const inventoryGrouped = await prisma.orderItem.groupBy({
+    by: ['inventoryId'],
+    where: inventoryWhere,
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: 'desc' } },
+    take: 5,
+  });
 
-  if (grouped.length === 0) return [];
+  const result = [];
 
-  const ids = grouped.map(g => g.menuItemId);
-  const [menuItems, orderItems] = await Promise.all([
-    prisma.menuItem.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true, category: { select: { name: true } } },
-    }),
-    prisma.orderItem.findMany({
-      where: { menuItemId: { in: ids }, order: { status: 'COMPLETED' } },
-      select: { menuItemId: true, price: true, quantity: true },
-    }),
-  ]);
-  const menuMap = Object.fromEntries(menuItems.map(m => [m.id, m]));
+  if (menuItemGrouped.length > 0) {
+    const ids = menuItemGrouped.map(g => g.menuItemId);
+    const [menuItems, orderItems] = await Promise.all([
+      prisma.menuItem.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true, category: { select: { name: true } } },
+      }),
+      prisma.orderItem.findMany({
+        where: { menuItemId: { in: ids }, order: { status: 'COMPLETED' } },
+        select: { menuItemId: true, price: true, quantity: true },
+      }),
+    ]);
+    const menuMap = Object.fromEntries(menuItems.map(m => [m.id, m]));
 
-  const revenueMap = {};
-  for (const item of orderItems) {
-    if (!item.menuItemId) continue;
-    revenueMap[item.menuItemId] = (revenueMap[item.menuItemId] || 0) + Number(item.price) * item.quantity;
+    const revenueMap = {};
+    for (const item of orderItems) {
+      if (!item.menuItemId) continue;
+      revenueMap[item.menuItemId] = (revenueMap[item.menuItemId] || 0) + Number(item.price) * item.quantity;
+    }
+
+    for (const g of menuItemGrouped) {
+      result.push({
+        menuItemId: g.menuItemId,
+        name: menuMap[g.menuItemId]?.name || 'Unknown',
+        category: menuMap[g.menuItemId]?.category?.name || '',
+        soldQuantity: g._sum.quantity,
+        revenue: revenueMap[g.menuItemId] || 0,
+      });
+    }
   }
 
-  const result = grouped.map(g => ({
-    menuItemId: g.menuItemId,
-    name: menuMap[g.menuItemId]?.name || 'Unknown',
-    category: menuMap[g.menuItemId]?.category?.name || '',
-    soldQuantity: g._sum.quantity,
-    revenue: revenueMap[g.menuItemId] || 0,
-  }));
+  if (inventoryGrouped.length > 0) {
+    const invIds = inventoryGrouped.map(g => g.inventoryId);
+    const ingredients = await prisma.ingredient.findMany({
+      where: { id: { in: invIds } },
+      select: { id: true, name: true },
+    });
+    const ingredientMap = Object.fromEntries(ingredients.map(i => [i.id, i]));
 
-  console.log("[TOP SELLING RESULT]", JSON.stringify(result, null, 2));
-  return result;
+    const invOrderItems = await prisma.orderItem.findMany({
+      where: { inventoryId: { in: invIds }, menuItemId: null, order: { status: 'COMPLETED' } },
+      select: { inventoryId: true, price: true, quantity: true },
+    });
+
+    const revenueMap = {};
+    for (const item of invOrderItems) {
+      if (!item.inventoryId) continue;
+      revenueMap[item.inventoryId] = (revenueMap[item.inventoryId] || 0) + Number(item.price) * item.quantity;
+    }
+
+    for (const g of inventoryGrouped) {
+      result.push({
+        menuItemId: g.inventoryId,
+        name: ingredientMap[g.inventoryId]?.name || 'Unknown',
+        category: 'Inventory',
+        soldQuantity: g._sum.quantity,
+        revenue: revenueMap[g.inventoryId] || 0,
+      });
+    }
+  }
+
+  result.sort((a, b) => b.soldQuantity - a.soldQuantity);
+  return result.slice(0, 5);
 }
 
 async function getLowStockItems(branchWhere) {

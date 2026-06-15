@@ -431,6 +431,29 @@ export type BilliardTableWithSession = BilliardTable & {
   currentReservation?: BilliardReservation | null;
 };
 
+export interface BilliardOrderSummaryItem {
+  id: string;
+  menuItemId: string | null;
+  inventoryId: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface BilliardOrderSummary {
+  sessionId: string | null;
+  orderId: string | null;
+  orderNumber: string | null;
+  items: BilliardOrderSummaryItem[];
+  foodTotal: number;
+  tableFee: number;
+  serviceCharge: number;
+  tax: number;
+  grandTotal: number;
+  tableStatus: string;
+}
+
 export const billiardApi = {
   listTables: () =>
     apiFetch<BilliardTableWithSession[]>('/billiard/tables', { auth: false, headers: getAuthHeaders() }),
@@ -486,9 +509,47 @@ export const billiardApi = {
       { method: 'POST' }
     ),
 
-  addOrderItem: (orderId: string, body: { menuItemId: string; quantity: number }) =>
+  addOrderItem: (orderId: string, body: { menuItemId?: string; inventoryId?: string; quantity: number }) =>
     apiFetch<{ order: import('../types').OrderDetail; item: import('../types').OrderItemDetail }>(
       `/billiard/orders/${orderId}/items`,
       { method: 'POST', body: JSON.stringify(body) }
     ),
+
+  batchAddOrderItems: (orderId: string, body: { items: Array<{ inventoryId: string; quantity: number }> }) =>
+    apiFetch<BilliardOrderSummary>(
+      `/billiard/orders/${orderId}/items/batch`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  updateOrderItem: (orderId: string, itemId: string, body: { quantity: number }) =>
+    apiFetch<import('../types').OrderItemDetail>(
+      `/billiard/orders/${orderId}/items/${itemId}`,
+      { method: 'PUT', body: JSON.stringify(body) }
+    ),
+
+  removeOrderItem: (orderId: string, itemId: string) =>
+    apiFetch<{ id: string; deleted: boolean }>(
+      `/billiard/orders/${orderId}/items/${itemId}`,
+      { method: 'DELETE' }
+    ),
+
+  getOrderSummary: (tableId: string) =>
+    apiFetch<BilliardOrderSummary>(
+      `/billiard/tables/${tableId}/order-summary`,
+      { auth: false, headers: getAuthHeaders() }
+    ),
+
+  updateTable: (id: string, body: {
+    tableCode?: string;
+    tableName?: string;
+    tableType?: string;
+    capacity?: number;
+    status?: string;
+    posX?: number;
+    posY?: number;
+  }) =>
+    apiFetch<import('../types').TableItem>(`/tables/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
 };

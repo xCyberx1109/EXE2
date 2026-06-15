@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { TableFloor } from './components/TableFloor';
 import { RightPanel } from './components/RightPanel';
 import { useBilliardTables } from './hooks';
@@ -8,19 +8,59 @@ import { Loader2, AlertCircle } from 'lucide-react';
 export function BilliardDashboard() {
   const { data: tables, isLoading, error, refetch } = useBilliardTables();
   const [selectedTable, setSelectedTable] = useState<BilliardTableWithSession | null>(null);
+  const [layoutMode, setLayoutMode] = useState(false);
+  const dirtyRef = useRef(false);
 
   const handleSelect = useCallback((table: BilliardTableWithSession) => {
+    if (dirtyRef.current) {
+      const confirmed = window.confirm('You have unsaved changes. Discard them and switch table?');
+      if (!confirmed) return;
+    }
     setSelectedTable(table);
   }, []);
 
+  const selectedIdRef = useRef(selectedTable?.id);
+  selectedIdRef.current = selectedTable?.id;
+
+  useEffect(() => {
+    if (!selectedIdRef.current || !tables) return;
+    const updated = tables.find(t => t.id === selectedIdRef.current);
+    if (updated) setSelectedTable(updated);
+  }, [tables]);
+
   const handleClose = useCallback(() => {
+    if (layoutMode && dirtyRef.current) {
+      const confirmed = window.confirm('You have unsaved changes. Discard them?');
+      if (!confirmed) return;
+    }
+    dirtyRef.current = false;
     setSelectedTable(null);
-  }, []);
+  }, [layoutMode]);
 
   const handleSuccess = useCallback(() => {
-    setSelectedTable(null);
     refetch();
   }, [refetch]);
+
+  const handlePanelSuccess = useCallback(() => {
+    if (layoutMode) {
+      refetch();
+      return;
+    }
+    setSelectedTable(null);
+    refetch();
+  }, [refetch, layoutMode]);
+
+  const handleLayoutModeChange = useCallback((mode: boolean) => {
+    if (!mode && dirtyRef.current) {
+      const confirmed = window.confirm('You have unsaved changes. Discard them and exit layout mode?');
+      if (!confirmed) return;
+    }
+    setLayoutMode(mode);
+    if (!mode) {
+      dirtyRef.current = false;
+      setSelectedTable(null);
+    }
+  }, []);
 
   if (error) {
     return (
@@ -52,6 +92,8 @@ export function BilliardDashboard() {
             selectedId={selectedTable?.id ?? null}
             onSelect={handleSelect}
             onRefresh={handleSuccess}
+            layoutMode={layoutMode}
+            onLayoutModeChange={handleLayoutModeChange}
           />
         )}
       </div>
@@ -60,7 +102,10 @@ export function BilliardDashboard() {
         <RightPanel
           table={selectedTable}
           onClose={handleClose}
-          onSuccess={handleSuccess}
+          onSuccess={handlePanelSuccess}
+          onRefresh={handleSuccess}
+          layoutMode={layoutMode}
+          onDirtyChange={(d) => { dirtyRef.current = d; }}
         />
       </div>
     </div>

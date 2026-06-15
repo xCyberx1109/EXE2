@@ -523,11 +523,11 @@ export const orderService = {
     };
   },
 
-  /** Lấy đơn đang active của bàn */
+  /** Lấy đơn đang active của bàn (bao gồm cả billiard CONFIRMED status) */
   async getActiveOrderForTable(tableId, user = null) {
     const where = {
       tableId,
-      status: { in: ['PENDING', 'PREPARING'] },
+      status: { in: ['PENDING', 'PREPARING', 'CONFIRMED'] },
       deletedAt: null,
     };
     if (user && !user.permissions?.includes('ADMIN_ALL')) {
@@ -709,6 +709,32 @@ async function validateInventoryForOrder(order) {
   const issues = [];
 
   for (const orderItem of orderItems) {
+    // Direct inventory sale: validate stock directly
+    if (orderItem.inventoryId && !orderItem.menuItemId) {
+      const ingredient = await prisma.ingredient.findUnique({ where: { id: orderItem.inventoryId } });
+      if (!ingredient) {
+        issues.push({
+          menuItemId: null,
+          menuItemName: orderItem.name,
+          missingIngredients: [{ ingredientName: orderItem.name, required: orderItem.quantity, available: 0 }],
+        });
+        continue;
+      }
+      const available = Number(ingredient.quantity);
+      if (available < orderItem.quantity) {
+        issues.push({
+          menuItemId: null,
+          menuItemName: orderItem.name,
+          missingIngredients: [{
+            ingredientName: ingredient.name,
+            required: orderItem.quantity,
+            available,
+          }],
+        });
+      }
+      continue;
+    }
+
     if (!orderItem.menuItemId) {
       console.log(`[INVENTORY VALIDATE] Skip item "${orderItem.name}" - no menuItemId`);
       continue;
@@ -757,6 +783,46 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
   const orderItems = order.items || [];
 
   for (const orderItem of orderItems) {
+    // Direct inventory sale: deduct stock directly
+    if (orderItem.inventoryId && !orderItem.menuItemId) {
+      const currentIngredient = await tx.ingredient.findUnique({
+        where: { id: orderItem.inventoryId },
+      });
+      if (!currentIngredient) continue;
+
+      const currentQty = Number(currentIngredient.quantity);
+      if (currentQty < orderItem.quantity) {
+        throw new AppError(
+          `Không đủ hàng tồn kho: ${currentIngredient.name}. Cần ${orderItem.quantity}, có ${currentQty}`,
+          400
+        );
+      }
+
+      const updatedIngredient = await tx.ingredient.update({
+        where: { id: orderItem.inventoryId },
+        data: {
+          quantity: { increment: -orderItem.quantity },
+          lastUpdated: new Date(),
+        },
+      });
+
+      await tx.inventoryTransaction.create({
+        data: {
+          ingredientId: orderItem.inventoryId,
+          accountId: order.accountId,
+          type: 'SALE',
+          quantity: orderItem.quantity,
+          beforeQuantity: Number(updatedIngredient.quantity) + orderItem.quantity,
+          afterQuantity: Number(updatedIngredient.quantity),
+          note: `Direct sale from order ${order.orderNumber}`,
+          referenceType: 'ORDER',
+          referenceId: order.id,
+          createdBy,
+        },
+      });
+      continue;
+    }
+
     if (!orderItem.menuItemId) {
       continue;
     }

@@ -61,6 +61,11 @@ export const addOrderItem = asyncHandler(async (req, res) => {
   sendSuccess(res, { message: 'Thêm món thành công', data, statusCode: 201 });
 });
 
+export const batchAddOrderItems = asyncHandler(async (req, res) => {
+  const data = await billiardService.batchAddOrderItems(req.params.id, req.body, getContext(req));
+  sendSuccess(res, { message: 'Thêm món hàng loạt thành công', data, statusCode: 200 });
+});
+
 export const updateOrderItem = asyncHandler(async (req, res) => {
   const data = await billiardService.updateOrderItem(req.params.id, req.params.itemId, req.body, getContext(req));
   sendSuccess(res, { message: 'Cập nhật món thành công', data });
@@ -69,6 +74,11 @@ export const updateOrderItem = asyncHandler(async (req, res) => {
 export const removeOrderItem = asyncHandler(async (req, res) => {
   const data = await billiardService.removeOrderItem(req.params.id, req.params.itemId, getContext(req));
   sendSuccess(res, { message: 'Xóa món thành công', data });
+});
+
+export const getTableOrderSummary = asyncHandler(async (req, res) => {
+  const data = await billiardService.getTableOrderSummary(req.params.tableId, getContext(req));
+  sendSuccess(res, { message: 'Lấy thông tin đơn hàng thành công', data });
 });
 
 export const payOrder = asyncHandler(async (req, res) => {

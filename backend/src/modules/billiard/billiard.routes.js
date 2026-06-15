@@ -3,12 +3,12 @@ import {
   listBilliardTables, updateTableLayout,
   playNow, reserveTable, checkInReservation, cancelReservation,
   getCurrentSession, extendSession, finishSession, getSessionOrder,
-  addOrderItem, updateOrderItem, removeOrderItem, payOrder,
-  createBilliardTable,
+  addOrderItem, batchAddOrderItems, updateOrderItem, removeOrderItem, payOrder,
+  getTableOrderSummary, createBilliardTable,
 } from './billiard.controller.js';
 import {
   tableIdParam, idParam, updateLayoutRules, playNowRules, reserveRules,
-  extendSessionRules, addOrderItemRules, updateOrderItemRules, createTableRules,
+  extendSessionRules, addOrderItemRules, batchAddOrderItemsRules, updateOrderItemRules, createTableRules,
 } from './billiard.validation.js';
 import { validate } from '../../middlewares/validate.js';
 import { authenticate, requirePermission, optionalAuth } from '../../middlewares/auth.js';
@@ -34,7 +34,9 @@ router.post('/billiard/sessions/:id/extend', authenticate, requirePermission('SE
 router.post('/billiard/tables/:tableId/finish-session', authenticate, requirePermission('SESSION_FINISH'), tableIdParam, validate, finishSession);
 
 // ==================== ORDERS ====================
+router.get('/billiard/tables/:tableId/order-summary', optionalAuth, tableIdParam, validate, getTableOrderSummary);
 router.get('/billiard/sessions/:id/order', optionalAuth, idParam, validate, getSessionOrder);
+router.post('/billiard/orders/:id/items/batch', authenticate, requirePermission('ORDER_MANAGE'), [...idParam, ...batchAddOrderItemsRules], validate, batchAddOrderItems);
 router.post('/billiard/orders/:id/items', authenticate, requirePermission('ORDER_MANAGE'), [...idParam, ...addOrderItemRules], validate, addOrderItem);
 router.put('/billiard/orders/:id/items/:itemId', authenticate, requirePermission('ORDER_MANAGE'), [...idParam, ...updateOrderItemRules], validate, updateOrderItem);
 router.delete('/billiard/orders/:id/items/:itemId', authenticate, requirePermission('ORDER_MANAGE'), [...idParam, ...idParam], validate, removeOrderItem);

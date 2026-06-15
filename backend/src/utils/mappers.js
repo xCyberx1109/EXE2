@@ -30,6 +30,7 @@ export const mapIngredient = (item) => ({
   warningQuantity: Number(item.warningQuantity),
   price: Number(item.price),
   supplier: item.supplier,
+  available: item.available !== false,
   lastUpdated: item.lastUpdated instanceof Date
     ? item.lastUpdated.toISOString().split('T')[0]
     : String(item.lastUpdated).split('T')[0],
@@ -70,6 +71,7 @@ export const mapOrderDetail = (order) => ({
   items: order.items.map((item) => ({
     id: item.id,
     menuItemId: item.menuItemId,
+    inventoryId: item.inventoryId,
     name: item.name,
     price: Number(item.price),
     cost: Number(item.cost),
@@ -118,6 +120,7 @@ export const mapPosOrder = (order) => {
     orderNumber: order.orderNumber,
     table: order.tableNumber,
     tableNumber: order.tableNumber,
+    tableId: order.tableId,
     status: order.status,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
@@ -136,6 +139,7 @@ export const mapPosOrder = (order) => {
     items: items.map((item) => ({
       id: item.id,
       menuItemId: item.menuItemId,
+      inventoryId: item.inventoryId,
       name: item.name,
       price: Number(item.price),
       cost: Number(item.cost),
