@@ -4,9 +4,6 @@
   "description": "Backend API quản lý cửa hàng F&B - Menu, Tồn kho, Doanh thu",
   "type": "module",
   "main": "src/server.js",
-  "prisma": {
-    "seed": "node prisma/seed.js"
-  },
   "keywords": [
     "express",
     "prisma",

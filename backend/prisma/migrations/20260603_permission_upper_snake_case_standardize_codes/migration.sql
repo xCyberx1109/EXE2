@@ -73,15 +73,21 @@ JOIN mapping m ON m.old_code = oldp.code
 JOIN "permissions" newp ON newp.code = m.new_code
 WHERE ap."permissionId" = oldp.id;
 
--- 3) Merge duplicates in account_permissions (keep the smallest id)
 WITH ranked AS (
   SELECT
-    ap.*,
-    ROW_NUMBER() OVER (PARTITION BY ap."accountId", ap."permissionId" ORDER BY ap.id) AS rn
-  FROM "account_permissions" ap
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY "accountId", "permissionId"
+      ORDER BY id
+    ) AS rn
+  FROM "account_permissions"
 )
-DELETE FROM ranked
-WHERE rn > 1;
+DELETE FROM "account_permissions"
+WHERE id IN (
+  SELECT id
+  FROM ranked
+  WHERE rn > 1
+);
 
 -- 4) Delete legacy permissions
 DELETE FROM "permissions"

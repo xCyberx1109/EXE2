@@ -1,4 +1,4 @@
-﻿-- Migration: Remove Role model, RolePermission, and roleId from Account
+-- Migration: Remove Role model, RolePermission, and roleId from Account
 -- Safe production migration for RBAC simplification
 
 -- 1. Drop FK constraint linking accounts to roles

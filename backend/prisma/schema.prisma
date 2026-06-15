@@ -190,20 +190,66 @@ model BillingInvoice {
 }
 
 model Table {
-  id        String      @id @default(cuid())
-  branchId  String
+  id        String          @id @default(cuid())
+  accountId String
   tableCode String
   tableName String?
   capacity  Int
-  status    TableStatus @default(AVAILABLE)
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  orders    Order[]     @relation("TableOrders")
+  tableType TableType       @default(POOL)
+  posX      Float           @default(0)
+  posY      Float           @default(0)
+  status    TableStatus     @default(AVAILABLE)
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  orders    Order[]         @relation("TableOrders")
+  sessions  PlaySession[]
+  reservations Reservation[]
 
-  @@unique([branchId, tableCode])
-  @@index([branchId])
+  @@unique([accountId, tableCode])
+  @@index([accountId])
   @@map("tables")
+}
+
+model PlaySession {
+  id              String           @id @default(cuid())
+  tableId         String
+  startTime       DateTime
+  expectedEndTime DateTime
+  endTime         DateTime?
+  durationMinutes Int
+  tableFee        Decimal          @default(0) @db.Decimal(12, 2)
+  status          PlaySessionStatus @default(PLAYING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  table           Table            @relation(fields: [tableId], references: [id])
+  order           Order?           @relation("SessionOrder")
+
+  @@index([tableId])
+  @@index([status])
+  @@index([tableId, status])
+  @@map("play_sessions")
+}
+
+model Reservation {
+  id               String             @id @default(cuid())
+  tableId          String
+  branchId         String
+  customerName     String
+  phone            String?
+  reservationTime  DateTime
+  durationMinutes  Int                @default(60)
+  note             String?
+  status           ReservationStatus  @default(PENDING)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  table            Table              @relation(fields: [tableId], references: [id])
+
+  @@index([tableId])
+  @@index([status])
+  @@index([reservationTime])
+  @@index([branchId, status])
+  @@map("reservations")
 }
 
 model Account {
@@ -533,6 +579,7 @@ model Order {
   source            String?           @default("POS")
   tableNumber       String?
   tableId           String?           @map("table_id")
+  sessionId         String?           @unique @map("session_id")
   status            OrderStatus
   kitchenStatus     KitchenStatus     @default(PENDING)
   paymentMethod     PaymentMethod?
@@ -562,6 +609,7 @@ model Order {
   posDevice         PosDevice?        @relation(fields: [posDeviceId], references: [id])
   shift             Shift?            @relation(fields: [shiftId], references: [id])
   table             Table?            @relation("TableOrders", fields: [tableId], references: [id])
+  session           PlaySession?      @relation("SessionOrder", fields: [sessionId], references: [id])
   payments          Payment[]
   redeemedVouchers  RedeemedVoucher[]
 
@@ -777,23 +825,6 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
-model revenue_reports {
-  id         String   @id
-  branchId   String
-  reportDate DateTime @db.Date
-  orderCount Int      @default(0)
-  revenue    Decimal  @default(0) @db.Decimal(14, 2)
-  cost       Decimal  @default(0) @db.Decimal(14, 2)
-  profit     Decimal  @default(0) @db.Decimal(14, 2)
-  cashTotal  Decimal  @default(0) @db.Decimal(14, 2)
-  cardTotal  Decimal  @default(0) @db.Decimal(14, 2)
-  otherTotal Decimal  @default(0) @db.Decimal(14, 2)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime
-
-  @@unique([branchId, reportDate])
-  @@index([branchId, reportDate])
-}
 
 enum AccountStatus {
   ACTIVE
@@ -925,4 +956,23 @@ enum TableStatus {
   CLEANING
   CHECKING_OUT
   DISABLED
+}
+
+enum TableType {
+  POOL
+  SNOOKER
+  VIP
+}
+
+enum PlaySessionStatus {
+  PLAYING
+  FINISHED
+  CANCELLED
+}
+
+enum ReservationStatus {
+  PENDING
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
 }

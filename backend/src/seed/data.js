@@ -48,6 +48,12 @@ export const features = [
   { code: 'multi_branch', name: 'Đa chi nhánh', module: 'branch', isCore: false, sortOrder: 8 },
   { code: 'voucher', name: 'Mã giảm giá', module: 'marketing', isCore: false, sortOrder: 9 },
   { code: 'kitchen_display', name: 'Màn hình hiển thị bếp', module: 'kitchen', isCore: true, sortOrder: 10 },
+  // Billiard Management
+  { code: 'billiard_table', name: 'Bàn Billiard', module: 'billiard', isCore: false, sortOrder: 11 },
+  { code: 'billiard_session', name: 'Phiên chơi Billiard', module: 'billiard', isCore: false, sortOrder: 12 },
+  { code: 'billiard_reservation', name: 'Đặt bàn Billiard', module: 'billiard', isCore: false, sortOrder: 13 },
+  { code: 'billiard_layout', name: 'Sơ đồ bàn Billiard', module: 'billiard', isCore: false, sortOrder: 14 },
+  { code: 'billiard_report', name: 'Báo cáo Billiard', module: 'billiard', isCore: false, sortOrder: 15 },
 ];
 
 export const permissions = [
@@ -128,6 +134,29 @@ export const permissions = [
   { code: 'POS_ORDER_QUEUE_PAYMENT', name: 'Thanh toán Order Queue', module: 'pos' },
   { code: 'ORDER_HISTORY_VIEW', name: 'Xem lịch sử đơn hàng', module: 'orders' },
   { code: 'ORDER_HISTORY_VIEW_ALL', name: 'Xem tất cả lịch sử đơn hàng', module: 'orders' },
+  // ================= BILLIARD TABLE =================
+  { code: 'TABLE_LAYOUT_EDIT', name: 'Chỉnh sửa sơ đồ bàn', module: 'billiard' },
+  { code: 'TABLE_PLAY_NOW', name: 'Chơi ngay', module: 'billiard' },
+  { code: 'TABLE_RESERVE', name: 'Đặt bàn Billiard', module: 'billiard' },
+  { code: 'TABLE_CHECKIN', name: 'Check-in bàn Billiard', module: 'billiard' },
+
+  // ================= BILLIARD SESSION =================
+  { code: 'SESSION_VIEW', name: 'Xem phiên chơi', module: 'billiard' },
+  { code: 'SESSION_START', name: 'Bắt đầu phiên chơi', module: 'billiard' },
+  { code: 'SESSION_EXTEND', name: 'Gia hạn phiên chơi', module: 'billiard' },
+  { code: 'SESSION_FINISH', name: 'Kết thúc phiên chơi', module: 'billiard' },
+
+  // ================= BILLIARD RESERVATION =================
+  { code: 'RESERVATION_VIEW', name: 'Xem đặt bàn', module: 'billiard' },
+  { code: 'RESERVATION_CREATE', name: 'Tạo đặt bàn', module: 'billiard' },
+  { code: 'RESERVATION_CANCEL', name: 'Hủy đặt bàn', module: 'billiard' },
+
+  // ================= BILLIARD ORDER =================
+  { code: 'ORDER_PAY', name: 'Thanh toán Billiard', module: 'billiard' },
+
+  // ================= BILLIARD REPORT =================
+  { code: 'BILLIARD_REPORT_VIEW', name: 'Xem báo cáo Billiard', module: 'billiard' },
+
   // ================= ADMIN =================
   { code: 'ADMIN_ALL', name: 'Toàn quyền hệ thống', module: 'admin', isSystem: true },
 ];

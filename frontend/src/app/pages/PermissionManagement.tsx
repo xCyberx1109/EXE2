@@ -152,9 +152,9 @@ export function PermissionManagement() {
 
   const getStatusBadge = (status: string, active: boolean) => {
     if (status === 'ACTIVE' && active) {
-      return { label: 'Hoạt động', className: 'bg-green-100 text-green-700 border border-green-200' };
+      return { label: 'Hoạt động', className: 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' };
     }
-    return { label: 'Không hoạt động', className: 'bg-red-100 text-red-700 border border-red-200' };
+    return { label: 'Không hoạt động', className: 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800' };
   };
 
   const roleLabel = (roles: string[]) => {
@@ -163,14 +163,14 @@ export function PermissionManagement() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Đang tải dữ liệu phân quyền...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Đang tải dữ liệu phân quyền...</div>;
   }
 
   if (loadError) {
     return (
       <div className="p-8 text-center">
-        <div className="max-w-md mx-auto bg-red-50 border border-red-200 rounded-xl p-6">
-          <p className="text-red-600 font-medium">{loadError}</p>
+        <div className="max-w-md mx-auto bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-6">
+          <p className="text-red-600 dark:text-red-400 font-medium">{loadError}</p>
         </div>
       </div>
     );
@@ -180,52 +180,52 @@ export function PermissionManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Shield className="w-8 h-8 text-blue-600" />
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Shield className="w-8 h-8 text-primary" />
             Quản lý Phân quyền Tài khoản
           </h1>
-          <p className="text-gray-500 mt-1">Thiết lập quyền truy cập trực tiếp cho từng tài khoản</p>
+          <p className="text-muted-foreground mt-1">Thiết lập quyền truy cập trực tiếp cho từng tài khoản</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Account List */}
         <div className="md:col-span-1 space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-            <div className="p-4 bg-gray-50 border-b border-gray-200">
+          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+            <div className="p-4 bg-muted border-b border-border">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Tìm tài khoản..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-9 pr-4 py-2 border border-input rounded-lg text-sm bg-input-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-2">{filteredAccounts.length} tài khoản</p>
+              <p className="text-xs text-muted-foreground mt-2">{filteredAccounts.length} tài khoản</p>
             </div>
-            <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+            <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
               {filteredAccounts.map(account => {
                 const statusBadge = getStatusBadge(account.status, account.active);
                 return (
                   <button
                     key={account.id}
                     onClick={() => setSelectedAccount(account)}
-                    className={`w-full text-left p-3 hover:bg-gray-50 transition-colors group ${
-                      selectedAccount?.id === account.id ? 'bg-blue-50 ring-1 ring-blue-200' : ''
+                    className={`w-full text-left p-3 hover:bg-muted transition-colors group ${
+                      selectedAccount?.id === account.id ? 'bg-accent ring-1 ring-primary/30' : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        selectedAccount?.id === account.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                        selectedAccount?.id === account.id ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
                       }`}>
                         <User className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className={`font-medium text-sm truncate ${
-                            selectedAccount?.id === account.id ? 'text-blue-700' : 'text-gray-900'
+                            selectedAccount?.id === account.id ? 'text-primary' : 'text-foreground'
                           }`}>
                             {account.fullName}
                           </p>
@@ -233,19 +233,19 @@ export function PermissionManagement() {
                             {statusBadge.label}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-400 truncate">{account.email}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{account.email}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-muted-foreground">
                             {formatDate(account.createdAt)}
                           </span>
-                          <span className="text-[10px] text-gray-300">|</span>
-                          <span className={`text-[10px] ${account.permissionCount > 0 ? 'text-blue-500' : 'text-gray-400'}`}>
+                          <span className="text-[10px] text-muted-foreground/50">|</span>
+                          <span className={`text-[10px] ${account.permissionCount > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
                             {account.permissionCount > 0 ? `${account.permissionCount} quyền` : 'Chưa gán vai trò'}
                           </span>
                         </div>
                       </div>
                       <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${
-                        selectedAccount?.id === account.id ? 'text-blue-500 translate-x-0.5' : 'text-gray-300'
+                        selectedAccount?.id === account.id ? 'text-primary translate-x-0.5' : 'text-muted-foreground/50'
                       }`} />
                     </div>
                   </button>
@@ -258,27 +258,27 @@ export function PermissionManagement() {
         {/* Permission Editor */}
         <div className="md:col-span-2">
           {selectedAccount ? (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+            <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-border bg-card sticky top-0 z-10">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center">
                       <User className="w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900">{selectedAccount.fullName}</h2>
-                      <p className="text-gray-500 text-sm">{selectedAccount.email}</p>
+                      <h2 className="text-xl font-bold text-foreground">{selectedAccount.fullName}</h2>
+                      <p className="text-muted-foreground text-sm">{selectedAccount.email}</p>
                     </div>
                   </div>
                   <button
                     onClick={savePermissions}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm"
                   >
                     <Save className="w-4 h-4" />
                     Lưu quyền hạn
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 border-t border-gray-100 pt-3">
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground border-t border-border pt-3">
                   <span className="flex items-center gap-1">
                     <BadgeCheck className="w-3.5 h-3.5" />
                     ID: {selectedAccount.accountId}
@@ -302,8 +302,8 @@ export function PermissionManagement() {
               <div className="p-6 space-y-8 overflow-y-auto max-h-[600px]">
                 {Object.entries(groupedPermissions).map(([module, perms]) => (
                   <div key={module} className="space-y-3">
-                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 bg-primary rounded-full"></span>
                       {module}
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -314,8 +314,8 @@ export function PermissionManagement() {
                             key={perm.id}
                             className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                               isChecked 
-                                ? 'bg-blue-50 border-blue-200 text-blue-700 ring-1 ring-blue-100' 
-                                : 'border-gray-100 hover:border-gray-200 text-gray-600'
+                                ? 'bg-primary/5 border-primary/30 text-primary ring-1 ring-primary/20' 
+                                : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
                             }`}
                           >
                             <div className="relative flex items-center">
@@ -323,7 +323,7 @@ export function PermissionManagement() {
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => handleTogglePermission(perm.id)}
-                                className="w-5 h-5 text-blue-600 rounded-md border-gray-300 focus:ring-blue-500 transition-all"
+                                className="w-5 h-5 text-primary rounded-md border-border bg-input-background focus:ring-primary transition-all"
                               />
                             </div>
                             <div>
@@ -339,12 +339,12 @@ export function PermissionManagement() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Lock className="w-8 h-8 text-gray-400" />
+            <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-muted border-2 border-dashed border-border rounded-xl p-12 text-center">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">Chưa chọn tài khoản</h3>
-              <p className="text-gray-500 mt-2 max-w-xs">Chọn một tài khoản từ danh sách bên trái để quản lý các quyền truy cập riêng biệt.</p>
+              <h3 className="text-lg font-medium text-foreground">Chưa chọn tài khoản</h3>
+              <p className="text-muted-foreground mt-2 max-w-xs">Chọn một tài khoản từ danh sách bên trái để quản lý các quyền truy cập riêng biệt.</p>
             </div>
           )}
         </div>

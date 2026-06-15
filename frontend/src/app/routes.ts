@@ -26,6 +26,8 @@ import { OrderQueuePOS } from './pages/OrderQueuePOS';
 import { CategoryManagement } from './pages/CategoryManagement';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
+import { BilliardManagement } from './pages/BilliardManagement';
+import { BilliardLayout } from './pages/BilliardLayout';
 
 import { useAuth } from './context/AuthContext';
 import type { PosDeviceTypeV2, DevicePermission } from '../shared/types/pos';
@@ -209,6 +211,8 @@ export const router = createBrowserRouter([
           { path: 'order-queue', element: withGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },
           { path: 'orders/history', element: withGuard(OrderHistoryPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
           { path: 'orders/:orderId', element: withGuard(OrderDetailPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
+          { path: 'billiard', element: withGuard(BilliardManagement, { rbacPerms: ['TABLE_VIEW'] }) },
+          { path: 'billiard/layout', element: withGuard(BilliardLayout, { rbacPerms: ['TABLE_LAYOUT_EDIT'] }) },
           { path: 'profile', Component: ProfilePage },
         ],
       },
