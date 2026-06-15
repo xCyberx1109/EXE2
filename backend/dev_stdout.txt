@@ -1,0 +1,21 @@
+✓ Kết nối PostgreSQL thành công
+→ Đồng bộ permissions...
+→ Đồng bộ permissions...
+  ✓ 65 permissions synchronized
+✓ Hoàn tất đồng bộ permissions
+✓ Đã khởi động heartbeat check (timeout: 2 phút)
+[EMAIL] SMTP connection verified — smtp.gmail.com:587
+✓ Server chạy tại http://localhost:3099
+  API: http://localhost:3099/api
+  POS: http://localhost:3099/api/pos
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Server Startup Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  NODE_ENV        : development
+  PORT            : 3099
+  Database        : Connected
+  DB Provider     : PostgreSQL (Supabase)
+  DB URL          : postgresql://***@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=15&pool_timeout=30
+  API Base URL    : http://localhost:3099/api
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

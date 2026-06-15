@@ -198,6 +198,7 @@ model Table {
   tableType TableType       @default(POOL)
   posX      Float           @default(0)
   posY      Float           @default(0)
+  hourlyRate Decimal        @default(0) @db.Decimal(12, 2)
   status    TableStatus     @default(AVAILABLE)
   isActive  Boolean         @default(true)
   createdAt DateTime        @default(now())
@@ -470,6 +471,7 @@ model Ingredient {
   updatedAt             DateTime               @updatedAt
   inventoryTransactions InventoryTransaction[]
   menuItems             MenuItemIngredient[]
+  orderItems            OrderItem[]
   stockAlerts           StockAlert[]
   stockAudits           StockAudit[]
 
@@ -626,24 +628,27 @@ model Order {
 }
 
 model OrderItem {
-  id         String              @id @default(cuid())
-  orderId    String
-  menuItemId String?
-  kotId      String?
-  name       String
-  price      Decimal             @db.Decimal(12, 2)
-  cost       Decimal             @default(0) @db.Decimal(12, 2)
-  quantity   Int
-  discount   Decimal             @default(0) @db.Decimal(12, 2)
-  total      Decimal             @default(0) @db.Decimal(12, 2)
-  note       String?
-  modifiers  OrderItemModifier[]
-  kot        Kot?                @relation(fields: [kotId], references: [id])
-  menuItem   MenuItem?           @relation(fields: [menuItemId], references: [id])
-  order      Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id          String              @id @default(cuid())
+  orderId     String
+  menuItemId  String?
+  inventoryId String? @map("inventory_id")
+  kotId       String?
+  name        String
+  price       Decimal             @db.Decimal(12, 2)
+  cost        Decimal             @default(0) @db.Decimal(12, 2)
+  quantity    Int
+  discount    Decimal             @default(0) @db.Decimal(12, 2)
+  total       Decimal             @default(0) @db.Decimal(12, 2)
+  note        String?
+  modifiers   OrderItemModifier[]
+  kot         Kot?                @relation(fields: [kotId], references: [id])
+  menuItem    MenuItem?           @relation(fields: [menuItemId], references: [id])
+  inventory   Ingredient?         @relation(fields: [inventoryId], references: [id])
+  order       Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([menuItemId])
+  @@index([inventoryId])
   @@index([kotId])
   @@map("order_items")
 }

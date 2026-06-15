@@ -26,6 +26,7 @@ export interface InventoryItem {
   warningQuantity: number;
   price: number;
   supplier: string;
+  available: boolean;
   lastUpdated: string;
 }
 

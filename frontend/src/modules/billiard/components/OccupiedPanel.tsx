@@ -6,12 +6,15 @@ import {
   LogOut,
   Plus,
   Loader2,
+  ShoppingCart,
+  Utensils,
 } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
-import { useExtendSession, useFinishSession } from '../hooks';
-import { FoodDrinkDrawer } from './FoodDrinkDrawer';
+import { useExtendSession, useFinishSession, useTableOrderSummary } from '../hooks';
+import { OrderFoodDrinkDrawer } from './OrderFoodDrinkDrawer';
+import { printReceipt } from '@/shared/utils/printReceipt';
 import type { BilliardTableWithSession } from '../types';
 
 function useCountdown(targetTime: string): string {
@@ -44,9 +47,10 @@ function useCountdown(targetTime: string): string {
 interface OccupiedPanelProps {
   table: BilliardTableWithSession;
   onSuccess: () => void;
+  onRefresh?: () => void;
 }
 
-export function OccupiedPanel({ table, onSuccess }: OccupiedPanelProps) {
+export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProps) {
   const session = table.currentSession;
   const [showExtend, setShowExtend] = useState(false);
   const [extendMins, setExtendMins] = useState(30);
@@ -55,6 +59,17 @@ export function OccupiedPanel({ table, onSuccess }: OccupiedPanelProps) {
 
   const extendSession = useExtendSession();
   const finishSession = useFinishSession();
+
+  const { data: orderSummary, isLoading: summaryLoading } = useTableOrderSummary(table.id);
+
+  const orderId = orderSummary?.orderId || null;
+  const orderItems = orderSummary?.items || [];
+  const foodTotal = orderSummary?.foodTotal || 0;
+  const tableFee = orderSummary?.tableFee || Number(session?.tableFee || 0);
+  const serviceCharge = orderSummary?.serviceCharge || 0;
+  const tax = orderSummary?.tax || 0;
+  const grandTotal = orderSummary?.grandTotal || tableFee;
+  const hasItems = orderItems.length > 0;
 
   const remaining = useCountdown(session?.expectedEndTime ?? '');
 
@@ -73,6 +88,32 @@ export function OccupiedPanel({ table, onSuccess }: OccupiedPanelProps) {
 
   const handleFinish = async () => {
     await finishSession.mutateAsync(table.id);
+
+    const now = new Date();
+    const startTime = new Date(session.startTime);
+    const endTime = now;
+
+    printReceipt({
+      invoiceNumber: orderSummary?.orderNumber || table.id,
+      checkoutDate: now.toISOString(),
+      tableCode: table.tableCode,
+      tableType: table.tableType,
+      sessionStart: startTime.toISOString(),
+      sessionEnd: endTime.toISOString(),
+      durationMinutes: session.durationMinutes,
+      tableFee,
+      items: orderItems.map(i => ({
+        name: i.name,
+        quantity: i.quantity,
+        unitPrice: i.price,
+        total: i.lineTotal,
+      })),
+      foodTotal,
+      serviceCharge,
+      tax,
+      grandTotal,
+    });
+
     onSuccess();
   };
 
@@ -118,7 +159,71 @@ export function OccupiedPanel({ table, onSuccess }: OccupiedPanelProps) {
           </div>
           <div className="flex justify-between border-t border-border pt-2">
             <span className="text-muted-foreground">Table Fee</span>
-            <span className="font-semibold">${session.tableFee.toFixed(2)}</span>
+            <span className="font-semibold">{tableFee.toLocaleString()}₫</span>
+          </div>
+        </div>
+
+        {/* ORDER DETAILS SECTION */}
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
+            <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Order Details
+            </span>
+            {summaryLoading && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}
+          </div>
+          <div className="p-3">
+            {summaryLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : !hasItems ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No food/drink ordered yet
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {orderItems.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span className="text-foreground">
+                      <span className="text-muted-foreground mr-1">{item.quantity}x</span>
+                      {item.name}
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {item.lineTotal.toLocaleString()}₫
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* TOTALS */}
+        <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Food Total</span>
+            <span className="font-medium tabular-nums">{foodTotal.toLocaleString()}₫</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Table Fee</span>
+            <span className="font-medium tabular-nums">{tableFee.toLocaleString()}₫</span>
+          </div>
+          {serviceCharge > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Service Charge</span>
+              <span className="font-medium tabular-nums">{serviceCharge.toLocaleString()}₫</span>
+            </div>
+          )}
+          {tax > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tax</span>
+              <span className="font-medium tabular-nums">{tax.toLocaleString()}₫</span>
+            </div>
+          )}
+          <div className="flex justify-between text-base font-bold border-t border-border pt-2">
+            <span>Grand Total</span>
+            <span className="text-primary tabular-nums">{grandTotal.toLocaleString()}₫</span>
           </div>
         </div>
 
@@ -198,12 +303,15 @@ export function OccupiedPanel({ table, onSuccess }: OccupiedPanelProps) {
         )}
       </div>
 
-      <FoodDrinkDrawer
+      <OrderFoodDrinkDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         tableId={table.id}
         tableCode={table.tableCode}
-        onSuccess={onSuccess}
+        currentOrderId={orderId}
+        onSuccess={() => {
+          if (onRefresh) onRefresh();
+        }}
       />
     </>
   );

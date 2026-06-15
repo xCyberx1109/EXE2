@@ -9,10 +9,32 @@ export interface BilliardTable {
   tableType: 'POOL' | 'SNOOKER' | 'VIP';
   posX: number;
   posY: number;
+  hourlyRate: number;
   status: TableStatus;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BilliardOrderItem {
+  id: string;
+  menuItemId: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface BilliardOrderInfo {
+  id: string;
+  orderNumber: string;
+  status: string;
+  total: number;
+  itemCount: number;
+  items: BilliardOrderItem[];
+  foodTotal: number;
+  tableFee: number;
+  grandTotal: number;
 }
 
 export interface BilliardPlaySession {
@@ -41,6 +63,7 @@ export interface BilliardReservation {
 export type BilliardTableWithSession = BilliardTable & {
   currentSession?: BilliardPlaySession | null;
   currentReservation?: BilliardReservation | null;
+  currentOrder?: BilliardOrderInfo | null;
 };
 
 export type SortPriority =
@@ -74,4 +97,5 @@ export interface CreateTableBody {
   tableCode: string;
   tableName?: string;
   tableType: 'POOL' | 'SNOOKER' | 'VIP';
+  hourlyRate?: number;
 }

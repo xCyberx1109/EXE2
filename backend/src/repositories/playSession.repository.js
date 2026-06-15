@@ -11,8 +11,11 @@ const sessionInclude = {
       orderNumber: true,
       status: true,
       total: true,
+      subtotal: true,
+      tax: true,
+      serviceCharge: true,
       items: {
-        select: { id: true, name: true, quantity: true, price: true, total: true },
+        select: { id: true, menuItemId: true, name: true, quantity: true, price: true, total: true },
       },
     },
   },

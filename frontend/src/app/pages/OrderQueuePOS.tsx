@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { menuApi, ordersQueueApi, inventoryApi } from '../api/services';
 import { MenuItem, OrderDetail, InventoryItem, InventoryIssue } from '../types';
 import { APP_NAME } from '../../shared/constants';
+import { printReceipt } from '../../shared/utils/printReceipt';
 import { queryClient } from '../api/queryClient';
 import {
   Clock,
@@ -586,23 +587,22 @@ export function OrderQueuePOS() {
       setOrdersToMakeRefresh(k => k + 1);
       queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
 
-      const receipt = [
-        `${APP_NAME} Order Queue Receipt`,
-        `Order: #${paidOrder.orderNumber}`,
-        `Customer: ${getCustomerLabel(activeOrder)}`,
-        `Time: ${new Date().toLocaleString()}`,
-        `Payment: ${method}`,
-        `Items:`,
-        ...paidOrder.items.map(item => `- ${item.name} x${item.quantity}: ${item.lineTotal.toLocaleString()}₫`),
-        `Total: ${paidOrder.total.toLocaleString()}₫`,
-      ].join('\n');
-
-      const receiptWindow = window.open('', '_blank', 'width=420,height=640');
-      if (receiptWindow) {
-        receiptWindow.document.write(`<pre style="font-family: monospace; white-space: pre-wrap;">${receipt}</pre>`);
-        receiptWindow.document.close();
-        receiptWindow.print();
-      }
+      printReceipt({
+        businessName: APP_NAME,
+        invoiceNumber: `#${paidOrder.orderNumber}`,
+        checkoutDate: new Date().toISOString(),
+        items: paidOrder.items.map(i => ({
+          name: i.name,
+          quantity: i.quantity,
+          unitPrice: i.price,
+          total: i.lineTotal,
+        })),
+        foodTotal: paidOrder.items.reduce((s, i) => s + i.lineTotal, 0),
+        serviceCharge: paidOrder.serviceCharge || undefined,
+        tax: paidOrder.tax || undefined,
+        discount: paidOrder.discount || undefined,
+        grandTotal: paidOrder.total,
+      });
     } catch (e: any) {
       console.log("[PAYMENT ERROR]", e);
       toast.error('Thanh toán thất bại', { description: e.message || 'Không thể thanh toán order.' });

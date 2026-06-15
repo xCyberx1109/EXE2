@@ -33,6 +33,7 @@ export const tableService = {
         posX: data.posX ?? 0,
         posY: data.posY ?? 0,
         status: data.status || 'AVAILABLE',
+        hourlyRate: data.hourlyRate ?? 0,
         accountId,
       },
     });
@@ -56,6 +57,7 @@ export const tableService = {
     if (data.posX !== undefined) updateData.posX = data.posX;
     if (data.posY !== undefined) updateData.posY = data.posY;
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.hourlyRate !== undefined) updateData.hourlyRate = data.hourlyRate;
 
     return tableRepository.update(id, updateData);
   },
