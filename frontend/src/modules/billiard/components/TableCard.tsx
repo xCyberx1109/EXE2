@@ -13,12 +13,12 @@ const STATUS_STYLES: Record<string, { border: string; bg: string; text: string; 
 };
 
 function useCountdown(endTime: string | null): { display: string; expired: boolean } {
-  const [display, setDisplay] = useState('00:00');
+  const [display, setDisplay] = useState('00:00:00');
   const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     if (!endTime) {
-      setDisplay('00:00');
+      setDisplay('00:00:00');
       setExpired(false);
       return;
     }
@@ -26,14 +26,18 @@ function useCountdown(endTime: string | null): { display: string; expired: boole
     function tick() {
       const diff = new Date(endTime).getTime() - Date.now();
       if (diff <= 0) {
-        setDisplay('00:00');
+        setDisplay('00:00:00');
         setExpired(true);
         return;
       }
       setExpired(false);
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      setDisplay(`${mins}:${secs.toString().padStart(2, '0')}`);
+      const totalSec = Math.floor(diff / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      setDisplay(
+        `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      );
     }
 
     tick();
@@ -61,6 +65,9 @@ export function TableCard({ table, selected, onSelect, draggable, onDragStart, p
   const isOccupied = table.status === 'OCCUPIED' || table.status === 'CHECKING_OUT';
 
   const pos = position ?? { posX: table.posX, posY: table.posY };
+  const hourlyRate = table.hourlyRate ?? 0;
+  const session = table.currentSession;
+  const bookedDuration = session?.durationMinutes ?? 0;
 
   return (
     <div
@@ -73,33 +80,39 @@ export function TableCard({ table, selected, onSelect, draggable, onDragStart, p
         cursor: draggable ? 'grab' : 'pointer',
       }}
       className={cn(
-        'absolute w-[140px] rounded-xl border-2 flex flex-col items-center justify-center gap-1 p-3 shadow-sm select-none transition-all hover:shadow-md',
+        'absolute w-[180px] h-[120px] rounded-xl border-2 flex flex-col px-2.5 py-2 shadow-sm select-none transition-all hover:shadow-md overflow-hidden',
         style.border,
         style.bg,
         selected && 'ring-2 ring-blue-500 dark:ring-blue-400 shadow-lg scale-105 z-10',
+        table.status === 'DISABLED' && 'opacity-50',
       )}
     >
-      <span className={cn('text-sm font-bold', style.text)}>{table.tableName || table.tableCode}</span>
-      <span className={cn('text-[10px] uppercase tracking-wider', style.text)}>
+      <span className={cn(
+        'inline-block self-start rounded px-1.5 py-[1px] text-[10px] font-semibold leading-tight',
+        style.bg,
+        style.text,
+      )}>
         {style.label}
       </span>
-      {isOccupied && (
-        <div className={cn('flex items-center gap-1 text-xs font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : style.text)}>
-          {timeExpired ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-          {remaining}
+
+      <span className={cn('text-sm font-bold leading-tight mt-0.5', style.text)}>
+        {table.tableName || table.tableCode}
+      </span>
+
+      {isOccupied ? (
+        <div className="flex flex-col gap-0.5 mt-1 text-[11px] leading-tight text-foreground">
+          <span>{hourlyRate.toLocaleString()} ₫/hour</span>
+          <span className="font-semibold text-blue-600 dark:text-blue-400">{bookedDuration} min</span>
+          <div className={cn('flex items-center gap-1 font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : 'text-foreground')}>
+            {timeExpired ? <AlertCircle className="w-3 h-3 shrink-0" /> : <Clock className="w-3 h-3 shrink-0" />}
+            <span>{remaining}</span>
+          </div>
         </div>
-      )}
-      {isOccupied && (
-        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
-          {(table.currentSession?.tableFee ?? 0).toLocaleString()}₫
+      ) : (
+        <span className="mt-auto text-[11px] leading-tight text-muted-foreground">
+          {hourlyRate.toLocaleString()} ₫/hour
         </span>
       )}
-      {table.currentReservation && table.status === 'RESERVED' && (
-        <span className="text-[10px] text-muted-foreground truncate max-w-full">
-          {table.currentReservation.customerName}
-        </span>
-      )}
-      <span className="text-[9px] text-muted-foreground uppercase">{table.tableType}</span>
     </div>
   );
 }

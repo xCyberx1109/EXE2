@@ -170,7 +170,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
           'flex-1 relative overflow-auto rounded-xl border',
           layoutMode ? 'bg-muted/50 border-dashed border-muted-foreground/40' : 'bg-muted/20 border-border',
         )}
-        style={{ minHeight: 500 }}
+        style={{ minHeight: 500, minWidth: 800 }}
       >
         {sortedTables.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
