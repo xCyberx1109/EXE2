@@ -177,6 +177,15 @@ export interface OrderDetailSimple {
   serviceCharge: number;
   total: number;
   items: OrderItemSimple[];
+  // Billiard session snapshot
+  tableName?: string | null;
+  tableCode?: string | null;
+  tableType?: string | null;
+  sessionStartTime?: string | null;
+  playingDurationMinutes?: number | null;
+  hourlyRate?: number | null;
+  playingCost?: number | null;
+  foodDrinkTotal?: number | null;
 }
 
 export interface DailyOrdersResponse {

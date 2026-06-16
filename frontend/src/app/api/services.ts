@@ -269,10 +269,10 @@ export const tableApi = {
 
   get: (id: string) => apiFetch<TableItem>(`/tables/${id}`),
 
-  create: (body: { tableCode: string; tableName?: string; capacity: number; status?: string }) =>
+  create: (body: { tableCode: string; tableName?: string; capacity: number; status?: string; hourlyRate?: number }) =>
     apiFetch<TableItem>('/tables', { method: 'POST', body: JSON.stringify(body) }),
 
-  update: (id: string, body: { tableCode?: string; tableName?: string; capacity?: number; status?: string }) =>
+  update: (id: string, body: { tableCode?: string; tableName?: string; capacity?: number; status?: string; hourlyRate?: number }) =>
     apiFetch<TableItem>(`/tables/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   delete: (id: string) =>
@@ -397,6 +397,7 @@ export interface BilliardTable {
   tableType: 'POOL' | 'SNOOKER' | 'VIP';
   posX: number;
   posY: number;
+  hourlyRate: number;
   status: import('../types').TableStatus;
   isActive: boolean;
   createdAt: string;
@@ -448,9 +449,12 @@ export interface BilliardOrderSummary {
   items: BilliardOrderSummaryItem[];
   foodTotal: number;
   tableFee: number;
+  playingCost: number;
+  hourlyRate: number;
   serviceCharge: number;
   tax: number;
   grandTotal: number;
+  startTime: string | null;
   tableStatus: string;
 }
 
@@ -458,7 +462,7 @@ export const billiardApi = {
   listTables: () =>
     apiFetch<BilliardTableWithSession[]>('/billiard/tables', { auth: false, headers: getAuthHeaders() }),
 
-  create: (body: { tableCode: string; tableName?: string; tableType: string; capacity?: number; posX?: number; posY?: number }) =>
+  create: (body: { tableCode: string; tableName?: string; tableType: string; capacity?: number; posX?: number; posY?: number; hourlyRate?: number }) =>
     apiFetch<BilliardTable>('/billiard/tables', {
       method: 'POST',
       body: JSON.stringify({ ...body, capacity: body.capacity ?? 4 }),
@@ -547,6 +551,7 @@ export const billiardApi = {
     status?: string;
     posX?: number;
     posY?: number;
+    hourlyRate?: number;
   }) =>
     apiFetch<import('../types').TableItem>(`/tables/${id}`, {
       method: 'PUT',

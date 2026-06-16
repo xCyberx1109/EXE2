@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   Clock,
-  AlertCircle,
   Timer,
   LogOut,
   Plus,
   Loader2,
   ShoppingCart,
-  Utensils,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -15,34 +14,46 @@ import { Label } from '@/app/components/ui/label';
 import { useExtendSession, useFinishSession, useTableOrderSummary } from '../hooks';
 import { OrderFoodDrinkDrawer } from './OrderFoodDrinkDrawer';
 import { printReceipt } from '@/shared/utils/printReceipt';
+import { cn } from '@/app/components/ui/utils';
 import type { BilliardTableWithSession } from '../types';
 
-function useCountdown(targetTime: string): string {
-  const [display, setDisplay] = useState('--:--');
+function useCountdownTimer(endTime: string | null): { display: string; expired: boolean } {
+  const [display, setDisplay] = useState('00:00:00');
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
+    if (!endTime) {
+      setDisplay('00:00:00');
+      setExpired(false);
+      return;
+    }
+
     function tick() {
-      const diff = new Date(targetTime).getTime() - Date.now();
-      if (diff <= 0) {
-        setDisplay('0:00');
+      const remainingMs = new Date(endTime).getTime() - Date.now();
+      if (remainingMs <= 0) {
+        setDisplay('00:00:00');
+        setExpired(true);
         return;
       }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      if (h > 0) {
-        setDisplay(`${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
-      } else {
-        setDisplay(`${m}:${s.toString().padStart(2, '0')}`);
-      }
+      setExpired(false);
+      const totalSec = Math.floor(remainingMs / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      setDisplay(
+        `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      );
     }
+
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [targetTime]);
+  }, [endTime]);
 
-  return display;
+  return { display, expired };
 }
+
+const fmt = (n: number) => n.toLocaleString() + ' ₫';
 
 interface OccupiedPanelProps {
   table: BilliardTableWithSession;
@@ -65,17 +76,19 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
   const orderId = orderSummary?.orderId || null;
   const orderItems = orderSummary?.items || [];
   const foodTotal = orderSummary?.foodTotal || 0;
-  const tableFee = orderSummary?.tableFee || Number(session?.tableFee || 0);
   const serviceCharge = orderSummary?.serviceCharge || 0;
   const tax = orderSummary?.tax || 0;
-  const grandTotal = orderSummary?.grandTotal || tableFee;
   const hasItems = orderItems.length > 0;
 
-  const remaining = useCountdown(session?.expectedEndTime ?? '');
+  const playingCost = orderSummary?.playingCost ?? session?.tableFee ?? 0;
+  const hourlyRate = orderSummary?.hourlyRate ?? table.hourlyRate ?? 0;
+  const bookedDuration = session?.durationMinutes ?? 0;
 
-  const isEndingSoon =
-    session?.expectedEndTime &&
-    new Date(session.expectedEndTime).getTime() - Date.now() <= 15 * 60 * 1000;
+  const { display: remainingDisplay, expired: timeExpired } = useCountdownTimer(
+    session?.expectedEndTime ?? null
+  );
+
+  const grandTotal = playingCost + foodTotal + serviceCharge + tax;
 
   const handleExtend = async () => {
     if (!session) return;
@@ -90,18 +103,18 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
     await finishSession.mutateAsync(table.id);
 
     const now = new Date();
-    const startTime = new Date(session.startTime);
-    const endTime = now;
+    const sessStart = session ? new Date(session.startTime) : now;
 
     printReceipt({
       invoiceNumber: orderSummary?.orderNumber || table.id,
       checkoutDate: now.toISOString(),
       tableCode: table.tableCode,
       tableType: table.tableType,
-      sessionStart: startTime.toISOString(),
-      sessionEnd: endTime.toISOString(),
-      durationMinutes: session.durationMinutes,
-      tableFee,
+      sessionStart: sessStart.toISOString(),
+      sessionEnd: now.toISOString(),
+      durationMinutes: bookedDuration,
+      hourlyRate,
+      tableFee: playingCost,
       items: orderItems.map(i => ({
         name: i.name,
         quantity: i.quantity,
@@ -128,38 +141,45 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
     );
   }
 
-  const startTime = new Date(session.startTime);
-  const endTime = new Date(session.expectedEndTime);
+  const sessStartTime = new Date(session.startTime);
 
   return (
     <>
       <div className="space-y-4">
+        {/* Status & Countdown */}
         <div className="flex items-center justify-between">
           <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
             Occupied
           </span>
-          <div className={isEndingSoon ? 'text-red-600 dark:text-red-400 flex items-center gap-1 text-xs font-medium' : 'text-muted-foreground flex items-center gap-1 text-xs'}>
-            {isEndingSoon ? <AlertCircle className="w-3 h-3" /> : <Timer className="w-3 h-3" />}
-            {remaining}
+          <div className={cn('flex items-center gap-1 text-xs font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>
+            {timeExpired ? <AlertCircle className="w-3 h-3" /> : <Timer className="w-3 h-3" />}
+            {remainingDisplay}
           </div>
         </div>
 
+        {timeExpired && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 p-2 text-xs text-red-700 dark:text-red-400 text-center font-medium">
+            Session Time Expired
+          </div>
+        )}
+
+        {/* Billiard Playing Info */}
         <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Start</span>
-            <span className="font-medium">{startTime.toLocaleTimeString()}</span>
+            <span className="text-muted-foreground">Started</span>
+            <span className="font-medium">{sessStartTime.toLocaleTimeString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Expected End</span>
-            <span className="font-medium">{endTime.toLocaleTimeString()}</span>
+            <span className="text-muted-foreground">Booked Duration</span>
+            <span className="font-medium">{bookedDuration} minutes</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Duration</span>
-            <span className="font-medium">{session.durationMinutes} min</span>
+            <span className="text-muted-foreground">Hourly Rate</span>
+            <span className="font-medium tabular-nums">{fmt(hourlyRate)}<span className="text-xs text-muted-foreground">/hour</span></span>
           </div>
           <div className="flex justify-between border-t border-border pt-2">
-            <span className="text-muted-foreground">Table Fee</span>
-            <span className="font-semibold">{tableFee.toLocaleString()}₫</span>
+            <span className="text-muted-foreground font-medium">Playing Cost</span>
+            <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">{fmt(playingCost)}</span>
           </div>
         </div>
 
@@ -202,28 +222,28 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
         {/* TOTALS */}
         <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Food Total</span>
-            <span className="font-medium tabular-nums">{foodTotal.toLocaleString()}₫</span>
+            <span className="text-muted-foreground">Playing Time</span>
+            <span className="font-medium tabular-nums">{fmt(playingCost)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Table Fee</span>
-            <span className="font-medium tabular-nums">{tableFee.toLocaleString()}₫</span>
+            <span className="text-muted-foreground">Food & Drink</span>
+            <span className="font-medium tabular-nums">{fmt(foodTotal)}</span>
           </div>
           {serviceCharge > 0 && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Service Charge</span>
-              <span className="font-medium tabular-nums">{serviceCharge.toLocaleString()}₫</span>
+              <span className="font-medium tabular-nums">{fmt(serviceCharge)}</span>
             </div>
           )}
           {tax > 0 && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax</span>
-              <span className="font-medium tabular-nums">{tax.toLocaleString()}₫</span>
+              <span className="font-medium tabular-nums">{fmt(tax)}</span>
             </div>
           )}
           <div className="flex justify-between text-base font-bold border-t border-border pt-2">
             <span>Grand Total</span>
-            <span className="text-primary tabular-nums">{grandTotal.toLocaleString()}₫</span>
+            <span className="text-primary tabular-nums">{fmt(grandTotal)}</span>
           </div>
         </div>
 
@@ -247,7 +267,7 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
               ) : (
                 <LogOut className="w-4 h-4" />
               )}
-              Checkout
+              Checkout &mdash; {fmt(grandTotal)}
             </Button>
           </div>
         ) : (

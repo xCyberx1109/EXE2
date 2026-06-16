@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Clock, AlertCircle } from 'lucide-react';
 import type { BilliardTableWithSession } from '../types';
 import { cn } from '@/app/components/ui/utils';
@@ -12,32 +12,36 @@ const STATUS_STYLES: Record<string, { border: string; bg: string; text: string; 
   DISABLED: { border: 'border-gray-300 dark:border-gray-600', bg: 'bg-gray-100 dark:bg-gray-900/50', text: 'text-gray-400 dark:text-gray-500', label: 'Disabled' },
 };
 
-function useCountdown(targetTime: string | null): string | null {
-  const [remaining, setRemaining] = useState<string | null>(null);
+function useCountdown(endTime: string | null): { display: string; expired: boolean } {
+  const [display, setDisplay] = useState('00:00');
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
-    if (!targetTime) {
-      setRemaining(null);
+    if (!endTime) {
+      setDisplay('00:00');
+      setExpired(false);
       return;
     }
 
     function tick() {
-      const diff = new Date(targetTime).getTime() - Date.now();
+      const diff = new Date(endTime).getTime() - Date.now();
       if (diff <= 0) {
-        setRemaining('0:00');
+        setDisplay('00:00');
+        setExpired(true);
         return;
       }
+      setExpired(false);
       const mins = Math.floor(diff / 60000);
       const secs = Math.floor((diff % 60000) / 1000);
-      setRemaining(`${mins}:${secs.toString().padStart(2, '0')}`);
+      setDisplay(`${mins}:${secs.toString().padStart(2, '0')}`);
     }
 
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [targetTime]);
+  }, [endTime]);
 
-  return remaining;
+  return { display, expired };
 }
 
 interface TableCardProps {
@@ -51,13 +55,10 @@ interface TableCardProps {
 
 export function TableCard({ table, selected, onSelect, draggable, onDragStart, position }: TableCardProps) {
   const style = STATUS_STYLES[table.status] || STATUS_STYLES.AVAILABLE;
-  const remaining = useCountdown(
+  const { display: remaining, expired: timeExpired } = useCountdown(
     table.currentSession?.expectedEndTime ?? null
   );
-  const isEndingSoon =
-    table.currentSession?.expectedEndTime &&
-    new Date(table.currentSession.expectedEndTime).getTime() - Date.now() <= 15 * 60 * 1000 &&
-    new Date(table.currentSession.expectedEndTime).getTime() > Date.now();
+  const isOccupied = table.status === 'OCCUPIED' || table.status === 'CHECKING_OUT';
 
   const pos = position ?? { posX: table.posX, posY: table.posY };
 
@@ -82,11 +83,16 @@ export function TableCard({ table, selected, onSelect, draggable, onDragStart, p
       <span className={cn('text-[10px] uppercase tracking-wider', style.text)}>
         {style.label}
       </span>
-      {table.currentSession && (
-        <div className={cn('flex items-center gap-1 text-xs font-medium', isEndingSoon ? 'text-red-600 dark:text-red-400' : style.text)}>
-          {isEndingSoon ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-          {remaining ?? `${table.currentSession.durationMinutes}m`}
+      {isOccupied && (
+        <div className={cn('flex items-center gap-1 text-xs font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : style.text)}>
+          {timeExpired ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+          {remaining}
         </div>
+      )}
+      {isOccupied && (
+        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+          {(table.currentSession?.tableFee ?? 0).toLocaleString()}₫
+        </span>
       )}
       {table.currentReservation && table.status === 'RESERVED' && (
         <span className="text-[10px] text-muted-foreground truncate max-w-full">

@@ -38,8 +38,12 @@ function getTablePriority(table) {
   return TABLE_PRIORITY[table.status] ?? 99;
 }
 
+function computePlayCost(hourlyRate, durationMinutes) {
+  return Math.round((Number(hourlyRate) * Number(durationMinutes)) / 60);
+}
+
 export const billiardService = {
-  async createTable({ tableCode, tableName, tableType, capacity = 4, posX = 0, posY = 0 }, user) {
+  async createTable({ tableCode, tableName, tableType, capacity = 4, posX = 0, posY = 0, hourlyRate }, user) {
     if (!user) throw new AppError('Vui lòng đăng nhập', 401);
     const accountId = user.accountId || user.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
@@ -56,6 +60,7 @@ export const billiardService = {
       posX,
       posY,
       status: 'AVAILABLE',
+      hourlyRate: hourlyRate ?? 0,
     });
   },
 
@@ -97,6 +102,7 @@ export const billiardService = {
           id: session.id,
           startTime: session.startTime,
           expectedEndTime: session.expectedEndTime,
+          endTime: session.endTime,
           durationMinutes: session.durationMinutes,
           tableFee: Number(session.tableFee),
         } : null,
@@ -158,6 +164,8 @@ export const billiardService = {
     }
 
     const accountId = user.accountId || user.id;
+    const hourlyRate = Number(table.hourlyRate);
+    const tableFee = computePlayCost(hourlyRate, durationMinutes);
     const startTime = new Date();
     const expectedEndTime = new Date(startTime.getTime() + durationMinutes * 60000);
 
@@ -188,7 +196,7 @@ export const billiardService = {
           startTime,
           expectedEndTime,
           durationMinutes,
-          tableFee: 0,
+          tableFee,
           status: 'PLAYING',
         },
       });
@@ -260,8 +268,10 @@ export const billiardService = {
     }
 
     const accountId = user.accountId || user.id;
-    const startTime = new Date();
+    const hourlyRate = Number(table.hourlyRate);
     const durationMinutes = reservation.durationMinutes;
+    const tableFee = computePlayCost(hourlyRate, durationMinutes);
+    const startTime = new Date();
     const expectedEndTime = new Date(startTime.getTime() + durationMinutes * 60000);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -291,7 +301,7 @@ export const billiardService = {
           startTime,
           expectedEndTime,
           durationMinutes,
-          tableFee: 0,
+          tableFee,
           status: 'PLAYING',
         },
       });
@@ -359,6 +369,7 @@ export const billiardService = {
       tableId: session.tableId,
       startTime: session.startTime,
       expectedEndTime: session.expectedEndTime,
+      endTime: session.endTime,
       durationMinutes: session.durationMinutes,
       remainingMinutes,
       tableFee: Number(session.tableFee),
@@ -384,12 +395,15 @@ export const billiardService = {
       throw new AppError('Phiên chơi đã kết thúc', 400);
     }
 
-    const newExpectedEnd = new Date(session.expectedEndTime.getTime() + additionalMinutes * 60000);
+    const hourlyRate = table ? Number(table.hourlyRate) : 0;
     const newDuration = session.durationMinutes + additionalMinutes;
+    const newTableFee = computePlayCost(hourlyRate, newDuration);
+    const newExpectedEnd = new Date(session.expectedEndTime.getTime() + additionalMinutes * 60000);
 
     return playSessionRepository.update(sessionId, {
       expectedEndTime: newExpectedEnd,
       durationMinutes: newDuration,
+      tableFee: newTableFee,
     });
   },
 
@@ -405,7 +419,14 @@ export const billiardService = {
     const accountId = user.accountId || user.id;
     const userId = user.id || accountId;
 
+    const playingCost = Number(session.tableFee);
+
     return prisma.$transaction(async (tx) => {
+      await tx.playSession.update({
+        where: { id: session.id },
+        data: { status: 'FINISHED', endTime: now },
+      });
+
       const order = await tx.order.findFirst({
         where: { sessionId: session.id, status: { not: 'COMPLETED' } },
         include: { items: { include: { menuItem: true } } },
@@ -420,7 +441,7 @@ export const billiardService = {
           });
         }
 
-        const grandTotal = Number(order.total) + Number(session.tableFee);
+        const grandTotal = Number(order.total) + playingCost;
 
         await tx.payment.create({
           data: {
@@ -431,6 +452,8 @@ export const billiardService = {
           },
         });
 
+        const foodDrinkTotal = Number(order.total);
+
         await tx.order.update({
           where: { id: order.id },
           data: {
@@ -439,21 +462,24 @@ export const billiardService = {
             paymentMethod: 'CASH',
             completedAt: now,
             total: grandTotal,
+            tableName: table.tableName,
+            tableCode: table.tableCode,
+            tableType: table.tableType,
+            sessionStartTime: session.startTime,
+            playingDurationMinutes: session.durationMinutes,
+            hourlyRate: Number(table.hourlyRate),
+            playingCost,
+            foodDrinkTotal,
           },
         });
       }
-
-      await tx.playSession.update({
-        where: { id: session.id },
-        data: { status: 'FINISHED', endTime: now },
-      });
 
       await tx.table.update({
         where: { id: tableId },
         data: { status: 'AVAILABLE' },
       });
 
-      return { id: session.id, status: 'FINISHED', orderCompleted: !!order };
+      return { id: session.id, status: 'FINISHED', orderCompleted: !!order, playingCost };
     });
   },
 
@@ -692,17 +718,24 @@ export const billiardService = {
 
       const foodTotal = mappedItems.reduce((s, i) => s + i.lineTotal, 0);
 
+      const tableRec = order.table;
+      const storedTableFee = session ? Number(session.tableFee) : 0;
+      const hourlyRate = tableRec ? Number(tableRec.hourlyRate) : 0;
+
       return {
         sessionId: session?.id || null,
         orderId: updatedOrder?.id || null,
         orderNumber: updatedOrder?.orderNumber || null,
         items: mappedItems,
         foodTotal,
-        tableFee: session ? Number(session.tableFee) : 0,
+        playingCost: storedTableFee,
+        hourlyRate,
+        tableFee: storedTableFee,
         serviceCharge: updatedOrder ? Number(updatedOrder.serviceCharge || 0) : 0,
         tax: updatedOrder ? Number(updatedOrder.tax || 0) : 0,
-        grandTotal: foodTotal + (session ? Number(session.tableFee) : 0),
-        tableStatus: order.table?.status || 'OCCUPIED',
+        grandTotal: foodTotal + storedTableFee,
+        startTime: session?.startTime || null,
+        tableStatus: tableRec?.status || 'OCCUPIED',
       };
     });
   },
@@ -794,10 +827,10 @@ export const billiardService = {
     })) || [];
 
     const foodTotal = items.reduce((s, i) => s + i.lineTotal, 0);
-    const tableFee = session ? Number(session.tableFee) : 0;
+    const storedTableFee = session ? Number(session.tableFee) : 0;
     const serviceCharge = order ? Number(order.serviceCharge || 0) : 0;
     const tax = order ? Number(order.tax || 0) : 0;
-    const grandTotal = tableFee + foodTotal + serviceCharge + tax;
+    const grandTotal = storedTableFee + foodTotal + serviceCharge + tax;
 
     return {
       sessionId: session?.id || null,
@@ -805,10 +838,13 @@ export const billiardService = {
       orderNumber: order?.orderNumber || null,
       items,
       foodTotal,
-      tableFee,
+      tableFee: storedTableFee,
+      playingCost: storedTableFee,
+      hourlyRate: Number(table.hourlyRate),
       serviceCharge,
       tax,
       grandTotal,
+      startTime: session?.startTime || null,
       tableStatus: table.status,
     };
   },
@@ -826,12 +862,17 @@ export const billiardService = {
     }
 
     const userId = user?.id || user?.accountId || order.createdBy;
+    const now = new Date();
+
+    const playingCost = order.session ? Number(order.session.tableFee) : 0;
 
     return prisma.$transaction(async (tx) => {
+      const totalWithPlaying = Number(order.total) + playingCost;
+
       await tx.payment.create({
         data: {
           orderId,
-          amount: order.total,
+          amount: totalWithPlaying,
           method: 'CASH',
           status: 'PAID',
         },
@@ -844,7 +885,7 @@ export const billiardService = {
         data: {
           paymentStatus: 'PAID',
           status: 'COMPLETED',
-          completedAt: new Date(),
+          completedAt: now,
           inventoryDeducted: true,
         },
       });
@@ -852,7 +893,7 @@ export const billiardService = {
       if (order.sessionId) {
         await tx.playSession.update({
           where: { id: order.sessionId },
-          data: { status: 'FINISHED', endTime: new Date() },
+          data: { status: 'FINISHED', endTime: now },
         });
       }
 
@@ -863,7 +904,7 @@ export const billiardService = {
         });
       }
 
-      return { id: orderId, paymentStatus: 'PAID' };
+      return { id: orderId, paymentStatus: 'PAID', playingCost };
     });
   },
 };

@@ -1,0 +1,9 @@
+-- Add billiard session snapshot fields to orders table
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tableName" TEXT;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tableCode" TEXT;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tableType" TEXT;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "sessionStartTime" TIMESTAMP(3);
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "playingDurationMinutes" INTEGER DEFAULT 0;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "hourlyRate" DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "playingCost" DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "foodDrinkTotal" DECIMAL(12,2) DEFAULT 0;

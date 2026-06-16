@@ -83,6 +83,12 @@ export function OrderDetailPage() {
     ? format(new Date(order.createdAt), 'yyyy-MM-dd HH:mm:ss')
     : '';
 
+  const isBilliard = !!(order.tableCode || order.playingCost);
+  const isRestaurant = !isBilliard;
+  const showSubtotal = isBilliard || hasDiscount || hasServiceCharge;
+  const fmtVnd = (n?: number | null) => n != null ? `${n.toLocaleString()} ₫` : '';
+  const fmtTime = (t?: string | null) => t ? format(new Date(t), 'hh:mm:ss a') : '';
+
   return (
     <div className="space-y-6">
       {/* --- Toolbar --- */}
@@ -138,6 +144,47 @@ export function OrderDetailPage() {
             <span>{orderDate}</span>
           </div>
         </div>
+
+        {/* ===== Billiard Session Snapshot ===== */}
+        {isBilliard && (
+          <div className="border-b border-border px-6 py-4 bg-muted/20">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+              Billiard Session
+            </h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Table: </span>
+                <span className="font-medium">{order.tableName || order.tableCode}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Code: </span>
+                <span className="font-medium">{order.tableCode}</span>
+                {order.tableType && (
+                  <>
+                    <span className="text-muted-foreground mx-1">·</span>
+                    <span className="font-medium">{order.tableType}</span>
+                  </>
+                )}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Started: </span>
+                <span className="font-medium">{fmtTime(order.sessionStartTime)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Duration: </span>
+                <span className="font-medium">{order.playingDurationMinutes} minutes</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Hourly Rate: </span>
+                <span className="font-medium">{fmtVnd(order.hourlyRate)}<span className="text-xs text-muted-foreground">/hour</span></span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Playing Cost: </span>
+                <span className="font-medium">{fmtVnd(order.playingCost)}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== Table ===== */}
         <div className="overflow-x-auto">
@@ -196,10 +243,25 @@ export function OrderDetailPage() {
         {/* ===== Footer / Totals ===== */}
         <div className="border-t border-border px-6 py-5">
           <div className="ml-auto space-y-2 sm:w-72">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Tạm tính</span>
-              <span>{formatMoney(order.subtotal)}</span>
-            </div>
+            {isBilliard ? (
+              <>
+                {order.playingCost != null && (
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Playing Cost</span>
+                    <span>{formatMoney(order.playingCost)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Food & Drink</span>
+                  <span>{formatMoney(order.foodDrinkTotal ?? order.subtotal)}</span>
+                </div>
+              </>
+            ) : showSubtotal ? (
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Tạm tính</span>
+                <span>{formatMoney(order.subtotal)}</span>
+              </div>
+            ) : null}
 
             {hasServiceCharge && (
               <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -208,7 +270,7 @@ export function OrderDetailPage() {
               </div>
             )}
 
-            {hasTax && (
+            {isBilliard && hasTax && (
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>Thuế</span>
                 <span>{formatMoney(order.tax)}</span>
@@ -226,7 +288,7 @@ export function OrderDetailPage() {
 
             <div className="flex items-center justify-between">
               <span className="text-base font-bold text-foreground">
-                Tổng cộng
+                Grand Total
               </span>
               <span className="text-xl font-bold text-primary">
                 {formatMoney(order.total)}

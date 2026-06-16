@@ -173,7 +173,7 @@ function OrderRow({
             <div className="text-sm space-y-2">
               <div className="flex flex-wrap gap-4 text-muted-foreground">
                 <span>Tạm tính: {order.subtotal.toLocaleString()} ₫</span>
-                <span>VAT: {order.tax.toLocaleString()} ₫</span>
+
                 <span>Giá vốn: {order.cost.toLocaleString()} ₫</span>
                 <span className="text-blue-600 dark:text-blue-400">LN: {order.profit.toLocaleString()} ₫</span>
               </div>

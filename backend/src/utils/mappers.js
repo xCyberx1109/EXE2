@@ -48,15 +48,19 @@ export const mapInventoryTransaction = (tx) => ({
 });
 
 /** Chi tiết đơn hàng cho quản lý */
-export const mapOrderDetail = (order) => ({
+export const mapOrderDetail = (order) => {
+  const isRestaurant = order.orderNumber?.startsWith('ORD-');
+  return {
   id: order.id,
   orderNumber: order.orderNumber,
   tableNumber: order.tableNumber,
   status: order.status,
   paymentMethod: order.paymentMethod,
   subtotal: Number(order.subtotal),
-  tax: Number(order.tax),
-  total: Number(order.total),
+  tax: isRestaurant ? 0 : Number(order.tax),
+  total: isRestaurant
+    ? Number(order.subtotal) - Number(order.discount || 0) + Number(order.serviceCharge || 0)
+    : Number(order.total),
   cost: Number(order.cost),
   profit: Number(order.profit),
   discount: Number(order.discount || 0),
@@ -109,11 +113,13 @@ export const mapOrderDetail = (order) => ({
     id: order.account.id,
     fullName: order.account.fullName,
   } : null,
-});
+  };
+};
 
 /** Format order cho POS frontend (GET /orders) */
 export const mapPosOrder = (order) => {
   const items = order.items || [];
+  const isRestaurant = order.orderNumber?.startsWith('ORD-');
 
   return {
     id: order.id,
@@ -125,8 +131,10 @@ export const mapPosOrder = (order) => {
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
     subtotal: Number(order.subtotal || 0),
-    tax: Number(order.tax || 0),
-    total: Number(order.total || 0),
+    tax: isRestaurant ? 0 : Number(order.tax || 0),
+    total: isRestaurant
+      ? Number(order.subtotal || 0) - Number(order.discount || 0) + Number(order.serviceCharge || 0)
+      : Number(order.total || 0),
     cost: Number(order.cost || order.totalCost || 0),
     profit: Number(order.profit || 0),
     discount: Number(order.discount || 0),
