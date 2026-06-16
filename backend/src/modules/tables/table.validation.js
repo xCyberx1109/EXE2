@@ -11,6 +11,8 @@ export const tableRules = [
   body('tableType').optional().isIn(TABLE_TYPES).withMessage('Loại bàn không hợp lệ'),
   body('posX').optional().isFloat().withMessage('posX phải là số'),
   body('posY').optional().isFloat().withMessage('posY phải là số'),
+  body('width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
+  body('height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
   body('status').optional().isIn(TABLE_STATUSES).withMessage('Trạng thái không hợp lệ'),
   body('hourlyRate').optional().isFloat({ min: 0 }).withMessage('Phí theo giờ phải là số >= 0'),
 ];
@@ -22,6 +24,8 @@ export const tableUpdateRules = [
   body('tableType').optional().isIn(TABLE_TYPES).withMessage('Loại bàn không hợp lệ'),
   body('posX').optional().isFloat().withMessage('posX phải là số'),
   body('posY').optional().isFloat().withMessage('posY phải là số'),
+  body('width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
+  body('height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
   body('status').optional().isIn(TABLE_STATUSES).withMessage('Trạng thái không hợp lệ'),
   body('hourlyRate').optional().isFloat({ min: 0 }).withMessage('Phí theo giờ phải là số >= 0'),
 ];
@@ -37,4 +41,6 @@ export const tableLayoutRules = [
   body('tables.*.id').trim().notEmpty().withMessage('ID bàn là bắt buộc'),
   body('tables.*.posX').isFloat().withMessage('posX phải là số'),
   body('tables.*.posY').isFloat().withMessage('posY phải là số'),
+  body('tables.*.width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
+  body('tables.*.height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
 ];

@@ -9,6 +9,8 @@ export const updateLayoutRules = [
   body('tables.*.id').trim().notEmpty().withMessage('ID bàn là bắt buộc'),
   body('tables.*.posX').isFloat().withMessage('posX phải là số'),
   body('tables.*.posY').isFloat().withMessage('posY phải là số'),
+  body('tables.*.width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
+  body('tables.*.height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
 ];
 
 export const playNowRules = [
@@ -60,5 +62,7 @@ export const createTableRules = [
   body('capacity').optional().isInt({ min: 1 }).withMessage('Sức chứa phải lớn hơn 0'),
   body('posX').optional().isFloat().withMessage('posX phải là số'),
   body('posY').optional().isFloat().withMessage('posY phải là số'),
+  body('width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
+  body('height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
   body('hourlyRate').optional().isFloat({ min: 0 }).withMessage('Phí theo giờ phải là số >= 0'),
 ];

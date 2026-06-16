@@ -9,6 +9,17 @@ import { Button } from '@/app/components/ui/button';
 import { cn } from '@/app/components/ui/utils';
 import { useAuth } from '@/app/context/AuthContext';
 
+const TABLE_WIDTH = 180;
+const TABLE_HEIGHT = 120;
+
+function rectsOverlap(a: { posX: number; posY: number }, b: { posX: number; posY: number }) {
+  const aRight = a.posX + TABLE_WIDTH;
+  const aBottom = a.posY + TABLE_HEIGHT;
+  const bRight = b.posX + TABLE_WIDTH;
+  const bBottom = b.posY + TABLE_HEIGHT;
+  return !(aRight <= b.posX || a.posX >= bRight || aBottom <= b.posY || a.posY >= bBottom);
+}
+
 function getSortPriority(table: BilliardTableWithSession): SortPriority {
   if (table.status === 'OCCUPIED') {
     const endTime = table.currentSession?.expectedEndTime;
@@ -64,6 +75,24 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
     onLayoutModeChange(true);
   };
 
+  const findOverlappingIds = useCallback((currentPositions: Record<string, { posX: number; posY: number }>) => {
+    const overlapping = new Set<string>();
+    const entries = Object.entries(currentPositions);
+    for (let i = 0; i < entries.length; i++) {
+      const [idA, posA] = entries[i];
+      for (let j = i + 1; j < entries.length; j++) {
+        const [idB, posB] = entries[j];
+        if (rectsOverlap(posA, posB)) {
+          overlapping.add(idA);
+          overlapping.add(idB);
+        }
+      }
+    }
+    return overlapping;
+  }, []);
+
+  const overlappingIds = useMemo(() => findOverlappingIds(positions), [positions, findOverlappingIds]);
+
   const handleDragStart = useCallback((e: React.MouseEvent, tableId: string) => {
     if (!layoutMode) return;
     e.preventDefault();
@@ -98,7 +127,13 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
     return p && (p.posX !== t.posX || p.posY !== t.posY);
   });
 
+  const hasOverlap = overlappingIds.size > 0;
+
   const handleSaveLayout = async () => {
+    if (hasOverlap) {
+      toast.error('Cannot save: some tables overlap.');
+      return;
+    }
     const payload = tables.map((t) => ({
       id: t.id,
       posX: positions[t.id]?.posX ?? t.posX,
@@ -155,7 +190,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
               <Button
                 size="sm"
                 onClick={handleSaveLayout}
-                disabled={!hasChanges || updateLayout.isPending}
+                disabled={!hasChanges || hasOverlap || updateLayout.isPending}
               >
                 <Save className="w-4 h-4" />
                 {updateLayout.isPending ? 'Saving...' : 'Save'}
@@ -186,14 +221,19 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
               draggable={layoutMode}
               onDragStart={handleDragStart}
               position={positions[table.id]}
+              overlap={overlappingIds.has(table.id)}
             />
           ))
         )}
       </div>
 
       {layoutMode && (
-        <div className="mt-2 text-xs text-muted-foreground text-center">
-          Drag tables to reposition. Changes are saved to the server.
+        <div className="mt-2 text-xs text-center">
+          {hasOverlap ? (
+            <span className="text-red-500">Some tables overlap. Fix before saving.</span>
+          ) : (
+            <span className="text-muted-foreground">Drag tables to reposition. Changes are saved to the server.</span>
+          )}
         </div>
       )}
 
@@ -201,6 +241,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
         open={showCreate}
         onOpenChange={setShowCreate}
         onSuccess={onRefresh}
+        tables={tables}
       />
     </div>
   );

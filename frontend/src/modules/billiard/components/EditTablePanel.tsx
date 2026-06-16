@@ -7,6 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { billiardApi } from '@/app/api/services';
 import type { BilliardTableWithSession } from '../types';
+import { useBilliardTables } from '../hooks';
+
+const TABLE_WIDTH = 180;
+const TABLE_HEIGHT = 120;
+
+function rectsOverlap(a: { posX: number; posY: number }, b: { posX: number; posY: number }) {
+  const aRight = a.posX + TABLE_WIDTH;
+  const aBottom = a.posY + TABLE_HEIGHT;
+  const bRight = b.posX + TABLE_WIDTH;
+  const bBottom = b.posY + TABLE_HEIGHT;
+  return !(aRight <= b.posX || a.posX >= bRight || aBottom <= b.posY || a.posY >= bBottom);
+}
 
 interface EditTablePanelProps {
   table: BilliardTableWithSession;
@@ -40,6 +52,17 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
   const [posY, setPosY] = useState(String(table.posY));
   const [saving, setSaving] = useState(false);
   const dirtyRef = useRef(false);
+
+  const { data: allTables } = useBilliardTables();
+
+  const currentPosX = parseFloat(posX) || 0;
+  const currentPosY = parseFloat(posY) || 0;
+
+  const positionChanged = currentPosX !== table.posX || currentPosY !== table.posY;
+
+  const hasOverlap = positionChanged && (allTables ?? []).some(t =>
+    t.id !== table.id && rectsOverlap({ posX: currentPosX, posY: currentPosY }, { posX: t.posX, posY: t.posY })
+  );
 
   const computeDirty = () =>
     tableCode !== table.tableCode ||
@@ -77,6 +100,10 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
       toast.error('Capacity must be at least 1');
       return;
     }
+    if (hasOverlap) {
+      toast.error('Position overlaps with an existing table');
+      return;
+    }
     try {
       setSaving(true);
       await billiardApi.updateTable(table.id, {
@@ -85,8 +112,8 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
         tableType,
         capacity: cap,
         status,
-        posX: parseFloat(posX) || 0,
-        posY: parseFloat(posY) || 0,
+        posX: currentPosX,
+        posY: currentPosY,
         hourlyRate: parseFloat(hourlyRate) || 0,
       });
       toast.success('Table updated');
@@ -153,7 +180,11 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
         </div>
       </div>
 
-      <Button className="w-full" onClick={handleSave} disabled={!computeDirty() || saving}>
+      {hasOverlap && (
+        <p className="text-xs text-red-500">This position overlaps with an existing table.</p>
+      )}
+
+      <Button className="w-full" onClick={handleSave} disabled={!computeDirty() || hasOverlap || saving}>
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
         {saving ? 'Saving...' : 'Save Changes'}
       </Button>
