@@ -4,6 +4,7 @@ import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchSc
 import { tableRepository } from '../../repositories/table.repository.js';
 import { playSessionRepository } from '../../repositories/playSession.repository.js';
 import { reservationRepository } from '../../repositories/reservation.repository.js';
+import { rectsOverlap } from '../../utils/tableOverlap.js';
 
 const TABLE_PRIORITY = {
   OCCUPIED_SHORT: 0,
@@ -43,13 +44,24 @@ function computePlayCost(hourlyRate, durationMinutes) {
 }
 
 export const billiardService = {
-  async createTable({ tableCode, tableName, tableType, capacity = 4, posX = 0, posY = 0, hourlyRate }, user) {
+  async createTable({ tableCode, tableName, tableType, capacity = 4, posX = 0, posY = 0, hourlyRate, width, height }, user) {
     if (!user) throw new AppError('Vui lòng đăng nhập', 401);
     const accountId = user.accountId || user.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
 
     const existing = await tableRepository.findByAccountTableCode(accountId, tableCode);
     if (existing) throw new AppError(`Mã bàn "${tableCode}" đã tồn tại`, 409);
+
+    const allTables = await prisma.table.findMany({
+      where: { accountId, isActive: true, id: { not: undefined } },
+      select: { id: true, posX: true, posY: true },
+    });
+
+    const newRect = { posX, posY, width, height };
+    const overlap = allTables.find(t => rectsOverlap(newRect, t));
+    if (overlap) {
+      throw new AppError('Table position overlaps with existing table', 400);
+    }
 
     return tableRepository.create({
       accountId,
@@ -139,11 +151,31 @@ export const billiardService = {
     const accountId = user.accountId || user.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
 
+    const allTables = await prisma.table.findMany({
+      where: { accountId, isActive: true },
+      select: { id: true, posX: true, posY: true },
+    });
+
     const results = [];
+    const positionsMap = {};
+    for (const t of allTables) {
+      positionsMap[t.id] = t;
+    }
+
     for (const pos of tablePositions) {
       const table = await tableRepository.findById(pos.id);
       if (!table) throw new AppError(`Không tìm thấy bàn ${pos.id}`, 404);
       assertBranchAccess(table, user, 'bàn');
+
+      const newRect = { posX: pos.posX, posY: pos.posY, width: pos.width, height: pos.height };
+      const overlap = Object.values(positionsMap).find(
+        t => t.id !== pos.id && rectsOverlap(newRect, t)
+      );
+      if (overlap) {
+        throw new AppError(`Table "${table.tableCode}" position overlaps with existing table`, 400);
+      }
+
+      positionsMap[pos.id] = { id: pos.id, posX: pos.posX, posY: pos.posY };
 
       const updated = await prisma.table.update({
         where: { id: pos.id },

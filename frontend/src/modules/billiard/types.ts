@@ -99,5 +99,10 @@ export interface CreateTableBody {
   tableCode: string;
   tableName?: string;
   tableType: 'POOL' | 'SNOOKER' | 'VIP';
+  capacity?: number;
+  posX?: number;
+  posY?: number;
+  width?: number;
+  height?: number;
   hourlyRate?: number;
 }

@@ -151,10 +151,8 @@ async function getRevenueChartData(orderWhere, range, _todayStart, sevenDaysAgo,
 }
 
 async function getTopSellingItems(ctx, orderWhere) {
-  const canAccessAll = ctx?.permissions?.includes('BRANCH_ALL_ACCESS') || ctx?.permissions?.includes('CROSS_BRANCH_ACCESS');
-  const accountId = !canAccessAll ? orderWhere.accountId : undefined;
-
-  const accountFilter = accountId ? { order: { accountId } } : {};
+  const accountId = orderWhere.accountId;
+  const accountFilter = { order: { accountId } };
 
   // MenuItem-based top selling
   const menuItemWhere = { menuItemId: { not: { equals: null } }, order: { status: 'COMPLETED' }, ...accountFilter };
@@ -186,7 +184,7 @@ async function getTopSellingItems(ctx, orderWhere) {
         select: { id: true, name: true, category: { select: { name: true } } },
       }),
       prisma.orderItem.findMany({
-        where: { menuItemId: { in: ids }, order: { status: 'COMPLETED' } },
+        where: { menuItemId: { in: ids }, order: { status: 'COMPLETED', accountId } },
         select: { menuItemId: true, price: true, quantity: true },
       }),
     ]);
@@ -218,7 +216,7 @@ async function getTopSellingItems(ctx, orderWhere) {
     const ingredientMap = Object.fromEntries(ingredients.map(i => [i.id, i]));
 
     const invOrderItems = await prisma.orderItem.findMany({
-      where: { inventoryId: { in: invIds }, menuItemId: null, order: { status: 'COMPLETED' } },
+      where: { inventoryId: { in: invIds }, menuItemId: null, order: { status: 'COMPLETED', accountId } },
       select: { inventoryId: true, price: true, quantity: true },
     });
 

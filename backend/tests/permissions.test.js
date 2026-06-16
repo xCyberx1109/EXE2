@@ -228,36 +228,9 @@ describe('Permission Logic', () => {
 
   // ==========================================================
   // 4. requireBranchAccess middleware
-  // requireBranchAccess checks BRANCH_ALL_ACCESS, not ADMIN_ALL
+  // requireBranchAccess checks own accountId (no cross-account)
   // ==========================================================
   describe('requireBranchAccess middleware', () => {
-    it('allows BRANCH_ALL_ACCESS to access any accountId in params', () => {
-      const req = mockReq({
-        id: 'admin-1',
-        accountId: 'admin-1',
-        permissions: ['BRANCH_ALL_ACCESS'],
-      });
-      req.params.accountId = 'other-account';
-      const res = mockRes();
-      const next = mockNext();
-
-      requireBranchAccess(req, res, next);
-      expect(next).toHaveBeenCalledWith();
-    });
-
-    it('allows BRANCH_ALL_ACCESS to access any accountId in body', () => {
-      const req = mockReq({
-        id: 'admin-1',
-        accountId: 'admin-1',
-        permissions: ['BRANCH_ALL_ACCESS'],
-      });
-      req.body.accountId = 'other-account';
-      const res = mockRes();
-      const next = mockNext();
-
-      requireBranchAccess(req, res, next);
-      expect(next).toHaveBeenCalledWith();
-    });
 
     it('blocks regular user from accessing other account via params', () => {
       const req = mockReq({

@@ -2,6 +2,7 @@ import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 import { tableRepository } from '../../repositories/table.repository.js';
+import { rectsOverlap } from '../../utils/tableOverlap.js';
 
 export const tableService = {
   async list(user) {
@@ -23,6 +24,17 @@ export const tableService = {
 
     const existing = await tableRepository.findByAccountTableCode(accountId, data.tableCode);
     if (existing) throw new AppError('Mã bàn đã tồn tại trong tài khoản này', 409);
+
+    const allTables = await prisma.table.findMany({
+      where: { accountId, isActive: true },
+      select: { id: true, posX: true, posY: true },
+    });
+
+    const newRect = { posX: data.posX ?? 0, posY: data.posY ?? 0, width: data.width, height: data.height };
+    const overlap = allTables.find(t => rectsOverlap(newRect, t));
+    if (overlap) {
+      throw new AppError('Table position overlaps with existing table', 400);
+    }
 
     return tableRepository.create({
       data: {
@@ -58,6 +70,24 @@ export const tableService = {
     if (data.posY !== undefined) updateData.posY = data.posY;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.hourlyRate !== undefined) updateData.hourlyRate = data.hourlyRate;
+
+    if (data.posX !== undefined || data.posY !== undefined) {
+      const allTables = await prisma.table.findMany({
+        where: { accountId: existing.accountId, isActive: true, id: { not: id } },
+        select: { id: true, posX: true, posY: true },
+      });
+
+      const newRect = {
+        posX: data.posX ?? existing.posX,
+        posY: data.posY ?? existing.posY,
+        width: data.width,
+        height: data.height,
+      };
+      const overlap = allTables.find(t => rectsOverlap(newRect, t));
+      if (overlap) {
+        throw new AppError('Table position overlaps with existing table', 400);
+      }
+    }
 
     return tableRepository.update(id, updateData);
   },

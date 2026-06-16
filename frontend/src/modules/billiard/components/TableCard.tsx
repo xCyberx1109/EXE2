@@ -55,9 +55,10 @@ interface TableCardProps {
   draggable?: boolean;
   onDragStart?: (e: React.MouseEvent, tableId: string) => void;
   position?: { posX: number; posY: number };
+  overlap?: boolean;
 }
 
-export function TableCard({ table, selected, onSelect, draggable, onDragStart, position }: TableCardProps) {
+export function TableCard({ table, selected, onSelect, draggable, onDragStart, position, overlap }: TableCardProps) {
   const style = STATUS_STYLES[table.status] || STATUS_STYLES.AVAILABLE;
   const { display: remaining, expired: timeExpired } = useCountdown(
     table.currentSession?.expectedEndTime ?? null
@@ -81,21 +82,20 @@ export function TableCard({ table, selected, onSelect, draggable, onDragStart, p
       }}
       className={cn(
         'absolute w-[180px] h-[120px] rounded-xl border-2 flex flex-col px-2.5 py-2 shadow-sm select-none transition-all hover:shadow-md overflow-hidden',
-        style.border,
-        style.bg,
+        overlap ? 'border-red-500 ring-2 ring-red-400' : style.border,
+        overlap ? 'bg-red-50 dark:bg-red-950/30' : style.bg,
         selected && 'ring-2 ring-blue-500 dark:ring-blue-400 shadow-lg scale-105 z-10',
         table.status === 'DISABLED' && 'opacity-50',
       )}
     >
       <span className={cn(
         'inline-block self-start rounded px-1.5 py-[1px] text-[10px] font-semibold leading-tight',
-        style.bg,
-        style.text,
+        overlap ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : cn(style.bg, style.text),
       )}>
-        {style.label}
+        {overlap ? 'OVERLAP' : style.label}
       </span>
 
-      <span className={cn('text-sm font-bold leading-tight mt-0.5', style.text)}>
+      <span className={cn('text-sm font-bold leading-tight mt-0.5', overlap ? 'text-red-700 dark:text-red-400' : style.text)}>
         {table.tableName || table.tableCode}
       </span>
 
