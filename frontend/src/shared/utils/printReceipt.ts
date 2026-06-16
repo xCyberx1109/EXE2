@@ -41,28 +41,28 @@ export function printReceipt(data: ReceiptData): void {
        </table>`
     : '<p class="empty">No items</p>';
 
-  let tableSection = '';
-  let billiardSection = '';
+  let billiardHtml = '';
   if (isBilliard) {
-    const start = new Date(data.sessionStart!);
-    const end = new Date(data.sessionEnd!);
+    const start = data.sessionStart ? new Date(data.sessionStart) : null;
     const mins = data.durationMinutes || 0;
-    const durationHrs = (mins / 60).toFixed(1);
-    const rate = data.hourlyRate ?? (mins > 0 && data.tableFee ? data.tableFee / (mins / 60) : 0);
+    const rate = data.hourlyRate ?? 0;
 
-    tableSection = `<hr />
-  <div class="section-title">TABLE</div>
+    billiardHtml = `<hr />
+  <div class="section-title">BILLIARD SESSION</div>
   <div class="row"><span>Table</span><span>${data.tableCode}</span></div>
   <div class="row"><span>Type</span><span>${data.tableType || ''}</span></div>
-  <div class="row"><span>Start</span><span>${start.toLocaleTimeString()}</span></div>
-  <div class="row"><span>End</span><span>${end.toLocaleTimeString()}</span></div>
-  <div class="row"><span>Duration</span><span>${mins} min (${durationHrs}h)</span></div>`;
-
-    billiardSection = `<hr />
-  <div class="section-title">BILLIARD CHARGES</div>
-  <div class="row"><span>Rate</span><span>${fmt(Math.round(rate))}/h</span></div>
-  <div class="row"><span>Playing Time</span><span>${mins} min</span></div>
-  <div class="row" style="font-weight:bold"><span>Table Fee</span><span>${fmt(data.tableFee || 0)}</span></div>`;
+  <div class="row"><span>Started</span><span>${start ? start.toLocaleTimeString() : ''}</span></div>
+  <div class="row"><span>Booked Duration</span><span>${mins} minutes</span></div>
+  <div class="row"><span>Hourly Rate</span><span>${fmt(Math.round(rate))} / hour</span></div>
+  <div class="row" style="font-weight:bold"><span>Playing Cost</span><span>${fmt(data.tableFee || 0)}</span></div>
+  <hr />
+  <div class="section-title">FOOD & DRINK</div>
+  ${hasItems ? itemsHtml : '<div class="row"><span>No items</span><span>0₫</span></div>'}
+  <hr />
+  <div class="totals">
+    <div class="row"><span>Food & Drink</span><span>${fmt(data.foodTotal)}</span></div>
+    <div class="row grand"><span>Grand Total</span><span>${fmt(data.grandTotal)}</span></div>
+  </div>`;
   }
 
   const html = `<!DOCTYPE html>
@@ -78,7 +78,7 @@ export function printReceipt(data: ReceiptData): void {
     .header .sub { font-size: 11px; margin-top: 2px; color: #333; }
     .header .info { font-size: 10px; color: #555; margin-top: 1px; }
     hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
-    .section-title { font-weight: bold; font-size: 11px; margin-bottom: 4px; }
+    .section-title { font-weight: bold; font-size: 11px; margin-bottom: 4px; text-align: center; }
     .row { display: flex; justify-content: space-between; font-size: 11px; padding: 1px 0; }
     table.items { width: 100%; border-collapse: collapse; font-size: 11px; }
     table.items th { text-align: left; border-bottom: 1px solid #000; padding: 2px 0; font-size: 10px; }
@@ -105,18 +105,16 @@ export function printReceipt(data: ReceiptData): void {
   <div class="section-title">INVOICE</div>
   <div class="row"><span>Invoice #</span><span>${data.invoiceNumber}</span></div>
   <div class="row"><span>Date</span><span>${new Date(data.checkoutDate).toLocaleDateString()} ${new Date(data.checkoutDate).toLocaleTimeString()}</span></div>
-  ${tableSection}
-  ${billiardSection}
-  ${hasItems ? `<hr /><div class="section-title">FOOD & DRINK</div>${itemsHtml}` : ''}
+  ${isBilliard ? billiardHtml : `
+  ${hasItems ? `<hr /><div class="section-title">ITEMS</div>${itemsHtml}` : ''}
   <hr />
   <div class="totals">
-    ${isBilliard ? `<div class="row"><span>Table Fee</span><span>${fmt(data.tableFee || 0)}</span></div>` : ''}
-    ${hasItems ? `<div class="row"><span>${isBilliard ? 'Food / Drink' : 'Items'}</span><span>${fmt(data.foodTotal)}</span></div>` : ''}
+    ${hasItems ? `<div class="row"><span>Items</span><span>${fmt(data.foodTotal)}</span></div>` : ''}
     ${data.serviceCharge ? `<div class="row"><span>Service Charge</span><span>${fmt(data.serviceCharge)}</span></div>` : ''}
     ${data.tax ? `<div class="row"><span>Tax</span><span>${fmt(data.tax)}</span></div>` : ''}
     ${data.discount ? `<div class="row"><span>Discount</span><span>-${fmt(data.discount)}</span></div>` : ''}
     <div class="row grand"><span>Grand Total</span><span>${fmt(data.grandTotal)}</span></div>
-  </div>
+  </div>`}
   <hr />
   <div class="footer">
     <p>Thank you!</p>

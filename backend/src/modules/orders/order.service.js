@@ -4,8 +4,6 @@ import { mapPosOrder, mapOrderDetail } from '../../utils/mappers.js';
 import { orderRepository } from '../../repositories/order.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 
-const TAX_RATE = 0.1;
-
 export const orderService = {
   /** Lấy tất cả đơn cho kitchen queue */
   async listKitchenQueue(user) {
@@ -180,8 +178,8 @@ export const orderService = {
     console.log("[ORDER ITEMS DATA - chưa lưu]", JSON.stringify(orderItemsData, null, 2));
     console.log("[CALC] subtotal =", subtotal, ", cost =", cost);
 
-    const tax = subtotal * TAX_RATE;
-    const total = subtotal + tax;
+    const tax = 0;
+    const total = subtotal;
     const profit = subtotal - cost;
     const orderNumber = `ORD-${Date.now()}`;
 
@@ -269,8 +267,8 @@ export const orderService = {
         };
       });
       const discount = body.discount !== undefined ? Number(body.discount) : 0;
-      const tax = (subtotal - discount) * TAX_RATE;
-      const total = Math.max(0, subtotal - discount + tax);
+      const tax = 0;
+      const total = Math.max(0, subtotal - discount);
       const profit = subtotal - cost;
       updateData.subtotal = subtotal;
       updateData.tax = tax;
@@ -469,6 +467,8 @@ export const orderService = {
 
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
 
+    const isRestaurant = order.orderNumber?.startsWith('ORD-');
+
     return {
       orderId: order.id,
       orderNumber: order.orderNumber,
@@ -476,16 +476,27 @@ export const orderService = {
       createdAt: formatFullDateTime(order.createdAt),
       completedAt: order.completedAt ? formatFullDateTime(order.completedAt) : null,
       subtotal: Number(order.subtotal),
-      tax: Number(order.tax),
+      tax: isRestaurant ? 0 : Number(order.tax),
       discount: Number(order.discount || 0),
       serviceCharge: Number(order.serviceCharge || 0),
-      total: Number(order.total),
+      total: isRestaurant
+        ? Number(order.subtotal) - Number(order.discount || 0) + Number(order.serviceCharge || 0)
+        : Number(order.total),
       items: order.items.map((item) => ({
         name: item.menuItem?.name || item.name,
         quantity: item.quantity,
         price: Number(item.price),
         subtotal: Number(item.price) * item.quantity,
       })),
+      // Billiard session snapshot
+      tableName: order.tableName,
+      tableCode: order.tableCode,
+      tableType: order.tableType,
+      sessionStartTime: order.sessionStartTime ? order.sessionStartTime.toISOString() : null,
+      playingDurationMinutes: order.playingDurationMinutes,
+      hourlyRate: order.hourlyRate ? Number(order.hourlyRate) : null,
+      playingCost: order.playingCost ? Number(order.playingCost) : null,
+      foodDrinkTotal: order.foodDrinkTotal ? Number(order.foodDrinkTotal) : null,
     };
   },
 
@@ -572,8 +583,8 @@ export const orderService = {
       };
     });
 
-    const tax = subtotal * TAX_RATE;
-    const total = subtotal + tax;
+    const tax = 0;
+    const total = subtotal;
     const profit = subtotal - cost;
     const orderNumber = `ORD-${Date.now()}-${tableNumber}`;
 

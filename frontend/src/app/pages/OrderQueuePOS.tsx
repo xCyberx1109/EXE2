@@ -335,8 +335,8 @@ export function OrderQueuePOS() {
 
   const updateLocalOrderFromCart = (orderId: string, lines: QueueLine[], nextDiscount = discount) => {
     const subtotal = lines.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const nextTax = Math.max(0, Math.round((subtotal - nextDiscount) * 0.1));
-    const total = Math.max(0, subtotal - nextDiscount + nextTax);
+    const nextTax = 0;
+    const total = Math.max(0, subtotal - nextDiscount);
 
     console.log("[updateLocalOrderFromCart] orderId=", orderId, "lines=", lines.map(l => `${l.name} x${l.quantity}`).join(', '), "total=", total);
 

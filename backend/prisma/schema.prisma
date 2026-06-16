@@ -598,7 +598,15 @@ model Order {
   profit            Decimal           @default(0) @db.Decimal(12, 2)
   note              String?
   guestCount        Int?              @default(1)
-  inventoryDeducted Boolean           @default(false)
+  inventoryDeducted     Boolean           @default(false)
+  tableName             String?
+  tableCode             String?
+  tableType             String?
+  sessionStartTime      DateTime?
+  playingDurationMinutes Int?             @default(0)
+  hourlyRate            Decimal?          @default(0) @db.Decimal(12, 2)
+  playingCost           Decimal?          @default(0) @db.Decimal(12, 2)
+  foodDrinkTotal        Decimal?          @default(0) @db.Decimal(12, 2)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   completedAt       DateTime?

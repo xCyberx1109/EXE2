@@ -77,7 +77,7 @@ export function useFinishSession() {
 export function useCreateTable() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { tableCode: string; tableName?: string; tableType: string }) =>
+    mutationFn: (body: { tableCode: string; tableName?: string; tableType: string; hourlyRate?: number }) =>
       billiardApi.create(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['billiard', 'tables'] });

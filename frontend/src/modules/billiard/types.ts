@@ -34,6 +34,8 @@ export interface BilliardOrderInfo {
   items: BilliardOrderItem[];
   foodTotal: number;
   tableFee: number;
+  playingCost?: number;
+  hourlyRate?: number;
   grandTotal: number;
 }
 

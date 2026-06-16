@@ -36,6 +36,7 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
   const [capacity, setCapacity] = useState(String(table.capacity));
   const [status, setStatus] = useState(table.status);
   const [posX, setPosX] = useState(String(table.posX));
+  const [hourlyRate, setHourlyRate] = useState(String(table.hourlyRate));
   const [posY, setPosY] = useState(String(table.posY));
   const [saving, setSaving] = useState(false);
   const dirtyRef = useRef(false);
@@ -45,6 +46,7 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
     tableName !== (table.tableName || '') ||
     tableType !== table.tableType ||
     capacity !== String(table.capacity) ||
+    hourlyRate !== String(table.hourlyRate) ||
     status !== table.status ||
     posX !== String(table.posX) ||
     posY !== String(table.posY);
@@ -54,6 +56,7 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
     setTableName(table.tableName || '');
     setTableType(table.tableType);
     setCapacity(String(table.capacity));
+    setHourlyRate(String(table.hourlyRate));
     setStatus(table.status);
     setPosX(String(table.posX));
     setPosY(String(table.posY));
@@ -84,6 +87,7 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
         status,
         posX: parseFloat(posX) || 0,
         posY: parseFloat(posY) || 0,
+        hourlyRate: parseFloat(hourlyRate) || 0,
       });
       toast.success('Table updated');
       onSuccess();
@@ -142,6 +146,10 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
         <div className="space-y-1.5">
           <Label htmlFor="et-posY">Position Y</Label>
           <Input id="et-posY" type="number" value={posY} onChange={(e) => setPosY(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="et-hourlyRate">Hourly Rate</Label>
+          <Input id="et-hourlyRate" type="number" min={0} value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
         </div>
       </div>
 

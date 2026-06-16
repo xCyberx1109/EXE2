@@ -63,6 +63,9 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
           <p className="text-xs text-muted-foreground">
             {table.tableCode} &middot; {TABLE_TYPE_LABEL[table.tableType] || table.tableType}
           </p>
+          <p className="text-xs text-muted-foreground">
+            {new Intl.NumberFormat('vi-VN').format(table.hourlyRate)} ₫ / giờ
+          </p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="w-4 h-4" />

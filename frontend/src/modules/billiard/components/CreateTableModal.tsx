@@ -30,6 +30,7 @@ export function CreateTableModal({ open, onOpenChange, onSuccess }: CreateTableM
   const [tableName, setTableName] = useState('');
   const [tableCode, setTableCode] = useState('');
   const [tableType, setTableType] = useState<'POOL' | 'SNOOKER' | 'VIP'>('POOL');
+  const [hourlyRate, setHourlyRate] = useState('');
   const createTable = useCreateTable();
 
   const handleSubmit = async () => {
@@ -38,10 +39,12 @@ export function CreateTableModal({ open, onOpenChange, onSuccess }: CreateTableM
       tableCode: tableCode.trim(),
       tableName: tableName.trim() || undefined,
       tableType,
+      hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
     });
     setTableName('');
     setTableCode('');
     setTableType('POOL');
+    setHourlyRate('');
     onOpenChange(false);
     onSuccess();
   };
@@ -72,6 +75,17 @@ export function CreateTableModal({ open, onOpenChange, onSuccess }: CreateTableM
               placeholder="e.g. Pool Table 1"
               value={tableName}
               onChange={(e) => setTableName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hourlyRate">Hourly Rate</Label>
+            <Input
+              id="hourlyRate"
+              type="number"
+              placeholder="80000"
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(e.target.value)}
             />
           </div>
 

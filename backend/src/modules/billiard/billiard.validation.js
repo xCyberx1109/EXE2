@@ -60,4 +60,5 @@ export const createTableRules = [
   body('capacity').optional().isInt({ min: 1 }).withMessage('Sức chứa phải lớn hơn 0'),
   body('posX').optional().isFloat().withMessage('posX phải là số'),
   body('posY').optional().isFloat().withMessage('posY phải là số'),
+  body('hourlyRate').optional().isFloat({ min: 0 }).withMessage('Phí theo giờ phải là số >= 0'),
 ];
