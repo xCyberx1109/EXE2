@@ -54,55 +54,46 @@ export const features = [
   { code: 'billiard_reservation', name: 'Đặt bàn Billiard', module: 'billiard', isCore: false, sortOrder: 13 },
   { code: 'billiard_layout', name: 'Sơ đồ bàn Billiard', module: 'billiard', isCore: false, sortOrder: 14 },
   { code: 'billiard_report', name: 'Báo cáo Billiard', module: 'billiard', isCore: false, sortOrder: 15 },
+  { code: 'billiard_order', name: 'Gọi món Billiard', module: 'billiard', isCore: false, sortOrder: 16 },
+  { code: 'billiard_pay', name: 'Thanh toán Billiard', module: 'billiard', isCore: false, sortOrder: 17 },
+  { code: 'pos_order_queue', name: 'POS Order Queue', module: 'pos', isCore: true, sortOrder: 18 },
 ];
 
 export const permissions = [
-  // ================= ORDERS =================
-  { code: 'ORDER_VIEW', name: 'Xem đơn hàng', module: 'orders' },
-  { code: 'ORDER_MANAGE', name: 'Quản lý đơn hàng', module: 'orders' },
+  // ================= ADMIN =================
+  { code: 'ADMIN_ALL', name: 'Toàn quyền hệ thống', module: 'admin', isSystem: true },
 
-  // ================= MENU =================
-  { code: 'MENU_VIEW', name: 'Xem thực đơn', module: 'menu' },
-  { code: 'MENU_CREATE', name: 'Thêm món', module: 'menu' },
-  { code: 'MENU_UPDATE', name: 'Cập nhật món', module: 'menu' },
-  { code: 'MENU_DELETE', name: 'Xóa món', module: 'menu' },
-  { code: 'MENU_MANAGE', name: 'Quản lý thực đơn', module: 'menu' },
-
-  // ================= INVENTORY =================
-  { code: 'INVENTORY_VIEW', name: 'Xem tồn kho', module: 'inventory' },
-  { code: 'INVENTORY_MANAGE', name: 'Quản lý tồn kho', module: 'inventory' },
-  { code: 'INVENTORY_IMPORT', name: 'Nhập kho', module: 'inventory' },
-  { code: 'INVENTORY_EXPORT', name: 'Xuất kho', module: 'inventory' },
-  { code: 'INVENTORY_ADJUST', name: 'Điều chỉnh tồn kho', module: 'inventory' },
-
-  // ================= REPORTS =================
-  { code: 'REPORT_VIEW', name: 'Xem báo cáo', module: 'reports' },
-  { code: 'REPORT_EXPORT', name: 'Xuất báo cáo', module: 'reports' },
+  // ================= BILLIARD =================
+  { code: 'BILLIARD_TABLE_VIEW', name: 'Xem bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_TABLE_CREATE', name: 'Tạo bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_TABLE_UPDATE', name: 'Cập nhật bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_TABLE_DELETE', name: 'Xóa bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_TABLE_LAYOUT_EDIT', name: 'Chỉnh sửa sơ đồ bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_SESSION_VIEW', name: 'Xem phiên chơi', module: 'billiard' },
+  { code: 'BILLIARD_SESSION_START', name: 'Bắt đầu phiên chơi', module: 'billiard' },
+  { code: 'BILLIARD_SESSION_EXTEND', name: 'Gia hạn phiên chơi', module: 'billiard' },
+  { code: 'BILLIARD_SESSION_FINISH', name: 'Kết thúc phiên chơi', module: 'billiard' },
+  { code: 'BILLIARD_SESSION_CHECKIN', name: 'Check-in bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_RESERVATION_VIEW', name: 'Xem đặt bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_RESERVATION_CREATE', name: 'Tạo đặt bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_RESERVATION_CANCEL', name: 'Hủy đặt bàn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_ORDER_VIEW', name: 'Xem đơn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_ORDER_CREATE', name: 'Tạo đơn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_ORDER_UPDATE', name: 'Cập nhật đơn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_ORDER_DELETE', name: 'Xóa đơn Billiard', module: 'billiard' },
+  { code: 'BILLIARD_ORDER_ADD_ITEM', name: 'Thêm món Billiard', module: 'billiard' },
+  { code: 'BILLIARD_PAY_VIEW', name: 'Xem thanh toán Billiard', module: 'billiard' },
+  { code: 'BILLIARD_PAY_PROCESS', name: 'Thanh toán Billiard', module: 'billiard' },
+  { code: 'BILLIARD_REPORT_VIEW', name: 'Xem báo cáo Billiard', module: 'billiard' },
 
   // ================= BRANCH =================
   { code: 'BRANCH_VIEW', name: 'Xem chi nhánh', module: 'branch' },
   { code: 'BRANCH_CREATE', name: 'Tạo chi nhánh', module: 'branch' },
   { code: 'BRANCH_UPDATE', name: 'Cập nhật chi nhánh', module: 'branch' },
   { code: 'BRANCH_DELETE', name: 'Xóa chi nhánh', module: 'branch' },
-  { code: 'BRANCH_MANAGE', name: 'Quản lý chi nhánh', module: 'branch' },
-
-  // ================= POS =================
-  { code: 'POS_OPEN', name: 'Mở ca POS', module: 'pos' },
-  { code: 'POS_CLOSE', name: 'Đóng ca POS', module: 'pos' },
-  { code: 'POS_CREATE_ORDER', name: 'Tạo đơn hàng POS', module: 'pos' },
-  { code: 'POS_CANCEL_ORDER', name: 'Hủy đơn hàng POS', module: 'pos' },
-
-  // POS DEVICE (GIỮ 1 CHUẨN DUY NHẤT)
-  { code: 'POS_DEVICE_VIEW', name: 'Xem thiết bị POS', module: 'pos' },
-  { code: 'POS_DEVICE_CREATE', name: 'Tạo thiết bị POS', module: 'pos' },
-  { code: 'POS_DEVICE_UPDATE', name: 'Cập nhật thiết bị POS', module: 'pos' },
-  { code: 'POS_DEVICE_DELETE', name: 'Xóa thiết bị POS', module: 'pos' },
-
-  // ================= TABLE =================
-  { code: 'TABLE_VIEW', name: 'Xem bàn', module: 'table' },
-  { code: 'TABLE_CREATE', name: 'Tạo bàn', module: 'table' },
-  { code: 'TABLE_UPDATE', name: 'Cập nhật bàn', module: 'table' },
-  { code: 'TABLE_DELETE', name: 'Xóa bàn', module: 'table' },
+  { code: 'BRANCH_LOCK', name: 'Khóa chi nhánh', module: 'branch' },
+  { code: 'BRANCH_UNLOCK', name: 'Mở khóa chi nhánh', module: 'branch' },
+  { code: 'BRANCH_FORCE_DELETE', name: 'Xóa vĩnh viễn chi nhánh', module: 'branch' },
 
   // ================= CATEGORY =================
   { code: 'CATEGORY_VIEW', name: 'Xem danh mục', module: 'category' },
@@ -112,53 +103,79 @@ export const permissions = [
 
   // ================= CUSTOMER =================
   { code: 'CUSTOMER_VIEW', name: 'Xem khách hàng', module: 'customer' },
-  { code: 'CUSTOMER_MANAGE', name: 'Quản lý khách hàng', module: 'customer' },
-
-  // ================= SHIFT =================
-  { code: 'SHIFT_VIEW', name: 'Xem ca làm việc', module: 'shift' },
-  { code: 'SHIFT_MANAGE', name: 'Quản lý ca làm việc', module: 'shift' },
-
-  // ================= SETTINGS / PERMISSION =================
-  { code: 'PERMISSION_VIEW', name: 'Xem quyền', module: 'settings' },
-  { code: 'PERMISSION_MANAGE', name: 'Quản lý quyền', module: 'settings' },
-  { code: 'PERMISSION_ASSIGN', name: 'Phân quyền', module: 'settings' },
-  { code: 'SETTINGS_MANAGE', name: 'Quản lý hệ thống', module: 'settings' },
+  { code: 'CUSTOMER_CREATE', name: 'Thêm khách hàng', module: 'customer' },
+  { code: 'CUSTOMER_UPDATE', name: 'Cập nhật khách hàng', module: 'customer' },
+  { code: 'CUSTOMER_DELETE', name: 'Xóa khách hàng', module: 'customer' },
 
   // ================= DASHBOARD =================
   { code: 'DASHBOARD_VIEW', name: 'Xem dashboard', module: 'dashboard' },
-  // ================= ORDER QUEUE POS =================
-  { code: 'POS_ORDER_QUEUE_VIEW', name: 'Xem Order Queue POS', module: 'pos' },
-  { code: 'POS_ORDER_QUEUE_CREATE', name: 'Tạo Order Queue', module: 'pos' },
-  { code: 'POS_ORDER_QUEUE_UPDATE', name: 'Cập nhật Order Queue', module: 'pos' },
-  { code: 'POS_ORDER_QUEUE_DELETE', name: 'Hủy Order Queue', module: 'pos' },
-  { code: 'POS_ORDER_QUEUE_PAYMENT', name: 'Thanh toán Order Queue', module: 'pos' },
+
+  // ================= INVENTORY =================
+  { code: 'INVENTORY_VIEW', name: 'Xem tồn kho', module: 'inventory' },
+  { code: 'INVENTORY_CREATE', name: 'Tạo nguyên liệu', module: 'inventory' },
+  { code: 'INVENTORY_UPDATE', name: 'Cập nhật nguyên liệu', module: 'inventory' },
+  { code: 'INVENTORY_DELETE', name: 'Xóa nguyên liệu', module: 'inventory' },
+  { code: 'INVENTORY_IMPORT', name: 'Nhập kho', module: 'inventory' },
+  { code: 'INVENTORY_EXPORT', name: 'Xuất kho', module: 'inventory' },
+  { code: 'INVENTORY_ADJUST', name: 'Điều chỉnh tồn kho', module: 'inventory' },
+
+  // ================= MENU =================
+  { code: 'MENU_VIEW', name: 'Xem thực đơn', module: 'menu' },
+  { code: 'MENU_CREATE', name: 'Thêm món', module: 'menu' },
+  { code: 'MENU_UPDATE', name: 'Cập nhật món', module: 'menu' },
+  { code: 'MENU_DELETE', name: 'Xóa món', module: 'menu' },
+
+  // ================= ORDER =================
+  { code: 'ORDER_VIEW', name: 'Xem đơn hàng', module: 'orders' },
+  { code: 'ORDER_CREATE', name: 'Tạo đơn hàng', module: 'orders' },
+  { code: 'ORDER_UPDATE', name: 'Cập nhật đơn hàng', module: 'orders' },
+  { code: 'ORDER_DELETE', name: 'Xóa đơn hàng', module: 'orders' },
   { code: 'ORDER_HISTORY_VIEW', name: 'Xem lịch sử đơn hàng', module: 'orders' },
-  { code: 'ORDER_HISTORY_VIEW_ALL', name: 'Xem tất cả lịch sử đơn hàng', module: 'orders' },
-  // ================= BILLIARD TABLE =================
-  { code: 'TABLE_LAYOUT_EDIT', name: 'Chỉnh sửa sơ đồ bàn', module: 'billiard' },
-  { code: 'TABLE_PLAY_NOW', name: 'Chơi ngay', module: 'billiard' },
-  { code: 'TABLE_RESERVE', name: 'Đặt bàn Billiard', module: 'billiard' },
-  { code: 'TABLE_CHECKIN', name: 'Check-in bàn Billiard', module: 'billiard' },
 
-  // ================= BILLIARD SESSION =================
-  { code: 'SESSION_VIEW', name: 'Xem phiên chơi', module: 'billiard' },
-  { code: 'SESSION_START', name: 'Bắt đầu phiên chơi', module: 'billiard' },
-  { code: 'SESSION_EXTEND', name: 'Gia hạn phiên chơi', module: 'billiard' },
-  { code: 'SESSION_FINISH', name: 'Kết thúc phiên chơi', module: 'billiard' },
+  // ================= POS =================
+  { code: 'POS_OPEN', name: 'Mở ca POS', module: 'pos' },
+  { code: 'POS_CLOSE', name: 'Đóng ca POS', module: 'pos' },
+  { code: 'POS_CREATE_ORDER', name: 'Tạo đơn hàng POS', module: 'pos' },
+  { code: 'POS_CANCEL_ORDER', name: 'Hủy đơn hàng POS', module: 'pos' },
 
-  // ================= BILLIARD RESERVATION =================
-  { code: 'RESERVATION_VIEW', name: 'Xem đặt bàn', module: 'billiard' },
-  { code: 'RESERVATION_CREATE', name: 'Tạo đặt bàn', module: 'billiard' },
-  { code: 'RESERVATION_CANCEL', name: 'Hủy đặt bàn', module: 'billiard' },
+  // ================= POS_DEVICE =================
+  { code: 'POS_DEVICE_VIEW', name: 'Xem thiết bị POS', module: 'pos_device' },
+  { code: 'POS_DEVICE_CREATE', name: 'Tạo thiết bị POS', module: 'pos_device' },
+  { code: 'POS_DEVICE_UPDATE', name: 'Cập nhật thiết bị POS', module: 'pos_device' },
+  { code: 'POS_DEVICE_DELETE', name: 'Xóa thiết bị POS', module: 'pos_device' },
 
-  // ================= BILLIARD ORDER =================
-  { code: 'ORDER_PAY', name: 'Thanh toán Billiard', module: 'billiard' },
+  // ================= POS_ORDER_QUEUE =================
+  { code: 'POS_ORDER_QUEUE_VIEW', name: 'Xem Order Queue POS', module: 'pos_order_queue' },
+  { code: 'POS_ORDER_QUEUE_CREATE', name: 'Tạo Order Queue', module: 'pos_order_queue' },
+  { code: 'POS_ORDER_QUEUE_UPDATE', name: 'Cập nhật Order Queue', module: 'pos_order_queue' },
+  { code: 'POS_ORDER_QUEUE_DELETE', name: 'Hủy Order Queue', module: 'pos_order_queue' },
+  { code: 'POS_ORDER_QUEUE_PAY', name: 'Thanh toán Order Queue', module: 'pos_order_queue' },
 
-  // ================= BILLIARD REPORT =================
-  { code: 'BILLIARD_REPORT_VIEW', name: 'Xem báo cáo Billiard', module: 'billiard' },
+  // ================= REPORT =================
+  { code: 'REPORT_VIEW', name: 'Xem báo cáo', module: 'reports' },
+  { code: 'REPORT_EXPORT', name: 'Xuất báo cáo', module: 'reports' },
 
-  // ================= ADMIN =================
-  { code: 'ADMIN_ALL', name: 'Toàn quyền hệ thống', module: 'admin', isSystem: true },
+  // ================= SETTINGS =================
+  { code: 'SETTINGS_VIEW', name: 'Xem cài đặt', module: 'settings' },
+  { code: 'SETTINGS_UPDATE', name: 'Cập nhật cài đặt', module: 'settings' },
+
+  // ================= PERMISSION =================
+  { code: 'PERMISSION_VIEW', name: 'Xem quyền', module: 'settings' },
+  { code: 'PERMISSION_ASSIGN', name: 'Phân quyền', module: 'settings' },
+  { code: 'PERMISSION_MANAGE', name: 'Quản lý quyền hệ thống', module: 'settings' },
+
+  // ================= SHIFT =================
+  { code: 'SHIFT_VIEW', name: 'Xem ca làm việc', module: 'shift' },
+  { code: 'SHIFT_CREATE', name: 'Tạo ca', module: 'shift' },
+  { code: 'SHIFT_UPDATE', name: 'Cập nhật ca', module: 'shift' },
+  { code: 'SHIFT_CLOSE', name: 'Đóng ca', module: 'shift' },
+
+  // ================= TABLE =================
+  { code: 'TABLE_VIEW', name: 'Xem bàn', module: 'table' },
+  { code: 'TABLE_CREATE', name: 'Tạo bàn', module: 'table' },
+  { code: 'TABLE_UPDATE', name: 'Cập nhật bàn', module: 'table' },
+  { code: 'TABLE_DELETE', name: 'Xóa bàn', module: 'table' },
+  { code: 'TABLE_LAYOUT_EDIT', name: 'Chỉnh sửa sơ đồ bàn', module: 'table' },
 ];
 
 export const subscriptionPlans = [

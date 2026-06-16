@@ -74,7 +74,7 @@ export const posDeviceService = {
 
   async listDevices(user) {
     const accountId = user.accountId || user.id;
-    if (!user.permissions?.includes('MANAGE_POS_DEVICES') || !accountId) {
+    if (!user.permissions?.includes('POS_DEVICE_VIEW') || !accountId) {
       return [];
     }
     return posDeviceRepository.findByBranchId(accountId);

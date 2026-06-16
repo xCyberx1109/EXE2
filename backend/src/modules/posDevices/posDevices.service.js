@@ -82,7 +82,7 @@ export const posDevicesService = {
   },
 
   async listDevices(user) {
-    if (!user.permissions?.includes('MANAGE_POS_DEVICES')) {
+    if (!user.permissions?.includes('POS_DEVICE_VIEW')) {
       return [];
     }
     const accountId = user.accountId || user.id;

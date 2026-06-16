@@ -147,21 +147,42 @@ export const requirePermission = (permissionCode) => (req, _res, next) => {
   next();
 };
 
-/** Kiểm tra quyền truy cập account */
+/** Yêu cầu ít nhất MỘT trong các permission được liệt kê */
+export const requireAnyPermission = (permissionCodes) => (req, _res, next) => {
+  if (!req.user) {
+    return next(new AppError('Vui lòng đăng nhập', 401));
+  }
+
+  console.log(`[RBAC] Checking ANY permission [${permissionCodes.join(', ')}] for user ${req.user.id}`);
+
+  if (req.user.permissions?.includes('ADMIN_ALL')) {
+    console.log(`[RBAC] ADMIN_ALL override - granting any of [${permissionCodes.join(', ')}]`);
+    return next();
+  }
+
+  const hasAny = permissionCodes.some(code => req.user.permissions?.includes(code));
+  if (!hasAny) {
+    console.warn(`[RBAC] DENIED: user ${req.user.id} missing any of [${permissionCodes.join(', ')}]`);
+    return next(new AppError(`Bạn cần ít nhất một quyền: ${permissionCodes.join(' hoặc ')}`, 403));
+  }
+
+  console.log(`[RBAC] GRANTED: any of [${permissionCodes.join(', ')}] for user ${req.user.id}`);
+  next();
+};
+
+/** Kiểm tra quyền truy cập account - không có ADMIN_ALL bypass (requirement #4) */
 export const requireBranchAccess = (req, _res, next) => {
   if (!req.user) {
     return next(new AppError('Vui lòng đăng nhập', 401));
   }
 
-  const hasAllBranchAccess = req.user.permissions?.includes('BRANCH_ALL_ACCESS');
-
-  if (req.params.accountId && !hasAllBranchAccess) {
+  if (req.params.accountId) {
     if (req.params.accountId !== (req.user.accountId || req.user.id)) {
       return next(new AppError('Bạn không có quyền truy cập tài khoản này', 403));
     }
   }
 
-  if (req.body && req.body.accountId && !hasAllBranchAccess) {
+  if (req.body && req.body.accountId) {
     if (req.body.accountId !== (req.user.accountId || req.user.id)) {
       return next(new AppError('Bạn không có quyền truy cập tài khoản này', 403));
     }

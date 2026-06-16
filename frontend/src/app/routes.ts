@@ -63,14 +63,14 @@ function RootRedirect() {
 const deviceRouteConfig = {
   CASHIER: {
     types: ['CASHIER' as const],
-    perms: ['POS_CREATE_ORDER' as const],
-    rbacPerms: ['POS_CREATE_ORDER' as const]
+    perms: ['order:create' as const],
+    rbacPerms: ['ORDER_CREATE' as const]
   },
 
   KITCHEN: {
     types: ['KITCHEN' as const],
-    perms: ['KITCHEN_VIEW_QUEUE' as const],
-    rbacPerms: ['KITCHEN_VIEW_QUEUE' as const]
+    perms: ['kitchen:view_queue' as const],
+    rbacPerms: ['kitchen:view_queue' as const]
   },
 
   WAITER: {
@@ -205,14 +205,14 @@ export const router = createBrowserRouter([
           { path: 'pos-devices-v2', element: withGuard(PosDeviceManagerPage, { rbacPerms: ['POS_DEVICE_VIEW'] }) },
           { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_VIEW'] }) },
           { path: 'inventory', element: withGuard(InventoryManagement, { rbacPerms: ['INVENTORY_VIEW'] }) },
-          { path: 'staff', element: withGuard(() => createElement('div', null, 'Staff Management - Coming Soon'), { rbacPerms: ['BRANCH_MANAGE'] }) },
-          { path: 'settings', element: withGuard(() => createElement('div', null, 'System Settings - Coming Soon'), { rbacPerms: ['SETTINGS_MANAGE'] }) },
+          { path: 'staff', element: withGuard(() => createElement('div', null, 'Staff Management - Coming Soon'), { rbacPerms: ['SETTINGS_VIEW'] }) },
+          { path: 'settings', element: withGuard(() => createElement('div', null, 'System Settings - Coming Soon'), { rbacPerms: ['SETTINGS_VIEW'] }) },
           { path: 'permissions', element: withGuard(PermissionManagement, { rbacPerms: ['PERMISSION_VIEW'] }) },
           { path: 'order-queue', element: withGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },
           { path: 'orders/history', element: withGuard(OrderHistoryPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
           { path: 'orders/:orderId', element: withGuard(OrderDetailPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
-          { path: 'billiard', element: withGuard(BilliardManagement, { rbacPerms: ['TABLE_VIEW'] }) },
-          { path: 'billiard/layout', element: withGuard(BilliardLayout, { rbacPerms: ['TABLE_LAYOUT_EDIT'] }) },
+          { path: 'billiard', element: withGuard(BilliardManagement, { rbacPerms: ['BILLIARD_TABLE_VIEW'] }) },
+          { path: 'billiard/layout', element: withGuard(BilliardLayout, { rbacPerms: ['BILLIARD_TABLE_LAYOUT_EDIT'] }) },
           { path: 'profile', Component: ProfilePage },
         ],
       },

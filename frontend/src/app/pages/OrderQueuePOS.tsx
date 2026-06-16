@@ -144,7 +144,7 @@ export function OrderQueuePOS() {
   const canCreate = hasPermission('POS_ORDER_QUEUE_CREATE');
   const canUpdate = hasPermission('POS_ORDER_QUEUE_UPDATE');
   const canDelete = hasPermission('POS_ORDER_QUEUE_DELETE');
-  const canPayment = hasPermission('POS_ORDER_QUEUE_PAYMENT');
+  const canPayment = hasPermission('POS_ORDER_QUEUE_PAY');
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestLinesRef = useRef(orderLines);

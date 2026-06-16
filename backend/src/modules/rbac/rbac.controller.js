@@ -24,12 +24,10 @@ export const rbacController = {
   }),
 
   // --- Account-level Direct Permissions (for PermissionManagement frontend) ---
-  // Chỉ cho phép user xem/quản lý permissions của chính account mình
+  // User có PERMISSION_VIEW được xem tất cả accounts
+  // User có PERMISSION_MANAGE được cập nhật permissions cho tất cả accounts
   getAccounts: asyncHandler(async (req, res) => {
-    const currentAccountId = req.user.accountId || req.user.id;
-
-    const account = await prisma.account.findUnique({
-      where: { id: currentAccountId },
+    const accounts = await prisma.account.findMany({
       select: {
         id: true,
         email: true,
@@ -38,6 +36,7 @@ export const rbacController = {
         active: true,
         createdAt: true,
         accountPermissions: {
+          where: { allowed: true },
           select: {
             permissionId: true,
             allowed: true,
@@ -52,43 +51,41 @@ export const rbacController = {
           },
         },
       },
+      orderBy: { createdAt: 'asc' },
     });
 
-    if (!account) {
-      return sendSuccess(res, { data: [] });
-    }
-
-    const assignedPerms = account.accountPermissions.filter(ap => ap.allowed);
-    const modules = [...new Set(assignedPerms.map(ap => ap.permission.module))];
-    const data = [{
-      ...account,
-      accountId: account.id,
-      username: account.email,
-      assignedRoles: modules,
-      assignedPermissions: assignedPerms.map(ap => ({
-        permissionId: ap.permissionId,
-        permissionCode: ap.permission.code,
-        permissionName: ap.permission.name,
-        module: ap.permission.module,
-        allowed: ap.allowed,
-      })),
-      permissionCount: assignedPerms.length,
-    }];
+    const data = accounts.map((account) => {
+      const assignedPerms = account.accountPermissions.filter(ap => ap.allowed);
+      const modules = [...new Set(assignedPerms.map(ap => ap.permission.module))];
+      return {
+        id: account.id,
+        email: account.email,
+        fullName: account.fullName,
+        status: account.status,
+        active: account.active,
+        createdAt: account.createdAt,
+        accountId: account.id,
+        username: account.email,
+        assignedRoles: modules,
+        assignedPermissions: assignedPerms.map(ap => ({
+          permissionId: ap.permissionId,
+          permissionCode: ap.permission.code,
+          permissionName: ap.permission.name,
+          module: ap.permission.module,
+          allowed: ap.allowed,
+        })),
+        permissionCount: assignedPerms.length,
+      };
+    });
 
     sendSuccess(res, { data });
   }),
 
   getAccountPermissions: asyncHandler(async (req, res) => {
     const { accountId } = req.params;
-    const currentAccountId = req.user.accountId || req.user.id;
-
-    // Chỉ cho phép xem permissions của chính mình
-    if (accountId !== currentAccountId) {
-      return sendSuccess(res, { data: [] });
-    }
 
     const perms = await prisma.accountPermission.findMany({
-      where: { accountId: currentAccountId },
+      where: { accountId },
       select: { permissionId: true, allowed: true },
     });
 
@@ -107,15 +104,6 @@ export const rbacController = {
 
   updateAccountPermissions: asyncHandler(async (req, res) => {
     const { accountId } = req.params;
-    const currentAccountId = req.user.accountId || req.user.id;
-
-    // Chỉ cho phép cập nhật permissions của chính mình
-    if (accountId !== currentAccountId) {
-      return sendError(res, {
-        statusCode: 403,
-        message: 'Bạn không có quyền cập nhật quyền cho tài khoản khác',
-      });
-    }
 
     const { permissions } = req.body; // Array of { permissionId, allowed }
 
@@ -132,13 +120,13 @@ export const rbacController = {
 
     await prisma.$transaction(async (tx) => {
       await tx.accountPermission.deleteMany({
-        where: { accountId: currentAccountId },
+        where: { accountId },
       });
 
       if (uniqueByPermissionId.length > 0) {
         await tx.accountPermission.createMany({
           data: uniqueByPermissionId.map((p) => ({
-            accountId: currentAccountId,
+            accountId,
             permissionId: p.permissionId,
             allowed: p.allowed,
           })),

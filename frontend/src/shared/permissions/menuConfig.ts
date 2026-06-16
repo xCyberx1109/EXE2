@@ -26,23 +26,14 @@ export const APP_MENU: AppMenuItem[] = [
     name: 'Kho & Đơn hàng',
     children: [
       { name: 'Kho', href: '/app/inventory', icon: 'Package', requiredPermission: 'INVENTORY_VIEW' },
-      { name: 'Đơn hàng', href: '/app/orders', icon: 'ClipboardList', requiredPermission: 'ORDER_VIEW' },
       { name: 'Lịch sử đơn hàng', href: '/app/orders/history', icon: 'Clock', requiredPermission: 'ORDER_HISTORY_VIEW' },
-      { name: 'Bàn', href: '/app/tables', icon: 'MapPin', requiredPermission: 'TABLE_VIEW' },
       { name: 'Khách hàng', href: '/app/customers', icon: 'Users', requiredPermission: 'CUSTOMER_VIEW' },
-    ],
-  },
-  {
-    name: 'Báo cáo',
-    children: [
-      { name: 'Doanh thu', href: '/app/revenue', icon: 'TrendingUp', requiredPermission: 'REVENUE_VIEW' },
     ],
   },
   {
     name: 'Quản trị',
     children: [
       { name: 'Phân quyền', href: '/app/permissions', icon: 'Settings', requiredPermission: 'PERMISSION_VIEW' },
-      { name: 'Tính năng', href: '/app/features', icon: 'ChefHat', requiredPermission: 'FEATURE_VIEW' },
       { name: 'Branch Management', href: '/app/branch', icon: 'Building2', requiredPermission: 'BRANCH_VIEW' },
     ],
   },
@@ -55,13 +46,13 @@ export const APP_MENU: AppMenuItem[] = [
   {
     name: 'Bi-a',
     children: [
-      { name: 'Quản lý bàn bi-a', href: '/app/billiard', icon: 'CircleDot', requiredPermission: 'TABLE_VIEW' },
+      { name: 'Quản lý bàn bi-a', href: '/app/billiard', icon: 'CircleDot', requiredPermission: 'BILLIARD_TABLE_VIEW' },
     ],
   },
   {
     name: 'POS',
     children: [
-      { name: `${APP_NAME} Order Queue`, href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },
+      { name: 'Order Queue', href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },
     ],
   },
 ];

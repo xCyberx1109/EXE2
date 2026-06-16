@@ -119,8 +119,8 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
     setPositions({});
   };
 
-  const canEditLayout = hasPermission('TABLE_LAYOUT_EDIT');
-  const canCreate = hasPermission('TABLE_CREATE');
+  const canEditLayout = hasPermission('BILLIARD_TABLE_LAYOUT_EDIT');
+  const canCreate = hasPermission('BILLIARD_TABLE_CREATE');
 
   return (
     <div className="flex flex-col h-full">

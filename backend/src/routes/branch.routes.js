@@ -111,7 +111,7 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
       });
 
       const perms = await tx.permission.findMany({
-        where: { code: { in: ['BRANCH_VIEW', 'BRANCH_UPDATE'] } },
+        where: { code: { in: ['BRANCH_VIEW', 'BRANCH_UPDATE', 'DASHBOARD_VIEW'] } },
         select: { id: true, code: true },
       });
 

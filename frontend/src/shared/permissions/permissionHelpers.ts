@@ -1,10 +1,5 @@
 import type { AppMenuItem } from './menuConfig';
 
-const permissionFallback: Record<string, string> = {
-  BRANCH_VIEW: 'ACCOUNT_VIEW',
-  BRANCH_MANAGE: 'ACCOUNT_MANAGE',
-};
-
 export function normalizePermissions(raw: unknown): string[] {
   if (!raw) return [];
   if (Array.isArray(raw)) {
@@ -29,11 +24,7 @@ export function canAccessMenuItem(
     return true;
   }
   if (item.requiredAnyPermission && item.requiredAnyPermission.length > 0) {
-    return item.requiredAnyPermission.some((p) => {
-      if (hasPermission(p)) return true;
-      const fallback = permissionFallback[p];
-      return fallback ? hasPermission(fallback) : false;
-    });
+    return item.requiredAnyPermission.some((p) => hasPermission(p));
   }
   return false;
 }

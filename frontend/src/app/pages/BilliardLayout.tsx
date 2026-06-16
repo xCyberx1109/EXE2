@@ -42,7 +42,7 @@ export function BilliardLayout() {
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent, tableId: string) => {
-    if (!hasPermission('TABLE_LAYOUT_EDIT')) return;
+    if (!hasPermission('BILLIARD_TABLE_LAYOUT_EDIT')) return;
     e.preventDefault();
     setDraggingId(tableId);
     const startX = e.clientX;
@@ -109,7 +109,7 @@ export function BilliardLayout() {
               <p className="text-sm text-gray-500 mt-1">Kéo thả để sắp xếp vị trí bàn.</p>
             </div>
           </div>
-          {hasPermission('TABLE_LAYOUT_EDIT') && hasChanges && (
+          {hasPermission('BILLIARD_TABLE_LAYOUT_EDIT') && hasChanges && (
             <button
               type="button"
               onClick={handleSave}
@@ -162,7 +162,7 @@ export function BilliardLayout() {
                     top: p.posY,
                     width: 80,
                     height: 80,
-                    cursor: hasPermission('TABLE_LAYOUT_EDIT') ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                    cursor: hasPermission('BILLIARD_TABLE_LAYOUT_EDIT') ? (isDragging ? 'grabbing' : 'grab') : 'default',
                   }}
                   className={`absolute rounded-xl border-2 flex flex-col items-center justify-center shadow-sm select-none transition-shadow ${
                     STATUS_COLORS[table.status] || 'border-gray-300 bg-gray-50'

@@ -147,7 +147,7 @@ export function InventoryManagement() {
           <h1 className="text-2xl font-bold text-foreground">Quản lý Tồn kho</h1>
           <p className="text-muted-foreground mt-1">Theo dõi và quản lý hàng tồn kho</p>
         </div>
-        {hasPermission('INVENTORY_MANAGE') && (
+        {hasPermission('INVENTORY_CREATE') && (
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
@@ -274,12 +274,12 @@ export function InventoryManagement() {
                     <td className="px-6 py-4 text-sm text-muted-foreground">{item.supplier}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{item.lastUpdated}</td>
                     <td className="px-6 py-4 text-right text-sm">
-                      {hasPermission('INVENTORY_MANAGE') && (
+                      {hasPermission('INVENTORY_UPDATE') && (
                         <button onClick={() => handleEdit(item)} className="text-primary hover:text-primary/80 mr-3">
                           <Edit className="w-4 h-4" />
                         </button>
                       )}
-                      {hasPermission('INVENTORY_MANAGE') && (
+                      {hasPermission('INVENTORY_DELETE') && (
                         <button onClick={() => handleDelete(item.id)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">
                           <Trash2 className="w-4 h-4" />
                         </button>

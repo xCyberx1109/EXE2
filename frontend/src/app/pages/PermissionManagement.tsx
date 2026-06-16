@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Shield, Lock, User, Save, ChevronRight, Search, Calendar, BadgeCheck, Layers } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Shield, Lock, User, Save, ChevronRight, Search, Calendar, BadgeCheck, Layers, List, UtensilsCrossed, CircleDot, Package, Smartphone, Building2, ChevronDown } from 'lucide-react';
 import { api } from '../api/client';
+import { PERMISSION_GROUPS, type PermissionGroup } from '../../shared/permissions/permissionGroups';
 
 interface Permission {
   id: string;
@@ -36,6 +37,24 @@ interface AccountPermission {
   allowed: boolean;
 }
 
+const GROUP_ICONS: Record<string, React.ComponentType<any>> = {
+  UtensilsCrossed,
+  CircleDot,
+  Package,
+  Smartphone,
+  Building2,
+  Shield,
+};
+
+const GROUP_COLORS: Record<string, string> = {
+  blue: 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300',
+  emerald: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300',
+  amber: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300',
+  purple: 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300',
+  violet: 'border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/20 text-violet-700 dark:text-violet-300',
+  red: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300',
+};
+
 export function PermissionManagement() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -44,6 +63,8 @@ export function PermissionManagement() {
   const [accountPermissions, setAccountPermissions] = useState<AccountPermission[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'group' | 'advanced'>('group');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -64,7 +85,6 @@ export function PermissionManagement() {
         api.get<Permission[]>('/rbac/permissions'),
       ]);
 
-      // Hard guard: dedupe permissions to avoid duplicate rendering (prefer code)
       const dedupedPermissions = Array.from(
         new Map(
           (permsData || []).map((p) => [p.code ?? p.id, p]),
@@ -89,7 +109,6 @@ export function PermissionManagement() {
     try {
       const res = await api.get<AccountPermission[]>(`/rbac/accounts/${accountId}/permissions`);
 
-      // Hard guard: dedupe by permissionId to avoid duplicate checkboxes/state
       const normalized = (res || []).map((ap: any) => ({
         permissionId: ap.permissionId,
         allowed: ap.allowed,
@@ -104,6 +123,68 @@ export function PermissionManagement() {
       setAccountPermissions(deduped);
     } catch (err) {
       console.error('Failed to load account permissions:', err);
+    }
+  };
+
+  const codeToIdMap = useMemo(() => {
+    return new Map(permissions.map(p => [p.code, p.id]));
+  }, [permissions]);
+
+  const accountPermIdSet = useMemo(() => {
+    return new Set(accountPermissions.map(p => p.permissionId));
+  }, [accountPermissions]);
+
+  const getGroupPermIds = (group: PermissionGroup): string[] => {
+    return group.permissions
+      .map(code => codeToIdMap.get(code))
+      .filter(Boolean) as string[];
+  };
+
+  const getGroupState = (group: PermissionGroup): 'all' | 'partial' | 'none' => {
+    const ids = getGroupPermIds(group);
+    if (ids.length === 0) return 'none';
+    let count = 0;
+    for (const id of ids) {
+      if (accountPermIdSet.has(id)) count++;
+    }
+    if (count === 0) return 'none';
+    if (count === ids.length) return 'all';
+    return 'partial';
+  };
+
+  const selectedGroups = useMemo(() => {
+    return new Set(
+      PERMISSION_GROUPS
+        .filter(g => getGroupState(g) === 'all')
+        .map(g => g.id)
+    );
+  }, [accountPermissions, permissions]);
+
+  const handleToggleGroup = (group: PermissionGroup) => {
+    const currentState = getGroupState(group);
+    const ids = getGroupPermIds(group);
+    const idSet = new Set(ids);
+
+    if (currentState === 'all') {
+      const otherSelectedGroupIds = new Set(
+        PERMISSION_GROUPS
+          .filter(g => g.id !== group.id && selectedGroups.has(g.id))
+          .flatMap(g => getGroupPermIds(g))
+      );
+      setAccountPermissions(prev =>
+        prev.filter(p => !idSet.has(p.permissionId) || otherSelectedGroupIds.has(p.permissionId))
+      );
+    } else {
+      setAccountPermissions(prev => {
+        const existing = new Set(prev.map(p => p.permissionId));
+        const result = [...prev];
+        for (const id of ids) {
+          if (!existing.has(id)) {
+            result.push({ permissionId: id, allowed: true });
+          }
+        }
+        return result;
+      });
     }
   };
 
@@ -130,11 +211,13 @@ export function PermissionManagement() {
     }
   };
 
-  const groupedPermissions = permissions.reduce((acc, perm) => {
-    if (!acc[perm.module]) acc[perm.module] = [];
-    acc[perm.module].push(perm);
-    return acc;
-  }, {} as Record<string, Permission[]>);
+  const groupedPermissions = useMemo(() => {
+    return permissions.reduce((acc, perm) => {
+      if (!acc[perm.module]) acc[perm.module] = [];
+      acc[perm.module].push(perm);
+      return acc;
+    }, {} as Record<string, Permission[]>);
+  }, [permissions]);
 
   const filteredAccounts = accounts.filter(a =>
     a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -291,51 +374,160 @@ export function PermissionManagement() {
                     <Layers className="w-3.5 h-3.5" />
                     Vai trò: {roleLabel(selectedAccount.assignedRoles)}
                   </span>
-                  {selectedAccount.id && (
-                    <span className="flex items-center gap-1">
-                      ID: {selectedAccount.accountId.substring(0, 8)}...
-                    </span>
-                  )}
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="flex items-center gap-3 border-t border-border pt-3 mt-3">
+                  <button
+                    onClick={() => setViewMode('group')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      viewMode === 'group'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    Nhóm quyền
+                  </button>
+                  <button
+                    onClick={() => setViewMode('advanced')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      viewMode === 'advanced'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    Nâng cao
+                  </button>
                 </div>
               </div>
 
-              <div className="p-6 space-y-8 overflow-y-auto max-h-[600px]">
-                {Object.entries(groupedPermissions).map(([module, perms]) => (
-                  <div key={module} className="space-y-3">
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 bg-primary rounded-full"></span>
-                      {module}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {perms.map(perm => {
-                        const isChecked = accountPermissions.some(p => p.permissionId === perm.id && p.allowed);
-                        return (
-                          <label
-                            key={perm.id}
-                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                              isChecked 
-                                ? 'bg-primary/5 border-primary/30 text-primary ring-1 ring-primary/20' 
-                                : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
-                            }`}
-                          >
-                            <div className="relative flex items-center">
+              <div className="p-6 overflow-y-auto max-h-[600px]">
+                {viewMode === 'group' ? (
+                  <div className="space-y-4">
+                    {PERMISSION_GROUPS.map(group => {
+                      const groupState = getGroupState(group);
+                      const isExpanded = expandedGroup === group.id;
+                      const IconComp = GROUP_ICONS[group.icon] || Shield;
+                      const colorClass = GROUP_COLORS[group.color] || GROUP_COLORS.blue;
+                      const permIds = getGroupPermIds(group);
+                      const selectedCount = permIds.filter(id => accountPermIdSet.has(id)).length;
+
+                      return (
+                        <div
+                          key={group.id}
+                          className={`rounded-xl border transition-all ${
+                            groupState !== 'none'
+                              ? 'border-primary/30 bg-primary/[0.02] shadow-sm'
+                              : 'border-border hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 p-4">
+                            <div className="relative flex items-center pt-0.5">
                               <input
                                 type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleTogglePermission(perm.id)}
+                                checked={groupState === 'all'}
+                                ref={el => { if (el) el.indeterminate = groupState === 'partial'; }}
+                                onChange={() => handleToggleGroup(group)}
                                 className="w-5 h-5 text-primary rounded-md border-border bg-input-background focus:ring-primary transition-all"
                               />
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold">{perm.name}</p>
-                              <p className="text-[10px] opacity-60 font-mono">{perm.code}</p>
+                            <div
+                              className="flex-1 min-w-0 cursor-pointer"
+                              onClick={() => setExpandedGroup(isExpanded ? null : group.id)}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${colorClass}`}>
+                                  <IconComp className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-foreground">{group.name}</span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                      groupState === 'all'
+                                        ? 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400'
+                                        : groupState === 'partial'
+                                        ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400'
+                                        : 'bg-muted text-muted-foreground'
+                                    }`}>
+                                      {groupState === 'all' ? 'Đầy đủ' : groupState === 'partial' ? `${selectedCount}/${permIds.length}` : 'Chưa gán'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-0.5">{group.description}</p>
+                                </div>
+                                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${
+                                  isExpanded ? 'rotate-0' : '-rotate-90'
+                                }`} />
+                              </div>
                             </div>
-                          </label>
-                        );
-                      })}
-                    </div>
+                          </div>
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-0 border-t border-border mt-1">
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {group.permissions.map(code => {
+                                  const perm = permissions.find(p => p.code === code);
+                                  const isSelected = perm && accountPermIdSet.has(perm.id);
+                                  return (
+                                    <span
+                                      key={code}
+                                      className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
+                                        isSelected
+                                          ? 'bg-primary/10 text-primary border border-primary/20'
+                                          : 'bg-muted text-muted-foreground border border-border'
+                                      }`}
+                                    >
+                                      {code}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-8">
+                    {Object.entries(groupedPermissions).map(([module, perms]) => (
+                      <div key={module} className="space-y-3">
+                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-2 h-2 bg-primary rounded-full"></span>
+                          {module}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {perms.map(perm => {
+                            const isChecked = accountPermissions.some(p => p.permissionId === perm.id && p.allowed);
+                            return (
+                              <label
+                                key={perm.id}
+                                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                  isChecked 
+                                    ? 'bg-primary/5 border-primary/30 text-primary ring-1 ring-primary/20' 
+                                    : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
+                                }`}
+                              >
+                                <div className="relative flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => handleTogglePermission(perm.id)}
+                                    className="w-5 h-5 text-primary rounded-md border-border bg-input-background focus:ring-primary transition-all"
+                                  />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold">{perm.name}</p>
+                                  <p className="text-[10px] opacity-60 font-mono">{perm.code}</p>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
