@@ -48,6 +48,11 @@ export const menuService = {
 
   // --- Menu Items ---
   async listMenuItems({ search, category, categoryId, available, accountId: queryAccountId }, user) {
+    // Account isolation: if no authenticated user, return empty list to prevent cross-account leak
+    if (!user && !queryAccountId) {
+      return [];
+    }
+
     const where = {};
 
     if (categoryId) {
@@ -61,7 +66,7 @@ export const menuService = {
       where.available = available === 'true' || available === true;
     }
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       where.accountId = user.accountId || user.id;
     } else if (queryAccountId) {
       where.accountId = queryAccountId;
@@ -82,6 +87,11 @@ export const menuService = {
   },
 
   async getMenuItem(id, user) {
+    // Account isolation: require auth context to prevent cross-account data access
+    if (!user) {
+      throw new AppError('Vui lòng đăng nhập để xem món ăn', 401);
+    }
+
     const item = await prisma.menuItem.findUnique({
       where: { id },
       include: {
@@ -94,11 +104,9 @@ export const menuService = {
 
     if (!item) throw new AppError('Không tìm thấy món ăn', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      const accountId = user.accountId || user.id;
-      if (accountId && item.accountId !== accountId) {
-        throw new AppError('Bạn không có quyền xem món này', 403);
-      }
+    const accountId = user.accountId || user.id;
+    if (accountId && item.accountId !== accountId) {
+      throw new AppError('Bạn không có quyền xem món này', 403);
     }
 
     return mapMenuItem(item);
@@ -155,7 +163,7 @@ export const menuService = {
     const existing = await menuItemRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && existing.accountId !== accountId) {
         throw new AppError('Bạn không có quyền thao tác với món này', 403);
@@ -218,7 +226,7 @@ export const menuService = {
     const existing = await menuItemRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && existing.accountId !== accountId) {
         throw new AppError('Bạn không có quyền thao tác với món này', 403);
@@ -233,7 +241,7 @@ export const menuService = {
     const existing = await menuItemRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy món ăn', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && existing.accountId !== accountId) {
         throw new AppError('Bạn không có quyền thao tác với món này', 403);
@@ -245,7 +253,8 @@ export const menuService = {
 
   /** Top món bán chạy */
   async getTopSelling(limit = 10, user) {
-    const accountId = user && !user.permissions?.includes('ADMIN_ALL') ? (user.accountId || user.id) : undefined;
+    if (!user) return [];
+    const accountId = user.accountId || user.id;
     const grouped = await orderRepository.aggregateTopItems(limit, accountId);
 
     console.log("[TOP SELLING ITEMS grouped]", JSON.stringify(grouped, null, 2));

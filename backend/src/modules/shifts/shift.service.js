@@ -79,11 +79,12 @@ export const shiftService = {
       throw new AppError('Closing balance is required', 400);
     }
 
+    const accountId = posDevice.accountId || posDevice.branchId;
     const cashSales = await this.calculateShiftSales(shift.id, 'CASH');
     const cardSales = await this.calculateShiftSales(shift.id, 'CARD');
     const otherSales = await this.calculateShiftSales(shift.id);
     const totalOrders = await prisma.order.count({
-      where: { shiftId: shift.id },
+      where: { shiftId: shift.id, accountId },
     });
 
     const expectedCashBalance = Number(shift.openingBalance) + Number(cashSales);
@@ -150,8 +151,9 @@ export const shiftService = {
     if (!shift) return null;
 
     const activeStaff = await staffSessionRepository.findActiveByDevice(posDevice.id);
+    const accountId = posDevice.accountId || posDevice.branchId;
     const todayOrders = await prisma.order.findMany({
-      where: { shiftId: shift.id },
+      where: { shiftId: shift.id, accountId },
       select: { total: true, paymentStatus: true, paymentMethod: true },
     });
 
@@ -211,7 +213,9 @@ export const shiftService = {
   },
 
   async calculateShiftSales(shiftId, method = null) {
+    const shift = await shiftRepository.findById(shiftId);
     const where = { shiftId, paymentStatus: 'PAID' };
+    if (shift) where.accountId = shift.accountId || shift.branchId;
     if (method) where.paymentMethod = method;
 
     let totalMethod = 'CASH';

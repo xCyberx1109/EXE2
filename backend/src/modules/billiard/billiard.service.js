@@ -500,6 +500,12 @@ export const billiardService = {
       include: { table: true, items: true },
     });
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = user.accountId || user.id;
+      if (accountId && order.accountId !== accountId) {
+        throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
+      }
+    }
     if (order.table) assertBranchAccess(order.table, user, 'bàn');
 
     // Direct inventory sale (no MenuItem link)
@@ -635,6 +641,12 @@ export const billiardService = {
       include: { table: true, items: true },
     });
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = user.accountId || user.id;
+      if (accountId && order.accountId !== accountId) {
+        throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
+      }
+    }
     if (order.table) assertBranchAccess(order.table, user, 'bàn');
 
     return prisma.$transaction(async (tx) => {
@@ -746,6 +758,12 @@ export const billiardService = {
       include: { table: true },
     });
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = user.accountId || user.id;
+      if (accountId && order.accountId !== accountId) {
+        throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
+      }
+    }
     if (order.table) assertBranchAccess(order.table, user, 'bàn');
 
     const existingItem = await prisma.orderItem.findUnique({ where: { id: itemId } });
@@ -784,6 +802,12 @@ export const billiardService = {
       include: { table: true },
     });
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = user.accountId || user.id;
+      if (accountId && order.accountId !== accountId) {
+        throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
+      }
+    }
     if (order.table) assertBranchAccess(order.table, user, 'bàn');
 
     const existingItem = await prisma.orderItem.findUnique({ where: { id: itemId } });
@@ -855,6 +879,12 @@ export const billiardService = {
       include: { table: true, session: true, items: true },
     });
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = user.accountId || user.id;
+      if (accountId && order.accountId !== accountId) {
+        throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
+      }
+    }
     if (order.table) assertBranchAccess(order.table, user, 'bàn');
 
     if (order.paymentStatus === 'PAID') {

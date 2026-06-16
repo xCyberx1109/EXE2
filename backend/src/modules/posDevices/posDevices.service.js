@@ -114,7 +114,7 @@ export const posDevicesService = {
     const device = await posDeviceRepository.findByIdWithAccount(id);
     if (!device) throw new AppError('Device not found', 404);
     const accountId = user.accountId || user.id;
-    if (device.branchId !== accountId && !user.permissions?.includes('ADMIN_ALL')) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied to this device', 403);
     }
     return device;
@@ -126,7 +126,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -159,7 +159,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -200,7 +200,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -255,7 +255,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -295,7 +295,7 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -320,7 +320,7 @@ export const posDevicesService = {
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
     if (device.deletedAt) throw new AppError('Device already deleted', 404);
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
@@ -350,7 +350,7 @@ export const posDevicesService = {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
     const accountId = user.accountId || user.id;
-    if (device.branchId !== accountId && !user.permissions?.includes('ADMIN_ALL')) {
+    if (device.branchId !== accountId) {
       throw new AppError('Access denied', 403);
     }
     return activityLogRepository.findByDevice(deviceId, 100);

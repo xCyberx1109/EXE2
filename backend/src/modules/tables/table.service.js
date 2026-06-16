@@ -139,8 +139,12 @@ export const tableService = {
       throw new AppError('Bàn này đang có khách', 400);
     }
 
-    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true } });
+    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, accountId: true } });
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    const accountId = user.accountId || user.id;
+    if (accountId && order.accountId !== accountId) {
+      throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
+    }
 
     await prisma.order.update({
       where: { id: orderId },

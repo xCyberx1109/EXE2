@@ -46,13 +46,14 @@ function formatBranch(account) {
 
 router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) => {
   try {
-    const accounts = await prisma.account.findMany({
-      orderBy: { fullName: 'asc' },
+    const accountId = req.user.accountId || req.user.id;
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
     });
 
     sendSuccess(res, {
       message: 'Lấy danh sách chi nhánh thành công',
-      data: accounts.map(formatBranch),
+      data: account ? [formatBranch(account)] : [],
     });
   } catch (err) {
     console.error('[GET /api/branches] Error:', err);
@@ -171,6 +172,15 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
 router.put('/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+
+    if (id !== currentAccountId) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền cập nhật tài khoản khác',
+      });
+    }
+
     const { name, phone, email, fullName, active } = req.body;
 
     const data = {};
@@ -202,6 +212,14 @@ router.put('/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, 
 router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+
+    if (id !== currentAccountId) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền đặt lại mật khẩu cho tài khoản khác',
+      });
+    }
 
     const account = await prisma.account.findUnique({
       where: { id },
@@ -265,6 +283,14 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
 router.patch('/:id/lock', requirePermission('BRANCH_LOCK'), asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+
+    if (id !== currentAccountId) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền khóa tài khoản khác',
+      });
+    }
 
     const account = await prisma.account.findUnique({
       where: { id },
@@ -294,6 +320,14 @@ router.patch('/:id/lock', requirePermission('BRANCH_LOCK'), asyncHandler(async (
 router.patch('/:id/unlock', requirePermission('BRANCH_UNLOCK'), asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+
+    if (id !== currentAccountId) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền mở khóa tài khoản khác',
+      });
+    }
 
     const account = await prisma.account.findUnique({
       where: { id },
@@ -323,6 +357,14 @@ router.patch('/:id/unlock', requirePermission('BRANCH_UNLOCK'), asyncHandler(asy
 router.delete('/:id', requirePermission('BRANCH_DELETE'), asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+
+    if (id !== currentAccountId) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền xóa tài khoản khác',
+      });
+    }
 
     const account = await prisma.account.findUnique({
       where: { id },
@@ -349,6 +391,14 @@ router.delete('/:id', requirePermission('BRANCH_DELETE'), asyncHandler(async (re
 router.delete('/:id/force', requirePermission('BRANCH_FORCE_DELETE'), asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+
+    if (id !== currentAccountId) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền xóa tài khoản khác',
+      });
+    }
 
     const account = await prisma.account.findUnique({
       where: { id },

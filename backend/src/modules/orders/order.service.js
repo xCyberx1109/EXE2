@@ -7,16 +7,12 @@ import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 export const orderService = {
   /** Lấy tất cả đơn cho kitchen queue */
   async listKitchenQueue(user) {
+    if (!user) return [];
     const where = {
       kitchenStatus: { in: ['PENDING', 'RECEIVED', 'PREPARING', 'READY'] },
+      accountId: user.accountId || user.id,
       deletedAt: null,
     };
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      where.accountId = user.accountId || user.id;
-    }
-    if (user && user.authType === 'device') {
-      where.accountId = user.accountId || user.id;
-    }
     const orders = await prisma.order.findMany({
       where,
       include: {
@@ -47,6 +43,12 @@ export const orderService = {
     }
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = user.accountId || user.id;
+      if (accountId && order.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền cập nhật đơn hàng này', 403);
+      }
+    }
 
     const updated = await prisma.order.update({
       where: { id: orderId },
@@ -65,9 +67,9 @@ export const orderService = {
 
   /** Order History - permission-based access control */
   async listOrderHistory(user, { startDate, endDate, status, source } = {}) {
-    const isAdmin = user?.permissions?.includes('ADMIN_ALL');
-
+    if (!user) return [];
     const where = {
+      accountId: user.accountId || user.id,
       deletedAt: null,
     };
 
@@ -89,11 +91,6 @@ export const orderService = {
       where.source = source;
     }
 
-    if (!isAdmin) {
-      where.createdBy = user.id;
-      where.accountId = user.accountId || user.id;
-    }
-
     const orders = await prisma.order.findMany({
       where,
       include: {
@@ -107,10 +104,8 @@ export const orderService = {
 
   /** Lấy tất cả đơn pending/preparing cho POS */
   async listActiveOrders(user) {
-    const where = { status: { in: ['PENDING', 'PREPARING'] } };
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      where.accountId = user.accountId || user.id;
-    }
+    if (!user) return [];
+    const where = { status: { in: ['PENDING', 'PREPARING'] }, accountId: user.accountId || user.id };
     const orders = await orderRepository.findMany(where);
     return orders.map(mapPosOrder);
   },
@@ -137,10 +132,9 @@ export const orderService = {
       where.status = statusFilter || { in: ['PENDING', 'PREPARING'] };
     }
 
-    const accountId = user ? (user.accountId || user.id) : null;
-    if (accountId && !user.permissions?.includes('ADMIN_ALL')) {
-      where.accountId = accountId;
-    }
+    if (!user) return [];
+    const accountId = user.accountId || user.id;
+    where.accountId = accountId;
     if (search) {
       where.OR = [
         { orderNumber: { contains: search } },
@@ -232,7 +226,7 @@ export const orderService = {
       ? await orderRepository.findById(id)
       : await orderRepository.findByIdLight(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && order.accountId !== accountId) {
         throw new AppError('Bạn không có quyền cập nhật đơn hàng này', 403);
@@ -296,7 +290,7 @@ export const orderService = {
       const order = await orderRepository.findById(id);
       console.log("[STEP 1 RESULT] order found:", order ? `YES - ${order.orderNumber}` : "NO - NULL");
       if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-      if (user && !user.permissions?.includes('ADMIN_ALL')) {
+      if (user) {
         const accountId = user.accountId || user.id;
         if (accountId && order.accountId !== accountId) {
           throw new AppError('Bạn không có quyền thanh toán đơn hàng này', 403);
@@ -438,7 +432,7 @@ export const orderService = {
   async cancelQueueOrder(id, user = null) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && order.accountId !== accountId) {
         throw new AppError('Bạn không có quyền hủy đơn hàng này', 403);
@@ -454,6 +448,8 @@ export const orderService = {
 
   /** Chi tiết đơn hàng */
   async getOrderDetail(orderId, user) {
+    if (!user) throw new AppError('Vui lòng đăng nhập để xem đơn hàng', 401);
+
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -466,6 +462,10 @@ export const orderService = {
     });
 
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    const accountId = user.accountId || user.id;
+    if (accountId && order.accountId !== accountId) {
+      throw new AppError('Bạn không có quyền xem đơn hàng này', 403);
+    }
 
     const isRestaurant = order.orderNumber?.startsWith('ORD-');
 
@@ -502,19 +502,18 @@ export const orderService = {
 
   /** Danh sách đơn trong ngày (mặc định hôm nay) */
   async listOrdersByDate({ date, status } = {}, user) {
+    if (!user) return { date: date || formatDateKey(new Date()), summary: { totalOrders: 0, totalRevenue: 0, totalCost: 0, totalProfit: 0, completedCount: 0, pendingCount: 0 }, orders: [] };
+
     const dateStr = date || formatDateKey(new Date());
     const { start, end } = getDayBounds(dateStr);
 
     const where = {
       createdAt: { gte: start, lte: end },
+      accountId: user.accountId || user.id,
     };
 
     if (status && status !== 'all') {
       where.status = status.toUpperCase();
-    }
-
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      where.accountId = user.accountId || user.id;
     }
 
     const orders = await orderRepository.findMany(where);
@@ -541,7 +540,7 @@ export const orderService = {
       status: { in: ['PENDING', 'PREPARING', 'CONFIRMED'] },
       deletedAt: null,
     };
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       where.accountId = user.accountId || user.id;
     }
     const order = await prisma.order.findFirst({
@@ -616,26 +615,24 @@ export const orderService = {
   },
 
   async deleteOrder(id, user) {
+    if (!user) throw new AppError('Vui lòng đăng nhập để xóa đơn hàng', 401);
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
-      const accountId = user.accountId || user.id;
-      if (accountId && order.accountId !== accountId) {
-        throw new AppError('Bạn không có quyền xóa đơn hàng này', 403);
-      }
+    const accountId = user.accountId || user.id;
+    if (accountId && order.accountId !== accountId) {
+      throw new AppError('Bạn không có quyền xóa đơn hàng này', 403);
     }
     await orderRepository.delete(id);
   },
 
    /** Thanh toán - hoàn tất đơn + trừ kho (atomic per order) */
    async completeTableOrders(tableNumber, paymentMethod = 'CASH', user = null) {
+     if (!user) throw new AppError('Vui lòng đăng nhập để thanh toán', 401);
      const where = {
        tableNumber,
        status: { in: ['PENDING', 'PREPARING'] },
+       accountId: user.accountId || user.id,
      };
-      if (user && !user.permissions?.includes('ADMIN_ALL')) {
-        where.accountId = user.accountId || user.id;
-      }
       const orders = await orderRepository.findMany(where);
       if (orders.length === 0) {
         throw new AppError('Không có đơn hàng để thanh toán', 404);
@@ -924,11 +921,11 @@ async function normalizeOrderItems(items = []) {
 }
 
 /**
- * Resolve accountId from request body or auth context.
+ * Resolve accountId from auth context ONLY.
+ * NEVER trust client-supplied body.accountId to prevent cross-account injection.
  * Handles both user auth and POS device auth.
  */
 function resolveAccountId(body, user) {
-  if (body && body.accountId) return body.accountId;
   if (!user) return undefined;
   return user.accountId || user.id;
 }
