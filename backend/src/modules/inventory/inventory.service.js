@@ -7,7 +7,7 @@ import { inventoryTransactionRepository } from '../../repositories/inventoryTran
 export const inventoryService = {
   async listIngredients({ search, lowStock, status }, user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       where.accountId = user.accountId || user.id;
     }
 
@@ -44,7 +44,7 @@ export const inventoryService = {
   async getIngredient(id, user) {
     const item = await ingredientRepository.findById(id);
     if (!item) throw new AppError('Không tìm thấy nguyên liệu', 404);
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && item.accountId !== accountId) {
         throw new AppError('Bạn không có quyền xem nguyên liệu này', 403);
@@ -72,7 +72,7 @@ export const inventoryService = {
     const existing = await ingredientRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && existing.accountId !== accountId) {
         throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
@@ -90,7 +90,7 @@ export const inventoryService = {
     const existing = await ingredientRepository.findById(id);
     if (!existing) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && existing.accountId !== accountId) {
         throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
@@ -102,7 +102,7 @@ export const inventoryService = {
 
   async getLowStock(user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       where.accountId = user.accountId || user.id;
     }
     const items = await ingredientRepository.findMany(where);
@@ -113,7 +113,7 @@ export const inventoryService = {
 
   async getStats(user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       where.accountId = user.accountId || user.id;
     }
     const items = await ingredientRepository.findMany(where);
@@ -144,7 +144,7 @@ export const inventoryService = {
   async getTransactionHistory(ingredientId, user) {
     const ingredient = await ingredientRepository.findById(ingredientId);
     if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && ingredient.accountId !== accountId) {
         throw new AppError('Bạn không có quyền xem lịch sử nguyên liệu này', 403);
@@ -156,7 +156,7 @@ export const inventoryService = {
 
   async listAllTransactions(user) {
     const where = {};
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       where.ingredient = { accountId: user.accountId || user.id };
     }
     const txs = await inventoryTransactionRepository.findMany(where);
@@ -168,7 +168,7 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
   const ingredient = await ingredientRepository.findById(ingredientId);
   if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
-    if (user && !user.permissions?.includes('ADMIN_ALL')) {
+    if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && ingredient.accountId !== accountId) {
         throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);

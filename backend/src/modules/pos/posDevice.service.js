@@ -99,7 +99,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
@@ -124,7 +124,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
@@ -154,7 +154,7 @@ export const posDeviceService = {
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Không tìm thấy thiết bị', 404);
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 
@@ -188,7 +188,7 @@ export const posDeviceService = {
       throw new AppError('Thiết bị đã bị xóa trước đó', 404);
     }
 
-    if (!req.user.permissions?.includes('ADMIN_ALL') && device.branchId !== accountId) {
+    if (device.branchId !== accountId) {
       throw new AppError('Bạn không có quyền quản lý thiết bị này', 403);
     }
 

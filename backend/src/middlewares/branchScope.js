@@ -33,6 +33,7 @@ export function enforceBranchScope(req, _res, next) {
 /**
  * Kiểm tra resource có thuộc account của user không.
  * Ném 403 nếu không thuộc.
+ * KHÔNG có ADMIN_ALL bypass - mọi user đều bị kiểm tra.
  *
  * @param {Object} resource - Resource từ database (phải có accountId)
  * @param {Object} user - req.user hoặc context
@@ -40,7 +41,6 @@ export function enforceBranchScope(req, _res, next) {
  */
 export function assertBranchAccess(resource, user, name = 'dữ liệu') {
   if (!resource || !user) return;
-  if (user.permissions?.includes('ADMIN_ALL')) return;
   const userAccountId = user.accountId || user.id;
   const resourceId = resource.branchId || resource.accountId;
   if (resourceId && userAccountId && resourceId !== userAccountId) {
@@ -50,30 +50,30 @@ export function assertBranchAccess(resource, user, name = 'dữ liệu') {
 
 /**
  * Build Prisma where clause với account isolation.
- * Hỗ trợ cả user auth và device auth.
+ * KHÔNG có ADMIN_ALL bypass - mọi user đều bị scope vào account của họ.
  *
  * @param {Object} user - req.user hoặc context
  * @param {Object} additionalWhere - Additional where conditions
+ * @param {string} fieldName - Tên field dùng để filter (mặc định 'accountId')
  * @returns {Object} Where clause an toàn account
  */
-export function buildBranchWhere(user, additionalWhere = {}, fieldName = 'branchId') {
+export function buildBranchWhere(user, additionalWhere = {}, fieldName = 'accountId') {
   if (!user) return additionalWhere;
-  if (user.permissions?.includes('ADMIN_ALL')) return additionalWhere;
   const id = user.accountId || user.id;
   if (!id) return additionalWhere;
   return { ...additionalWhere, [fieldName]: id };
 }
 
 /**
- * Trả về { accountId } cho create data, rỗng nếu là global admin.
+ * Trả về { accountId } cho create data.
+ * KHÔNG có ADMIN_ALL bypass - mọi user đều được gán accountId.
  *
  * @param {Object} user - req.user
- * @returns {Object} { accountId } hoặc {}
+ * @returns {Object} { accountId }
  */
 export function branchDataForCreate(user) {
   if (!user) return {};
   const accountId = user.accountId || user.id;
   if (!accountId) return {};
-  if (user.permissions?.includes('ADMIN_ALL') && !user.accountId) return {};
   return { accountId };
 }

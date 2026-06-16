@@ -28,7 +28,7 @@ function vietnamMidnight(date) {
 export const getDashboard = asyncHandler(async (req, res) => {
   const ctx = getContext(req);
 
-  const branchWhere = buildBranchWhere(ctx);
+  const branchWhere = buildBranchWhere(ctx, {}, 'branchId');
   const accountWhere = buildBranchWhere(ctx, {}, 'accountId');
   const orderWhere = buildBranchWhere(ctx, {}, 'accountId');
   const chartRange = req.query.chartRange || '7days';
