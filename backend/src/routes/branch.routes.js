@@ -44,9 +44,24 @@ function formatBranch(account) {
   };
 }
 
+function isAdminAll(user) {
+  return user.permissions?.includes('ADMIN_ALL');
+}
+
 router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) => {
   try {
     const accountId = req.user.accountId || req.user.id;
+
+    if (isAdminAll(req.user)) {
+      const accounts = await prisma.account.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      return sendSuccess(res, {
+        message: 'Lấy danh sách chi nhánh thành công',
+        data: accounts.map(formatBranch),
+      });
+    }
+
     const account = await prisma.account.findUnique({
       where: { id: accountId },
     });
@@ -174,7 +189,7 @@ router.put('/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, 
     const { id } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
 
-    if (id !== currentAccountId) {
+    if (id !== currentAccountId && !isAdminAll(req.user)) {
       return sendError(res, {
         statusCode: 403,
         message: 'Bạn không có quyền cập nhật tài khoản khác',
@@ -214,7 +229,7 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
     const { id } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
 
-    if (id !== currentAccountId) {
+    if (id !== currentAccountId && !isAdminAll(req.user)) {
       return sendError(res, {
         statusCode: 403,
         message: 'Bạn không có quyền đặt lại mật khẩu cho tài khoản khác',
@@ -285,7 +300,7 @@ router.patch('/:id/lock', requirePermission('BRANCH_LOCK'), asyncHandler(async (
     const { id } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
 
-    if (id !== currentAccountId) {
+    if (id !== currentAccountId && !isAdminAll(req.user)) {
       return sendError(res, {
         statusCode: 403,
         message: 'Bạn không có quyền khóa tài khoản khác',
@@ -322,7 +337,7 @@ router.patch('/:id/unlock', requirePermission('BRANCH_UNLOCK'), asyncHandler(asy
     const { id } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
 
-    if (id !== currentAccountId) {
+    if (id !== currentAccountId && !isAdminAll(req.user)) {
       return sendError(res, {
         statusCode: 403,
         message: 'Bạn không có quyền mở khóa tài khoản khác',
@@ -359,7 +374,7 @@ router.delete('/:id', requirePermission('BRANCH_DELETE'), asyncHandler(async (re
     const { id } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
 
-    if (id !== currentAccountId) {
+    if (id !== currentAccountId && !isAdminAll(req.user)) {
       return sendError(res, {
         statusCode: 403,
         message: 'Bạn không có quyền xóa tài khoản khác',
@@ -393,7 +408,7 @@ router.delete('/:id/force', requirePermission('BRANCH_FORCE_DELETE'), asyncHandl
     const { id } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
 
-    if (id !== currentAccountId) {
+    if (id !== currentAccountId && !isAdminAll(req.user)) {
       return sendError(res, {
         statusCode: 403,
         message: 'Bạn không có quyền xóa tài khoản khác',

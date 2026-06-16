@@ -24,10 +24,16 @@ export const rbacController = {
   }),
 
   // --- Account-level Direct Permissions (for PermissionManagement frontend) ---
-  // User có PERMISSION_VIEW được xem tất cả accounts
-  // User có PERMISSION_MANAGE được cập nhật permissions cho tất cả accounts
+  // ADMIN_ALL: xem toàn bộ account trong hệ thống
+  // Người dùng thường: chỉ xem account của chính mình
   getAccounts: asyncHandler(async (req, res) => {
+    const currentAccountId = req.user.accountId || req.user.id;
+    const isAdminAll = req.user.permissions?.includes('ADMIN_ALL');
+
+    const whereClause = isAdminAll ? {} : { id: currentAccountId };
+
     const accounts = await prisma.account.findMany({
+      where: whereClause,
       select: {
         id: true,
         email: true,
@@ -36,7 +42,6 @@ export const rbacController = {
         active: true,
         createdAt: true,
         accountPermissions: {
-          where: { allowed: true },
           select: {
             permissionId: true,
             allowed: true,
@@ -51,19 +56,14 @@ export const rbacController = {
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const data = accounts.map((account) => {
+    const data = accounts.map(account => {
       const assignedPerms = account.accountPermissions.filter(ap => ap.allowed);
       const modules = [...new Set(assignedPerms.map(ap => ap.permission.module))];
       return {
-        id: account.id,
-        email: account.email,
-        fullName: account.fullName,
-        status: account.status,
-        active: account.active,
-        createdAt: account.createdAt,
+        ...account,
         accountId: account.id,
         username: account.email,
         assignedRoles: modules,
@@ -83,6 +83,14 @@ export const rbacController = {
 
   getAccountPermissions: asyncHandler(async (req, res) => {
     const { accountId } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+    const isAdminAll = req.user.permissions?.includes('ADMIN_ALL');
+
+    // ADMIN_ALL: xem permissions của bất kỳ account nào
+    // Người dùng thường: chỉ xem permissions của chính mình
+    if (accountId !== currentAccountId && !isAdminAll) {
+      return sendSuccess(res, { data: [] });
+    }
 
     const perms = await prisma.accountPermission.findMany({
       where: { accountId },
@@ -104,7 +112,19 @@ export const rbacController = {
 
   updateAccountPermissions: asyncHandler(async (req, res) => {
     const { accountId } = req.params;
+    const currentAccountId = req.user.accountId || req.user.id;
+    const isAdminAll = req.user.permissions?.includes('ADMIN_ALL');
 
+    // ADMIN_ALL: cập nhật permissions cho bất kỳ account nào
+    // Người dùng thường: chỉ cập nhật permissions của chính mình
+    if (accountId !== currentAccountId && !isAdminAll) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền cập nhật quyền cho tài khoản khác',
+      });
+    }
+
+    const targetAccountId = isAdminAll ? accountId : currentAccountId;
     const { permissions } = req.body; // Array of { permissionId, allowed }
 
     // Defensive: dedupe payload by permissionId before writing
@@ -120,13 +140,13 @@ export const rbacController = {
 
     await prisma.$transaction(async (tx) => {
       await tx.accountPermission.deleteMany({
-        where: { accountId },
+        where: { accountId: targetAccountId },
       });
 
       if (uniqueByPermissionId.length > 0) {
         await tx.accountPermission.createMany({
           data: uniqueByPermissionId.map((p) => ({
-            accountId,
+            accountId: targetAccountId,
             permissionId: p.permissionId,
             allowed: p.allowed,
           })),
