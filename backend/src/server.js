@@ -4,7 +4,7 @@ import prisma from './prisma/client.js';
 import { syncPermissions } from './seed/runSeed.js';
 import { permissionService } from './modules/permissions/permission.service.js';
 import { startHeartbeatCheck } from './jobs/heartbeatCheck.js';
-import { verifyTransporter } from './services/email.service.js';
+import { mailLogger } from './utils/logger.js';
 
 function validateDatabaseProvider() {
   const url = config.databaseUrl || '';
@@ -36,10 +36,10 @@ const startServer = async () => {
 
     startHeartbeatCheck();
 
-    if (config.email.host && config.email.user && config.email.pass) {
-      await verifyTransporter();
+    if (config.email.apiKey) {
+      mailLogger.log('SYSTEM', 'Resend API key configured — email sending ready');
     } else {
-      console.log('[EMAIL] SMTP not fully configured — email sending disabled');
+      mailLogger.log('SYSTEM', 'RESEND_API_KEY not configured — email sending disabled');
     }
 
     const server = app.listen(config.port, () => {
