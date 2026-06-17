@@ -6,7 +6,7 @@ export default function NotFound() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    toast.info('Tính năng đang phát triển (Coming soon)');
+    toast.info('Tính năng đang phát triển');
 
     const timer = setTimeout(() => {
       if (window.history.length > 1) {

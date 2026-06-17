@@ -39,13 +39,13 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
       <div className={cn('flex flex-col h-full', className)}>
         <div className="p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">
-            {layoutMode ? 'Edit Table' : 'Table Details'}
+            {layoutMode ? 'Chỉnh sửa bàn' : 'Chi tiết bàn'}
           </h2>
         </div>
         <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm p-6 text-center">
           {layoutMode
-            ? 'Click a table on the layout to edit its properties.'
-            : 'Select a table to view details and take actions.'}
+            ? 'Nhấp vào bàn trên sơ đồ để chỉnh sửa.'
+            : 'Chọn bàn để xem chi tiết và thao tác.'}
         </div>
       </div>
     );
@@ -58,7 +58,7 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">
-            {layoutMode ? 'Edit Table' : (table.tableName || table.tableCode)}
+            {layoutMode ? 'Chỉnh sửa bàn' : (table.tableName || table.tableCode)}
           </h2>
           <p className="text-xs text-muted-foreground">
             {table.tableCode} &middot; {TABLE_TYPE_LABEL[table.tableType] || table.tableType}
@@ -89,10 +89,10 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
             {table.status === 'CLEANING' && (
               <div className="space-y-4">
                 <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  Cleaning
+                  Đang vệ sinh
                 </span>
                 <p className="text-sm text-muted-foreground">
-                  This table is being cleaned and will be available soon.
+                  Bàn đang được vệ sinh và sẽ sẵn sàng sau.
                 </p>
               </div>
             )}
@@ -112,10 +112,10 @@ function EnableButton({ tableId, onSuccess }: { tableId: string; onSuccess: () =
   return (
     <div className="space-y-4">
       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500">
-        Disabled
+        Đã khóa
       </span>
       <p className="text-sm text-muted-foreground">
-        This table is currently disabled.
+        Bàn này hiện đang bị khóa.
       </p>
       <Button
         className="w-full"
@@ -125,7 +125,7 @@ function EnableButton({ tableId, onSuccess }: { tableId: string; onSuccess: () =
         }}
         disabled={enableTable.isPending}
       >
-        {enableTable.isPending ? 'Enabling...' : 'Enable'}
+        {enableTable.isPending ? 'Đang mở khóa...' : 'Mở khóa'}
       </Button>
     </div>
   );

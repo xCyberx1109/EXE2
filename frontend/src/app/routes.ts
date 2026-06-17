@@ -6,6 +6,8 @@ import { MenuManagement } from './pages/MenuManagement';
 import { InventoryManagement } from './pages/InventoryManagement';
 import { MenuQR } from "./pages/QRMenu";
 import { LoginPage } from './pages/LoginPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { BranchManagement } from './pages/BranchManagement';
 import { SetPasswordPage } from './pages/SetPasswordPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -133,6 +135,14 @@ export const router = createBrowserRouter([
         Component: LoginPage,
       },
       {
+        path: '/forgot-password',
+        Component: ForgotPasswordPage,
+      },
+      {
+        path: '/reset-password',
+        Component: ResetPasswordPage,
+      },
+      {
         path: '/set-password',
         Component: SetPasswordPage,
       },
@@ -205,8 +215,8 @@ export const router = createBrowserRouter([
           { path: 'pos-devices-v2', element: withGuard(PosDeviceManagerPage, { rbacPerms: ['POS_DEVICE_VIEW'] }) },
           { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_VIEW'] }) },
           { path: 'inventory', element: withGuard(InventoryManagement, { rbacPerms: ['INVENTORY_VIEW'] }) },
-          { path: 'staff', element: withGuard(() => createElement('div', null, 'Staff Management - Coming Soon'), { rbacPerms: ['SETTINGS_VIEW'] }) },
-          { path: 'settings', element: withGuard(() => createElement('div', null, 'System Settings - Coming Soon'), { rbacPerms: ['SETTINGS_VIEW'] }) },
+          { path: 'staff', element: withGuard(() => createElement('div', null, 'Quản lý nhân viên - Sắp ra mắt'), { rbacPerms: ['SETTINGS_VIEW'] }) },
+          { path: 'settings', element: withGuard(() => createElement('div', null, 'Cài đặt hệ thống - Sắp ra mắt'), { rbacPerms: ['SETTINGS_VIEW'] }) },
           { path: 'permissions', element: withGuard(PermissionManagement, { rbacPerms: ['PERMISSION_VIEW'] }) },
           { path: 'order-queue', element: withGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },
           { path: 'orders/history', element: withGuard(OrderHistoryPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },

@@ -33,11 +33,13 @@ function ThemedToastContainer() {
   const { resolvedTheme } = useTheme();
   return (
     <ToastContainer
-      position="top-right"
+      position="bottom-right"
       autoClose={3000}
       hideProgressBar={false}
       closeOnClick
       pauseOnHover
+      newestOnTop={false}
+      rtl={false}
       theme={resolvedTheme === "dark" ? "dark" : "light"}
     />
   );
@@ -51,11 +53,26 @@ export default function App() {
           <CategoryProvider>
             <AppContent />
           </CategoryProvider>
-          <Toaster position="top-right" richColors />
+          <Toaster position="bottom-right" richColors offset={16} gap={12} />
           <ThemedToastContainer />
         </AuthProvider>
         <Analytics />
         <SpeedInsights />
+        <style>{`
+          @media (max-width: 640px) {
+            [data-sonner-toaster][data-position="bottom-right"] {
+              left: 50% !important;
+              right: auto !important;
+              transform: translateX(-50%) !important;
+            }
+            .Toastify__toast-container--bottom-right {
+              left: 50% !important;
+              right: auto !important;
+              transform: translateX(-50%) !important;
+              max-width: calc(100vw - 32px);
+            }
+          }
+        `}</style>
       </AppErrorBoundary>
     </ThemeProvider>
   );

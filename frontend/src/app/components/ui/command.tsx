@@ -30,8 +30,8 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title = "Bảng lệnh",
+  description = "Tìm lệnh để thực thi...",
   children,
   ...props
 }: React.ComponentProps<typeof Dialog> & {

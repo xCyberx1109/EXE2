@@ -24,9 +24,9 @@ type Plan = Branch['plan'];
 type SubscriptionStatus = Branch['subscriptionStatus'];
 
 const PLAN_OPTIONS: Array<{ value: Plan; label: string }> = [
-  { value: 'BASIC', label: 'Basic' },
-  { value: 'PRO', label: 'Pro' },
-  { value: 'ENTERPRISE', label: 'Enterprise' },
+  { value: 'BASIC', label: 'Cơ bản' },
+  { value: 'PRO', label: 'Chuyên nghiệp' },
+  { value: 'ENTERPRISE', label: 'Doanh nghiệp' },
 ];
 
 type BranchFormState = {
@@ -277,7 +277,7 @@ export function BranchManagement() {
               <Building2 className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Quản lý Branch</h1>
+              <h1 className="text-2xl font-bold text-foreground">Quản lý chi nhánh</h1>
               <p className="text-sm text-muted-foreground mt-1">Quản lý danh sách chi nhánh, gói và trạng thái hoạt động.</p>
             </div>
           </div>
@@ -428,7 +428,7 @@ export function BranchManagement() {
               <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Thêm chi nhánh mới</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Tạo branch mới trong modal thêm chi nhánh riêng.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Tạo chi nhánh mới.</p>
                 </div>
                 <button
                   type="button"
@@ -588,7 +588,7 @@ export function BranchManagement() {
               <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Cập nhật chi nhánh</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Chỉnh sửa thông tin branch trong modal cập nhật riêng.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Chỉnh sửa thông tin chi nhánh.</p>
                 </div>
                 <button
                   type="button"

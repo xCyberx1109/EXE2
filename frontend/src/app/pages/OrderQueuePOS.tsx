@@ -66,10 +66,10 @@ function getShortOrderNumber(order: OrderDetail): string {
 }
 
 const ORDER_STATUS_BADGE: Record<string, { label: string; cell: string; dot: string }> = {
-  PENDING: { label: 'Pending', cell: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', dot: '🟡' },
-  PREPARING: { label: 'Preparing', cell: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300', dot: '🔵' },
-  READY: { label: 'Ready', cell: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400', dot: '🟢' },
-  OPEN: { label: 'Open', cell: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400', dot: '🟢' },
+  PENDING: { label: 'Chờ xử lý', cell: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', dot: '🟡' },
+  PREPARING: { label: 'Đang chế biến', cell: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300', dot: '🔵' },
+  READY: { label: 'Sẵn sàng', cell: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400', dot: '🟢' },
+  OPEN: { label: 'Đang mở', cell: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400', dot: '🟢' },
 };
 
 function loadStoredLabels(): OrderLabelMap {
@@ -251,7 +251,7 @@ export function OrderQueuePOS() {
 
   function getCustomerLabel(order: OrderDetail) {
     const label = labels[order.id]?.trim();
-    return label || `Guest #${order.orderNumber}`;
+    return label || `Khách #${order.orderNumber}`;
   }
 
   const loadOrders = () => {
@@ -619,8 +619,8 @@ export function OrderQueuePOS() {
       <div className="shrink-0 px-3 lg:px-4 pt-3 lg:pt-4 pb-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl lg:text-2xl font-black tracking-tight text-foreground">{APP_NAME} Order Queue</h1>
-            <p className="text-xs lg:text-sm text-muted-foreground">Menu • Open Orders • Production Queue</p>
+            <h1 className="text-xl lg:text-2xl font-black tracking-tight text-foreground">Điều phối đơn hàng</h1>
+            <p className="text-xs lg:text-sm text-muted-foreground">Thực đơn • Đơn đang mở • Điều phối sản xuất</p>
           </div>
           <div className="flex items-center gap-2">
             {loading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
@@ -631,7 +631,7 @@ export function OrderQueuePOS() {
                 className="flex min-h-10 items-center gap-2 rounded-2xl bg-primary px-4 py-2 font-bold text-primary-foreground shadow-lg shadow-primary/30 transition hover:bg-primary/90 disabled:opacity-60 text-sm"
               >
                 {createLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-                New Order
+                Đơn mới
               </button>
             )}
           </div>
@@ -644,22 +644,22 @@ export function OrderQueuePOS() {
         {/* Left: Product Menu (30%) */}
         <section className="flex flex-col lg:flex-[3] min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="shrink-0 p-3 lg:p-4 border-b border-border">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-2">
               <div className="min-w-0">
                 <h2 className="flex items-center gap-2 text-base lg:text-lg font-black text-foreground">
                   <ShoppingCart className="h-4 w-4 lg:h-5 lg:w-5 text-primary shrink-0" />
-                  <span className="truncate">Product Menu</span>
+                  <span className="truncate">Thực đơn</span>
                 </h2>
                 <p className="text-xs lg:text-sm text-muted-foreground truncate">
-                  {activeOrder ? `Adding to ${getCustomerLabel(activeOrder)}` : 'Create or select an order to add products'}
+                  {activeOrder ? `Đang thêm vào ${getCustomerLabel(activeOrder)}` : 'Tạo hoặc chọn đơn để thêm món'}
                 </p>
               </div>
-              <div className="relative w-full lg:max-w-xs shrink-0">
+              <div className="relative w-full shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   value={productSearch}
                   onChange={e => setProductSearch(e.target.value)}
-                  placeholder="Search products..."
+                  placeholder="Tìm sản phẩm..."
                   className="h-10 w-full rounded-2xl border border-border bg-muted pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:bg-input-background focus:ring-4 focus:ring-primary/20"
                 />
               </div>
@@ -677,7 +677,7 @@ export function OrderQueuePOS() {
                   : 'border border-border bg-card text-foreground hover:bg-accent'
               }`}
             >
-              All
+              Tất cả
             </button>
             {categories.map(category => (
               <button
@@ -745,8 +745,8 @@ export function OrderQueuePOS() {
           <div className="shrink-0 border-b border-border p-3 lg:p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="text-sm lg:text-lg font-black text-foreground">Open Orders</h2>
-                <p className="text-xs lg:text-sm text-muted-foreground">Oldest first • {filteredOrders.length} unpaid</p>
+                <h2 className="text-sm lg:text-lg font-black text-foreground">Đơn đang mở</h2>
+                <p className="text-xs lg:text-sm text-muted-foreground">Cũ nhất • {filteredOrders.length} chưa thanh toán</p>
               </div>
               <span className="shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 lg:px-3 lg:py-1 text-xs lg:text-sm font-black text-emerald-700 dark:text-emerald-400">UNPAID</span>
             </div>
@@ -755,7 +755,7 @@ export function OrderQueuePOS() {
               <input
                 value={orderSearch}
                 onChange={e => setOrderSearch(e.target.value)}
-                placeholder="Search..."
+                placeholder="Tìm kiếm..."
                 className="h-10 w-full rounded-2xl border border-border bg-muted pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:bg-input-background focus:ring-4 focus:ring-primary/20"
               />
             </div>
@@ -766,7 +766,7 @@ export function OrderQueuePOS() {
                   const selected = order.id === activeOrderId;
                   const badge = ORDER_STATUS_BADGE[normalizeStatus(order.status)] || ORDER_STATUS_BADGE.PENDING;
                   const label = getCustomerLabel(order);
-                  const displayLabel = label.startsWith('Guest') ? 'Guest' : label;
+                  const displayLabel = label.startsWith('Khách') ? 'Khách' : label;
                   const orderHasIssues = activeOrderId === order.id && hasInventoryIssues;
                   return (
                     <button
@@ -786,7 +786,7 @@ export function OrderQueuePOS() {
                         {orderHasIssues ? (
                           <>
                             <span className="text-[10px] leading-none text-red-600 dark:text-red-400">🔴</span>
-                            <span className="text-[10px] leading-none font-semibold text-red-600 dark:text-red-400">Inventory Issue</span>
+                            <span className="text-[10px] leading-none font-semibold text-red-600 dark:text-red-400">Vấn đề tồn kho</span>
                           </>
                         ) : (
                           <>
@@ -817,10 +817,10 @@ export function OrderQueuePOS() {
                   <div className="flex items-start gap-2">
                     <span className="text-red-600 dark:text-red-400 text-lg leading-none shrink-0 mt-0.5">⚠</span>
                     <div>
-                      <p className="text-sm font-bold text-red-800 dark:text-red-300">Inventory Issue</p>
+                      <p className="text-sm font-bold text-red-800 dark:text-red-300">Vấn đề tồn kho</p>
                       <p className="text-xs text-red-700 dark:text-red-400">
-                        {inventoryIssues.length} items in this order cannot be prepared due to insufficient ingredients.
-                        Please adjust quantities or remove affected items.
+                        {inventoryIssues.length} món trong đơn không thể chế biến do thiếu nguyên liệu.
+                        Vui lòng điều chỉnh số lượng hoặc xóa món bị ảnh hưởng.
                       </p>
                     </div>
                   </div>
@@ -833,9 +833,9 @@ export function OrderQueuePOS() {
                   <div className="flex items-start gap-2">
                     <span className="text-amber-600 dark:text-amber-400 text-lg leading-none shrink-0 mt-0.5">⚠</span>
                     <div>
-                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Order Changed</p>
+                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Đơn hàng đã thay đổi</p>
                       <p className="text-xs text-amber-700 dark:text-amber-400">
-                        Order modified. Inventory needs revalidation.
+                        Đơn hàng đã được sửa. Tồn kho cần kiểm tra lại.
                       </p>
                     </div>
                   </div>
@@ -851,7 +851,7 @@ export function OrderQueuePOS() {
                     <span className="shrink-0 text-[10px] lg:text-xs font-semibold text-muted-foreground" title={`#${activeOrder.orderNumber}`}>{getShortOrderNumber(activeOrder)}</span>
                     {hasInventoryIssues ? (
                       <span className="shrink-0 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] lg:text-xs font-black text-red-700 dark:text-red-400">
-                        🔴 INVENTORY ISSUE
+                        🔴 VẤN ĐỀ TỒN KHO
                       </span>
                     ) : (
                       <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] lg:text-xs font-black text-amber-700 dark:text-amber-400">
@@ -865,7 +865,7 @@ export function OrderQueuePOS() {
                   <input
                     value={labels[activeOrder.id] ?? ''}
                     onChange={e => updateCustomerLabel(activeOrder.id, e.target.value)}
-                    placeholder={`Guest ${getShortOrderNumber(activeOrder)}`}
+                    placeholder={`Khách ${getShortOrderNumber(activeOrder)}`}
                     className="h-8 lg:h-9 w-full rounded-xl border border-border bg-input-background px-2.5 text-xs lg:text-sm font-bold outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/20"
                   />
                 </label>
@@ -948,7 +948,7 @@ export function OrderQueuePOS() {
               <div className="shrink-0 px-3 lg:px-4 pb-1">
                 <div className="rounded-xl lg:rounded-2xl bg-muted p-2 lg:p-3">
                   <div className="flex justify-between text-sm lg:text-xl font-black">
-                    <span>Total</span>
+                    <span>Tổng cộng</span>
                     <span className="text-primary">{formatMoney(payableTotal)}</span>
                   </div>
                 </div>
@@ -963,8 +963,8 @@ export function OrderQueuePOS() {
                     onChange={e => setPaymentMethod(e.target.value)}
                     className="h-9 lg:min-h-11 rounded-2xl border border-border bg-input-background px-2 text-xs lg:text-sm font-bold"
                   >
-                    <option value="CASH">Cash</option>
-                    <option value="CARD">Card</option>
+                    <option value="CASH">Tiền mặt</option>
+                    <option value="CARD">Thẻ</option>
                     <option value="QR">QR</option>
                   </select>
                   <button
@@ -974,7 +974,7 @@ export function OrderQueuePOS() {
                     className="flex h-9 lg:min-h-11 items-center justify-center gap-1 lg:gap-2 rounded-2xl bg-emerald-600 dark:bg-emerald-700 px-3 text-xs lg:text-sm font-black text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 disabled:opacity-60"
                   >
                     <CreditCard className="h-4 w-4 lg:h-5 lg:w-5" />
-                    Checkout
+                    Thanh toán
                   </button>
                 </div>
                 <button
@@ -984,7 +984,7 @@ export function OrderQueuePOS() {
                   className="flex h-9 lg:min-h-11 w-full items-center justify-center gap-1 lg:gap-2 rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-3 text-xs lg:text-sm font-black text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-60"
                 >
                   <Trash2 className="h-4 w-4 lg:h-5 lg:w-5" />
-                  Cancel Order
+                  Hủy đơn
                 </button>
               </div>
             </div>
@@ -1012,15 +1012,15 @@ export function OrderQueuePOS() {
                     </div>
                     <div className="grid grid-cols-3 gap-1 lg:gap-2 text-xs lg:text-sm">
                       <div className="rounded-xl lg:rounded-2xl bg-muted p-1.5 lg:p-2">
-                        <div className="text-muted-foreground text-[10px] lg:text-xs">Items</div>
+                        <div className="text-muted-foreground text-[10px] lg:text-xs">Món</div>
                         <div className="font-black text-foreground">{order.itemCount || 0}</div>
                       </div>
                       <div className="rounded-xl lg:rounded-2xl bg-muted p-1.5 lg:p-2">
-                        <div className="text-muted-foreground text-[10px] lg:text-xs">Total</div>
+                        <div className="text-muted-foreground text-[10px] lg:text-xs">Tổng</div>
                         <div className="font-black text-foreground text-xs lg:text-sm truncate">{formatMoney(order.total)}</div>
                       </div>
                       <div className="rounded-xl lg:rounded-2xl bg-muted p-1.5 lg:p-2">
-                        <div className="text-muted-foreground text-[10px] lg:text-xs">Time</div>
+                        <div className="text-muted-foreground text-[10px] lg:text-xs">Thời gian</div>
                         <div className="flex items-center gap-1 font-black text-foreground text-xs lg:text-sm">
                           <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
                           {formatTime(order.createdAt)}
@@ -1031,7 +1031,7 @@ export function OrderQueuePOS() {
                 ))
               ) : (
                 <div className="rounded-3xl border border-dashed border-border p-6 text-center text-muted-foreground text-sm">
-                  {loading ? 'Đang tải...' : 'Không có OPEN order phù hợp.'}
+                  {loading ? 'Đang tải...' : 'Không có đơn mở phù hợp.'}
                 </div>
               )}
             </div>

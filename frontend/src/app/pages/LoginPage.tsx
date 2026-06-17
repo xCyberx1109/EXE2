@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { getDeviceTypeLabel } from '../../shared/permissions/devicePermissions';
 import { APP_NAME } from '../../shared/constants';
@@ -158,6 +158,12 @@ export function LoginPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Link to="/forgot-password" className="text-xs text-primary hover:text-primary/80 transition-colors">
+                  Quên mật khẩu?
+                </Link>
               </div>
 
               {error && (

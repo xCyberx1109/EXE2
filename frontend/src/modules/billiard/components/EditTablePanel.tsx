@@ -33,12 +33,12 @@ const TABLE_TYPE_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'AVAILABLE', label: 'Available' },
-  { value: 'OCCUPIED', label: 'Occupied' },
-  { value: 'RESERVED', label: 'Reserved' },
-  { value: 'CLEANING', label: 'Cleaning' },
-  { value: 'CHECKING_OUT', label: 'Checking Out' },
-  { value: 'DISABLED', label: 'Disabled' },
+  { value: 'AVAILABLE', label: 'Trống' },
+  { value: 'OCCUPIED', label: 'Đang chơi' },
+  { value: 'RESERVED', label: 'Đã đặt' },
+  { value: 'CLEANING', label: 'Đang vệ sinh' },
+  { value: 'CHECKING_OUT', label: 'Đang thanh toán' },
+  { value: 'DISABLED', label: 'Đã khóa' },
 ];
 
 export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePanelProps) {
@@ -92,16 +92,16 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
 
   const handleSave = async () => {
     if (!tableCode.trim()) {
-      toast.error('Table code is required');
+      toast.error('Mã bàn không được để trống');
       return;
     }
     const cap = parseInt(capacity, 10);
     if (isNaN(cap) || cap < 1) {
-      toast.error('Capacity must be at least 1');
+      toast.error('Sức chứa tối thiểu là 1');
       return;
     }
     if (hasOverlap) {
-      toast.error('Position overlaps with an existing table');
+      toast.error('Vị trí bị chồng lên với bàn khác');
       return;
     }
     try {
@@ -116,10 +116,10 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
         posY: currentPosY,
         hourlyRate: parseFloat(hourlyRate) || 0,
       });
-      toast.success('Table updated');
+      toast.success('Cập nhật bàn thành công');
       onSuccess();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update table');
+      toast.error(err?.message || 'Cập nhật bàn thất bại');
     } finally {
       setSaving(false);
     }
@@ -129,15 +129,15 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="et-tableCode">Table Code</Label>
+          <Label htmlFor="et-tableCode">Mã bàn</Label>
           <Input id="et-tableCode" value={tableCode} onChange={(e) => setTableCode(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="et-tableName">Table Name</Label>
+          <Label htmlFor="et-tableName">Tên bàn</Label>
           <Input id="et-tableName" value={tableName} onChange={(e) => setTableName(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="et-tableType">Table Type</Label>
+          <Label htmlFor="et-tableType">Loại bàn</Label>
           <Select value={tableType} onValueChange={(v: 'POOL' | 'SNOOKER' | 'VIP') => setTableType(v)}>
             <SelectTrigger id="et-tableType">
               <SelectValue />
@@ -150,11 +150,11 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="et-capacity">Capacity</Label>
+          <Label htmlFor="et-capacity">Sức chứa</Label>
           <Input id="et-capacity" type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="et-status">Status</Label>
+          <Label htmlFor="et-status">Trạng thái</Label>
           <Select value={status} onValueChange={(v: string) => setStatus(v)}>
             <SelectTrigger id="et-status">
               <SelectValue />
@@ -167,26 +167,26 @@ export function EditTablePanel({ table, onSuccess, onDirtyChange }: EditTablePan
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="et-posX">Position X</Label>
+          <Label htmlFor="et-posX">Vị trí X</Label>
           <Input id="et-posX" type="number" value={posX} onChange={(e) => setPosX(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="et-posY">Position Y</Label>
+          <Label htmlFor="et-posY">Vị trí Y</Label>
           <Input id="et-posY" type="number" value={posY} onChange={(e) => setPosY(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="et-hourlyRate">Hourly Rate</Label>
+          <Label htmlFor="et-hourlyRate">Giá giờ</Label>
           <Input id="et-hourlyRate" type="number" min={0} value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
         </div>
       </div>
 
       {hasOverlap && (
-        <p className="text-xs text-red-500">This position overlaps with an existing table.</p>
+        <p className="text-xs text-red-500">Vị trí này bị chồng lên với bàn khác.</p>
       )}
 
       <Button className="w-full" onClick={handleSave} disabled={!computeDirty() || hasOverlap || saving}>
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        {saving ? 'Saving...' : 'Save Changes'}
+        {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
       </Button>
     </div>
   );

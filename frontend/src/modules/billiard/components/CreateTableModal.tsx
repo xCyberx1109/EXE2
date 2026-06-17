@@ -96,26 +96,26 @@ export function CreateTableModal({ open, onOpenChange, onSuccess, tables }: Crea
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Billiard Table</DialogTitle>
-          <DialogDescription>Create a new billiard table on the floor.</DialogDescription>
+          <DialogTitle>Thêm bàn bi-a</DialogTitle>
+          <DialogDescription>Tạo bàn bi-a mới trên sơ đồ.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="tableCode">Table Code *</Label>
+            <Label htmlFor="tableCode">Mã bàn *</Label>
             <Input
               id="tableCode"
-              placeholder="e.g. B01"
+              placeholder="VD: B01"
               value={tableCode}
               onChange={(e) => setTableCode(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tableName">Table Name</Label>
+            <Label htmlFor="tableName">Tên bàn</Label>
             <Input
               id="tableName"
-              placeholder="e.g. Pool Table 1"
+              placeholder="VD: Bàn Pool 1"
               value={tableName}
               onChange={(e) => setTableName(e.target.value)}
             />
@@ -123,7 +123,7 @@ export function CreateTableModal({ open, onOpenChange, onSuccess, tables }: Crea
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="posX">Position X</Label>
+              <Label htmlFor="posX">Vị trí X</Label>
               <Input
                 id="posX"
                 type="number"
@@ -133,7 +133,7 @@ export function CreateTableModal({ open, onOpenChange, onSuccess, tables }: Crea
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="posY">Position Y</Label>
+              <Label htmlFor="posY">Vị trí Y</Label>
               <Input
                 id="posY"
                 type="number"
@@ -145,11 +145,11 @@ export function CreateTableModal({ open, onOpenChange, onSuccess, tables }: Crea
           </div>
 
           {hasOverlap && (
-            <p className="text-xs text-red-500">This position overlaps with an existing table.</p>
+            <p className="text-xs text-red-500">Vị trí này bị chồng lên với bàn khác.</p>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="hourlyRate">Hourly Rate</Label>
+            <Label htmlFor="hourlyRate">Giá giờ</Label>
             <Input
               id="hourlyRate"
               type="number"
@@ -160,7 +160,7 @@ export function CreateTableModal({ open, onOpenChange, onSuccess, tables }: Crea
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tableType">Table Type</Label>
+            <Label htmlFor="tableType">Loại bàn</Label>
             <Select value={tableType} onValueChange={(v: 'POOL' | 'SNOOKER' | 'VIP') => setTableType(v)}>
               <SelectTrigger id="tableType">
                 <SelectValue />
@@ -176,11 +176,11 @@ export function CreateTableModal({ open, onOpenChange, onSuccess, tables }: Crea
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            Hủy
           </Button>
           <Button onClick={handleSubmit} disabled={!tableCode.trim() || hasOverlap || createTable.isPending}>
             {createTable.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create Table
+            Tạo bàn
           </Button>
         </DialogFooter>
       </DialogContent>

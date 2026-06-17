@@ -7,20 +7,20 @@ import { APP_NAME } from '../../shared/constants';
 
 const ORDER_STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'CONFIRMED', label: 'Confirmed' },
-  { value: 'PREPARING', label: 'Preparing' },
-  { value: 'READY', label: 'Ready' },
-  { value: 'SERVED', label: 'Served' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-  { value: 'REFUNDED', label: 'Refunded' },
+  { value: 'PENDING', label: 'Chờ xử lý' },
+  { value: 'CONFIRMED', label: 'Đã xác nhận' },
+  { value: 'PREPARING', label: 'Đang chế biến' },
+  { value: 'READY', label: 'Sẵn sàng' },
+  { value: 'SERVED', label: 'Đã phục vụ' },
+  { value: 'COMPLETED', label: 'Hoàn thành' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+  { value: 'REFUNDED', label: 'Đã hoàn tiền' },
 ];
 
 const SOURCE_OPTIONS = [
   { value: '', label: 'Tất cả nguồn' },
   { value: 'POS', label: 'POS' },
-  { value: 'ORDER_QUEUE_POS', label: `${APP_NAME} Order Queue` },
+  { value: 'ORDER_QUEUE_POS', label: 'Queue POS' },
 ];
 
 const STATUS_BADGE: Record<string, string> = {

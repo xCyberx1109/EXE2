@@ -42,7 +42,7 @@ export function PosDeviceManagerPage() {
       const data = await posDevicesV2Api.list();
       setDevices(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load devices');
+      setError(err instanceof Error ? err.message : 'Tải thiết bị thất bại');
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export function PosDeviceManagerPage() {
       setNewDevice({ name: '', type: 'CASHIER', mode: 'CASHIER' });
       await fetchDevices();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create device');
+      setError(err instanceof Error ? err.message : 'Tạo thiết bị thất bại');
     }
   };
 
@@ -67,28 +67,28 @@ export function PosDeviceManagerPage() {
       setRegenerateResult(result);
       await fetchDevices();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to regenerate PIN');
+      setError(err instanceof Error ? err.message : 'Tạo PIN mới thất bại');
     }
   };
 
   const handleReset = async (deviceId: string) => {
-    if (!window.confirm('Reset this device? This will invalidate all sessions.')) return;
+    if (!window.confirm('Đặt lại thiết bị này? Điều này sẽ vô hiệu hóa tất cả phiên làm việc.')) return;
     try {
       const result = await posDevicesV2Api.reset(deviceId);
       setRegenerateResult(result);
       await fetchDevices();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to reset device');
+      setError(err instanceof Error ? err.message : 'Đặt lại thiết bị thất bại');
     }
   };
 
   const handleRevoke = async (deviceId: string) => {
-    const reason = window.prompt('Reason for revoking?');
+    const reason = window.prompt('Lý do thu hồi?');
     try {
       await posDevicesV2Api.revoke(deviceId, reason || undefined);
       await fetchDevices();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to revoke device');
+      setError(err instanceof Error ? err.message : 'Thu hồi thiết bị thất bại');
     }
   };
 
@@ -97,17 +97,17 @@ export function PosDeviceManagerPage() {
       await posDevicesV2Api.toggle(deviceId, active);
       await fetchDevices();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle device');
+      setError(err instanceof Error ? err.message : 'Chuyển đổi thiết bị thất bại');
     }
   };
 
   const handleDelete = async (deviceId: string) => {
-    if (!window.confirm('Permanently delete this device?')) return;
+    if (!window.confirm('Xóa vĩnh viễn thiết bị này?')) return;
     try {
       await posDevicesV2Api.delete(deviceId);
       await fetchDevices();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete device');
+      setError(err instanceof Error ? err.message : 'Xóa thiết bị thất bại');
     }
   };
 
@@ -127,31 +127,31 @@ export function PosDeviceManagerPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{APP_NAME} Device Management</h1>
-          <p className="text-gray-500">Manage all {APP_NAME} devices across your branch</p>
+          <h1 className="text-2xl font-bold">Quản lý thiết bị {APP_NAME}</h1>
+          <p className="text-gray-500">Quản lý tất cả thiết bị {APP_NAME} trong chi nhánh</p>
         </div>
         <Dialog open={createDialog} onOpenChange={setCreateDialog}>
           <DialogTrigger asChild>
-            <Button>Create Device</Button>
+            <Button>Tạo thiết bị</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New {APP_NAME} Device</DialogTitle>
+              <DialogTitle>Tạo thiết bị {APP_NAME} mới</DialogTitle>
               <DialogDescription>
-                A device code and setup PIN will be generated for first-time activation.
+                Mã thiết bị và mã PIN sẽ được tạo để kích hoạt lần đầu.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <label className="text-sm font-medium">Device Name</label>
+                <label className="text-sm font-medium">Tên thiết bị</label>
                 <Input
                   value={newDevice.name}
                   onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
-                  placeholder="e.g., Cashier-01"
+                  placeholder="VD: Thu ngân-01"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Type</label>
+                <label className="text-sm font-medium">Loại</label>
                 <Select
                   value={newDevice.type}
                   onValueChange={(v) => setNewDevice({ ...newDevice, type: v })}
@@ -171,7 +171,7 @@ export function PosDeviceManagerPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium">Mode</label>
+                <label className="text-sm font-medium">Chế độ</label>
                 <Select
                   value={newDevice.mode}
                   onValueChange={(v: PosMode) => setNewDevice({ ...newDevice, mode: v })}
@@ -191,7 +191,7 @@ export function PosDeviceManagerPage() {
             {newDeviceResult && (
               <Alert className="bg-green-50 border-green-200">
                 <AlertDescription>
-                  <div className="font-bold mb-2">Device Created! Share PIN with the setup person:</div>
+                  <div className="font-bold mb-2">Đã tạo thiết bị! Chia sẻ PIN với người thiết lập:</div>
                   <div className="space-y-1 font-mono text-sm">
                     <div>PIN: <strong className="text-lg">{newDeviceResult.setupPin}</strong></div>
                   </div>
@@ -201,7 +201,7 @@ export function PosDeviceManagerPage() {
 
             <DialogFooter>
               <Button onClick={handleCreate} disabled={!newDevice.name}>
-                Create Device
+                Tạo thiết bị
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -217,23 +217,23 @@ export function PosDeviceManagerPage() {
       {regenerateResult && (
         <Alert className="mb-4 bg-blue-50 border-blue-200">
           <AlertDescription>
-            <div className="font-bold">New Setup PIN Generated</div>
+            <div className="font-bold">Đã tạo mã PIN thiết lập mới</div>
             <div className="font-mono">
               PIN: <strong className="text-lg">{regenerateResult.setupPin}</strong>
             </div>
             <Button variant="ghost" size="sm" className="mt-2" onClick={() => setRegenerateResult(null)}>
-              Dismiss
+              Bỏ qua
             </Button>
           </AlertDescription>
         </Alert>
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading devices...</div>
+        <div className="text-center py-12 text-gray-500">Đang tải thiết bị...</div>
       ) : devices.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-500">
-            No devices found. Create your first POS device.
+            Không tìm thấy thiết bị. Tạo thiết bị POS đầu tiên.
           </CardContent>
         </Card>
       ) : (
@@ -253,51 +253,51 @@ export function PosDeviceManagerPage() {
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Type</span>
+                    <span className="text-gray-500">Loại</span>
                     <span>{device.type}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Mode</span>
+                    <span className="text-gray-500">Chế độ</span>
                     <Badge variant="secondary" className="text-xs">{device.mode}</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Active</span>
-                    <span>{device.active ? 'Yes' : 'No'}</span>
+                    <span className="text-gray-500">Kích hoạt</span>
+                    <span>{device.active ? 'Có' : 'Không'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Activated</span>
-                    <span>{device.activatedAt ? new Date(device.activatedAt).toLocaleDateString() : 'Not yet'}</span>
+                    <span className="text-gray-500">Đã kích hoạt</span>
+                    <span>{device.activatedAt ? new Date(device.activatedAt).toLocaleDateString() : 'Chưa'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Token Version</span>
+                    <span className="text-gray-500">Phiên bản Token</span>
                     <span className="font-mono text-xs">{device.tokenVersion}</span>
                   </div>
                   {device.currentShift && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Shift</span>
+                      <span className="text-gray-500">Ca</span>
                       <span className="text-green-600 font-medium">
-                        Open ({device.currentShift.cashier || 'No cashier'})
+                        Đang mở ({device.currentShift.cashier || 'Không có thu ngân'})
                       </span>
                     </div>
                   )}
                   {device.lastActive && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Last Active</span>
+                      <span className="text-gray-500">Hoạt động gần nhất</span>
                       <span className="text-xs">{new Date(device.lastActive).toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Orders Today</span>
+                    <span className="text-gray-500">Đơn hôm nay</span>
                     <span className="font-bold">{device.ordersToday}</span>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t">
                   <Button variant="outline" size="sm" onClick={() => handleRegeneratePin(device.id)}>
-                    New PIN
+                    PIN mới
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleReset(device.id)}>
-                    Reset
+                    Đặt lại
                   </Button>
                   <Button
                     variant="outline"
@@ -305,16 +305,16 @@ export function PosDeviceManagerPage() {
                     onClick={() => handleToggle(device.id, !device.active)}
                     className={!device.active ? 'text-green-600' : 'text-amber-600'}
                   >
-                    {device.active ? 'Disable' : 'Enable'}
+                    {device.active ? 'Vô hiệu' : 'Kích hoạt'}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleViewLogs(device)}>
-                    Logs
+                    Nhật ký
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleRevoke(device.id)}>
-                    Revoke
+                    Thu hồi
                   </Button>
                   <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete(device.id)}>
-                    Delete
+                    Xóa
                   </Button>
                 </div>
               </CardContent>
@@ -327,13 +327,13 @@ export function PosDeviceManagerPage() {
       <Dialog open={logsDialog} onOpenChange={setLogsDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Activity Logs</DialogTitle>
+            <DialogTitle>Nhật ký hoạt động</DialogTitle>
             <DialogDescription>
               {selectedDevice?.name}
             </DialogDescription>
           </DialogHeader>
           {deviceLogs.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No logs found</p>
+            <p className="text-gray-500 text-center py-4">Không tìm thấy nhật ký</p>
           ) : (
             <div className="space-y-2">
               {deviceLogs.map((log) => (

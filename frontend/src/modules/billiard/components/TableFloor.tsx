@@ -131,7 +131,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
 
   const handleSaveLayout = async () => {
     if (hasOverlap) {
-      toast.error('Cannot save: some tables overlap.');
+      toast.error('Không thể lưu: một số bàn bị chồng lên nhau.');
       return;
     }
     const payload = tables.map((t) => ({
@@ -161,20 +161,20 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-foreground">
-          {layoutMode ? 'Edit Layout' : 'Table Floor'}
+          {layoutMode ? 'Chỉnh sửa bố cục' : 'Sơ đồ bàn'}
         </h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{tables.length} tables</span>
+          <span className="text-xs text-muted-foreground">{tables.length} bàn</span>
           {!layoutMode && canCreate && (
             <Button size="sm" onClick={() => setShowCreate(true)}>
               <Plus className="w-4 h-4" />
-              Add Table
+              Thêm bàn
             </Button>
           )}
           {!layoutMode && canEditLayout && (
             <Button size="sm" variant="outline" onClick={handleToggleLayout}>
               <Move className="w-4 h-4" />
-              Edit Layout
+              Chỉnh sửa bố cục
             </Button>
           )}
           {layoutMode && (
@@ -185,7 +185,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
                 onClick={handleCancelLayout}
               >
                 <X className="w-4 h-4" />
-                Cancel
+                Hủy
               </Button>
               <Button
                 size="sm"
@@ -193,7 +193,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
                 disabled={!hasChanges || hasOverlap || updateLayout.isPending}
               >
                 <Save className="w-4 h-4" />
-                {updateLayout.isPending ? 'Saving...' : 'Save'}
+                {updateLayout.isPending ? 'Đang lưu...' : 'Lưu'}
               </Button>
             </>
           )}
@@ -209,7 +209,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
       >
         {sortedTables.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
-            No tables yet. Click "Add Table" to create one.
+            Chưa có bàn nào. Nhấn "Thêm bàn" để tạo.
           </div>
         ) : (
           sortedTables.map((table) => (
@@ -230,9 +230,9 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
       {layoutMode && (
         <div className="mt-2 text-xs text-center">
           {hasOverlap ? (
-            <span className="text-red-500">Some tables overlap. Fix before saving.</span>
+            <span className="text-red-500">Một số bàn bị chồng lên nhau. Vui lòng sửa trước khi lưu.</span>
           ) : (
-            <span className="text-muted-foreground">Drag tables to reposition. Changes are saved to the server.</span>
+            <span className="text-muted-foreground">Kéo bàn để thay đổi vị trí. Thay đổi sẽ được lưu lên máy chủ.</span>
           )}
         </div>
       )}

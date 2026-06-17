@@ -39,7 +39,7 @@ export function OrderProductionModal({ order, onClose }: OrderProductionModalPro
       <div className="w-full max-w-md rounded-3xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between border-b border-border p-4">
           <h2 className="text-lg font-black text-foreground">
-            Order {getShortOrderNumber(order)}
+            Đơn {getShortOrderNumber(order)}
           </h2>
           <button
             type="button"

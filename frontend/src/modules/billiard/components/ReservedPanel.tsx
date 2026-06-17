@@ -29,7 +29,7 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
     <div className="space-y-4">
       <div>
         <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400">
-          Reserved
+          Đã đặt
         </span>
       </div>
 
@@ -70,7 +70,7 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
               ) : (
                 <CheckCircle className="w-4 h-4" />
               )}
-              Check In
+              Nhận bàn
             </Button>
             <Button
               variant="outline"
@@ -83,12 +83,12 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
               ) : (
                 <XCircle className="w-4 h-4" />
               )}
-              Cancel Reservation
+              Hủy đặt trước
             </Button>
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No reservation details available.</p>
+        <p className="text-sm text-muted-foreground">Không có thông tin đặt trước.</p>
       )}
     </div>
   );

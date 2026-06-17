@@ -10,7 +10,7 @@ export interface AppMenuItem {
 
 export const APP_MENU: AppMenuItem[] = [
   {
-    name: 'Dashboard',
+    name: 'Tổng quan',
     children: [
       { name: 'Tổng quan', href: '/app', icon: 'LayoutDashboard', requiredPermission: 'DASHBOARD_VIEW' },
     ],
@@ -18,8 +18,8 @@ export const APP_MENU: AppMenuItem[] = [
   {
     name: 'Thực đơn',
     children: [
-      { name: 'Menu', href: '/app/menu', icon: 'UtensilsCrossed', requiredPermission: 'MENU_VIEW' },
-      { name: 'Categories', href: '/app/categories', icon: 'Grid3X3', requiredPermission: 'CATEGORY_VIEW' },
+      { name: 'Thực đơn', href: '/app/menu', icon: 'UtensilsCrossed', requiredPermission: 'MENU_VIEW' },
+      { name: 'Danh mục', href: '/app/categories', icon: 'Grid3X3', requiredPermission: 'CATEGORY_VIEW' },
     ],
   },
   {
@@ -34,7 +34,7 @@ export const APP_MENU: AppMenuItem[] = [
     name: 'Quản trị',
     children: [
       { name: 'Phân quyền', href: '/app/permissions', icon: 'Settings', requiredPermission: 'PERMISSION_VIEW' },
-      { name: 'Branch Management', href: '/app/branch', icon: 'Building2', requiredPermission: 'BRANCH_VIEW' },
+      { name: 'Chi nhánh', href: '/app/branch', icon: 'Building2', requiredPermission: 'BRANCH_VIEW' },
     ],
   },
   {
@@ -52,7 +52,7 @@ export const APP_MENU: AppMenuItem[] = [
   {
     name: 'POS',
     children: [
-      { name: 'Order Queue', href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },
+      { name: 'Điều phối đơn hàng', href: '/app/order-queue', icon: 'ClipboardList', requiredPermission: 'POS_ORDER_QUEUE_VIEW' },
     ],
   },
 ];

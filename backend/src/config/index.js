@@ -35,6 +35,7 @@ const config = {
     apiKey: process.env.RESEND_API_KEY || '',
     from: process.env.EMAIL_FROM || 'POS Builders <noreply@pos.builders>',
   },
+  frontendUrl: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:5174',
 };
 
 export default config;
