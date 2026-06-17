@@ -14,7 +14,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-        <p className="text-lg font-medium">Loading...</p>
+        <p className="text-lg font-medium">Đang tải...</p>
       </div>
     );
   }

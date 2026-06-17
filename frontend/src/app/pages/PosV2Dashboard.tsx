@@ -157,7 +157,7 @@ export function PosV2Dashboard() {
       setShiftBalances({ openingBalance: '', closingBalance: '', actualBalance: '', note: '' });
       await fetchData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to open shift');
+      setError(err instanceof Error ? err.message : 'Mở ca thất bại');
     } finally {
       setLoading(false);
     }
@@ -174,11 +174,11 @@ export function PosV2Dashboard() {
       });
       setShiftBalances({ openingBalance: '', closingBalance: '', actualBalance: '', note: '' });
       alert(
-        `Shift closed!\nExpected: ${result.expectedCashBalance}\nActual: ${result.closingBalance}\nVariance: ${result.balanceVariance}`,
+        `Đã đóng ca!\nDự kiến: ${result.expectedCashBalance}\nThực tế: ${result.closingBalance}\nChênh lệch: ${result.balanceVariance}`,
       );
       await fetchData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to close shift');
+      setError(err instanceof Error ? err.message : 'Đóng ca thất bại');
     } finally {
       setLoading(false);
     }
@@ -383,7 +383,7 @@ export function PosV2Dashboard() {
                             <>
                               <div className="flex items-center justify-center gap-1 text-xs mt-2 bg-card/50 rounded px-2 py-1">
                                 <Smartphone className="w-3 h-3" />
-                                <span>QR Order</span>
+                                <span>Đơn QR</span>
                               </div>
                               <div className="text-xs font-semibold mt-1">
                                 {tableTotal.toLocaleString()} ₫
@@ -649,7 +649,7 @@ export function PosV2Dashboard() {
             <h1 className="text-xl font-bold">{APP_NAME}</h1>
             {currentShift && (
               <Badge variant={currentShift.status === 'OPEN' ? 'default' : 'secondary'}>
-                Shift {currentShift.status === 'OPEN' ? 'Open' : 'Closed'}
+                Ca {currentShift.status === 'OPEN' ? 'Mở' : 'Đóng'}
               </Badge>
             )}
             {activeStaff.length > 0 && (
@@ -660,7 +660,7 @@ export function PosV2Dashboard() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleDeviceLogout}>
-              Device Logout
+              Đăng xuất thiết bị
             </Button>
           </div>
         </div>
@@ -675,7 +675,7 @@ export function PosV2Dashboard() {
               size="sm"
               onClick={() => setActiveTab(tab)}
             >
-              {tab === 'tables' ? 'Bàn' : tab === 'login' ? 'Staff Login' : tab === 'shift' ? 'Shift' : tab === 'staff' ? 'Staff' : 'Settings'}
+              {tab === 'tables' ? 'Bàn' : tab === 'login' ? 'Đăng nhập' : tab === 'shift' ? 'Ca' : tab === 'staff' ? 'Nhân viên' : 'Cài đặt'}
             </Button>
           ))}
         </div>
@@ -693,13 +693,13 @@ export function PosV2Dashboard() {
           <div className="max-w-md mx-auto">
             <Card>
               <CardHeader>
-                <CardTitle>Staff Login</CardTitle>
-                <CardDescription>Enter your PIN to start a session</CardDescription>
+                <CardTitle>Đăng nhập nhân viên</CardTitle>
+                <CardDescription>Nhập mã PIN để bắt đầu ca làm việc</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Input
                   type="password"
-                  placeholder="PIN Code"
+                  placeholder="Mã PIN"
                   value={pinCode}
                   onChange={handlePinChange}
                   onKeyDown={(e) => e.key === 'Enter' && handleStaffLogin()}
@@ -714,7 +714,7 @@ export function PosV2Dashboard() {
                   onClick={handleStaffLogin}
                   disabled={loading || pinCode.length < 4}
                 >
-                  {loading ? 'Verifying...' : 'Login'}
+                  {loading ? 'Đang xác thực...' : 'Đăng nhập'}
                 </Button>
               </CardContent>
             </Card>
@@ -725,30 +725,30 @@ export function PosV2Dashboard() {
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Shift Management</CardTitle>
+                  <CardTitle>Quản lý ca</CardTitle>
                   <CardDescription>
                     {currentShift
-                      ? `Shift opened at ${new Date(currentShift.openedAt).toLocaleTimeString()}`
-                      : 'No active shift'}
+                      ? `Ca mở lúc ${new Date(currentShift.openedAt).toLocaleTimeString()}`
+                      : 'Không có ca đang mở'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {currentShift && currentShift.status === 'OPEN' && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                       <div className="bg-accent rounded-lg p-4 text-center">
-                        <div className="text-sm text-muted-foreground">Opening Balance</div>
+                        <div className="text-sm text-muted-foreground">Tiền đầu ca</div>
                         <div className="text-2xl font-bold">{currentShift.openingBalance.toLocaleString()}</div>
                       </div>
                       <div className="bg-green-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-muted-foreground">Cash Sales</div>
+                        <div className="text-sm text-muted-foreground">Tiền mặt</div>
                         <div className="text-2xl font-bold text-green-600">{currentShift.cashSales.toLocaleString()}</div>
                       </div>
                       <div className="bg-purple-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-muted-foreground">Card Sales</div>
+                        <div className="text-sm text-muted-foreground">Thẻ</div>
                         <div className="text-2xl font-bold text-purple-600">{currentShift.cardSales.toLocaleString()}</div>
                       </div>
                       <div className="bg-amber-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-muted-foreground">Total Orders</div>
+                        <div className="text-sm text-muted-foreground">Tổng đơn</div>
                         <div className="text-2xl font-bold">{currentShift.totalOrders}</div>
                       </div>
                     </div>
@@ -756,34 +756,34 @@ export function PosV2Dashboard() {
                   {!currentShift || currentShift.status === 'CLOSED' ? (
                     <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium">Opening Balance</label>
+                        <label className="text-sm font-medium">Tiền đầu ca</label>
                         <Input type="number" min="0" value={shiftBalances.openingBalance} onChange={(e) => setShiftBalances({ ...shiftBalances, openingBalance: e.target.value })} />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">Note (optional)</label>
-                        <Input value={shiftBalances.note} onChange={(e) => setShiftBalances({ ...shiftBalances, note: e.target.value })} placeholder="e.g., Morning shift" />
+                        <label className="text-sm font-medium">Ghi chú (không bắt buộc)</label>
+                        <Input value={shiftBalances.note} onChange={(e) => setShiftBalances({ ...shiftBalances, note: e.target.value })} placeholder="VD: Ca sáng" />
                       </div>
                       <Button className="w-full" onClick={handleOpenShift} disabled={loading || !activeStaff.length}>
-                        {loading ? 'Opening...' : 'Open Shift'}
+                        {loading ? 'Đang mở...' : 'Mở ca'}
                       </Button>
-                      {!activeStaff.length && <p className="text-sm text-amber-600">A staff member must be logged in to open a shift</p>}
+                      {!activeStaff.length && <p className="text-sm text-amber-600">Cần đăng nhập nhân viên để mở ca</p>}
                     </div>
                   ) : (
                     <div className="space-y-4 border-t pt-4">
                       <div>
-                        <label className="text-sm font-medium">Closing Balance (Cash Drawer)</label>
+                        <label className="text-sm font-medium">Tiền cuối ca (Ngăn kéo)</label>
                         <Input type="number" min="0" value={shiftBalances.closingBalance} onChange={(e) => setShiftBalances({ ...shiftBalances, closingBalance: e.target.value })} />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">Actual Balance (optional)</label>
-                        <Input type="number" min="0" value={shiftBalances.actualBalance} onChange={(e) => setShiftBalances({ ...shiftBalances, actualBalance: e.target.value })} placeholder="Leave blank to use closing balance" />
+                        <label className="text-sm font-medium">Số dư thực tế (không bắt buộc)</label>
+                        <Input type="number" min="0" value={shiftBalances.actualBalance} onChange={(e) => setShiftBalances({ ...shiftBalances, actualBalance: e.target.value })} placeholder="Để trống nếu bằng tiền cuối ca" />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">Note</label>
-                        <Input value={shiftBalances.note} onChange={(e) => setShiftBalances({ ...shiftBalances, note: e.target.value })} placeholder="e.g., End of day" />
+                        <label className="text-sm font-medium">Ghi chú</label>
+                        <Input value={shiftBalances.note} onChange={(e) => setShiftBalances({ ...shiftBalances, note: e.target.value })} placeholder="VD: Cuối ngày" />
                       </div>
                       <Button className="w-full" variant="destructive" onClick={handleCloseShift} disabled={loading}>
-                        {loading ? 'Closing...' : 'Close Shift'}
+                        {loading ? 'Đang đóng...' : 'Đóng ca'}
                       </Button>
                     </div>
                   )}
@@ -793,11 +793,11 @@ export function PosV2Dashboard() {
             <div>
               <Card>
                 <CardHeader>
-                  <CardTitle>Staff on Duty</CardTitle>
+                  <CardTitle>Nhân viên trực ca</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {activeStaff.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No staff logged in</p>
+                    <p className="text-muted-foreground text-sm">Chưa có nhân viên đăng nhập</p>
                   ) : (
                     <div className="space-y-3">
                       {activeStaff.map((s) => (
@@ -809,7 +809,7 @@ export function PosV2Dashboard() {
                           <div className="text-xs text-muted-foreground">{new Date(s.loginAt).toLocaleTimeString()}</div>
                         </div>
                       ))}
-                      <Button variant="outline" size="sm" className="w-full" onClick={handleStaffLogout}>Logout All Staff</Button>
+                      <Button variant="outline" size="sm" className="w-full" onClick={handleStaffLogout}>Đăng xuất tất cả</Button>
                     </div>
                   )}
                 </CardContent>
@@ -820,11 +820,11 @@ export function PosV2Dashboard() {
         {activeTab === 'staff' && (
           <Card>
             <CardHeader>
-              <CardTitle>Active Staff Sessions</CardTitle>
+              <CardTitle>Phiên làm việc của nhân viên</CardTitle>
             </CardHeader>
             <CardContent>
               {activeStaff.length === 0 ? (
-                <p className="text-muted-foreground">No active staff sessions. Log in with a PIN first.</p>
+                <p className="text-muted-foreground">Không có phiên làm việc nào. Vui lòng đăng nhập bằng mã PIN.</p>
               ) : (
                 <div className="space-y-2">
                   {activeStaff.map((s) => (
@@ -833,7 +833,7 @@ export function PosV2Dashboard() {
                         <div className="font-medium">{s.account.fullName}</div>
 
                       </div>
-                      <div className="text-sm text-muted-foreground">Since {new Date(s.loginAt).toLocaleTimeString()}</div>
+                      <div className="text-sm text-muted-foreground">Từ {new Date(s.loginAt).toLocaleTimeString()}</div>
                     </div>
                   ))}
                 </div>
@@ -844,11 +844,11 @@ export function PosV2Dashboard() {
         {activeTab === 'settings' && (
           <Card>
             <CardHeader>
-              <CardTitle>Device Settings</CardTitle>
+              <CardTitle>Cài đặt thiết bị</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button variant="outline" className="w-full" onClick={handleDeviceLogout}>
-                Logout Device & Return to Setup
+                Đăng xuất thiết bị & Quay lại thiết lập
               </Button>
             </CardContent>
           </Card>

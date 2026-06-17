@@ -70,16 +70,16 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-green-600 dark:text-green-400">Available</span> — Start a session or reserve this table.
+          <span className="font-medium text-green-600 dark:text-green-400">Trống</span> — Bắt đầu phiên chơi hoặc đặt trước bàn này.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <Button className="w-full" onClick={() => setMode('play')}>
             <Play className="w-4 h-4" />
-            Play Now
+            Chơi ngay
           </Button>
           <Button variant="outline" className="w-full" onClick={() => setMode('reserve')}>
             <CalendarClock className="w-4 h-4" />
-            Reserve
+            Đặt trước
           </Button>
         </div>
         <div className="pt-2 border-t border-border">
@@ -93,7 +93,7 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
             disabled={disableTable.isPending}
           >
             {disableTable.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
-            Disable
+            Khóa bàn
           </Button>
         </div>
       </div>
@@ -104,22 +104,22 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium text-sm">Play Now</h3>
-          <Button variant="ghost" size="sm" onClick={() => setMode('none')}>Back</Button>
+          <h3 className="font-medium text-sm">Chơi ngay</h3>
+          <Button variant="ghost" size="sm" onClick={() => setMode('none')}>Quay lại</Button>
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor="playName">Customer Name</Label>
+          <Label htmlFor="playName">Tên khách hàng</Label>
           <Input
             id="playName"
-            placeholder="Enter player name"
+            placeholder="Nhập tên người chơi"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
           />
         </div>
 
         <div>
-          <Label className="text-xs text-gray-500">Duration</Label>
+          <Label className="text-xs text-gray-500">Thời gian</Label>
           <div className="flex flex-wrap gap-2 mt-1">
             {DURATIONS.map((d) => (
               <Button
@@ -128,7 +128,7 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
                 size="sm"
                 onClick={() => { setDuration(d); setCustomDuration(''); }}
               >
-                {d} min
+                {d} ph
               </Button>
             ))}
             <Button
@@ -136,19 +136,19 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
               size="sm"
               onClick={() => setDuration(0)}
             >
-              Custom
+              Tùy chỉnh
             </Button>
           </div>
         </div>
 
         {duration === 0 && (
           <div className="space-y-1">
-            <Label htmlFor="customDur">Custom minutes</Label>
+            <Label htmlFor="customDur">Phút tùy chỉnh</Label>
             <Input
               id="customDur"
               type="number"
               min={1}
-              placeholder="Enter minutes"
+              placeholder="Nhập số phút"
               value={customDuration}
               onChange={(e) => setCustomDuration(e.target.value)}
             />
@@ -161,7 +161,7 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
           disabled={playNow.isPending || (duration === 0 && (!customDuration || parseInt(customDuration) < 1))}
         >
           {playNow.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-          Start Session
+          Bắt đầu phiên
         </Button>
       </div>
     );
@@ -170,28 +170,28 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-sm">Reserve Table</h3>
-        <Button variant="ghost" size="sm" onClick={() => setMode('none')}>Back</Button>
+        <h3 className="font-medium text-sm">Đặt trước bàn</h3>
+        <Button variant="ghost" size="sm" onClick={() => setMode('none')}>Quay lại</Button>
       </div>
 
       <div className="space-y-3">
         <div className="space-y-1">
-          <Label htmlFor="custName">Customer Name *</Label>
+          <Label htmlFor="custName">Tên khách hàng *</Label>
           <Input id="custName" value={custName} onChange={(e) => setCustName(e.target.value)} />
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">Điện thoại</Label>
           <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor="reserveTime">Reservation Time *</Label>
+          <Label htmlFor="reserveTime">Thời gian đặt *</Label>
           <Input id="reserveTime" type="datetime-local" value={reserveTime} onChange={(e) => setReserveTime(e.target.value)} />
         </div>
 
         <div>
-          <Label className="text-xs text-gray-500">Duration</Label>
+          <Label className="text-xs text-gray-500">Thời gian</Label>
           <div className="flex flex-wrap gap-2 mt-1">
             {DURATIONS.map((d) => (
               <Button
@@ -200,7 +200,7 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
                 size="sm"
                 onClick={() => { setReserveDuration(d); setReserveCustomDuration(''); }}
               >
-                {d} min
+                {d} ph
               </Button>
             ))}
             <Button
@@ -208,19 +208,19 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
               size="sm"
               onClick={() => setReserveDuration(0)}
             >
-              Custom
+              Tùy chỉnh
             </Button>
           </div>
         </div>
 
         {reserveDuration === 0 && (
           <div className="space-y-1">
-            <Label htmlFor="reserveCustomDur">Custom minutes</Label>
+            <Label htmlFor="reserveCustomDur">Phút tùy chỉnh</Label>
             <Input
               id="reserveCustomDur"
               type="number"
               min={1}
-              placeholder="Enter minutes"
+              placeholder="Nhập số phút"
               value={reserveCustomDuration}
               onChange={(e) => setReserveCustomDuration(e.target.value)}
             />
@@ -228,7 +228,7 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
         )}
 
         <div className="space-y-1">
-          <Label htmlFor="note">Note</Label>
+          <Label htmlFor="note">Ghi chú</Label>
           <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
       </div>
@@ -239,7 +239,7 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
         disabled={reserve.isPending || !custName.trim() || !reserveTime || (reserveDuration === 0 && (!reserveCustomDuration || parseInt(reserveCustomDuration) < 1))}
       >
         {reserve.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-        Confirm Reservation
+        Xác nhận đặt trước
       </Button>
     </div>
   );

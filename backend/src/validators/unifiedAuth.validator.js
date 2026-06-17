@@ -32,6 +32,19 @@ export const changePasswordRules = [
   body('newPassword').isLength({ min: 6 }).withMessage('Mật khẩu mới phải có ít nhất 6 ký tự'),
 ];
 
+export const forgotPasswordRules = [
+  body('email').isEmail().withMessage('Email không hợp lệ').normalizeEmail(),
+];
+
+export const resetPasswordRules = [
+  body('token').notEmpty().withMessage('Thiếu token'),
+  body('password')
+    .isLength({ min: 8 }).withMessage('Mật khẩu phải có ít nhất 8 ký tự')
+    .matches(/[A-Z]/).withMessage('Mật khẩu phải có chữ hoa')
+    .matches(/[a-z]/).withMessage('Mật khẩu phải có chữ thường')
+    .matches(/[0-9]/).withMessage('Mật khẩu phải có số'),
+];
+
 export const sessionIdParam = [
   param('sessionId').isString().notEmpty().withMessage('Session ID không hợp lệ'),
 ];

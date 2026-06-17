@@ -4,12 +4,12 @@ import type { BilliardTableWithSession } from '../types';
 import { cn } from '@/app/components/ui/utils';
 
 const STATUS_STYLES: Record<string, { border: string; bg: string; text: string; label: string }> = {
-  AVAILABLE: { border: 'border-green-400 dark:border-green-600', bg: 'bg-green-50 dark:bg-green-950/30', text: 'text-green-700 dark:text-green-400', label: 'Available' },
-  OCCUPIED: { border: 'border-orange-400 dark:border-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-700 dark:text-orange-400', label: 'Occupied' },
-  RESERVED: { border: 'border-yellow-400 dark:border-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-950/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Reserved' },
-  CLEANING: { border: 'border-gray-300 dark:border-gray-600', bg: 'bg-gray-50 dark:bg-gray-900/30', text: 'text-gray-500 dark:text-gray-400', label: 'Cleaning' },
-  CHECKING_OUT: { border: 'border-blue-400 dark:border-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-700 dark:text-blue-400', label: 'Checking Out' },
-  DISABLED: { border: 'border-gray-300 dark:border-gray-600', bg: 'bg-gray-100 dark:bg-gray-900/50', text: 'text-gray-400 dark:text-gray-500', label: 'Disabled' },
+  AVAILABLE: { border: 'border-green-400 dark:border-green-600', bg: 'bg-green-50 dark:bg-green-950/30', text: 'text-green-700 dark:text-green-400', label: 'Trống' },
+  OCCUPIED: { border: 'border-orange-400 dark:border-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-700 dark:text-orange-400', label: 'Đang chơi' },
+  RESERVED: { border: 'border-yellow-400 dark:border-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-950/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Đã đặt' },
+  CLEANING: { border: 'border-gray-300 dark:border-gray-600', bg: 'bg-gray-50 dark:bg-gray-900/30', text: 'text-gray-500 dark:text-gray-400', label: 'Đang vệ sinh' },
+  CHECKING_OUT: { border: 'border-blue-400 dark:border-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-700 dark:text-blue-400', label: 'Đang thanh toán' },
+  DISABLED: { border: 'border-gray-300 dark:border-gray-600', bg: 'bg-gray-100 dark:bg-gray-900/50', text: 'text-gray-400 dark:text-gray-500', label: 'Đã khóa' },
 };
 
 function useCountdown(endTime: string | null): { display: string; expired: boolean } {
@@ -92,7 +92,7 @@ export function TableCard({ table, selected, onSelect, draggable, onDragStart, p
         'inline-block self-start rounded px-1.5 py-[1px] text-[10px] font-semibold leading-tight',
         overlap ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : cn(style.bg, style.text),
       )}>
-        {overlap ? 'OVERLAP' : style.label}
+        {overlap ? 'CHỒNG LẤN' : style.label}
       </span>
 
       <span className={cn('text-sm font-bold leading-tight mt-0.5', overlap ? 'text-red-700 dark:text-red-400' : style.text)}>
@@ -101,8 +101,8 @@ export function TableCard({ table, selected, onSelect, draggable, onDragStart, p
 
       {isOccupied ? (
         <div className="flex flex-col gap-0.5 mt-1 text-[11px] leading-tight text-foreground">
-          <span>{hourlyRate.toLocaleString()} ₫/hour</span>
-          <span className="font-semibold text-blue-600 dark:text-blue-400">{bookedDuration} min</span>
+          <span>{hourlyRate.toLocaleString()} ₫/giờ</span>
+          <span className="font-semibold text-blue-600 dark:text-blue-400">{bookedDuration} ph</span>
           <div className={cn('flex items-center gap-1 font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : 'text-foreground')}>
             {timeExpired ? <AlertCircle className="w-3 h-3 shrink-0" /> : <Clock className="w-3 h-3 shrink-0" />}
             <span>{remaining}</span>
@@ -110,7 +110,7 @@ export function TableCard({ table, selected, onSelect, draggable, onDragStart, p
         </div>
       ) : (
         <span className="mt-auto text-[11px] leading-tight text-muted-foreground">
-          {hourlyRate.toLocaleString()} ₫/hour
+          {hourlyRate.toLocaleString()} ₫/giờ
         </span>
       )}
     </div>

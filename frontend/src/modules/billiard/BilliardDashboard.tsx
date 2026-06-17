@@ -13,7 +13,7 @@ export function BilliardDashboard() {
 
   const handleSelect = useCallback((table: BilliardTableWithSession) => {
     if (dirtyRef.current) {
-      const confirmed = window.confirm('You have unsaved changes. Discard them and switch table?');
+      const confirmed = window.confirm('Bạn có thay đổi chưa lưu. Hủy bỏ và chuyển bàn?');
       if (!confirmed) return;
     }
     setSelectedTable(table);
@@ -30,7 +30,7 @@ export function BilliardDashboard() {
 
   const handleClose = useCallback(() => {
     if (layoutMode && dirtyRef.current) {
-      const confirmed = window.confirm('You have unsaved changes. Discard them?');
+      const confirmed = window.confirm('Bạn có thay đổi chưa lưu. Hủy bỏ?');
       if (!confirmed) return;
     }
     dirtyRef.current = false;
@@ -52,7 +52,7 @@ export function BilliardDashboard() {
 
   const handleLayoutModeChange = useCallback((mode: boolean) => {
     if (!mode && dirtyRef.current) {
-      const confirmed = window.confirm('You have unsaved changes. Discard them and exit layout mode?');
+      const confirmed = window.confirm('Bạn có thay đổi chưa lưu. Hủy bỏ và thoát chế độ chỉnh sửa?');
       if (!confirmed) return;
     }
     setLayoutMode(mode);
@@ -67,12 +67,12 @@ export function BilliardDashboard() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center space-y-2">
           <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
-          <p className="text-sm text-red-600">Failed to load tables. Please try again.</p>
+          <p className="text-sm text-red-600">Không thể tải danh sách bàn. Vui lòng thử lại.</p>
           <button
             onClick={() => refetch()}
             className="text-sm text-blue-600 hover:underline"
           >
-            Retry
+            Thử lại
           </button>
         </div>
       </div>

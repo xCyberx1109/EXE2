@@ -85,10 +85,10 @@ export function OrdersToMakePanel({ refreshKey }: { refreshKey: number }) {
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-base lg:text-lg font-black text-foreground">
               <Coffee className="h-4 w-4 lg:h-5 lg:w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span className="truncate">Orders To Make</span>
+              <span className="truncate">Đơn cần làm</span>
             </h2>
             <p className="text-xs lg:text-sm text-muted-foreground">
-              {isLoading ? 'Đang tải...' : `${sortedOrders.length} orders`}
+              {isLoading ? 'Đang tải...' : `${sortedOrders.length} đơn`}
             </p>
           </div>
           <button

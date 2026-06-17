@@ -19,7 +19,7 @@ export interface PermissionGroup {
 export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     id: 'fnb_staff',
-    name: 'F&B Staff',
+    name: 'Nhân viên F&B',
     description: 'Phục vụ đồ uống & món ăn: quản lý thực đơn, order F&B, bàn F&B',
     icon: 'UtensilsCrossed',
     color: 'blue',
@@ -49,7 +49,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'billiard_staff',
-    name: 'Billiard Staff',
+    name: 'Nhân viên Bi-a',
     description: 'Quản lý bàn bi-a: phiên chơi, đặt bàn, gọi món, thanh toán',
     icon: 'CircleDot',
     color: 'emerald',
@@ -79,7 +79,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'inventory_staff',
-    name: 'Inventory Staff',
+    name: 'Nhân viên Kho',
     description: 'Quản lý kho: nhập xuất tồn, điều chỉnh & kiểm kê nguyên liệu',
     icon: 'Package',
     color: 'amber',
@@ -95,7 +95,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'pos_operator',
-    name: 'POS Operator',
+    name: 'Điều hành POS',
     description: 'Thao tác POS: mở/m đóng ca, tạo/hủy đơn, order queue, dashboard',
     icon: 'Smartphone',
     color: 'purple',
@@ -116,7 +116,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'manager',
-    name: 'Manager',
+    name: 'Quản lý',
     description: 'Quản lý chi nhánh: báo cáo, khách hàng, ca làm việc, cài đặt',
     icon: 'Building2',
     color: 'violet',
@@ -153,7 +153,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'system_admin',
-    name: 'System Admin',
+    name: 'Quản trị hệ thống',
     description: 'Toàn quyền hệ thống: tất cả permissions bao gồm ADMIN_ALL',
     icon: 'Shield',
     color: 'red',

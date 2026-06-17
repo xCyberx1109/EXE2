@@ -9,9 +9,9 @@ const modes = ["light", "dark", "system"] as const;
 const icons = { light: Sun, dark: Moon, system: Monitor } as const;
 
 const labels: Record<string, string> = {
-  light: "Light",
-  dark: "Dark",
-  system: "System",
+  light: "Sáng",
+  dark: "Tối",
+  system: "Hệ thống",
 };
 
 function nextMode(current: string): string {
@@ -30,10 +30,10 @@ export function ThemeToggle() {
       size="icon"
       className="size-8 rounded-full"
       onClick={() => setTheme(nextMode(theme))}
-      title={`Theme: ${labels[theme] ?? "Light"}`}
+      title={`Giao diện: ${labels[theme] ?? "Sáng"}`}
     >
       <Icon className="size-[1.1rem]" />
-      <span className="sr-only">Toggle theme</span>
+      <span className="sr-only">Chuyển đổi giao diện</span>
     </Button>
   );
 }

@@ -134,9 +134,9 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
     return (
       <div className="space-y-4">
         <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
-          Occupied
+          Đang chơi
         </span>
-        <p className="text-sm text-muted-foreground">No active session data.</p>
+        <p className="text-sm text-muted-foreground">Không có phiên chơi nào đang hoạt động.</p>
       </div>
     );
   }
@@ -149,7 +149,7 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
         {/* Status & Countdown */}
         <div className="flex items-center justify-between">
           <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
-            Occupied
+            Đang chơi
           </span>
           <div className={cn('flex items-center gap-1 text-xs font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>
             {timeExpired ? <AlertCircle className="w-3 h-3" /> : <Timer className="w-3 h-3" />}
@@ -159,26 +159,26 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
 
         {timeExpired && (
           <div className="rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 p-2 text-xs text-red-700 dark:text-red-400 text-center font-medium">
-            Session Time Expired
+            Phiên chơi đã hết giờ
           </div>
         )}
 
         {/* Billiard Playing Info */}
         <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Started</span>
+            <span className="text-muted-foreground">Bắt đầu</span>
             <span className="font-medium">{sessStartTime.toLocaleTimeString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Booked Duration</span>
-            <span className="font-medium">{bookedDuration} minutes</span>
+            <span className="text-muted-foreground">Thời gian đặt</span>
+            <span className="font-medium">{bookedDuration} phút</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Hourly Rate</span>
-            <span className="font-medium tabular-nums">{fmt(hourlyRate)}<span className="text-xs text-muted-foreground">/hour</span></span>
+            <span className="text-muted-foreground">Giá giờ</span>
+            <span className="font-medium tabular-nums">{fmt(hourlyRate)}<span className="text-xs text-muted-foreground">/giờ</span></span>
           </div>
           <div className="flex justify-between border-t border-border pt-2">
-            <span className="text-muted-foreground font-medium">Playing Cost</span>
+            <span className="text-muted-foreground font-medium">Tiền chơi</span>
             <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">{fmt(playingCost)}</span>
           </div>
         </div>
@@ -188,7 +188,7 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
           <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
             <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Order Details
+              Chi tiết đơn hàng
             </span>
             {summaryLoading && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}
           </div>
@@ -199,7 +199,7 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
               </div>
             ) : !hasItems ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No food/drink ordered yet
+                Chưa gọi đồ ăn/thức uống
               </p>
             ) : (
               <div className="space-y-1.5">
@@ -222,27 +222,27 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
         {/* TOTALS */}
         <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Playing Time</span>
+            <span className="text-muted-foreground">Tiền chơi</span>
             <span className="font-medium tabular-nums">{fmt(playingCost)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Food & Drink</span>
+            <span className="text-muted-foreground">Đồ ăn & Thức uống</span>
             <span className="font-medium tabular-nums">{fmt(foodTotal)}</span>
           </div>
           {serviceCharge > 0 && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Service Charge</span>
+              <span className="text-muted-foreground">Phí dịch vụ</span>
               <span className="font-medium tabular-nums">{fmt(serviceCharge)}</span>
             </div>
           )}
           {tax > 0 && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax</span>
+              <span className="text-muted-foreground">Thuế</span>
               <span className="font-medium tabular-nums">{fmt(tax)}</span>
             </div>
           )}
           <div className="flex justify-between text-base font-bold border-t border-border pt-2">
-            <span>Grand Total</span>
+            <span>Tổng cộng</span>
             <span className="text-primary tabular-nums">{fmt(grandTotal)}</span>
           </div>
         </div>
@@ -251,11 +251,11 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
           <div className="space-y-2">
             <Button variant="outline" className="w-full justify-start" onClick={() => setDrawerOpen(true)}>
               <Plus className="w-4 h-4" />
-              Add Food / Drink
+              Thêm đồ ăn / Thức uống
             </Button>
             <Button variant="outline" className="w-full justify-start" onClick={() => setShowExtend(true)}>
               <Clock className="w-4 h-4" />
-              Extend Session
+              Gia hạn phiên
             </Button>
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
@@ -267,14 +267,14 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
               ) : (
                 <LogOut className="w-4 h-4" />
               )}
-              Checkout &mdash; {fmt(grandTotal)}
+              Thanh toán &mdash; {fmt(grandTotal)}
             </Button>
           </div>
         ) : (
           <div className="space-y-3 rounded-lg border border-border p-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">Extend Session</h4>
-              <Button variant="ghost" size="sm" onClick={() => setShowExtend(false)}>Back</Button>
+              <h4 className="text-sm font-medium">Gia hạn phiên</h4>
+              <Button variant="ghost" size="sm" onClick={() => setShowExtend(false)}>Quay lại</Button>
             </div>
 
             <div className="flex gap-2">
@@ -293,18 +293,18 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
                 size="sm"
                 onClick={() => setExtendMins(0)}
               >
-                Custom
+                Tùy chỉnh
               </Button>
             </div>
 
             {extendMins === 0 && (
               <div className="space-y-1">
-                <Label htmlFor="extendCustom">Additional minutes</Label>
+                <Label htmlFor="extendCustom">Số phút thêm</Label>
                 <Input
                   id="extendCustom"
                   type="number"
                   min={1}
-                  placeholder="Enter minutes"
+                  placeholder="Nhập số phút"
                   value={customExtend}
                   onChange={(e) => setCustomExtend(e.target.value)}
                 />
@@ -317,7 +317,7 @@ export function OccupiedPanel({ table, onSuccess, onRefresh }: OccupiedPanelProp
               disabled={extendSession.isPending || (extendMins === 0 && (!customExtend || parseInt(customExtend) < 1))}
             >
               {extendSession.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Confirm Extension
+              Xác nhận gia hạn
             </Button>
           </div>
         )}

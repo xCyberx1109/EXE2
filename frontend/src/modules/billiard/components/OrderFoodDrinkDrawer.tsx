@@ -215,8 +215,8 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0 bg-card">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-foreground">Add Food / Drink</h2>
-            {tableCode && <span className="text-sm text-muted-foreground">Table {tableCode}</span>}
+            <h2 className="text-xl font-bold text-foreground">Thêm món</h2>
+            {tableCode && <span className="text-sm text-muted-foreground">Bàn {tableCode}</span>}
             {orderSummary?.orderNumber && (
               <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
                 #{orderSummary.orderNumber}
@@ -225,7 +225,7 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
             {isSyncing && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
                 <RefreshCw className="w-3 h-3 animate-spin" />
-                Syncing order...
+                Đang đồng bộ...
               </span>
             )}
           </div>
@@ -242,7 +242,7 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search ingredients..."
+                  placeholder="Tìm nguyên liệu..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9"
@@ -257,7 +257,7 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
                 </div>
               ) : filteredItems.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  No ingredients found
+                  Không tìm thấy nguyên liệu
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
@@ -291,7 +291,7 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
                             lowStock ? 'text-amber-500' :
                             'text-muted-foreground'
                           }`}>
-                            Stock: {item.stockQty} {item.unit}
+                            Tồn: {item.stockQty} {item.unit}
                           </span>
                           {outOfStock && (
                             <AlertTriangle className="w-3 h-3 text-destructive ml-auto" />
@@ -300,7 +300,7 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
                         {outOfStock && (
                           <div className="flex items-center gap-1 text-destructive text-xs font-medium mt-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Out of Stock
+                            Hết hàng
                           </div>
                         )}
                       </div>
@@ -316,11 +316,11 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
             <div className="px-4 py-3 border-b bg-card shrink-0">
               <h3 className="font-semibold flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4" />
-                Current Order
+                Đơn hiện tại
                 {summaryLoading && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
                 {hasItems && (
                   <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full ml-auto">
-                    {cartItems.reduce((s, i) => s + i.quantity, 0)} items
+                    {cartItems.reduce((s, i) => s + i.quantity, 0)} món
                   </span>
                 )}
               </h3>
@@ -334,8 +334,8 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
               ) : !hasItems ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                   <ShoppingCart className="w-10 h-10 mb-2 opacity-30" />
-                  <p className="text-sm">No food/drink ordered yet</p>
-                  <p className="text-xs opacity-60 mt-1">Click any item above to add</p>
+                  <p className="text-sm">Chưa gọi món</p>
+                  <p className="text-xs opacity-60 mt-1">Nhấn vào món bên trái để thêm</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -343,7 +343,7 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
                     <div key={item.id} className="flex items-center gap-2 py-2 border-b last:border-0">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.price.toLocaleString()}₫ / unit</p>
+                        <p className="text-xs text-muted-foreground">{item.price.toLocaleString()}₫ / đơn vị</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="outline" size="icon" className="h-7 w-7" disabled={isPending || !orderId}
@@ -372,34 +372,34 @@ export function OrderFoodDrinkDrawer({ open, onClose, tableId, tableCode, curren
             {/* Totals */}
             <div className="px-4 py-3 border-t bg-card shrink-0 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Food Total</span>
+                <span className="text-muted-foreground">Tổng món</span>
                 <span className="font-medium tabular-nums">{foodTotal.toLocaleString()}₫</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Table Fee</span>
+                <span className="text-muted-foreground">Phí bàn</span>
                 <span className="font-medium tabular-nums">{tableFee.toLocaleString()}₫</span>
               </div>
               {serviceCharge > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Service Charge</span>
+                  <span className="text-muted-foreground">Phí dịch vụ</span>
                   <span className="font-medium tabular-nums">{serviceCharge.toLocaleString()}₫</span>
                 </div>
               )}
               {tax > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tax</span>
+                  <span className="text-muted-foreground">Thuế</span>
                   <span className="font-medium tabular-nums">{tax.toLocaleString()}₫</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold border-t pt-2">
-                <span>Grand Total</span>
+                <span>Tổng cộng</span>
                 <span className="text-primary tabular-nums">{grandTotal.toLocaleString()}₫</span>
               </div>
             </div>
 
             <div className="px-4 py-3 border-t shrink-0">
               <Button className="w-full" onClick={() => { onSuccess(); onClose(); }}>
-                Done
+                Xong
               </Button>
             </div>
           </div>

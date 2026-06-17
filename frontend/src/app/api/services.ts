@@ -37,8 +37,11 @@ export const authApi = {
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     apiFetch<null>('/auth/change-password', { method: 'PUT', body: JSON.stringify(body), auth: true }),
 
-  resetMyPassword: () =>
-    apiFetch<{ email: string }>('/auth/reset-my-password', { method: 'POST', auth: true }),
+  forgotPassword: (email: string) =>
+    apiFetch<null>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }), auth: false }),
+
+  resetPassword: (token: string, password: string) =>
+    apiFetch<null>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }), auth: false }),
 };
 
 const POS_TOKEN_KEY = 'fnb_pos_token';

@@ -55,11 +55,11 @@ export async function sendInviteEmail({ email, fullName, inviteLink }) {
   });
 }
 
-export async function sendPasswordResetEmail({ email, fullName, inviteLink }) {
+export async function sendPasswordResetEmail({ email, fullName, resetLink }) {
   await sendEmail({
     to: email,
-    subject: 'Đặt lại mật khẩu POS Builders',
-    text: `Xin chào ${fullName},\n\nYêu cầu đặt lại mật khẩu của bạn đã được xử lý.\n\nVui lòng đặt mật khẩu mới qua đường link sau:\n${inviteLink}\n\nLink này có hiệu lực trong 24 giờ.\n\nTrân trọng,\nĐội ngũ POS Builders`,
+    subject: 'Đặt lại mật khẩu tài khoản',
+    text: `Xin chào ${fullName},\n\nChúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.\n\nVui lòng nhấn vào liên kết dưới đây để đặt lại mật khẩu:\n\n${resetLink}\n\nLiên kết này sẽ hết hạn sau 15 phút.\n\nNếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.\n\nTrân trọng,\nPOS.builders`,
   });
 }
 

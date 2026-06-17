@@ -34,12 +34,12 @@ export function printReceipt(data: ReceiptData): void {
 
   const itemsHtml = hasItems
     ? `<table class="items">
-         <thead><tr><th>Item</th><th class="qty">Qty</th><th class="price">Price</th><th class="total">Total</th></tr></thead>
+         <thead><tr><th>Món</th><th class="qty">SL</th><th class="price">Đơn giá</th><th class="total">Tổng</th></tr></thead>
          <tbody>
            ${data.items.map(i => `<tr><td>${i.name}</td><td class="qty">${i.quantity}</td><td class="price">${fmt(i.unitPrice)}</td><td class="total">${fmt(i.total)}</td></tr>`).join('')}
          </tbody>
        </table>`
-    : '<p class="empty">No items</p>';
+    : '<p class="empty">Không có món</p>';
 
   let billiardHtml = '';
   if (isBilliard) {
@@ -48,20 +48,20 @@ export function printReceipt(data: ReceiptData): void {
     const rate = data.hourlyRate ?? 0;
 
     billiardHtml = `<hr />
-  <div class="section-title">BILLIARD SESSION</div>
-  <div class="row"><span>Table</span><span>${data.tableCode}</span></div>
-  <div class="row"><span>Type</span><span>${data.tableType || ''}</span></div>
-  <div class="row"><span>Started</span><span>${start ? start.toLocaleTimeString() : ''}</span></div>
-  <div class="row"><span>Booked Duration</span><span>${mins} minutes</span></div>
-  <div class="row"><span>Hourly Rate</span><span>${fmt(Math.round(rate))} / hour</span></div>
-  <div class="row" style="font-weight:bold"><span>Playing Cost</span><span>${fmt(data.tableFee || 0)}</span></div>
+  <div class="section-title">PHIÊN CHƠI BI-A</div>
+  <div class="row"><span>Bàn</span><span>${data.tableCode}</span></div>
+  <div class="row"><span>Loại</span><span>${data.tableType || ''}</span></div>
+  <div class="row"><span>Bắt đầu</span><span>${start ? start.toLocaleTimeString() : ''}</span></div>
+  <div class="row"><span>Thời gian đặt</span><span>${mins} phút</span></div>
+  <div class="row"><span>Giá giờ</span><span>${fmt(Math.round(rate))} / giờ</span></div>
+  <div class="row" style="font-weight:bold"><span>Tiền chơi</span><span>${fmt(data.tableFee || 0)}</span></div>
   <hr />
-  <div class="section-title">FOOD & DRINK</div>
-  ${hasItems ? itemsHtml : '<div class="row"><span>No items</span><span>0₫</span></div>'}
+  <div class="section-title">ĐỒ ĂN & THỨC UỐNG</div>
+  ${hasItems ? itemsHtml : '<div class="row"><span>Không có món</span><span>0₫</span></div>'}
   <hr />
   <div class="totals">
-    <div class="row"><span>Food & Drink</span><span>${fmt(data.foodTotal)}</span></div>
-    <div class="row grand"><span>Grand Total</span><span>${fmt(data.grandTotal)}</span></div>
+    <div class="row"><span>Đồ ăn & Thức uống</span><span>${fmt(data.foodTotal)}</span></div>
+    <div class="row grand"><span>Tổng cộng</span><span>${fmt(data.grandTotal)}</span></div>
   </div>`;
   }
 
@@ -69,7 +69,7 @@ export function printReceipt(data: ReceiptData): void {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Invoice ${data.invoiceNumber}</title>
+  <title>Hóa đơn ${data.invoiceNumber}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; width: 80mm; padding: 10px; margin: 0 auto; }
@@ -102,22 +102,22 @@ export function printReceipt(data: ReceiptData): void {
     ${data.phone ? `<div class="info">Tel: ${data.phone}</div>` : ''}
   </div>
   <hr />
-  <div class="section-title">INVOICE</div>
-  <div class="row"><span>Invoice #</span><span>${data.invoiceNumber}</span></div>
-  <div class="row"><span>Date</span><span>${new Date(data.checkoutDate).toLocaleDateString()} ${new Date(data.checkoutDate).toLocaleTimeString()}</span></div>
+  <div class="section-title">HÓA ĐƠN</div>
+  <div class="row"><span>Hóa đơn #</span><span>${data.invoiceNumber}</span></div>
+  <div class="row"><span>Ngày</span><span>${new Date(data.checkoutDate).toLocaleDateString()} ${new Date(data.checkoutDate).toLocaleTimeString()}</span></div>
   ${isBilliard ? billiardHtml : `
-  ${hasItems ? `<hr /><div class="section-title">ITEMS</div>${itemsHtml}` : ''}
+  ${hasItems ? `<hr /><div class="section-title">MÓN</div>${itemsHtml}` : ''}
   <hr />
   <div class="totals">
-    ${hasItems ? `<div class="row"><span>Items</span><span>${fmt(data.foodTotal)}</span></div>` : ''}
-    ${data.serviceCharge ? `<div class="row"><span>Service Charge</span><span>${fmt(data.serviceCharge)}</span></div>` : ''}
-    ${data.tax ? `<div class="row"><span>Tax</span><span>${fmt(data.tax)}</span></div>` : ''}
-    ${data.discount ? `<div class="row"><span>Discount</span><span>-${fmt(data.discount)}</span></div>` : ''}
-    <div class="row grand"><span>Grand Total</span><span>${fmt(data.grandTotal)}</span></div>
+    ${hasItems ? `<div class="row"><span>Món</span><span>${fmt(data.foodTotal)}</span></div>` : ''}
+    ${data.serviceCharge ? `<div class="row"><span>Phí dịch vụ</span><span>${fmt(data.serviceCharge)}</span></div>` : ''}
+    ${data.tax ? `<div class="row"><span>Thuế</span><span>${fmt(data.tax)}</span></div>` : ''}
+    ${data.discount ? `<div class="row"><span>Giảm giá</span><span>-${fmt(data.discount)}</span></div>` : ''}
+    <div class="row grand"><span>Tổng cộng</span><span>${fmt(data.grandTotal)}</span></div>
   </div>`}
   <hr />
   <div class="footer">
-    <p>Thank you!</p>
+    <p>Cảm ơn quý khách!</p>
     <p>${data.businessName || ''}</p>
   </div>
 </body>

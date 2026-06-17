@@ -180,7 +180,7 @@ export function Layout() {
                       className="flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
                     >
                       <User className="w-4 h-4 text-muted-foreground" />
-                      Profile
+                      Hồ sơ
                     </Link>
                     <button
                       onClick={() => {
@@ -190,7 +190,7 @@ export function Layout() {
                       }}
                       className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
                     >
-                      <span className="text-muted-foreground">Theme</span>
+                      <span className="text-muted-foreground">Giao diện</span>
                       <span className="font-medium capitalize">{theme ?? "system"}</span>
                     </button>
                     <button

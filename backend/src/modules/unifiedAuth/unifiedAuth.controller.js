@@ -54,3 +54,13 @@ export const changeMyPassword = asyncHandler(async (req, res) => {
   await unifiedAuthService.changePassword(req.user.id, req.body);
   sendSuccess(res, { message: 'Đổi mật khẩu thành công', data: null });
 });
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const result = await unifiedAuthService.forgotPassword(req.body);
+  sendSuccess(res, { message: result.message, data: null });
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const result = await unifiedAuthService.resetPassword(req.body);
+  sendSuccess(res, { message: result.message, data: null });
+});
