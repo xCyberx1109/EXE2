@@ -270,15 +270,15 @@ export function BranchManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-card rounded-xl border border-border p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý Branch</h1>
-              <p className="text-sm text-gray-500 mt-1">Quản lý danh sách chi nhánh, gói và trạng thái hoạt động.</p>
+              <h1 className="text-2xl font-bold text-foreground">Quản lý Branch</h1>
+              <p className="text-sm text-muted-foreground mt-1">Quản lý danh sách chi nhánh, gói và trạng thái hoạt động.</p>
             </div>
           </div>
 
@@ -286,7 +286,7 @@ export function BranchManagement() {
             <button
               type="button"
               onClick={handleOpenCreateModal}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="w-4 h-4" />
               Thêm chi nhánh
@@ -296,67 +296,67 @@ export function BranchManagement() {
       </div>
 
       {error && !isCreateModalOpen && !isEditModalOpen && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Đang tải danh sách chi nhánh...</div>
+          <div className="p-8 text-center text-muted-foreground">Đang tải danh sách chi nhánh...</div>
         ) : branches.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">Chưa có chi nhánh nào.</div>
+          <div className="p-8 text-center text-muted-foreground">Chưa có chi nhánh nào.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 font-medium text-gray-700">Tên chi nhánh</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Liên hệ</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Gói</th>
-                  <th className="px-6 py-4 font-medium text-gray-700 text-center">Trạng thái</th>
-                  <th className="px-6 py-4 font-medium text-gray-700 text-right">Thao tác</th>
+                <tr className="bg-muted border-b border-border">
+                  <th className="px-6 py-4 font-medium text-foreground">Tên chi nhánh</th>
+                  <th className="px-6 py-4 font-medium text-foreground">Liên hệ</th>
+                  <th className="px-6 py-4 font-medium text-foreground">Gói</th>
+                  <th className="px-6 py-4 font-medium text-foreground text-center">Trạng thái</th>
+                  <th className="px-6 py-4 font-medium text-foreground text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-border">
                 {branches.map((branch) => (
-                  <tr key={branch.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={branch.id} className="hover:bg-accent transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-gray-900">{branch.name}</div>
+                      <div className="font-semibold text-foreground">{branch.name}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1 text-sm text-gray-600">
+                      <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                         <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
                           <span>{branch.address}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-gray-400" />
+                          <Phone className="w-4 h-4 text-muted-foreground" />
                           <span>{branch.phone}</span>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex w-max items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      <span className="inline-flex w-max items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
                         {PLAN_OPTIONS.find((plan) => plan.value === branch.plan)?.label ?? branch.plan}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         {branch.active ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500" />
+                          <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400" />
                         ) : (
-                          <XCircle className="w-5 h-5 text-gray-300" />
+                          <XCircle className="w-5 h-5 text-muted-foreground" />
                         )}
                         {(hasPermission('BRANCH_LOCK') && branch.active) || (hasPermission('BRANCH_UNLOCK') && !branch.active) ? (
                           <button
                             type="button"
                             onClick={() => handleToggleStatus(branch)}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              branch.active ? 'bg-green-500' : 'bg-gray-300'
+                              branch.active ? 'bg-primary' : 'bg-input'
                             }`}
                             aria-label={`Đổi trạng thái ${branch.name}`}
                           >
                             <span
-                              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                              className={`inline-block h-5 w-5 rounded-full bg-card shadow transition-transform ${
                                 branch.active ? 'translate-x-5' : 'translate-x-1'
                               }`}
                             />
@@ -375,7 +375,7 @@ export function BranchManagement() {
                               setResetPasswordError(null);
                               setResetPasswordSuccess(null);
                             }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50"
+                            className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-accent"
                           >
                             <Lock className="w-4 h-4" />
                             Đặt lại mật khẩu
@@ -385,7 +385,7 @@ export function BranchManagement() {
                           <button
                             type="button"
                             onClick={() => handleEdit(branch)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                            className="inline-flex items-center gap-1 rounded-lg border border-input px-3 py-2 text-sm font-medium text-primary hover:bg-accent"
                           >
                             <Edit3 className="w-4 h-4" />
                             Sửa
@@ -396,7 +396,7 @@ export function BranchManagement() {
                             type="button"
                             onClick={() => handleDelete(branch)}
                             disabled={deletingId === branch.id}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex items-center gap-1 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <Trash2 className="w-4 h-4" />
                             {deletingId === branch.id ? 'Đang xóa...' : 'Xóa'}
@@ -406,7 +406,7 @@ export function BranchManagement() {
                           <button
                             type="button"
                             onClick={() => { setForceDeleteBranch(branch); setConfirmName(''); }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-400 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+                            className="inline-flex items-center gap-1 rounded-lg border border-destructive/50 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
                           >
                             Xóa vĩnh viễn
                           </button>
@@ -423,18 +423,18 @@ export function BranchManagement() {
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-5xl rounded-2xl bg-card shadow-2xl">
             <form onSubmit={handleSubmit} className="space-y-5 p-6">
-              <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-4">
+              <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Thêm chi nhánh mới</h2>
-                  <p className="text-sm text-gray-500 mt-1">Tạo branch mới trong modal thêm chi nhánh riêng.</p>
+                  <h2 className="text-lg font-semibold text-foreground">Thêm chi nhánh mới</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Tạo branch mới trong modal thêm chi nhánh riêng.</p>
                 </div>
                 <button
                   type="button"
                   onClick={resetForm}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-lg border border-input px-3 py-2 text-muted-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X className="w-4 h-4" />
                   Đóng
@@ -442,63 +442,63 @@ export function BranchManagement() {
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
               )}
 
               <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Tên chi nhánh</span>
+                  <span className="text-sm font-medium text-foreground">Tên chi nhánh</span>
                   <input
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập tên chi nhánh"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Địa chỉ</span>
+                  <span className="text-sm font-medium text-foreground">Địa chỉ</span>
                   <input
                     value={form.address}
                     onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập địa chỉ"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Số điện thoại</span>
+                  <span className="text-sm font-medium text-foreground">Số điện thoại</span>
                   <input
                     value={form.phone}
                     onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập số điện thoại"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Email quản lý</span>
+                  <span className="text-sm font-medium text-foreground">Email quản lý</span>
                   <input
                     type="email"
                     value={form.email}
                     onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập email quản lý"
                     required
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Gói</span>
+                  <span className="text-sm font-medium text-foreground">Gói</span>
                   <select
                     value={form.plan}
                     onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   >
                     {PLAN_OPTIONS.map((plan) => (
                       <option key={plan.value} value={plan.value}>
@@ -509,23 +509,23 @@ export function BranchManagement() {
                 </label>
 
                 <div className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Trạng thái hoạt động</span>
+                  <span className="text-sm font-medium text-foreground">Trạng thái hoạt động</span>
                   <button
                     type="button"
                     onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
                     disabled={saving}
-                    className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-between rounded-lg border border-input px-3 py-2 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <span className={form.active ? 'text-green-600 font-medium' : 'text-gray-500 font-medium'}>
+                    <span className={form.active ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground font-medium'}>
                       {form.active ? 'Đang bật' : 'Đang tắt'}
                     </span>
                     <span
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        form.active ? 'bg-green-500' : 'bg-gray-300'
+                        form.active ? 'bg-primary' : 'bg-input'
                       }`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        className={`inline-block h-5 w-5 rounded-full bg-card shadow transition-transform ${
                           form.active ? 'translate-x-5' : 'translate-x-1'
                         }`}
                       />
@@ -534,7 +534,7 @@ export function BranchManagement() {
                 </div>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Ngày bắt đầu</span>
+                  <span className="text-sm font-medium text-foreground">Ngày bắt đầu</span>
                   <input
                     type="date"
                     value={form.subscriptionStart}
@@ -542,12 +542,12 @@ export function BranchManagement() {
                       setForm((current) => ({ ...current, subscriptionStart: event.target.value }))
                     }
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Ngày kết thúc</span>
+                  <span className="text-sm font-medium text-foreground">Ngày kết thúc</span>
                   <input
                     type="date"
                     value={form.subscriptionEnd}
@@ -555,7 +555,7 @@ export function BranchManagement() {
                       setForm((current) => ({ ...current, subscriptionEnd: event.target.value }))
                     }
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   />
                 </label>
 
@@ -563,7 +563,7 @@ export function BranchManagement() {
                   <button
                     type="submit"
                     disabled={saving || isSubmittingRef.current}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (
                       'Đang lưu...'
@@ -583,18 +583,18 @@ export function BranchManagement() {
 
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-5xl rounded-2xl bg-card shadow-2xl">
             <form onSubmit={handleSubmit} className="space-y-5 p-6">
-              <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-4">
+              <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Cập nhật chi nhánh</h2>
-                  <p className="text-sm text-gray-500 mt-1">Chỉnh sửa thông tin branch trong modal cập nhật riêng.</p>
+                  <h2 className="text-lg font-semibold text-foreground">Cập nhật chi nhánh</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Chỉnh sửa thông tin branch trong modal cập nhật riêng.</p>
                 </div>
                 <button
                   type="button"
                   onClick={resetForm}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-lg border border-input px-3 py-2 text-muted-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X className="w-4 h-4" />
                   Đóng
@@ -602,63 +602,63 @@ export function BranchManagement() {
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
               )}
 
               <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Tên chi nhánh</span>
+                  <span className="text-sm font-medium text-foreground">Tên chi nhánh</span>
                   <input
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập tên chi nhánh"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Địa chỉ</span>
+                  <span className="text-sm font-medium text-foreground">Địa chỉ</span>
                   <input
                     value={form.address}
                     onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập địa chỉ"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Số điện thoại</span>
+                  <span className="text-sm font-medium text-foreground">Số điện thoại</span>
                   <input
                     value={form.phone}
                     onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập số điện thoại"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Email quản lý</span>
+                  <span className="text-sm font-medium text-foreground">Email quản lý</span>
                   <input
                     type="email"
                     value={form.email}
                     onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     placeholder="Nhập email quản lý"
                     required
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Gói</span>
+                  <span className="text-sm font-medium text-foreground">Gói</span>
                   <select
                     value={form.plan}
                     onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   >
                     {PLAN_OPTIONS.map((plan) => (
                       <option key={plan.value} value={plan.value}>
@@ -669,23 +669,23 @@ export function BranchManagement() {
                 </label>
 
                 <div className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Trạng thái hoạt động</span>
+                  <span className="text-sm font-medium text-foreground">Trạng thái hoạt động</span>
                   <button
                     type="button"
                     onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
                     disabled={saving}
-                    className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-between rounded-lg border border-input px-3 py-2 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <span className={form.active ? 'text-green-600 font-medium' : 'text-gray-500 font-medium'}>
+                    <span className={form.active ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground font-medium'}>
                       {form.active ? 'Đang bật' : 'Đang tắt'}
                     </span>
                     <span
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        form.active ? 'bg-green-500' : 'bg-gray-300'
+                        form.active ? 'bg-primary' : 'bg-input'
                       }`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        className={`inline-block h-5 w-5 rounded-full bg-card shadow transition-transform ${
                           form.active ? 'translate-x-5' : 'translate-x-1'
                         }`}
                       />
@@ -694,7 +694,7 @@ export function BranchManagement() {
                 </div>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Ngày bắt đầu</span>
+                  <span className="text-sm font-medium text-foreground">Ngày bắt đầu</span>
                   <input
                     type="date"
                     value={form.subscriptionStart}
@@ -702,12 +702,12 @@ export function BranchManagement() {
                       setForm((current) => ({ ...current, subscriptionStart: event.target.value }))
                     }
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Ngày kết thúc</span>
+                  <span className="text-sm font-medium text-foreground">Ngày kết thúc</span>
                   <input
                     type="date"
                     value={form.subscriptionEnd}
@@ -715,7 +715,7 @@ export function BranchManagement() {
                       setForm((current) => ({ ...current, subscriptionEnd: event.target.value }))
                     }
                     disabled={saving}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   />
                 </label>
 
@@ -723,7 +723,7 @@ export function BranchManagement() {
                   <button
                     type="submit"
                     disabled={saving || isSubmittingRef.current}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (
                       'Đang lưu...'
@@ -743,16 +743,16 @@ export function BranchManagement() {
 
       {resetPasswordBranch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">
+          <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-lg font-semibold text-foreground">
                 Đặt lại mật khẩu: {resetPasswordBranch.name}
               </h2>
               <button
                 type="button"
                 onClick={() => { setResetPasswordBranch(null); setResetPasswordInviteLink(null); }}
                 aria-label="Đóng"
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -760,22 +760,22 @@ export function BranchManagement() {
 
             <form onSubmit={handleResetPasswordSubmit} className="p-6 space-y-4">
               {resetPasswordError && (
-                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-100">
+                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
                   {resetPasswordError}
                 </div>
               )}
               {resetPasswordSuccess && (
-                <div className="rounded-lg bg-green-50 p-3 text-sm text-green-600 border border-green-100">
+                <div className="rounded-lg bg-green-500/10 p-3 text-sm text-green-600 dark:text-green-400 border border-green-500/20">
                   {resetPasswordSuccess}
                 </div>
               )}
 
               {!resetPasswordSuccess && (
                 <>
-                  <p className="text-sm text-gray-600">
-                    Tài khoản quản lý: <span className="font-semibold">{resetPasswordBranch.account?.email || 'N/A'}</span>
+                  <p className="text-sm text-muted-foreground">
+                    Tài khoản quản lý: <span className="font-semibold text-foreground">{resetPasswordBranch.account?.email || 'N/A'}</span>
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Hệ thống sẽ tạo link đặt lại mật khẩu, gửi cho quản lý chi nhánh để tự đặt mật khẩu mới.
                   </p>
                 </>
@@ -784,12 +784,12 @@ export function BranchManagement() {
               {resetPasswordInviteLink && (
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-gray-700">Link đặt lại mật khẩu</p>
+                    <p className="text-sm font-medium text-foreground">Link đặt lại mật khẩu</p>
                     <input
                       type="text"
                       readOnly
                       value={resetPasswordInviteLink}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50"
+                      className="w-full rounded-lg border border-input bg-input-background px-3 py-2 text-sm"
                     />
                   </div>
                   <div className="flex gap-3">
@@ -799,7 +799,7 @@ export function BranchManagement() {
                         navigator.clipboard.writeText(resetPasswordInviteLink);
                         setResetPasswordSuccess(`Đã sao chép link đặt lại mật khẩu!`);
                       }}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
                     >
                       <Copy className="w-4 h-4" />
                       Copy Link
@@ -814,7 +814,7 @@ export function BranchManagement() {
                         );
                         window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`, '_blank');
                       }}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                     >
                       <Mail className="w-4 h-4" />
                       Gửi qua Gmail
@@ -827,7 +827,7 @@ export function BranchManagement() {
                 <button
                   type="button"
                   onClick={() => { setResetPasswordBranch(null); setResetPasswordInviteLink(null); }}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
                 >
                   {resetPasswordSuccess ? 'Đóng' : 'Hủy'}
                 </button>
@@ -835,7 +835,7 @@ export function BranchManagement() {
                   <button
                     type="submit"
                     disabled={resetting}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 dark:bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 dark:hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {resetting ? 'Đang cập nhật...' : 'Xác nhận'}
                   </button>
@@ -848,9 +848,9 @@ export function BranchManagement() {
 
       {forceDeleteBranch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-red-700 flex items-center gap-2">
+          <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-lg font-semibold text-destructive flex items-center gap-2">
                 <Trash2 className="w-5 h-5" />
                 Xoá vĩnh viễn chi nhánh
               </h2>
@@ -858,14 +858,14 @@ export function BranchManagement() {
                 type="button"
                 onClick={() => { setForceDeleteBranch(null); setConfirmName(''); }}
                 aria-label="Đóng"
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 space-y-2">
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive space-y-2">
                 <p className="font-semibold">Cảnh báo: Hành động này KHÔNG THỂ hoàn tác!</p>
                 <ul className="list-disc pl-4 space-y-1">
                   <li>Toàn bộ dữ liệu của chi nhánh <b>"{forceDeleteBranch.name}"</b> sẽ bị xoá vĩnh viễn</li>
@@ -875,19 +875,19 @@ export function BranchManagement() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Nhập đúng tên chi nhánh "<b>{forceDeleteBranch.name}</b>" để xác nhận xoá:
+                <label className="text-sm font-medium text-foreground">
+                  Nhập đúng tên chi nhánh "<b className="text-destructive">{forceDeleteBranch.name}</b>" để xác nhận xoá:
                 </label>
                 <input
                   type="text"
                   value={confirmName}
                   onChange={(e) => setConfirmName(e.target.value)}
                   placeholder={forceDeleteBranch.name}
-                  className="w-full rounded-lg border border-red-300 px-3 py-2 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  className="w-full rounded-lg border border-destructive/30 bg-input-background px-3 py-2 focus:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive/20"
                   autoFocus
                 />
                 {confirmName && confirmName !== forceDeleteBranch.name && (
-                  <p className="text-xs text-red-500">Tên chi nhánh không chính xác</p>
+                  <p className="text-xs text-destructive">Tên chi nhánh không chính xác</p>
                 )}
               </div>
 
@@ -895,7 +895,7 @@ export function BranchManagement() {
                 <button
                   type="button"
                   onClick={() => { setForceDeleteBranch(null); setConfirmName(''); }}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
                 >
                   Hủy
                 </button>
@@ -903,7 +903,7 @@ export function BranchManagement() {
                   type="button"
                   onClick={handleForceDelete}
                   disabled={confirmName !== forceDeleteBranch.name || forceDeleting}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {forceDeleting ? 'Đang xoá...' : 'Xác nhận xoá vĩnh viễn'}
                 </button>
