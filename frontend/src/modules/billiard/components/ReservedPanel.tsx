@@ -3,6 +3,7 @@ import { Button } from '@/app/components/ui/button';
 import { useCheckIn, useCancelReservation } from '../hooks';
 import type { BilliardTableWithSession } from '../types';
 import { Loader2 } from 'lucide-react';
+import { useAsyncActionGuard } from '@/shared/hooks/useAsyncActionGuard';
 
 interface ReservedPanelProps {
   table: BilliardTableWithSession;
@@ -15,15 +16,15 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
 
   const reservation = table.currentReservation;
 
-  const handleCheckIn = async () => {
+  const handleCheckIn = useAsyncActionGuard(async () => {
     await checkIn.mutateAsync(table.id);
     onSuccess();
-  };
+  }, { delay: 500 });
 
-  const handleCancel = async () => {
+  const handleCancel = useAsyncActionGuard(async () => {
     await cancelReservation.mutateAsync(table.id);
     onSuccess();
-  };
+  }, { delay: 500 });
 
   return (
     <div className="space-y-4">
@@ -40,12 +41,10 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
             <span className="font-medium">{reservation.customerName}</span>
           </div>
 
-          {reservation.phone && (
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="w-4 h-4 text-muted-foreground" />
-              <span>{reservation.phone}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-sm">
+            <Phone className="w-4 h-4 text-muted-foreground" />
+            <span>{reservation.phone || 'Chưa có số điện thoại'}</span>
+          </div>
 
           <div className="flex items-center gap-2 text-sm">
             <Clock className="w-4 h-4 text-muted-foreground" />
@@ -62,10 +61,10 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
           <div className="pt-3 space-y-2">
             <Button
               className="w-full"
-              onClick={handleCheckIn}
-              disabled={checkIn.isPending}
+              onClick={handleCheckIn.run}
+              disabled={handleCheckIn.isBusy || checkIn.isPending}
             >
-              {checkIn.isPending ? (
+              {(handleCheckIn.isBusy || checkIn.isPending) ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <CheckCircle className="w-4 h-4" />
@@ -75,10 +74,10 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
             <Button
               variant="outline"
               className="w-full text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30"
-              onClick={handleCancel}
-              disabled={cancelReservation.isPending}
+              onClick={handleCancel.run}
+              disabled={handleCancel.isBusy || cancelReservation.isPending}
             >
-              {cancelReservation.isPending ? (
+              {(handleCancel.isBusy || cancelReservation.isPending) ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <XCircle className="w-4 h-4" />

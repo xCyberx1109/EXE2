@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { tableApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
+import { useAsyncActionGuard } from '@/shared/hooks/useAsyncActionGuard';
 import type { TableItem, TableStatus } from '../types';
 
 const STATUS_OPTIONS: Array<{ value: TableStatus; label: string }> = [
@@ -87,7 +88,7 @@ export function TableManagement() {
     setIsCreateModalOpen(true);
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = useAsyncActionGuard(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!form.tableCode.trim()) {
@@ -133,7 +134,7 @@ export function TableManagement() {
     } finally {
       setSaving(false);
     }
-  };
+  }, { delay: 500 });
 
   const handleEdit = (table: TableItem) => {
     setIsCreateModalOpen(false);
@@ -147,7 +148,7 @@ export function TableManagement() {
     });
   };
 
-  const handleDelete = async (table: TableItem) => {
+  const handleDelete = useAsyncActionGuard(async (table: TableItem) => {
     const confirmed = window.confirm(`Bạn có chắc muốn xóa bàn "${table.tableCode}"?`);
     if (!confirmed) return;
 
@@ -165,7 +166,7 @@ export function TableManagement() {
     } finally {
       setDeletingId(null);
     }
-  };
+  }, { delay: 500 });
 
   return (
     <div className="space-y-6">
@@ -241,8 +242,8 @@ export function TableManagement() {
                         {hasPermission('TABLE_DELETE') && (
                           <button
                             type="button"
-                            onClick={() => handleDelete(table)}
-                            disabled={deletingId === table.id}
+                            onClick={() => handleDelete.run(table)}
+                            disabled={handleDelete.isBusy || deletingId === table.id}
                             className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -262,7 +263,7 @@ export function TableManagement() {
       {(isCreateModalOpen || isEditModalOpen) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+            <form onSubmit={(e) => handleSubmit.run(e)} className="space-y-5 p-6">
               <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-4">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
@@ -342,10 +343,10 @@ export function TableManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={handleSubmit.isBusy || saving}
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? (
+                  {(handleSubmit.isBusy || saving) ? (
                     'Đang lưu...'
                   ) : (
                     <>

@@ -16,6 +16,11 @@ export const updateTableLayout = asyncHandler(async (req, res) => {
   sendSuccess(res, { message: 'Cập nhật sơ đồ bàn thành công', data });
 });
 
+export const updateRestaurantTableLayout = asyncHandler(async (req, res) => {
+  const data = await billiardService.updateRestaurantTableLayout(req.body.tables, getContext(req));
+  sendSuccess(res, { message: 'Cập nhật sơ đồ bàn nhà hàng thành công', data });
+});
+
 export const playNow = asyncHandler(async (req, res) => {
   const data = await billiardService.playNow(req.params.tableId, req.body, getContext(req));
   sendSuccess(res, { message: 'Bắt đầu chơi thành công', data, statusCode: 201 });
@@ -82,11 +87,68 @@ export const getTableOrderSummary = asyncHandler(async (req, res) => {
 });
 
 export const payOrder = asyncHandler(async (req, res) => {
-  const data = await billiardService.payOrder(req.params.id, getContext(req));
+  const data = await billiardService.payOrder(req.params.id, req.body, getContext(req));
   sendSuccess(res, { message: 'Thanh toán thành công', data });
 });
 
 export const createBilliardTable = asyncHandler(async (req, res) => {
   const data = await billiardService.createTable(req.body, getContext(req));
   sendSuccess(res, { message: 'Tạo bàn billiard thành công', data, statusCode: 201 });
+});
+
+// ==================== RESTAURANT ENDPOINTS ====================
+
+export const listRestaurantTables = asyncHandler(async (req, res) => {
+  const data = await billiardService.listRestaurantTables(getContext(req));
+  sendSuccess(res, { message: 'Lấy danh sách bàn nhà hàng thành công', data: Array.isArray(data) ? data : [] });
+});
+
+export const createRestaurantTable = asyncHandler(async (req, res) => {
+  const data = await billiardService.createRestaurantTable(req.body, getContext(req));
+  sendSuccess(res, { message: 'Tạo bàn nhà hàng thành công', data, statusCode: 201 });
+});
+
+export const openOrderForTable = asyncHandler(async (req, res) => {
+  const data = await billiardService.openOrderForTable(req.params.tableId, req.body, getContext(req));
+  sendSuccess(res, { message: 'Mở đơn hàng thành công', data, statusCode: data?.status === 'CONFIRMED' ? 201 : 200 });
+});
+
+export const getTableOrder = asyncHandler(async (req, res) => {
+  const data = await billiardService.getTableOrder(req.params.tableId, getContext(req));
+  sendSuccess(res, { message: 'Lấy thông tin đơn hàng thành công', data });
+});
+
+export const transferOrder = asyncHandler(async (req, res) => {
+  const data = await billiardService.transferOrder(req.params.tableId, req.body, getContext(req));
+  sendSuccess(res, { message: 'Chuyển bàn thành công', data });
+});
+
+export const mergeTables = asyncHandler(async (req, res) => {
+  const data = await billiardService.mergeTables(req.params.tableId, req.body, getContext(req));
+  sendSuccess(res, { message: 'Gộp bàn thành công', data });
+});
+
+export const splitOrder = asyncHandler(async (req, res) => {
+  const data = await billiardService.splitOrder(req.params.tableId, req.body, getContext(req));
+  sendSuccess(res, { message: 'Tách bàn thành công', data });
+});
+
+export const updateGuestCount = asyncHandler(async (req, res) => {
+  const data = await billiardService.updateGuestCount(req.params.tableId, req.body.guestCount, getContext(req));
+  sendSuccess(res, { message: 'Cập nhật số khách thành công', data });
+});
+
+export const updateOrderNote = asyncHandler(async (req, res) => {
+  const data = await billiardService.updateOrderNote(req.params.id, req.body.note, getContext(req));
+  sendSuccess(res, { message: 'Cập nhật ghi chú thành công', data });
+});
+
+export const updateRestaurantTable = asyncHandler(async (req, res) => {
+  const data = await billiardService.updateRestaurantTable(req.params.id, req.body, getContext(req));
+  sendSuccess(res, { message: 'Cập nhật bàn thành công', data });
+});
+
+export const deleteRestaurantTable = asyncHandler(async (req, res) => {
+  await billiardService.deleteRestaurantTable(req.params.id, getContext(req));
+  sendSuccess(res, { message: 'Xóa bàn thành công', data: null });
 });

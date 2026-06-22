@@ -30,6 +30,7 @@ import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { BilliardManagement } from './pages/BilliardManagement';
 import { BilliardLayout } from './pages/BilliardLayout';
+import { RestaurantManagement } from './pages/RestaurantManagement';
 
 import { useAuth } from './context/AuthContext';
 import type { PosDeviceTypeV2, DevicePermission } from '../shared/types/pos';
@@ -223,6 +224,7 @@ export const router = createBrowserRouter([
           { path: 'orders/:orderId', element: withGuard(OrderDetailPage, { rbacPerms: ['ORDER_HISTORY_VIEW'] }) },
           { path: 'billiard', element: withGuard(BilliardManagement, { rbacPerms: ['BILLIARD_TABLE_VIEW'] }) },
           { path: 'billiard/layout', element: withGuard(BilliardLayout, { rbacPerms: ['BILLIARD_TABLE_LAYOUT_EDIT'] }) },
+          { path: 'restaurant', element: withGuard(RestaurantManagement, { rbacPerms: ['RESTAURANT_TABLE_VIEW'] }) },
           { path: 'profile', Component: ProfilePage },
         ],
       },

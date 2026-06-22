@@ -435,6 +435,8 @@ export type DevicePermission =
 
   | 'BILLIARD_REPORT_VIEW'
 
+  | 'RESTAURANT_TABLE_VIEW'
+
   | 'CATEGORY_VIEW'
   | 'CATEGORY_CREATE'
   | 'CATEGORY_UPDATE'

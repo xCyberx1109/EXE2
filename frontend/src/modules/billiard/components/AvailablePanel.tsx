@@ -1,20 +1,25 @@
-import { useState } from 'react';
-import { Play, CalendarClock, Loader2, Ban } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Play, CalendarClock, Loader2, Ban, AlertTriangle } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
-import { usePlayNow, useReserve, useDisableTable } from '../hooks';
+import { usePlayNow, useReserve, useDisableTable, useOpenOrder } from '../hooks';
 import type { BilliardTableWithSession } from '../types';
+import { useAsyncActionGuard } from '@/shared/hooks/useAsyncActionGuard';
 
 const DURATIONS = [30, 60, 90, 120];
 
 interface AvailablePanelProps {
+  mode: 'BILLIARD' | 'RESTAURANT';
   table: BilliardTableWithSession;
   onSuccess: () => void;
 }
 
-export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
-  const [mode, setMode] = useState<'none' | 'play' | 'reserve'>('none');
+export function AvailablePanel({ mode, table, onSuccess }: AvailablePanelProps) {
+  if (mode === 'RESTAURANT') {
+    return <RestaurantAvailablePanel table={table} onSuccess={onSuccess} />;
+  }
+  const [actionMode, setActionMode] = useState<'none' | 'play' | 'reserve'>('none');
   const [customerName, setCustomerName] = useState('');
   const [duration, setDuration] = useState<number>(60);
   const [customDuration, setCustomDuration] = useState('');
@@ -30,33 +35,32 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
   const reserve = useReserve();
   const disableTable = useDisableTable();
 
-  const handlePlay = async () => {
+  const handlePlay = useAsyncActionGuard(async () => {
     const mins = duration === 0 ? parseInt(customDuration, 10) : duration;
     if (!mins || mins < 1) return;
     await playNow.mutateAsync({
       tableId: table.id,
-      body: { durationMinutes: mins, customerName: customerName.trim() || undefined },
+      durationMinutes: mins,
+      customerName: customerName.trim() || undefined,
     });
-    setMode('none');
+    setActionMode('none');
     setCustomerName('');
     onSuccess();
-  };
+  }, { delay: 500 });
 
-  const handleReserve = async () => {
+  const handleReserve = useAsyncActionGuard(async () => {
     if (!custName.trim() || !reserveTime) return;
     const mins = reserveDuration === 0 ? parseInt(reserveCustomDuration, 10) : reserveDuration;
     if (!mins || mins < 1) return;
     await reserve.mutateAsync({
       tableId: table.id,
-      body: {
-        customerName: custName.trim(),
-        phone: phone.trim() || undefined,
-        reservationTime: new Date(reserveTime).toISOString(),
-        durationMinutes: mins,
-        note: note.trim() || undefined,
-      },
+      customerName: custName.trim(),
+      phone: phone.trim() || undefined,
+      reservationTime: new Date(reserveTime).toISOString(),
+      durationMinutes: mins,
+      note: note.trim() || undefined,
     });
-    setMode('none');
+    setActionMode('none');
     setCustName('');
     setPhone('');
     setReserveTime('');
@@ -64,20 +68,25 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
     setReserveCustomDuration('');
     setNote('');
     onSuccess();
-  };
+  }, { delay: 500 });
 
-  if (mode === 'none') {
+  const disableTableAction = useAsyncActionGuard(async () => {
+    await disableTable.mutateAsync(table.id);
+    onSuccess();
+  }, { delay: 500 });
+
+  if (actionMode === 'none') {
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-green-600 dark:text-green-400">Trống</span> — Bắt đầu phiên chơi hoặc đặt trước bàn này.
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <Button className="w-full" onClick={() => setMode('play')}>
+          <Button className="w-full" onClick={() => setActionMode('play')}>
             <Play className="w-4 h-4" />
             Chơi ngay
           </Button>
-          <Button variant="outline" className="w-full" onClick={() => setMode('reserve')}>
+          <Button variant="outline" className="w-full" onClick={() => setActionMode('reserve')}>
             <CalendarClock className="w-4 h-4" />
             Đặt trước
           </Button>
@@ -86,13 +95,10 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
           <Button
             variant="destructive"
             className="w-full"
-            onClick={async () => {
-              await disableTable.mutateAsync(table.id);
-              onSuccess();
-            }}
-            disabled={disableTable.isPending}
+            onClick={disableTableAction.run}
+            disabled={disableTableAction.isBusy || disableTable.isPending}
           >
-            {disableTable.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+            {(disableTableAction.isBusy || disableTable.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
             Khóa bàn
           </Button>
         </div>
@@ -100,12 +106,12 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
     );
   }
 
-  if (mode === 'play') {
+  if (actionMode === 'play') {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-sm">Chơi ngay</h3>
-          <Button variant="ghost" size="sm" onClick={() => setMode('none')}>Quay lại</Button>
+          <Button variant="ghost" size="sm" onClick={() => setActionMode('none')}>Quay lại</Button>
         </div>
 
         <div className="space-y-1">
@@ -157,10 +163,10 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
 
         <Button
           className="w-full"
-          onClick={handlePlay}
-          disabled={playNow.isPending || (duration === 0 && (!customDuration || parseInt(customDuration) < 1))}
+          onClick={handlePlay.run}
+          disabled={handlePlay.isBusy || playNow.isPending || (duration === 0 && (!customDuration || parseInt(customDuration) < 1))}
         >
-          {playNow.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          {(handlePlay.isBusy || playNow.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
           Bắt đầu phiên
         </Button>
       </div>
@@ -171,7 +177,7 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-sm">Đặt trước bàn</h3>
-        <Button variant="ghost" size="sm" onClick={() => setMode('none')}>Quay lại</Button>
+        <Button variant="ghost" size="sm" onClick={() => setActionMode('none')}>Quay lại</Button>
       </div>
 
       <div className="space-y-3">
@@ -235,12 +241,58 @@ export function AvailablePanel({ table, onSuccess }: AvailablePanelProps) {
 
       <Button
         className="w-full"
-        onClick={handleReserve}
-        disabled={reserve.isPending || !custName.trim() || !reserveTime || (reserveDuration === 0 && (!reserveCustomDuration || parseInt(reserveCustomDuration) < 1))}
+        onClick={handleReserve.run}
+        disabled={handleReserve.isBusy || reserve.isPending || !custName.trim() || !reserveTime || (reserveDuration === 0 && (!reserveCustomDuration || parseInt(reserveCustomDuration) < 1))}
       >
-        {reserve.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+        {(handleReserve.isBusy || reserve.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
         Xác nhận đặt trước
       </Button>
+    </div>
+  );
+}
+
+function RestaurantAvailablePanel({ table, onSuccess }: { table: BilliardTableWithSession; onSuccess: () => void }) {
+  const openOrder = useOpenOrder();
+  const [hasError, setHasError] = useState(false);
+  const calledRef = useRef(false);
+
+  const handleOpen = useAsyncActionGuard(async () => {
+    setHasError(false);
+    try {
+      await openOrder.mutateAsync({ tableId: table.id, guestCount: 1 });
+      onSuccess();
+    } catch {
+      setHasError(true);
+    }
+  }, { delay: 0 });
+
+  useEffect(() => {
+    if (calledRef.current) return;
+    calledRef.current = true;
+    handleOpen.run();
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="text-center space-y-3 py-8">
+        <AlertTriangle className="w-6 h-6 text-red-500 mx-auto" />
+        <p className="text-sm text-red-600">Không thể mở bàn. Vui lòng thử lại.</p>
+        <Button variant="outline" size="sm" onClick={handleOpen.run} disabled={handleOpen.isBusy}>
+          {handleOpen.isBusy && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+          Thử lại
+        </Button>
+      </div>
+    );
+  }
+
+  const isLoading = handleOpen.isBusy || openOrder.isPending;
+
+  return (
+    <div className="flex items-center justify-center py-8">
+      <div className="text-center space-y-3">
+        {isLoading && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />}
+        <p className="text-sm text-muted-foreground">Đang mở bàn...</p>
+      </div>
     </div>
   );
 }

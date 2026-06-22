@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { X, ShoppingCart } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { AvailablePanel } from './AvailablePanel';
 import { ReservedPanel } from './ReservedPanel';
@@ -10,22 +10,31 @@ import type { BilliardTableWithSession } from '../types';
 import { cn } from '@/app/components/ui/utils';
 
 const TABLE_TYPE_LABEL: Record<string, string> = {
+  BILLIARD: 'Billiard',
   POOL: 'Pool',
   SNOOKER: 'Snooker',
   VIP: 'VIP',
+  RESTAURANT: 'Nhà hàng',
 };
 
 interface RightPanelProps {
+  mode: 'BILLIARD' | 'RESTAURANT';
   table: BilliardTableWithSession | null;
   onClose: () => void;
   onSuccess: () => void;
+  onOrderCreated?: () => void;
+  autoOpenDrawer?: boolean;
+  onAutoOpenDrawerConsumed?: () => void;
   onRefresh?: () => void;
   className?: string;
   layoutMode?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function RightPanel({ table, onClose, onSuccess, onRefresh, className, layoutMode, onDirtyChange }: RightPanelProps) {
+export function RightPanel({
+  mode, table, onClose, onSuccess, onOrderCreated, autoOpenDrawer,
+  onAutoOpenDrawerConsumed, onRefresh, className, layoutMode, onDirtyChange,
+}: RightPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,6 +43,7 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
     }
   }, [table?.id]);
 
+  const isRestaurant = mode === 'RESTAURANT';
   if (!table) {
     return (
       <div className={cn('flex flex-col h-full', className)}>
@@ -51,8 +61,6 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
     );
   }
 
-  const orderInfo = table.currentOrder;
-
   return (
     <div ref={panelRef} className={cn('flex flex-col h-full', className)}>
       <div className="p-4 border-b border-border flex items-center justify-between">
@@ -61,11 +69,18 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
             {layoutMode ? 'Chỉnh sửa bàn' : (table.tableName || table.tableCode)}
           </h2>
           <p className="text-xs text-muted-foreground">
-            {table.tableCode} &middot; {TABLE_TYPE_LABEL[table.tableType] || table.tableType}
+            {table.tableCode} &middot; {mode === 'RESTAURANT' ? 'Nhà hàng' : 'Billiard'}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {new Intl.NumberFormat('vi-VN').format(table.hourlyRate)} ₫ / giờ
-          </p>
+          {!isRestaurant && (
+            <p className="text-xs text-muted-foreground">
+              {new Intl.NumberFormat('vi-VN').format((table as any).hourlyRate)} ₫ / giờ
+            </p>
+          )}
+          {isRestaurant && (table as any).capacity && (
+            <p className="text-xs text-muted-foreground">
+              {(table as any).capacity} chỗ
+            </p>
+          )}
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="w-4 h-4" />
@@ -74,17 +89,37 @@ export function RightPanel({ table, onClose, onSuccess, onRefresh, className, la
 
       <div className="flex-1 overflow-y-auto p-4">
         {layoutMode ? (
-          <EditTablePanel table={table} onSuccess={onSuccess} onDirtyChange={onDirtyChange} />
+          <EditTablePanel mode={mode} table={table} onSuccess={onSuccess} onDirtyChange={onDirtyChange} />
         ) : (
           <>
-            {table.status === 'AVAILABLE' && (
-              <AvailablePanel table={table} onSuccess={onSuccess} />
+            {table.status === 'AVAILABLE' && !(table as any).isMerged && (
+              <AvailablePanel mode={mode} table={table} onSuccess={isRestaurant ? (onOrderCreated || onSuccess) : onSuccess} />
             )}
             {table.status === 'RESERVED' && (
-              <ReservedPanel table={table} onSuccess={onSuccess} />
+              isRestaurant ? (
+                <div className="space-y-4">
+                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">Đã đặt</span>
+                  <p className="text-sm text-muted-foreground">Bàn này đã được đặt trước.</p>
+                </div>
+              ) : (
+                <ReservedPanel table={table} onSuccess={onSuccess} />
+              )
             )}
             {(table.status === 'OCCUPIED' || table.status === 'CHECKING_OUT') && (
-              <OccupiedPanel table={table} onSuccess={onSuccess} onRefresh={onRefresh} />
+              <OccupiedPanel
+                mode={mode}
+                table={table}
+                onSuccess={onSuccess}
+                onRefresh={onRefresh}
+                autoOpenDrawer={autoOpenDrawer}
+                onAutoOpenDrawerConsumed={onAutoOpenDrawerConsumed}
+              />
+            )}
+            {table.status === 'AVAILABLE' && (table as any).isMerged && (
+              <div className="space-y-4">
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">Đã gộp</span>
+                <p className="text-sm text-muted-foreground">Bàn này đã được gộp vào bàn khác.</p>
+              </div>
             )}
             {table.status === 'CLEANING' && (
               <div className="space-y-4">

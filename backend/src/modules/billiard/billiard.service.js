@@ -4,7 +4,64 @@ import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchSc
 import { tableRepository } from '../../repositories/table.repository.js';
 import { playSessionRepository } from '../../repositories/playSession.repository.js';
 import { reservationRepository } from '../../repositories/reservation.repository.js';
-import { rectsOverlap } from '../../utils/tableOverlap.js';
+import { rectsOverlap, findAvailablePosition } from '../../utils/tableOverlap.js';
+
+function computeElapsedMinutes(startTime) {
+  if (!startTime) return 0;
+  return Math.floor((Date.now() - new Date(startTime).getTime()) / 60000);
+}
+
+function getAccountId(user) {
+  return user?.accountId || user?.id || null;
+}
+
+const OPEN_ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'];
+
+function buildOpenOrderWhere(tableId, accountId) {
+  return {
+    tableId,
+    ...(accountId ? { accountId } : {}),
+    source: 'RESTAURANT',
+    status: { in: OPEN_ORDER_STATUSES },
+    paymentStatus: { not: 'PAID' },
+    deletedAt: null,
+  };
+}
+
+function mapOrderSummary(order) {
+  if (!order) return null;
+
+  const items = (order.items || []).map(item => ({
+    id: item.id,
+    menuItemId: item.menuItemId,
+    name: item.name,
+    price: Number(item.price),
+    quantity: item.quantity,
+    lineTotal: Number(item.total || item.price * item.quantity),
+  }));
+
+  const foodTotal = items.reduce((s, i) => s + i.lineTotal, 0);
+  const startTime = order.id;
+  const elapsedMinutes = computeElapsedMinutes(startTime);
+
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    items,
+    foodTotal,
+    serviceCharge: Number(order.serviceCharge || 0),
+    tax: Number(order.tax || 0),
+    discount: Number(order.discount || 0),
+    grandTotal: Number(order.total || foodTotal),
+    guestCount: order.guestCount || 1,
+    note: order.note,
+    startTime,
+    elapsedMinutes,
+    mergedTableIds: order.mergedTableIds,
+  };
+}
 
 const TABLE_PRIORITY = {
   OCCUPIED_SHORT: 0,
@@ -44,7 +101,7 @@ function computePlayCost(hourlyRate, durationMinutes) {
 }
 
 export const billiardService = {
-  async createTable({ tableCode, tableName, tableType, capacity = 4, posX = 0, posY = 0, hourlyRate, width, height }, user) {
+  async createTable({ tableCode, tableName, tableType, capacity = 4, posX = 1, posY = 1, hourlyRate, width, height }, user) {
     if (!user) throw new AppError('Vui lòng đăng nhập', 401);
     const accountId = user.accountId || user.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
@@ -53,31 +110,43 @@ export const billiardService = {
     if (existing) throw new AppError(`Mã bàn "${tableCode}" đã tồn tại`, 409);
 
     const allTables = await prisma.table.findMany({
-      where: { accountId, isActive: true, id: { not: undefined } },
+      where: { accountId, isActive: true, mode: 'BILLIARD', id: { not: undefined } },
       select: { id: true, posX: true, posY: true },
     });
 
-    const newRect = { posX, posY, width, height };
-    const overlap = allTables.find(t => rectsOverlap(newRect, t));
-    if (overlap) {
-      throw new AppError('Table position overlaps with existing table', 400);
+    const reqWidth = width ? Number(width) : 10;
+    const reqHeight = height ? Number(height) : 12;
+    const candidateRect = { posX, posY, width: reqWidth, height: reqHeight };
+    const isOverlap = allTables.length > 0 && allTables.some(t => rectsOverlap(candidateRect, t));
+
+    let finalPosX = posX;
+    let finalPosY = posY;
+
+    if (isOverlap) {
+      const position = findAvailablePosition(allTables, reqWidth, reqHeight);
+      finalPosX = position.x;
+      finalPosY = position.y;
     }
+
+    const VALID_TABLE_TYPES = ['POOL', 'SNOOKER', 'VIP'];
+    const finalTableType = VALID_TABLE_TYPES.includes(tableType) ? tableType : 'POOL';
 
     return tableRepository.create({
       accountId,
       tableCode,
       tableName: tableName || null,
-      tableType,
+      mode: 'BILLIARD',
+      tableType: finalTableType,
       capacity,
-      posX,
-      posY,
+      posX: finalPosX,
+      posY: finalPosY,
       status: 'AVAILABLE',
       hourlyRate: hourlyRate ?? 0,
     });
   },
 
   async listTables(user) {
-    const where = buildBranchWhere(user, { isActive: true }, 'accountId');
+    const where = buildBranchWhere(user, { isActive: true, mode: 'BILLIARD' }, 'accountId');
     const tables = await tableRepository.findMany(where);
     if (!Array.isArray(tables)) return [];
 
@@ -105,7 +174,7 @@ export const billiardService = {
         tableCode: t.tableCode,
         tableName: t.tableName,
         capacity: t.capacity,
-        tableType: t.tableType,
+        mode: t.mode,
         posX: t.posX,
         posY: t.posY,
         hourlyRate: t.hourlyRate ? Number(t.hourlyRate) : 0,
@@ -121,8 +190,10 @@ export const billiardService = {
         currentReservation: reservation ? {
           id: reservation.id,
           customerName: reservation.customerName,
+          phone: reservation.phone,
           reservationTime: reservation.reservationTime,
           durationMinutes: reservation.durationMinutes,
+          note: reservation.note,
         } : null,
         currentOrder: activeOrder ? {
           id: activeOrder.id,
@@ -152,8 +223,8 @@ export const billiardService = {
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
 
     const allTables = await prisma.table.findMany({
-      where: { accountId, isActive: true },
-      select: { id: true, posX: true, posY: true },
+      where: { accountId, isActive: true, mode: 'BILLIARD' },
+      select: { id: true, tableCode: true, posX: true, posY: true },
     });
 
     const results = [];
@@ -165,17 +236,110 @@ export const billiardService = {
     for (const pos of tablePositions) {
       const table = await tableRepository.findById(pos.id);
       if (!table) throw new AppError(`Không tìm thấy bàn ${pos.id}`, 404);
+      if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
       assertBranchAccess(table, user, 'bàn');
 
+      // Remove current table from positionsMap so it never overlaps with itself
+      delete positionsMap[pos.id];
+
       const newRect = { posX: pos.posX, posY: pos.posY, width: pos.width, height: pos.height };
-      const overlap = Object.values(positionsMap).find(
-        t => t.id !== pos.id && rectsOverlap(newRect, t)
-      );
+      const overlap = Object.values(positionsMap).find(other => {
+        const isOverlap = rectsOverlap(newRect, other);
+        console.log({
+          currentTable: table.tableCode,
+          currentId: pos.id,
+          compareTable: other?.tableCode,
+          compareId: other?.id,
+          isSameTable: pos.id === other?.id,
+          isOverlap,
+          newRect,
+          otherRect: { posX: other.posX, posY: other.posY, width: other.width, height: other.height },
+        });
+        return isOverlap;
+      });
       if (overlap) {
-        throw new AppError(`Table "${table.tableCode}" position overlaps with existing table`, 400);
+        throw new AppError(`Table "${table.tableCode}" overlaps with table "${overlap.tableCode}"`, 400);
       }
 
-      positionsMap[pos.id] = { id: pos.id, posX: pos.posX, posY: pos.posY };
+      positionsMap[pos.id] = { id: pos.id, tableCode: table.tableCode, posX: pos.posX, posY: pos.posY };
+
+      const updated = await prisma.table.update({
+        where: { id: pos.id },
+        data: { posX: pos.posX, posY: pos.posY },
+      });
+      results.push(updated);
+    }
+    return results;
+  },
+
+  async updateRestaurantTableLayout(tablePositions, user) {
+    if (!user) throw new AppError('Vui lòng đăng nhập', 401);
+    const accountId = user.accountId || user.id;
+    if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
+
+    console.log('=== DEBUG: updateRestaurantTableLayout ===');
+    console.table(
+      tablePositions.map(p => ({
+        id: p.id,
+        posX: p.posX,
+        posY: p.posY,
+      }))
+    );
+
+    const allTables = await prisma.table.findMany({
+      where: { accountId, isActive: true, mode: 'RESTAURANT' },
+      select: { id: true, tableCode: true, posX: true, posY: true },
+    });
+
+    console.log('=== DEBUG: All RESTAURANT tables from DB ===');
+    console.table(allTables);
+
+    const results = [];
+    const positionsMap = {};
+    for (const t of allTables) {
+      positionsMap[t.id] = t;
+    }
+
+    for (const pos of tablePositions) {
+      const table = await tableRepository.findById(pos.id);
+      console.log({
+        tableId: table?.id,
+        tableCode: table?.tableCode,
+        mode: table?.mode,
+      });
+      if (!table) throw new AppError(`Không tìm thấy bàn ${pos.id}`, 404);
+      if (table.mode !== 'RESTAURANT') {
+        console.error('INVALID TABLE MODE', {
+          tableId: table.id,
+          tableCode: table.tableCode,
+          mode: table.mode,
+        });
+        throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
+      }
+      assertBranchAccess(table, user, 'bàn');
+
+      delete positionsMap[pos.id];
+
+      const newRect = { posX: pos.posX, posY: pos.posY, width: pos.width, height: pos.height };
+      const overlap = Object.values(positionsMap).find(other => {
+        const isOverlap = rectsOverlap(newRect, other);
+        console.log({
+          currentTable: table.tableCode,
+          currentId: pos.id,
+          compareTable: other?.tableCode,
+          compareId: other?.id,
+          isSameTable: pos.id === other?.id,
+          isOverlap,
+          newRect,
+          otherRect: { posX: other.posX, posY: other.posY, width: other.width, height: other.height },
+        });
+        return isOverlap;
+      });
+      if (overlap) {
+        throw new AppError(`Bàn "${table.tableCode}" bị chồng lên với bàn "${overlap.tableCode}"`, 400);
+      }
+
+      positionsMap[pos.id] = { id: pos.id, tableCode: table.tableCode, posX: pos.posX, posY: pos.posY };
 
       const updated = await prisma.table.update({
         where: { id: pos.id },
@@ -496,7 +660,6 @@ export const billiardService = {
             total: grandTotal,
             tableName: table.tableName,
             tableCode: table.tableCode,
-            tableType: table.tableType,
             sessionStartTime: session.startTime,
             playingDurationMinutes: session.durationMinutes,
             hourlyRate: Number(table.hourlyRate),
@@ -905,7 +1068,7 @@ export const billiardService = {
     };
   },
 
-  async payOrder(orderId, user) {
+  async payOrder(orderId, { paymentMethod = 'CASH' } = {}, user) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { table: true, session: true, items: true },
@@ -925,49 +1088,511 @@ export const billiardService = {
 
     const userId = user?.id || user?.accountId || order.createdBy;
     const now = new Date();
-
-    const playingCost = order.session ? Number(order.session.tableFee) : 0;
+    const method = paymentMethod || 'CASH';
 
     return prisma.$transaction(async (tx) => {
-      const totalWithPlaying = Number(order.total) + playingCost;
+      if (order.table?.mode === 'BILLIARD') {
+        const playingCost = order.session ? Number(order.session.tableFee) : 0;
+        const totalWithPlaying = Number(order.total) + playingCost;
+
+        await tx.payment.create({
+          data: { orderId, amount: totalWithPlaying, method, status: 'PAID' },
+        });
+
+        await deductInventoryForOrderTx(tx, order, userId);
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: { paymentStatus: 'PAID', status: 'COMPLETED', completedAt: now, inventoryDeducted: true },
+        });
+
+        if (order.sessionId) {
+          await tx.playSession.update({
+            where: { id: order.sessionId },
+            data: { status: 'FINISHED', endTime: now },
+          });
+        }
+
+        if (order.tableId) {
+          await tx.table.update({
+            where: { id: order.tableId },
+            data: { status: 'AVAILABLE' },
+          });
+        }
+
+        return { id: orderId, paymentStatus: 'PAID', playingCost, method };
+      }
+
+      // RESTAURANT payment
+      const total = Number(order.total);
 
       await tx.payment.create({
-        data: {
-          orderId,
-          amount: totalWithPlaying,
-          method: 'CASH',
-          status: 'PAID',
-        },
+        data: { orderId, amount: total, method, status: 'PAID' },
       });
-
-      await deductInventoryForOrderTx(tx, order, userId);
 
       await tx.order.update({
         where: { id: orderId },
-        data: {
-          paymentStatus: 'PAID',
-          status: 'COMPLETED',
-          completedAt: now,
-          inventoryDeducted: true,
-        },
+        data: { paymentStatus: 'PAID', status: 'COMPLETED', completedAt: now },
       });
-
-      if (order.sessionId) {
-        await tx.playSession.update({
-          where: { id: order.sessionId },
-          data: { status: 'FINISHED', endTime: now },
-        });
-      }
 
       if (order.tableId) {
         await tx.table.update({
           where: { id: order.tableId },
-          data: { status: 'AVAILABLE' },
+          data: { status: 'AVAILABLE', isMerged: false, mergedIntoTableId: null },
         });
       }
 
-      return { id: orderId, paymentStatus: 'PAID', playingCost };
+      if (order.mergedTableIds && Array.isArray(order.mergedTableIds)) {
+        for (const mergedId of order.mergedTableIds) {
+          await tx.table.update({
+            where: { id: mergedId },
+            data: { status: 'AVAILABLE', isMerged: false, mergedIntoTableId: null },
+          });
+        }
+      }
+
+      return { id: orderId, paymentStatus: 'PAID', method };
     });
+  },
+
+  // ==================== RESTAURANT-SPECIFIC OPERATIONS ====================
+
+  async listRestaurantTables(user) {
+    const accountId = getAccountId(user);
+    const where = buildBranchWhere(user, { isActive: true, mode: 'RESTAURANT' }, 'accountId');
+    const tables = await tableRepository.findMany(where);
+    if (!Array.isArray(tables)) return [];
+
+    const enriched = await Promise.all(tables.map(async (t) => {
+      const activeOrder = await prisma.order.findFirst({
+        where: {
+          tableId: t.id,
+          ...(accountId ? { accountId } : {}),
+          source: 'RESTAURANT',
+          status: { in: OPEN_ORDER_STATUSES },
+          paymentStatus: { not: 'PAID' },
+          deletedAt: null,
+        },
+        include: {
+          items: { orderBy: { id: 'asc' }, select: { id: true, menuItemId: true, name: true, price: true, quantity: true, total: true } },
+        },
+        orderBy: { id: 'desc' },
+      });
+
+      const startTime = activeOrder?.id || null;
+      const elapsedMinutes = computeElapsedMinutes(startTime);
+
+      return {
+        id: t.id,
+        accountId: t.accountId,
+        tableCode: t.tableCode,
+        tableName: t.tableName,
+        capacity: t.capacity,
+        mode: t.mode,
+        posX: t.posX,
+        posY: t.posY,
+        status: activeOrder && t.status !== 'RESERVED' ? 'OCCUPIED' : (!activeOrder && t.status === 'OCCUPIED' ? 'AVAILABLE' : t.status),
+        isMerged: t.isMerged,
+        mergedIntoTableId: t.mergedIntoTableId,
+        currentOrder: activeOrder ? mapOrderSummary(activeOrder) : null,
+        isActive: t.isActive,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      };
+    }));
+
+    return enriched;
+  },
+
+  async createRestaurantTable(data, user) {
+    if (!user) throw new AppError('Vui lòng đăng nhập', 401);
+    const accountId = user.accountId || user.id;
+    if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
+
+    const existing = await tableRepository.findByAccountTableCode(accountId, data.tableCode);
+    if (existing) throw new AppError(`Mã bàn "${data.tableCode}" đã tồn tại`, 409);
+
+    const allTables = await prisma.table.findMany({
+      where: { accountId, isActive: true, mode: 'RESTAURANT' },
+      select: { id: true, tableCode: true, posX: true, posY: true },
+    });
+
+    const reqWidth = data.width ? Number(data.width) : 10;
+    const reqHeight = data.height ? Number(data.height) : 12;
+    const reqPosX = Number(data.posX) || 1;
+    const reqPosY = Number(data.posY) || 1;
+
+    const candidateRect = { posX: reqPosX, posY: reqPosY, width: reqWidth, height: reqHeight };
+    const isOverlap = allTables.length > 0 && allTables.some(t => rectsOverlap(candidateRect, t));
+
+    let posX = reqPosX;
+    let posY = reqPosY;
+
+    if (isOverlap) {
+      const position = findAvailablePosition(allTables, reqWidth, reqHeight);
+      posX = position.x;
+      posY = position.y;
+    }
+
+    return tableRepository.create({
+      accountId,
+      tableCode: data.tableCode,
+      tableName: data.tableName || null,
+      mode: 'RESTAURANT',
+      capacity: data.capacity || 4,
+      posX,
+      posY,
+      status: 'AVAILABLE',
+    });
+  },
+
+  async openOrderForTable(tableId, { guestCount, note }, user) {
+    const table = await tableRepository.findById(tableId);
+    if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    assertBranchAccess(table, user, 'bàn');
+
+    const accountId = getAccountId(user);
+
+    const existingOrder = await prisma.order.findFirst({
+      where: buildOpenOrderWhere(tableId, accountId),
+      include: { items: { orderBy: { id: 'asc' } } },
+      orderBy: { id: 'desc' },
+    });
+
+    if (existingOrder) return mapOrderSummary(existingOrder);
+
+    if (table.status === 'OCCUPIED') {
+      throw new AppError('Bàn này đã có đơn hàng đang mở', 400);
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const existingInTx = await tx.order.findFirst({
+        where: buildOpenOrderWhere(tableId, accountId),
+        include: { items: { orderBy: { id: 'asc' } } },
+        orderBy: { id: 'desc' },
+      });
+
+      if (existingInTx) return existingInTx;
+
+      const orderNumber = `TBL-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+      const order = await tx.order.create({
+        data: {
+          accountId,
+          createdBy: user.id || accountId,
+          orderNumber,
+          tableId,
+          source: 'RESTAURANT',
+          tableName: table.tableName,
+          tableCode: table.tableCode,
+          status: 'CONFIRMED',
+          paymentStatus: 'UNPAID',
+          orderType: 'DINE_IN',
+          subtotal: 0,
+          total: 0,
+          cost: 0,
+          profit: 0,
+          guestCount: guestCount || 1,
+          note: note || null,
+        },
+      });
+
+      await tx.table.update({
+        where: { id: tableId },
+        data: { status: 'OCCUPIED' },
+      });
+
+      const fullOrder = await tx.order.findUnique({
+        where: { id: order.id },
+        include: { items: { orderBy: { id: 'asc' } } },
+      });
+
+      return mapOrderSummary(fullOrder);
+    });
+  },
+
+  async getTableOrder(tableId, user) {
+    const table = await tableRepository.findById(tableId);
+    if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    assertBranchAccess(table, user, 'bàn');
+
+    if (table.mode === 'BILLIARD') {
+      return this.getTableOrderSummary(tableId, user);
+    }
+
+    const accountId = getAccountId(user);
+    const order = await prisma.order.findFirst({
+      where: buildOpenOrderWhere(tableId, accountId),
+      include: { items: { orderBy: { id: 'asc' } } },
+      orderBy: { id: 'desc' },
+    });
+
+    if (!order) return null;
+    return mapOrderSummary(order);
+  },
+
+  async transferOrder(tableId, { targetTableId }, user) {
+    const sourceTable = await tableRepository.findById(tableId);
+    if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
+    assertBranchAccess(sourceTable, user, 'bàn');
+
+    const targetTable = await tableRepository.findById(targetTableId);
+    if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
+    assertBranchAccess(targetTable, user, 'bàn');
+
+    if (targetTable.status === 'OCCUPIED') {
+      throw new AppError('Bàn đích đang có khách', 400);
+    }
+
+    const activeOrder = await prisma.order.findFirst({
+      where: {
+        tableId,
+        status: { in: OPEN_ORDER_STATUSES },
+        deletedAt: null,
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    if (!activeOrder) {
+      throw new AppError('Bàn nguồn không có đơn hàng nào để chuyển', 400);
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: activeOrder.id },
+        data: { tableId: targetTableId },
+      });
+
+      await tx.table.update({
+        where: { id: tableId },
+        data: { status: 'AVAILABLE' },
+      });
+
+      await tx.table.update({
+        where: { id: targetTableId },
+        data: { status: 'OCCUPIED' },
+      });
+
+      return { orderId: activeOrder.id, fromTableId: tableId, toTableId: targetTableId };
+    });
+  },
+
+  async mergeTables(tableId, { targetTableId }, user) {
+    const sourceTable = await tableRepository.findById(tableId);
+    if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
+    assertBranchAccess(sourceTable, user, 'bàn');
+
+    const targetTable = await tableRepository.findById(targetTableId);
+    if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
+    assertBranchAccess(targetTable, user, 'bàn');
+
+    const sourceOrder = await prisma.order.findFirst({
+      where: { tableId, status: { in: OPEN_ORDER_STATUSES }, deletedAt: null },
+      include: { items: true },
+      orderBy: { id: 'desc' },
+    });
+
+    if (!sourceOrder) throw new AppError('Bàn nguồn không có đơn hàng', 400);
+
+    const targetOrder = await prisma.order.findFirst({
+      where: { tableId: targetTableId, status: { in: OPEN_ORDER_STATUSES }, deletedAt: null },
+      include: { items: true },
+      orderBy: { id: 'desc' },
+    });
+
+    if (!targetOrder) throw new AppError('Bàn đích không có đơn hàng', 400);
+    if (sourceOrder.id === targetOrder.id) throw new AppError('Không thể gộp bàn với chính nó', 400);
+
+    return prisma.$transaction(async (tx) => {
+      let totalDiff = 0;
+      let costDiff = 0;
+
+      for (const item of sourceOrder.items) {
+        const existingItem = targetOrder.items.find(i => i.menuItemId === item.menuItemId);
+        if (existingItem) {
+          const newQty = existingItem.quantity + item.quantity;
+          const newTotal = Number(existingItem.price) * newQty;
+          await tx.orderItem.update({ where: { id: existingItem.id }, data: { quantity: newQty, total: newTotal } });
+          totalDiff += newTotal - Number(existingItem.total);
+        } else {
+          await tx.orderItem.update({ where: { id: item.id }, data: { orderId: targetOrder.id } });
+          totalDiff += Number(item.total);
+          costDiff += Number(item.cost) * item.quantity;
+        }
+      }
+
+      if (totalDiff !== 0) {
+        await tx.order.update({
+          where: { id: targetOrder.id },
+          data: { subtotal: { increment: totalDiff }, total: { increment: totalDiff }, cost: { increment: costDiff }, profit: { increment: totalDiff - costDiff } },
+        });
+      }
+
+      const mergedIds = [...(Array.isArray(targetOrder.mergedTableIds) ? targetOrder.mergedTableIds : []), tableId];
+      await tx.order.update({ where: { id: targetOrder.id }, data: { mergedTableIds: mergedIds } });
+
+      await tx.table.update({ where: { id: tableId }, data: { status: 'OCCUPIED', isMerged: true, mergedIntoTableId: targetTableId } });
+
+      return { mergedIntoOrderId: targetOrder.id, fromTableId: tableId, toTableId: targetTableId };
+    });
+  },
+
+  async splitOrder(tableId, { targetTableId, items }, user) {
+    const sourceTable = await tableRepository.findById(tableId);
+    if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
+    assertBranchAccess(sourceTable, user, 'bàn');
+
+    const targetTable = await tableRepository.findById(targetTableId);
+    if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
+    assertBranchAccess(targetTable, user, 'bàn');
+
+    if (targetTable.status === 'OCCUPIED') throw new AppError('Bàn đích đang có khách', 400);
+
+    const sourceOrder = await prisma.order.findFirst({
+      where: { tableId, status: { in: OPEN_ORDER_STATUSES }, deletedAt: null },
+      include: { items: true },
+      orderBy: { id: 'desc' },
+    });
+
+    if (!sourceOrder) throw new AppError('Bàn nguồn không có đơn hàng', 400);
+
+    const accountId = getAccountId(user);
+
+    return prisma.$transaction(async (tx) => {
+      const orderNumber = `TBL-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+      const targetOrder = await tx.order.create({
+        data: {
+          accountId,
+          createdBy: user.id || accountId,
+          orderNumber,
+          tableId: targetTableId,
+          source: 'RESTAURANT',
+          status: 'CONFIRMED',
+          paymentStatus: 'UNPAID',
+          orderType: 'DINE_IN',
+          subtotal: 0, total: 0, cost: 0, profit: 0,
+          guestCount: 1,
+        },
+      });
+
+      let movedTotal = 0, movedCost = 0, movedProfit = 0;
+
+      for (const splitItem of items) {
+        const sourceItem = sourceOrder.items.find(i => i.id === splitItem.itemId);
+        if (!sourceItem) throw new AppError(`Không tìm thấy món ${splitItem.itemId}`, 404);
+
+        const splitQty = Math.min(splitItem.quantity, sourceItem.quantity);
+        if (splitQty <= 0) continue;
+
+        const itemTotal = Number(sourceItem.price) * splitQty;
+        const itemCost = Number(sourceItem.cost) * splitQty;
+
+        await tx.orderItem.create({
+          data: {
+            orderId: targetOrder.id, menuItemId: sourceItem.menuItemId,
+            name: sourceItem.name, price: sourceItem.price, cost: sourceItem.cost,
+            quantity: splitQty, total: itemTotal,
+          },
+        });
+
+        movedTotal += itemTotal; movedCost += itemCost; movedProfit += itemTotal - itemCost;
+
+        const remainingQty = sourceItem.quantity - splitQty;
+        if (remainingQty <= 0) {
+          await tx.orderItem.delete({ where: { id: sourceItem.id } });
+        } else {
+          const newSourceTotal = Number(sourceItem.price) * remainingQty;
+          await tx.orderItem.update({ where: { id: sourceItem.id }, data: { quantity: remainingQty, total: newSourceTotal } });
+        }
+      }
+
+      if (movedTotal > 0) {
+        await tx.order.update({ where: { id: targetOrder.id }, data: { subtotal: { increment: movedTotal }, total: { increment: movedTotal }, cost: { increment: movedCost }, profit: { increment: movedProfit } } });
+        await tx.order.update({ where: { id: sourceOrder.id }, data: { subtotal: { decrement: movedTotal }, total: { decrement: movedTotal }, cost: { decrement: movedCost }, profit: { decrement: movedProfit } } });
+      }
+
+      await tx.table.update({ where: { id: targetTableId }, data: { status: 'OCCUPIED' } });
+
+      const remainingItems = await tx.orderItem.count({ where: { orderId: sourceOrder.id } });
+      if (remainingItems === 0) {
+        await tx.order.update({ where: { id: sourceOrder.id }, data: { status: 'CANCELLED' } });
+        await tx.table.update({ where: { id: tableId }, data: { status: 'AVAILABLE' } });
+      }
+
+      return { sourceOrderId: sourceOrder.id, targetOrderId: targetOrder.id, movedTotal };
+    });
+  },
+
+  async updateGuestCount(tableId, guestCount, user) {
+    const table = await tableRepository.findById(tableId);
+    if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    assertBranchAccess(table, user, 'bàn');
+
+    const activeOrder = await prisma.order.findFirst({
+      where: { tableId, status: { in: OPEN_ORDER_STATUSES }, deletedAt: null },
+      orderBy: { id: 'desc' },
+    });
+
+    if (!activeOrder) throw new AppError('Bàn này không có đơn hàng đang mở', 400);
+
+    return prisma.order.update({ where: { id: activeOrder.id }, data: { guestCount } });
+  },
+
+  async updateOrderNote(orderId, note, user) {
+    const order = await prisma.order.findUnique({ where: { id: orderId }, include: { table: true } });
+    if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = getAccountId(user);
+      if (accountId && order.accountId !== accountId) throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
+    }
+    if (order.table) assertBranchAccess(order.table, user, 'bàn');
+
+    return prisma.order.update({ where: { id: orderId }, data: { note } });
+  },
+
+  async updateRestaurantTable(tableId, data, user) {
+    const existing = await tableRepository.findById(tableId);
+    if (!existing) throw new AppError('Không tìm thấy bàn', 404);
+    assertBranchAccess(existing, user, 'bàn');
+
+    if (data.tableCode && data.tableCode !== existing.tableCode) {
+      const duplicate = await tableRepository.findByAccountTableCode(existing.accountId, data.tableCode);
+      if (duplicate) throw new AppError('Mã bàn đã tồn tại', 409);
+    }
+
+    const updateData = {};
+    if (data.tableCode !== undefined) updateData.tableCode = data.tableCode;
+    if (data.tableName !== undefined) updateData.tableName = data.tableName;
+    if (data.capacity !== undefined) updateData.capacity = data.capacity;
+    if (data.posX !== undefined) updateData.posX = data.posX;
+    if (data.posY !== undefined) updateData.posY = data.posY;
+
+    if (data.posX !== undefined || data.posY !== undefined) {
+      const allTables = await prisma.table.findMany({
+        where: { accountId: existing.accountId, isActive: true, mode: 'RESTAURANT', id: { not: tableId } },
+        select: { id: true, tableCode: true, posX: true, posY: true },
+      });
+
+      const newRect = { posX: data.posX ?? existing.posX, posY: data.posY ?? existing.posY, width: data.width, height: data.height };
+      const overlap = allTables.find(t => rectsOverlap(newRect, t));
+      if (overlap) throw new AppError(`Vị trí bàn "${existing.tableCode}" bị chồng lên với bàn "${overlap.tableCode}"`, 400);
+    }
+
+    return tableRepository.update(tableId, updateData);
+  },
+
+  async deleteRestaurantTable(tableId, user) {
+    const existing = await tableRepository.findById(tableId);
+    if (!existing) throw new AppError('Không tìm thấy bàn', 404);
+    assertBranchAccess(existing, user, 'bàn');
+
+    const activeOrder = await prisma.order.findFirst({
+      where: { tableId, status: { in: OPEN_ORDER_STATUSES }, deletedAt: null },
+    });
+    if (activeOrder) throw new AppError('Không thể xóa bàn đang có đơn hàng', 400);
+
+    await tableRepository.softDelete(tableId);
   },
 };
 

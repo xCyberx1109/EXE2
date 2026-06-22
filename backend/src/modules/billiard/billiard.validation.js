@@ -1,4 +1,4 @@
-import { body, param, query } from 'express-validator';
+import { body, param } from 'express-validator';
 
 export const idParam = [param('id').trim().notEmpty().withMessage('ID là bắt buộc')];
 
@@ -58,11 +58,57 @@ export const updateOrderItemRules = [
 export const createTableRules = [
   body('tableCode').trim().notEmpty().withMessage('Mã bàn là bắt buộc'),
   body('tableName').optional().trim(),
-  body('tableType').isIn(['POOL', 'SNOOKER', 'VIP']).withMessage('Loại bàn không hợp lệ'),
+  body('tableType').optional().isIn(['BILLIARD', 'POOL', 'SNOOKER', 'VIP']).withMessage('Loại bàn không hợp lệ'),
   body('capacity').optional().isInt({ min: 1 }).withMessage('Sức chứa phải lớn hơn 0'),
   body('posX').optional().isFloat().withMessage('posX phải là số'),
   body('posY').optional().isFloat().withMessage('posY phải là số'),
   body('width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
   body('height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
   body('hourlyRate').optional().isFloat({ min: 0 }).withMessage('Phí theo giờ phải là số >= 0'),
+];
+
+// ==================== RESTAURANT VALIDATION ====================
+
+export const createOrderRules = [
+  body('guestCount').optional().isInt({ min: 1 }).withMessage('Số khách phải lớn hơn 0'),
+  body('note').optional().trim(),
+];
+
+export const payOrderRules = [
+  body('paymentMethod').optional().trim().isIn(['CASH', 'CARD', 'BANKING', 'E_WALLET', 'QR']).withMessage('Phương thức thanh toán không hợp lệ'),
+];
+
+export const transferRules = [
+  body('targetTableId').trim().notEmpty().withMessage('ID bàn đích là bắt buộc'),
+];
+
+export const mergeRules = [
+  body('targetTableId').trim().notEmpty().withMessage('ID bàn chính là bắt buộc'),
+];
+
+export const splitRules = [
+  body('targetTableId').trim().notEmpty().withMessage('ID bàn đích là bắt buộc'),
+  body('items').isArray({ min: 1 }).withMessage('Danh sách món cần tách là bắt buộc'),
+  body('items.*.itemId').trim().notEmpty().withMessage('ID món cần tách là bắt buộc'),
+  body('items.*.quantity').isInt({ min: 1 }).withMessage('Số lượng phải lớn hơn 0'),
+];
+
+export const createRestaurantTableRules = [
+  body('tableCode').trim().notEmpty().withMessage('Mã bàn là bắt buộc'),
+  body('tableName').optional().trim(),
+  body('capacity').optional().isInt({ min: 1 }).withMessage('Sức chứa phải lớn hơn 0'),
+  body('posX').optional().isFloat().withMessage('posX phải là số'),
+  body('posY').optional().isFloat().withMessage('posY phải là số'),
+  body('width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
+  body('height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
+];
+
+export const updateRestaurantTableRules = [
+  body('tableCode').optional().trim().notEmpty().withMessage('Mã bàn không được để trống'),
+  body('tableName').optional().trim(),
+  body('capacity').optional().isInt({ min: 1 }).withMessage('Sức chứa phải lớn hơn 0'),
+  body('posX').optional().isFloat().withMessage('posX phải là số'),
+  body('posY').optional().isFloat().withMessage('posY phải là số'),
+  body('width').optional().isFloat({ min: 1 }).withMessage('width phải là số > 0'),
+  body('height').optional().isFloat({ min: 1 }).withMessage('height phải là số > 0'),
 ];
