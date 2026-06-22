@@ -2,7 +2,7 @@ import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 import { tableRepository } from '../../repositories/table.repository.js';
-import { rectsOverlap } from '../../utils/tableOverlap.js';
+import { rectsOverlap, findAvailablePosition } from '../../utils/tableOverlap.js';
 
 export const tableService = {
   async list(user) {
@@ -25,25 +25,40 @@ export const tableService = {
     const existing = await tableRepository.findByAccountTableCode(accountId, data.tableCode);
     if (existing) throw new AppError('Mã bàn đã tồn tại trong tài khoản này', 409);
 
+    const mode = data.mode || 'BILLIARD';
     const allTables = await prisma.table.findMany({
-      where: { accountId, isActive: true },
+      where: { accountId, isActive: true, mode },
       select: { id: true, posX: true, posY: true },
     });
 
-    const newRect = { posX: data.posX ?? 0, posY: data.posY ?? 0, width: data.width, height: data.height };
-    const overlap = allTables.find(t => rectsOverlap(newRect, t));
-    if (overlap) {
-      throw new AppError('Table position overlaps with existing table', 400);
+    const reqWidth = data.width ? Number(data.width) : 10;
+    const reqHeight = data.height ? Number(data.height) : 12;
+    const reqPosX = Number(data.posX) || 1;
+    const reqPosY = Number(data.posY) || 1;
+    const candidateRect = { posX: reqPosX, posY: reqPosY, width: reqWidth, height: reqHeight };
+    const isOverlap = allTables.length > 0 && allTables.some(t => rectsOverlap(candidateRect, t));
+
+    let posX = reqPosX;
+    let posY = reqPosY;
+
+    if (isOverlap) {
+      const position = findAvailablePosition(allTables, reqWidth, reqHeight);
+      posX = position.x;
+      posY = position.y;
     }
+
+    const VALID_TABLE_TYPES = ['POOL', 'SNOOKER', 'VIP'];
+    const tableType = VALID_TABLE_TYPES.includes(data.tableType) ? data.tableType : 'POOL';
 
     return tableRepository.create({
       data: {
         tableCode: data.tableCode,
         tableName: data.tableName || null,
         capacity: data.capacity,
-        tableType: data.tableType || 'POOL',
-        posX: data.posX ?? 0,
-        posY: data.posY ?? 0,
+        mode: data.mode || 'BILLIARD',
+        tableType,
+        posX,
+        posY,
         status: data.status || 'AVAILABLE',
         hourlyRate: data.hourlyRate ?? 0,
         accountId,
@@ -65,7 +80,11 @@ export const tableService = {
     if (data.tableCode !== undefined) updateData.tableCode = data.tableCode;
     if (data.tableName !== undefined) updateData.tableName = data.tableName;
     if (data.capacity !== undefined) updateData.capacity = data.capacity;
-    if (data.tableType !== undefined) updateData.tableType = data.tableType;
+    if (data.mode !== undefined) updateData.mode = data.mode;
+    if (data.tableType !== undefined) {
+      const VALID_TABLE_TYPES = ['POOL', 'SNOOKER', 'VIP'];
+      updateData.tableType = VALID_TABLE_TYPES.includes(data.tableType) ? data.tableType : 'POOL';
+    }
     if (data.posX !== undefined) updateData.posX = data.posX;
     if (data.posY !== undefined) updateData.posY = data.posY;
     if (data.status !== undefined) updateData.status = data.status;
@@ -73,7 +92,7 @@ export const tableService = {
 
     if (data.posX !== undefined || data.posY !== undefined) {
       const allTables = await prisma.table.findMany({
-        where: { accountId: existing.accountId, isActive: true, id: { not: id } },
+        where: { accountId: existing.accountId, isActive: true, mode: existing.mode, id: { not: id } },
         select: { id: true, posX: true, posY: true },
       });
 
@@ -137,7 +156,7 @@ export const tableService = {
         tableCode: t.tableCode,
         tableName: t.tableName,
         capacity: t.capacity,
-        tableType: t.tableType,
+        mode: t.mode,
         posX: t.posX,
         posY: t.posY,
         status: t.status,

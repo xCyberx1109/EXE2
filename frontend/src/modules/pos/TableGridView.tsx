@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTablesPos, useCheckInTableMutation } from '../../app/api/hooks';
+import { useAsyncActionGuard } from '../../shared/hooks/useAsyncActionGuard';
 import type { TableItem } from '../../app/types';
 import { TableOrderDialog } from './TableOrderDialog';
 
@@ -21,6 +22,12 @@ export function TableGridView({ onTableSelect }: Props) {
   const checkInMutation = useCheckInTableMutation();
   const [orderTable, setOrderTable] = useState<TableItem | null>(null);
 
+  const guardCheckIn = useAsyncActionGuard(async (table: TableItem) => {
+    if (window.confirm(`Check-in bàn ${table.tableCode}?`)) {
+      await checkInMutation.mutateAsync(table.id);
+    }
+  }, { delay: 500 });
+
   const handleClick = (table: TableItem) => {
     if (onTableSelect) {
       onTableSelect(table);
@@ -34,9 +41,7 @@ export function TableGridView({ onTableSelect }: Props) {
         setOrderTable(table);
         break;
       case 'RESERVED':
-        if (window.confirm(`Check-in bàn ${table.tableCode}?`)) {
-          checkInMutation.mutate(table.id);
-        }
+        guardCheckIn.run(table);
         break;
     }
   };

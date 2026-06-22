@@ -27,7 +27,6 @@ export const APP_MENU: AppMenuItem[] = [
     children: [
       { name: 'Kho', href: '/app/inventory', icon: 'Package', requiredPermission: 'INVENTORY_VIEW' },
       { name: 'Lịch sử đơn hàng', href: '/app/orders/history', icon: 'Clock', requiredPermission: 'ORDER_HISTORY_VIEW' },
-      { name: 'Khách hàng', href: '/app/customers', icon: 'Users', requiredPermission: 'CUSTOMER_VIEW' },
     ],
   },
   {
@@ -44,9 +43,10 @@ export const APP_MENU: AppMenuItem[] = [
     ],
   },
   {
-    name: 'Bi-a',
+    name: 'Bàn',
     children: [
       { name: 'Quản lý bàn bi-a', href: '/app/billiard', icon: 'CircleDot', requiredPermission: 'BILLIARD_TABLE_VIEW' },
+      { name: 'Quản lý bàn nhà hàng', href: '/app/restaurant', icon: 'UtensilsCrossed', requiredPermission: 'RESTAURANT_TABLE_VIEW' },
     ],
   },
   {

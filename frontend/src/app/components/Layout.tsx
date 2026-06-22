@@ -221,7 +221,7 @@ export function Layout() {
 
       {/* Main content - scrollable */}
       <div className="flex-1 lg:pl-64 pt-14 lg:pt-0 h-full overflow-y-auto overflow-x-hidden">
-        <main className="p-6 min-h-full">
+        <main className="p-6 min-h-full flex flex-col">
           <Outlet />
         </main>
       </div>

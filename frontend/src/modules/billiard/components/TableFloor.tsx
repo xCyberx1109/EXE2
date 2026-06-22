@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Plus, Move, Save, X } from 'lucide-react';
 import { TableCard } from './TableCard';
@@ -9,20 +9,20 @@ import { Button } from '@/app/components/ui/button';
 import { cn } from '@/app/components/ui/utils';
 import { useAuth } from '@/app/context/AuthContext';
 
-const TABLE_WIDTH = 180;
-const TABLE_HEIGHT = 120;
+const TABLE_DRAG_WIDTH = 160;
+const TABLE_DRAG_HEIGHT = 110;
 
 function rectsOverlap(a: { posX: number; posY: number }, b: { posX: number; posY: number }) {
-  const aRight = a.posX + TABLE_WIDTH;
-  const aBottom = a.posY + TABLE_HEIGHT;
-  const bRight = b.posX + TABLE_WIDTH;
-  const bBottom = b.posY + TABLE_HEIGHT;
+  const aRight = a.posX + TABLE_DRAG_WIDTH;
+  const aBottom = a.posY + TABLE_DRAG_HEIGHT;
+  const bRight = b.posX + TABLE_DRAG_WIDTH;
+  const bBottom = b.posY + TABLE_DRAG_HEIGHT;
   return !(aRight <= b.posX || a.posX >= bRight || aBottom <= b.posY || a.posY >= bBottom);
 }
 
 function getSortPriority(table: BilliardTableWithSession): SortPriority {
   if (table.status === 'OCCUPIED') {
-    const endTime = table.currentSession?.expectedEndTime;
+    const endTime = table.currentSession?.expectedEndTime || (table as any).currentOrder?.startTime;
     if (endTime && new Date(endTime).getTime() - Date.now() <= 15 * 60 * 1000) {
       return 'OCCUPIED_ENDING';
     }
@@ -46,6 +46,7 @@ const PRIORITY_ORDER: SortPriority[] = [
 ];
 
 interface TableFloorProps {
+  mode: 'BILLIARD' | 'RESTAURANT';
   tables: BilliardTableWithSession[];
   selectedId: string | null;
   onSelect: (table: BilliardTableWithSession) => void;
@@ -54,11 +55,28 @@ interface TableFloorProps {
   onLayoutModeChange: (mode: boolean) => void;
 }
 
-export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
+export function TableFloor({ mode, tables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
   const { hasPermission } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
-  const [positions, setPositions] = useState<Record<string, { posX: number; posY: number }>>({});
-  const updateLayout = useUpdateLayout();
+  const [positions, setPositions] = useState<Record<string, { xPercent: number; yPercent: number }>>({});
+  const updateLayout = useUpdateLayout(mode);
+  const containerRef = useRef<HTMLDivElement>(null!);
+  const [containerSize, setContainerSize] = useState({ width: 1920, height: 1080 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const updateSize = () => {
+      setContainerSize({
+        width: el.clientWidth,
+        height: el.clientHeight,
+      });
+    };
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const sortedTables = useMemo(() => {
     return [...tables].sort((a, b) => {
@@ -69,27 +87,37 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
   }, [tables]);
 
   const handleToggleLayout = () => {
-    const pos: Record<string, { posX: number; posY: number }> = {};
-    tables.forEach((t) => { pos[t.id] = { posX: t.posX, posY: t.posY }; });
+    const pos: Record<string, { xPercent: number; yPercent: number }> = {};
+    tables.forEach((t) => {
+      pos[t.id] = { xPercent: t.xPercent ?? t.posX, yPercent: t.yPercent ?? t.posY };
+    });
     setPositions(pos);
     onLayoutModeChange(true);
   };
 
-  const findOverlappingIds = useCallback((currentPositions: Record<string, { posX: number; posY: number }>) => {
+  const pixelOverlaps = useCallback((posA: { xPercent: number; yPercent: number }, posB: { xPercent: number; yPercent: number }) => {
+    const ax = (posA.xPercent / 100) * containerSize.width;
+    const ay = (posA.yPercent / 100) * containerSize.height;
+    const bx = (posB.xPercent / 100) * containerSize.width;
+    const by = (posB.yPercent / 100) * containerSize.height;
+    return rectsOverlap({ posX: ax, posY: ay }, { posX: bx, posY: by });
+  }, [containerSize]);
+
+  const findOverlappingIds = useCallback((currentPositions: Record<string, { xPercent: number; yPercent: number }>) => {
     const overlapping = new Set<string>();
     const entries = Object.entries(currentPositions);
     for (let i = 0; i < entries.length; i++) {
       const [idA, posA] = entries[i];
       for (let j = i + 1; j < entries.length; j++) {
         const [idB, posB] = entries[j];
-        if (rectsOverlap(posA, posB)) {
+        if (pixelOverlaps(posA, posB)) {
           overlapping.add(idA);
           overlapping.add(idB);
         }
       }
     }
     return overlapping;
-  }, []);
+  }, [pixelOverlaps]);
 
   const overlappingIds = useMemo(() => findOverlappingIds(positions), [positions, findOverlappingIds]);
 
@@ -99,16 +127,19 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
     e.stopPropagation();
     const startX = e.clientX;
     const startY = e.clientY;
-    const startPos = positions[tableId] || { posX: 0, posY: 0 };
+    const startPos = positions[tableId] || { xPercent: 0, yPercent: 0 };
 
     const handleMouseMove = (ev: MouseEvent) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
+      const dxPx = ev.clientX - startX;
+      const dyPx = ev.clientY - startY;
+      const dxPercent = (dxPx / containerSize.width) * 100;
+      const dyPercent = (dyPx / containerSize.height) * 100;
+      const snapPercent = 0.5;
       setPositions((prev) => ({
         ...prev,
         [tableId]: {
-          posX: Math.max(0, Math.round((startPos.posX + dx) / 20) * 20),
-          posY: Math.max(0, Math.round((startPos.posY + dy) / 20) * 20),
+          xPercent: Math.max(0, Math.round((startPos.xPercent + dxPercent) / snapPercent) * snapPercent),
+          yPercent: Math.max(0, Math.round((startPos.yPercent + dyPercent) / snapPercent) * snapPercent),
         },
       }));
     };
@@ -120,11 +151,12 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [layoutMode, positions]);
+  }, [layoutMode, positions, containerSize]);
 
   const hasChanges = tables.some((t) => {
     const p = positions[t.id];
-    return p && (p.posX !== t.posX || p.posY !== t.posY);
+    const origPercent = t.xPercent ?? t.posX;
+    return p && (Math.abs(p.xPercent - origPercent) > 0.01 || Math.abs(p.yPercent - (t.yPercent ?? t.posY)) > 0.01);
   });
 
   const hasOverlap = overlappingIds.size > 0;
@@ -136,9 +168,20 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
     }
     const payload = tables.map((t) => ({
       id: t.id,
-      posX: positions[t.id]?.posX ?? t.posX,
-      posY: positions[t.id]?.posY ?? t.posY,
+      posX: positions[t.id]?.xPercent ?? t.xPercent ?? t.posX,
+      posY: positions[t.id]?.yPercent ?? t.yPercent ?? t.posY,
     }));
+    console.log('Current Mode:', mode);
+    console.log('Saving Layout To:', mode === 'BILLIARD'
+      ? '/api/billiard/tables/layout'
+      : '/api/restaurant/tables/layout');
+    console.table(
+      tables.map(t => ({
+        id: t.id,
+        tableCode: t.tableCode,
+        mode: t.mode,
+      }))
+    );
     try {
       await updateLayout.mutateAsync(payload);
       toast.success('Đã lưu bố cục bàn thành công');
@@ -154,12 +197,12 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
     setPositions({});
   };
 
-  const canEditLayout = hasPermission('BILLIARD_TABLE_LAYOUT_EDIT');
-  const canCreate = hasPermission('BILLIARD_TABLE_CREATE');
+  const canEditLayout = hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_LAYOUT_EDIT' : 'RESTAURANT_TABLE_LAYOUT_EDIT');
+  const canCreate = hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_CREATE' : 'RESTAURANT_TABLE_CREATE');
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <h2 className="text-lg font-semibold text-foreground">
           {layoutMode ? 'Chỉnh sửa bố cục' : 'Sơ đồ bàn'}
         </h2>
@@ -179,11 +222,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
           )}
           {layoutMode && (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCancelLayout}
-              >
+              <Button size="sm" variant="outline" onClick={handleCancelLayout}>
                 <X className="w-4 h-4" />
                 Hủy
               </Button>
@@ -201,11 +240,11 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
       </div>
 
       <div
+        ref={containerRef}
         className={cn(
-          'flex-1 relative overflow-auto rounded-xl border',
+          'flex-1 relative overflow-hidden rounded-xl border',
           layoutMode ? 'bg-muted/50 border-dashed border-muted-foreground/40' : 'bg-muted/20 border-border',
         )}
-        style={{ minHeight: 500, minWidth: 800 }}
       >
         {sortedTables.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
@@ -214,6 +253,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
         ) : (
           sortedTables.map((table) => (
             <TableCard
+              mode={mode}
               key={table.id}
               table={table}
               selected={selectedId === table.id}
@@ -222,13 +262,14 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
               onDragStart={handleDragStart}
               position={positions[table.id]}
               overlap={overlappingIds.has(table.id)}
+              containerSize={containerSize}
             />
           ))
         )}
       </div>
 
       {layoutMode && (
-        <div className="mt-2 text-xs text-center">
+        <div className="mt-2 text-xs text-center shrink-0">
           {hasOverlap ? (
             <span className="text-red-500">Một số bàn bị chồng lên nhau. Vui lòng sửa trước khi lưu.</span>
           ) : (
@@ -238,6 +279,7 @@ export function TableFloor({ tables, selectedId, onSelect, onRefresh, layoutMode
       )}
 
       <CreateTableModal
+        mode={mode}
         open={showCreate}
         onOpenChange={setShowCreate}
         onSuccess={onRefresh}

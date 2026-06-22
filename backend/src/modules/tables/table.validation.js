@@ -2,7 +2,7 @@ import { body, param } from 'express-validator';
 
 const TABLE_STATUSES = ['AVAILABLE', 'OCCUPIED', 'RESERVED', 'CLEANING', 'CHECKING_OUT', 'DISABLED'];
 
-const TABLE_TYPES = ['POOL', 'SNOOKER', 'VIP'];
+const TABLE_TYPES = ['POOL', 'SNOOKER', 'VIP', 'BILLIARD'];
 
 export const tableRules = [
   body('tableCode').trim().notEmpty().withMessage('Mã bàn là bắt buộc'),

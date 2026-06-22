@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { menuApi, ordersApi, inventoryApi } from '../../app/api/services';
 import type { MenuItem, TableItem, OrderDetail, InventoryItem } from '../../app/types';
 import { useCategories } from '../../shared/hooks/useCategories';
 import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
+import { useAsyncActionGuard } from '../../shared/hooks/useAsyncActionGuard';
 import { X, Plus, Minus, ShoppingCart, CheckCircle, Utensils, Loader2, AlertCircle } from 'lucide-react';
 
 interface CartItem {
@@ -27,7 +28,6 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [existingOrder, setExistingOrder] = useState<OrderDetail | null>(null);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const isCreatingOrder = useRef(false);
 
   const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
 
@@ -95,14 +95,8 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useAsyncActionGuard(async () => {
     if (cart.length === 0) return;
-    if (isCreatingOrder.current) {
-      console.warn('[TableOrderDialog] BLOCKED duplicate create order call');
-      return;
-    }
-    console.log('[TableOrderDialog] CREATE ORDER CALL TRIGGERED');
-    isCreatingOrder.current = true;
     setSubmitting(true);
 
     const payload = {
@@ -111,8 +105,6 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
       items: cart.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
       orderType: 'DINE_IN',
     };
-
-    console.log('CREATE ORDER PAYLOAD', payload);
 
     try {
       await ordersApi.createPos(payload);
@@ -123,10 +115,9 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
       console.error('[TableOrderDialog] Create order error:', err);
       alert('Lỗi: ' + (err.message || 'Không thể tạo đơn'));
     } finally {
-      isCreatingOrder.current = false;
       setSubmitting(false);
     }
-  }, [cart, table, onSuccess, onClose]);
+  }, { delay: 500 });
 
   const filteredItems = selectedCategory === 'all'
     ? menuItems
@@ -306,8 +297,8 @@ export function TableOrderDialog({ table, onClose, onSuccess }: Props) {
                 <span className="text-primary">{subtotal.toLocaleString()}₫</span>
               </div>
               <button
-                onClick={handleSubmit}
-                disabled={cart.length === 0 || submitting}
+                onClick={handleSubmit.run}
+                disabled={handleSubmit.isBusy || cart.length === 0 || submitting}
                 className="w-full py-3 rounded-xl font-semibold text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 active:bg-green-800"
               >
                 {submitting ? (

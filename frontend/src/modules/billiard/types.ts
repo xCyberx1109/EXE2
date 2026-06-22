@@ -1,4 +1,4 @@
-import type { TableStatus } from '@/app/types';
+export type TableType = 'RESTAURANT' | 'BILLIARD';
 
 export interface BilliardTable {
   id: string;
@@ -6,11 +6,13 @@ export interface BilliardTable {
   tableCode: string;
   tableName: string | null;
   capacity: number;
-  tableType: 'POOL' | 'SNOOKER' | 'VIP';
+  tableType: TableType;
   posX: number;
   posY: number;
+  xPercent: number;
+  yPercent: number;
   hourlyRate: number;
-  status: TableStatus;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING' | 'CHECKING_OUT' | 'DISABLED';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -19,6 +21,7 @@ export interface BilliardTable {
 export interface BilliardOrderItem {
   id: string;
   menuItemId: string | null;
+  inventoryId: string | null;
   name: string;
   price: number;
   quantity: number;
@@ -34,8 +37,6 @@ export interface BilliardOrderInfo {
   items: BilliardOrderItem[];
   foodTotal: number;
   tableFee: number;
-  playingCost?: number;
-  hourlyRate?: number;
   grandTotal: number;
 }
 
@@ -52,21 +53,33 @@ export interface BilliardPlaySession {
 
 export interface BilliardReservation {
   id: string;
-  tableId: string;
-  branchId: string;
   customerName: string;
   phone: string | null;
   reservationTime: string;
   durationMinutes: number;
   note: string | null;
-  status: 'PENDING' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED';
 }
 
-export type BilliardTableWithSession = BilliardTable & {
+export interface BilliardTableWithSession {
+  id: string;
+  accountId: string;
+  tableCode: string;
+  tableName: string | null;
+  capacity: number;
+  tableType: TableType;
+  posX: number;
+  posY: number;
+  xPercent: number;
+  yPercent: number;
+  hourlyRate: number;
+  status: string;
   currentSession?: BilliardPlaySession | null;
   currentReservation?: BilliardReservation | null;
   currentOrder?: BilliardOrderInfo | null;
-};
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export type SortPriority =
   | 'OCCUPIED_ENDING'
@@ -98,11 +111,58 @@ export interface ExtendSessionBody {
 export interface CreateTableBody {
   tableCode: string;
   tableName?: string;
-  tableType: 'POOL' | 'SNOOKER' | 'VIP';
+  tableType: TableType;
   capacity?: number;
   posX?: number;
   posY?: number;
-  width?: number;
-  height?: number;
+  xPercent?: number;
+  yPercent?: number;
   hourlyRate?: number;
+}
+
+// Restaurant-specific types
+export interface RestaurantTable {
+  id: string;
+  accountId: string;
+  tableCode: string;
+  tableName: string | null;
+  capacity: number;
+  tableType: 'RESTAURANT';
+  posX: number;
+  posY: number;
+  xPercent: number;
+  yPercent: number;
+  status: string;
+  isMerged: boolean;
+  mergedIntoTableId: string | null;
+  currentOrder: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    total: number;
+    itemCount: number;
+    items: BilliardOrderItem[];
+    foodTotal: number;
+    guestCount: number;
+    startTime: string | null;
+    elapsedMinutes: number;
+    note: string | null;
+    mergedTableIds: string[] | null;
+  } | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrderBody {
+  guestCount?: number;
+  note?: string;
+}
+
+export interface MenuItemOption {
+  id: string;
+  name: string;
+  price: number;
+  available: boolean;
+  categoryId: string;
 }

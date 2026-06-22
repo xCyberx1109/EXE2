@@ -400,6 +400,8 @@ export interface BilliardTable {
   tableType: 'POOL' | 'SNOOKER' | 'VIP';
   posX: number;
   posY: number;
+  xPercent: number;
+  yPercent: number;
   hourlyRate: number;
   status: import('../types').TableStatus;
   isActive: boolean;
@@ -560,4 +562,149 @@ export const billiardApi = {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+};
+
+// --- Restaurant (unified via extended billiard module) ---
+export interface RestaurantTableWithOrder {
+  id: string;
+  accountId: string;
+  tableCode: string;
+  tableName: string | null;
+  capacity: number;
+  tableType: 'RESTAURANT' | 'BILLIARD';
+  posX: number;
+  posY: number;
+  xPercent: number;
+  yPercent: number;
+  status: import('../types').TableStatus;
+  isMerged: boolean;
+  mergedIntoTableId: string | null;
+  isActive: boolean;
+  currentOrder: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    paymentStatus: string;
+    items: Array<{
+      id: string;
+      menuItemId: string | null;
+      name: string;
+      price: number;
+      quantity: number;
+      lineTotal: number;
+    }>;
+    foodTotal: number;
+    serviceCharge: number;
+    tax: number;
+    discount: number;
+    grandTotal: number;
+    guestCount: number;
+    note: string | null;
+    startTime: string | null;
+    elapsedMinutes: number;
+    mergedTableIds: string[] | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const restaurantApi = {
+  listTables: () =>
+    apiFetch<RestaurantTableWithOrder[]>('/restaurant/tables'),
+
+  createTable: (body: { tableCode: string; tableName?: string; capacity?: number; posX?: number; posY?: number }) =>
+    apiFetch<RestaurantTableWithOrder>('/restaurant/tables', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateLayout: (tables: { id: string; posX: number; posY: number }[]) =>
+    apiFetch<RestaurantTableWithOrder[]>('/restaurant/tables/layout', {
+      method: 'PUT',
+      body: JSON.stringify({ tables }),
+    }),
+
+  updateTable: (id: string, body: { tableCode?: string; tableName?: string; capacity?: number; posX?: number; posY?: number }) =>
+    apiFetch<RestaurantTableWithOrder>(`/restaurant/tables/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  deleteTable: (id: string) =>
+    apiFetch<null>(`/restaurant/tables/${id}`, { method: 'DELETE' }),
+
+  createOrder: (tableId: string, body: { guestCount?: number; note?: string }) =>
+    apiFetch<RestaurantTableWithOrder>(`/restaurant/tables/${tableId}/order`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  openOrder: (tableId: string, body: { guestCount?: number; note?: string }) =>
+    apiFetch<RestaurantTableWithOrder>(`/restaurant/tables/${tableId}/open-order`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  getTableOrder: (tableId: string) =>
+    apiFetch<RestaurantTableWithOrder['currentOrder']>(`/restaurant/tables/${tableId}/order`),
+
+  addOrderItem: (orderId: string, body: { menuItemId: string; quantity: number; note?: string }) =>
+    apiFetch<{ item: import('../types').OrderItemDetail; order: import('../types').OrderDetail }>(
+      `/restaurant/orders/${orderId}/items`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  batchAddOrderItems: (orderId: string, body: { items: Array<{ menuItemId: string; quantity: number }> }) =>
+    apiFetch<import('../types').OrderDetail>(
+      `/restaurant/orders/${orderId}/items/batch`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  updateOrderItem: (orderId: string, itemId: string, body: { quantity: number }) =>
+    apiFetch<import('../types').OrderItemDetail>(
+      `/restaurant/orders/${orderId}/items/${itemId}`,
+      { method: 'PUT', body: JSON.stringify(body) }
+    ),
+
+  removeOrderItem: (orderId: string, itemId: string) =>
+    apiFetch<{ id: string; deleted: boolean }>(
+      `/restaurant/orders/${orderId}/items/${itemId}`,
+      { method: 'DELETE' }
+    ),
+
+  transferOrder: (tableId: string, body: { targetTableId: string }) =>
+    apiFetch<{ orderId: string; fromTableId: string; toTableId: string }>(
+      `/restaurant/tables/${tableId}/transfer`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  mergeTables: (tableId: string, body: { targetTableId: string }) =>
+    apiFetch<{ mergedIntoOrderId: string; fromTableId: string; toTableId: string }>(
+      `/restaurant/tables/${tableId}/merge`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  splitOrder: (tableId: string, body: { targetTableId: string; items: Array<{ itemId: string; quantity: number }> }) =>
+    apiFetch<{ sourceOrderId: string; targetOrderId: string; movedTotal: number }>(
+      `/restaurant/tables/${tableId}/split`,
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  payOrder: (orderId: string, paymentMethod?: string) =>
+    apiFetch<{ id: string; paymentStatus: string; method: string }>(
+      `/restaurant/orders/${orderId}/pay`,
+      { method: 'POST', body: JSON.stringify({ paymentMethod }) }
+    ),
+
+  updateGuestCount: (tableId: string, guestCount: number) =>
+    apiFetch<import('../types').OrderDetail>(
+      `/restaurant/tables/${tableId}/guest-count`,
+      { method: 'PUT', body: JSON.stringify({ guestCount }) }
+    ),
+
+  updateOrderNote: (orderId: string, note: string) =>
+    apiFetch<import('../types').OrderDetail>(
+      `/restaurant/orders/${orderId}/note`,
+      { method: 'PUT', body: JSON.stringify({ note }) }
+    ),
 };
