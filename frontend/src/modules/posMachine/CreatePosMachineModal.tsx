@@ -1,96 +1,90 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
-import { Button } from '@/app/components/ui/button';
-import { Loader2 } from 'lucide-react';
-import type { PosMachineTemplate } from '@/app/types';
+import { X } from 'lucide-react';
+import type { PosMachineTemplate } from '../../app/types';
 
 const TEMPLATE_OPTIONS = [
   { value: 'CASHIER', label: 'Thu ngân' },
   { value: 'KITCHEN', label: 'Bếp' },
   { value: 'CASHIER_KITCHEN', label: 'Thu ngân & Bếp' },
   { value: 'BILLIARD', label: 'Bi-a' },
+  { value: 'RESTAURANT', label: 'Nhà hàng' },
   { value: 'CUSTOM', label: 'Tùy chỉnh' },
 ];
 
-interface CreatePosMachineModalProps {
+interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { name: string; template: PosMachineTemplate }) => Promise<void>;
+  onSubmit: (data: { name: string; template: PosMachineTemplate }) => void;
 }
 
-export function CreatePosMachineModal({ open, onOpenChange, onSubmit }: CreatePosMachineModalProps) {
+export function CreatePosMachineModal({ open, onOpenChange, onSubmit }: Props) {
   const [name, setName] = useState('');
   const [template, setTemplate] = useState<PosMachineTemplate>('CASHIER');
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async () => {
-    setError('');
-    if (!name.trim()) { setError('Vui lòng nhập tên máy POS'); return; }
-    setSubmitting(true);
-    try {
-      await onSubmit({ name: name.trim(), template });
-      setName('');
-      setTemplate('CASHIER');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Tạo máy thất bại');
-    } finally {
-      setSubmitting(false);
-    }
+  if (!open) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSubmit({ name: name.trim(), template });
+    setName('');
+    setTemplate('CASHIER');
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!submitting) onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Tạo máy POS mới</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 text-sm text-destructive">{error}</div>
-          )}
-
-          <div className="space-y-2">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20">
+      <div className="bg-card rounded-xl border border-border shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">Tạo máy POS</h2>
+          <button onClick={() => onOpenChange(false)}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <label className="text-sm font-medium">Tên máy</label>
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={e => setName(e.target.value)}
               placeholder="VD: Máy POS quầy 1"
               className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-input-background"
-              disabled={submitting}
+              autoFocus
             />
           </div>
-
-          <div className="space-y-2">
+          <div>
             <label className="text-sm font-medium">Template</label>
             <select
               value={template}
-              onChange={(e) => setTemplate(e.target.value as PosMachineTemplate)}
+              onChange={e => setTemplate(e.target.value as PosMachineTemplate)}
               className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-input-background"
-              disabled={submitting}
             >
-              {TEMPLATE_OPTIONS.map((o) => (
+              {TEMPLATE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">
-              Template quyết định nhóm permission tự động gán cho máy POS
+            <p className="text-xs text-muted-foreground mt-1">
+              Template quyết định module và quyền mặc định của máy POS
             </p>
           </div>
-
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="px-4 py-2 text-sm rounded-lg border hover:bg-muted transition-colors"
+            >
               Hủy
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {submitting ? 'Đang tạo...' : 'Tạo máy'}
-            </Button>
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              Tạo máy POS
+            </button>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </form>
+      </div>
+    </div>
   );
 }

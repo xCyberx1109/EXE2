@@ -1,4 +1,5 @@
 import prisma from '../prisma/client.js';
+import { PlaySessionStatus } from '@prisma/client';
 import { AppError } from '../utils/AppError.js';
 
 const sessionInclude = {
@@ -39,7 +40,7 @@ export const playSessionRepository = {
   findActiveByTableId: (tableId) => {
     if (!tableId) return Promise.resolve(null);
     return prisma.playSession.findFirst({
-      where: { tableId, status: 'PLAYING' },
+      where: { tableId, status: PlaySessionStatus.PLAYING },
       include: sessionInclude,
       orderBy: { createdAt: 'desc' },
     });

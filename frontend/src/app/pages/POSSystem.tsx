@@ -80,7 +80,7 @@ export function POSSystem() {
               .flatMap((o: any) =>
                 o.items.map((item: any) => ({
                   ...item,
-                  orderedAt: new Date(o.time).toLocaleTimeString().slice(0, 5)
+                  orderedAt: new Date(o.time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                 }))
               );
 

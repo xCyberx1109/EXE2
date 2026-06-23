@@ -10,7 +10,7 @@ import {
   Clock,
   Hash,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDateTime, formatTime as fmtTime } from '@/shared/utils/date';
 
 function formatMoney(value?: number) {
   return `${Number(value || 0).toLocaleString()}₫`;
@@ -80,14 +80,13 @@ export function OrderDetailPage() {
   const hasServiceCharge = order.serviceCharge > 0;
   const items = order.items;
   const orderDate = order.createdAt
-    ? format(new Date(order.createdAt), 'yyyy-MM-dd HH:mm:ss')
+    ? formatDateTime(order.createdAt)
     : '';
 
   const isBilliard = !!(order.tableCode || order.playingCost);
   const isRestaurant = !isBilliard;
   const showSubtotal = isBilliard || hasDiscount || hasServiceCharge;
   const fmtVnd = (n?: number | null) => n != null ? `${n.toLocaleString()} ₫` : '';
-  const fmtTime = (t?: string | null) => t ? format(new Date(t), 'hh:mm:ss a') : '';
 
   return (
     <div className="space-y-6">
@@ -168,7 +167,7 @@ export function OrderDetailPage() {
               </div>
               <div>
                 <span className="text-muted-foreground">Bắt đầu: </span>
-                <span className="font-medium">{fmtTime(order.sessionStartTime)}</span>
+                <span className="font-medium">{fmtTime(order.sessionStartTime) || '--:--'}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Thời gian: </span>

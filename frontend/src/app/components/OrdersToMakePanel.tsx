@@ -6,7 +6,7 @@ import { Clock, Coffee, Loader2, RefreshCw } from 'lucide-react';
 
 function formatTime(value?: string) {
   if (!value) return '-';
-  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
 function getShortOrderNumber(order: OrderDetail): string {

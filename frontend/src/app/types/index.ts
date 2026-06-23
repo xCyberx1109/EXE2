@@ -332,7 +332,7 @@ export interface Branch {
   name: string;
   address: string;
   phone: string;
-  plan: 'BASIC' | 'PRO' | 'ENTERPRISE';
+  plan: 'BASIC' | 'STANDARD' | 'PREMIUM';
   subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED';
   subscriptionStart: string;
   subscriptionEnd: string;
@@ -436,6 +436,20 @@ export type DevicePermission =
   | 'BILLIARD_REPORT_VIEW'
 
   | 'RESTAURANT_TABLE_VIEW'
+  | 'RESTAURANT_TABLE_CREATE'
+  | 'RESTAURANT_TABLE_UPDATE'
+  | 'RESTAURANT_TABLE_DELETE'
+  | 'RESTAURANT_TABLE_LAYOUT_EDIT'
+  | 'RESTAURANT_TABLE_TRANSFER'
+  | 'RESTAURANT_TABLE_MERGE'
+  | 'RESTAURANT_TABLE_SPLIT'
+  | 'RESTAURANT_ORDER_VIEW'
+  | 'RESTAURANT_ORDER_CREATE'
+  | 'RESTAURANT_ORDER_UPDATE'
+  | 'RESTAURANT_ORDER_DELETE'
+  | 'RESTAURANT_ORDER_ADD_ITEM'
+  | 'RESTAURANT_PAY_VIEW'
+  | 'RESTAURANT_PAY_PROCESS'
 
   | 'CATEGORY_VIEW'
   | 'CATEGORY_CREATE'
@@ -474,30 +488,19 @@ export interface PosDeviceV2 {
   id: string;
   accountId: string;
   name: string;
-  type: PosDeviceTypeV2;
-  mode: PosMode;
-  status: PosStatusV2;
+  template: PosMachineTemplate;
+  status: string;
   active: boolean;
   lastActive: string | null;
   lastLoginAt: string | null;
-  currentVersion: string | null;
-  activatedAt: string | null;
-  tokenVersion: number;
   createdAt: string;
-  currentShift: {
-    id: string;
-    startTime: string;
-    cashier: string | null;
-  } | null;
-  ordersToday: number;
   account?: { id: string; name: string };
 }
 
 export interface CreatePosDeviceResponse {
   id: string;
   name: string;
-  type: string;
-  mode: PosMode;
+  template: string;
   setupPin: string;
   accountId: string;
   status: string;
@@ -581,6 +584,11 @@ export interface DeviceRevokeResponse {
   status: string;
 }
 
+export interface DeviceResetResponse {
+  deviceId: string;
+  setupPin: string;
+}
+
 export interface PosSetupState {
   step: 'welcome' | 'activation' | 'complete';
   deviceName?: string;
@@ -647,18 +655,7 @@ export interface DeviceRefreshResponse {
   expiresAt: string;
 }
 
-export interface DeviceSessionInfo {
-  id: string;
-  deviceName: string | null;
-  fingerprint: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
-  expiresAt: string;
-  lastUsedAt: string;
-  createdAt: string;
-}
-
-export type AuthMode = 'account' | 'device';
+export type AuthMode = 'account' | 'device' | 'pos_machine';
 
 export interface MissingIngredient {
   ingredientName: string;
@@ -670,4 +667,60 @@ export interface InventoryIssue {
   menuItemId: string;
   menuItemName: string;
   missingIngredients: MissingIngredient[];
+}
+
+// ====== POS Machine Types ======
+export type PosMachineTemplate = 'CASHIER' | 'KITCHEN' | 'CASHIER_KITCHEN' | 'BILLIARD' | 'RESTAURANT' | 'CUSTOM';
+
+export const POS_MACHINE_TEMPLATES: Record<PosMachineTemplate, string> = {
+  CASHIER: 'Thu ngân',
+  KITCHEN: 'Bếp',
+  CASHIER_KITCHEN: 'Thu ngân & Bếp',
+  BILLIARD: 'Bi-a',
+  RESTAURANT: 'Nhà hàng',
+  CUSTOM: 'Tùy chỉnh',
+};
+
+export interface PosMachine {
+  id: string;
+  name: string;
+  template: PosMachineTemplate;
+  status: 'ACTIVE' | 'LOCKED';
+  lastLoginAt: string | null;
+  createdAt: string;
+  permissionCount: number;
+}
+
+export interface PosMachineDetail extends PosMachine {
+  permissions: Array<{
+    id: string;
+    permissionId: string;
+    permission: {
+      id: string;
+      code: string;
+      name: string;
+      module: string;
+    };
+  }>;
+}
+
+export interface PosMachineLoginResponse {
+  token: string;
+  machine: {
+    id: string;
+    name: string;
+    template: PosMachineTemplate;
+    status: string;
+  };
+  module: string;
+  permissions: string[];
+}
+
+export interface PosMachineCreateResponse {
+  id: string;
+  name: string;
+  template: PosMachineTemplate;
+  status: string;
+  pinCode: string;
+  createdAt: string;
 }

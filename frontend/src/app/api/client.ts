@@ -2,8 +2,11 @@ import { API_PREFIX, API_BASE } from './config';
 import type { ApiResponse } from '../types';
 
 const TOKEN_KEY = 'fnb_auth_token';
+const POS_MACHINE_TOKEN_KEY = 'fnb_pos_machine_token';
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
+/** Ưu tiên POS Machine token khi đã đăng nhập máy POS */
+export const getToken = () =>
+  localStorage.getItem(POS_MACHINE_TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
 export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
 const clearLegacyTokenCookie = () => {
   document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
@@ -48,9 +51,14 @@ export async function apiFetch<T>(
 
   if (auth) {
     const token = getToken();
-    if (token) {
-      (reqHeaders as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    const authHeader = token ? `Bearer ${token}` : undefined;
+    if (authHeader) {
+      (reqHeaders as Record<string, string>)['Authorization'] = authHeader;
     }
+    console.log(
+      `[API] ${rest.method ?? 'GET'} ${path} Authorization:`,
+      authHeader ?? '(none)',
+    );
   }
 
   let lastError: Error | null = null;

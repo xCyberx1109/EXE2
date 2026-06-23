@@ -56,7 +56,7 @@ interface TableFloorProps {
 }
 
 export function TableFloor({ mode, tables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, isPosMachineMode } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [positions, setPositions] = useState<Record<string, { xPercent: number; yPercent: number }>>({});
   const updateLayout = useUpdateLayout(mode);
@@ -197,16 +197,16 @@ export function TableFloor({ mode, tables, selectedId, onSelect, onRefresh, layo
     setPositions({});
   };
 
-  const canEditLayout = hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_LAYOUT_EDIT' : 'RESTAURANT_TABLE_LAYOUT_EDIT');
-  const canCreate = hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_CREATE' : 'RESTAURANT_TABLE_CREATE');
+  const canEditLayout = !isPosMachineMode && hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_LAYOUT_EDIT' : 'RESTAURANT_TABLE_LAYOUT_EDIT');
+  const canCreate = !isPosMachineMode && hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_CREATE' : 'RESTAURANT_TABLE_CREATE');
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4 shrink-0">
-        <h2 className="text-lg font-semibold text-foreground">
+      <div className="flex flex-wrap items-center gap-3 mb-4 shrink-0">
+        <h2 className="text-lg font-semibold text-foreground shrink-0 whitespace-nowrap">
           {layoutMode ? 'Chỉnh sửa bố cục' : 'Sơ đồ bàn'}
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
           <span className="text-xs text-muted-foreground">{tables.length} bàn</span>
           {!layoutMode && canCreate && (
             <Button size="sm" onClick={() => setShowCreate(true)}>

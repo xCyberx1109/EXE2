@@ -43,20 +43,20 @@ export interface BilliardOrderInfo {
 export interface BilliardPlaySession {
   id: string;
   tableId: string;
-  startTime: string;
-  expectedEndTime: string;
+  startTime: string | null;
+  expectedEndTime: string | null;
   endTime: string | null;
   durationMinutes: number;
   tableFee: number;
-  status: 'PLAYING' | 'FINISHED' | 'CANCELLED';
+  status: 'PLAYING' | 'COMPLETED' | 'CANCELLED';
 }
 
 export interface BilliardReservation {
   id: string;
   customerName: string;
   phone: string | null;
-  reservationTime: string;
-  durationMinutes: number;
+  reservationTime?: string | null;
+  durationMinutes?: number | null;
   note: string | null;
 }
 
@@ -91,7 +91,7 @@ export type SortPriority =
   | 'DISABLED';
 
 export interface PlayNowBody {
-  durationMinutes: number;
+  durationMinutes?: number;
   customerName?: string;
   phone?: string;
 }

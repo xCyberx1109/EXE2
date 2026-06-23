@@ -8,9 +8,10 @@ import {
 
 export const devicePermissionService = {
   async getEffectivePermissions(device) {
-    const hardcodedPerms = getPermissionsForDeviceType(device.type);
+    const template = device.template || device.type;
+    const hardcodedPerms = getPermissionsForDeviceType(template);
     const dbPerms = await prisma.deviceTypePermission.findMany({
-      where: { deviceType: device.type, isRequired: true },
+      where: { deviceType: template, isRequired: true },
       include: { permission: true },
     });
     const dbCodes = dbPerms.map((dtp) => dtp.permission.code);
@@ -18,8 +19,9 @@ export const devicePermissionService = {
   },
 
   async getEffectiveFeatures(device) {
-    const hardcodedFeatures = getFeaturesForDeviceType(device.type);
-    const hardcodedEnabled = getEnabledFeaturesForDeviceType(device.type);
+    const template = device.template || device.type;
+    const hardcodedFeatures = getFeaturesForDeviceType(template);
+    const hardcodedEnabled = getEnabledFeaturesForDeviceType(template);
 
     const overrides = await prisma.deviceFeatureOverride.findMany({
       where: { deviceId: device.id },
@@ -59,12 +61,12 @@ export const devicePermissionService = {
   async logPermissionDenied(device, permission, req) {
     await prisma.activityLog.create({
       data: {
-        branchId: device.branchId,
+        branchId: device.accountId,
         posDeviceId: device.id,
         action: 'PERMISSION_DENIED',
         module: 'DEVICE_PERMISSION',
         details: {
-          deviceType: device.type,
+          deviceType: device.template || device.type,
           permission,
           path: req.originalUrl,
           method: req.method,

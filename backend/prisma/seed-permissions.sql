@@ -1,10 +1,11 @@
 -- ============================================================================
--- SEED PERMISSIONS — Xóa dữ liệu cũ và insert đúng danh sách 83 permissions
+-- SEED PERMISSIONS — Xóa dữ liệu cũ và insert đúng danh sách 99 permissions
 -- ============================================================================
 -- Yêu cầu:
 --  1. Xóa toàn bộ dữ liệu bảng permissions (CASCADE sẽ xóa account_permissions,
 --     feature_permissions, device_type_permissions — cần re-grant sau khi seed)
---  2. Insert đúng 83 permissions từ danh sách, không thêm/bớt/sửa tên
+--  2. Insert đúng 99 permissions từ danh sách, không thêm/bớt/sửa tên
+--     (83 cũ + 16 RESTAURANT mới)
 --  3. Mỗi permission là 1 record, code unique, không null field
 -- ============================================================================
 
@@ -131,7 +132,24 @@ INSERT INTO "permissions" ("id", "code", "name", "module", "isSystem", "createdA
 (gen_random_uuid()::text, 'TABLE_CREATE', 'Tạo bàn', 'table', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'TABLE_UPDATE', 'Cập nhật bàn', 'table', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'TABLE_DELETE', 'Xóa bàn', 'table', false, NOW(), NOW()),
-(gen_random_uuid()::text, 'TABLE_LAYOUT_EDIT', 'Chỉnh sửa sơ đồ bàn', 'table', false, NOW(), NOW());
+(gen_random_uuid()::text, 'TABLE_LAYOUT_EDIT', 'Chỉnh sửa sơ đồ bàn', 'table', false, NOW(), NOW()),
+
+-- RESTAURANT (16 permissions)
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_VIEW', 'Xem bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_CREATE', 'Tạo bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_UPDATE', 'Cập nhật bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_DELETE', 'Xóa bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_LAYOUT_EDIT', 'Chỉnh sửa sơ đồ bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_TRANSFER', 'Chuyển bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_MERGE', 'Gộp bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_TABLE_SPLIT', 'Tách bàn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_ORDER_VIEW', 'Xem đơn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_ORDER_CREATE', 'Tạo đơn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_ORDER_UPDATE', 'Cập nhật đơn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_ORDER_DELETE', 'Xóa đơn nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_ORDER_ADD_ITEM', 'Thêm món nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_PAY_VIEW', 'Xem thanh toán nhà hàng', 'restaurant', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'RESTAURANT_PAY_PROCESS', 'Thanh toán nhà hàng', 'restaurant', false, NOW(), NOW());
 
 COMMIT;
 

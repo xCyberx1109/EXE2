@@ -1,16 +1,17 @@
-import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { posDeviceRepository } from '../../repositories/posDevice.repository.js';
 import { activityLogRepository } from '../../repositories/activityLog.repository.js';
 
-const SETUP_PIN_EXPIRY_HOURS = 48;
 const SETUP_PIN_LENGTH = 6;
+const SALT_ROUNDS = 10;
 
-function generateDeviceCode() {
-  const hex = crypto.randomBytes(3).toString('hex').toUpperCase();
-  return `POS-${hex}`;
+const VALID_TEMPLATES = ['CASHIER', 'KITCHEN', 'CASHIER_KITCHEN', 'BILLIARD', 'RESTAURANT', 'CUSTOM'];
+
+function resolveTemplate(template) {
+  if (template && VALID_TEMPLATES.includes(template)) return template;
+  return 'CASHIER';
 }
 
 function generateSetupPin() {
@@ -25,58 +26,43 @@ function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
 }
 
-async function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
-
 export const posDevicesService = {
-  async createDevice(accountId, { name, type, mode, metadata }, req) {
+  async createDevice(accountId, { name, template, metadata }, req) {
     const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) throw new AppError('Account not found', 404);
 
-    let deviceCode = generateDeviceCode();
-    let existingCode = await posDeviceRepository.findDeviceCode(deviceCode);
-    while (existingCode) {
-      deviceCode = generateDeviceCode();
-      existingCode = await posDeviceRepository.findDeviceCode(deviceCode);
-    }
-
+    const resolvedTemplate = resolveTemplate(template);
     const setupPin = generateSetupPin();
-    const setupPinHash = await bcrypt.hash(setupPin, 10);
-    const setupPinExpiresAt = new Date(Date.now() + SETUP_PIN_EXPIRY_HOURS * 60 * 60 * 1000);
+    const pinCode = await bcrypt.hash(setupPin, SALT_ROUNDS);
 
-    const device = await posDeviceRepository.create({
+    const payload = {
       name,
-      type,
-      mode: mode || 'CASHIER',
-      deviceCode,
-      setupPinHash,
-      setupPinExpiresAt,
-      branchId: accountId,
-      status: 'PENDING_ACTIVATION',
-      active: true,
-      metadata: metadata || null,
-    });
+      accountId,
+      template: resolvedTemplate,
+      pinCode,
+      status: 'LOCKED',
+    };
+    console.log('[POS DEVICE CREATE]', payload);
+    const device = await posDeviceRepository.create(payload);
+    console.log('[POS DEVICE CREATED]', device);
 
     await activityLogRepository.create({
       branchId: accountId,
       posDeviceId: device.id,
       action: 'CREATE_POS_DEVICE',
       module: 'POS_DEVICES',
-      details: { name, mode: device.mode, type },
+      details: { name, template: resolvedTemplate },
       ipAddress: getClientIp(req),
     });
 
     return {
       id: device.id,
       name: device.name,
-      type: device.type,
-      mode: device.mode,
+      template: device.template,
       setupPin,
-      setupPinExpiresAt,
-      accountId: device.branchId,
+      accountId: device.accountId,
       status: device.status,
-      active: device.active,
+      active: device.status !== 'LOCKED',
       createdAt: device.createdAt,
     };
   },
@@ -86,26 +72,15 @@ export const posDevicesService = {
       return [];
     }
     const accountId = user.accountId || user.id;
-    const devices = await posDeviceRepository.findByBranchId(accountId);
+    const devices = await posDeviceRepository.findByAccountId(accountId);
     return devices.map((d) => ({
       id: d.id,
       name: d.name,
-      type: d.type,
-      mode: d.mode,
+      template: d.template,
       status: d.status,
-      active: d.active,
-      lastActive: d.lastActive,
+      active: d.status !== 'LOCKED',
+      lastActive: d.lastLoginAt,
       lastLoginAt: d.lastLoginAt,
-      currentVersion: d.currentVersion,
-      activatedAt: d.activatedAt,
-      ordersToday: d._count?.orders || 0,
-      currentShift: d.shifts?.[0]
-        ? {
-            id: d.shifts[0].id,
-            startTime: d.shifts[0].startTime,
-            cashier: d.shifts[0].account?.fullName || null,
-          }
-        : null,
       createdAt: d.createdAt,
     }));
   },
@@ -114,7 +89,7 @@ export const posDevicesService = {
     const device = await posDeviceRepository.findByIdWithAccount(id);
     if (!device) throw new AppError('Device not found', 404);
     const accountId = user.accountId || user.id;
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied to this device', 403);
     }
     return device;
@@ -126,19 +101,27 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
     const setupPin = generateSetupPin();
-    const setupPinHash = await bcrypt.hash(setupPin, 10);
-    const setupPinExpiresAt = new Date(Date.now() + SETUP_PIN_EXPIRY_HOURS * 60 * 60 * 1000);
+    const pinCode = await bcrypt.hash(setupPin, SALT_ROUNDS);
+
+    console.log({
+      action: 'REGENERATE_SETUP_PIN',
+      deviceId: device.id,
+      oldStatus: device.status,
+    });
 
     await posDeviceRepository.update(deviceId, {
-      setupPinHash,
-      setupPinExpiresAt,
-      activationAttempts: 0,
-      status: 'PENDING_ACTIVATION',
+      pinCode,
+    });
+
+    console.log({
+      action: 'REGENERATE_SETUP_PIN_SUCCESS',
+      deviceId: device.id,
+      status: device.status,
     });
 
     await activityLogRepository.create({
@@ -150,7 +133,7 @@ export const posDevicesService = {
       ipAddress: getClientIp(req),
     });
 
-    return { deviceId: device.id, setupPin, setupPinExpiresAt };
+    return { deviceId: device.id, setupPin };
   },
 
   async revokeDevice(deviceId, reason, accountId, req) {
@@ -159,27 +142,36 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied', 403);
     }
-
-    await prisma.shift.updateMany({
-      where: { posDeviceId: deviceId, status: 'OPEN' },
-      data: { status: 'CLOSED', endTime: new Date(), isOnline: false },
-    });
 
     await prisma.deviceSession.updateMany({
       where: { deviceId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
 
+    console.log({
+      action: 'REVOKE_POS_DEVICE',
+      deviceId: device.id,
+      oldStatus: device.status,
+    });
+
+    console.log('[POS STATUS CHANGE]', {
+      deviceId: device.id,
+      oldStatus: device.status,
+      newStatus: 'LOCKED',
+      reason: 'MANUAL_REVOKE — admin thu hồi thiết bị',
+    });
+
     await posDeviceRepository.update(deviceId, {
-      status: 'OFFLINE',
-      deviceToken: null,
-      deviceTokenHash: null,
-      setupPinHash: null,
-      setupPinExpiresAt: null,
-      active: false,
+      status: 'LOCKED',
+    });
+
+    console.log({
+      action: 'REVOKE_POS_DEVICE_SUCCESS',
+      deviceId: device.id,
+      status: 'LOCKED',
     });
 
     await activityLogRepository.create({
@@ -191,7 +183,7 @@ export const posDevicesService = {
       ipAddress: getClientIp(req),
     });
 
-    return { deviceId: device.id, status: 'REVOKED' };
+    return { deviceId: device.id, status: 'LOCKED' };
   },
 
   async resetDevice(deviceId, accountId, req) {
@@ -200,18 +192,12 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
     const setupPin = generateSetupPin();
-    const setupPinHash = await bcrypt.hash(setupPin, 10);
-    const setupPinExpiresAt = new Date(Date.now() + SETUP_PIN_EXPIRY_HOURS * 60 * 60 * 1000);
-
-    await prisma.shift.updateMany({
-      where: { posDeviceId: deviceId, status: 'OPEN' },
-      data: { status: 'CLOSED', endTime: new Date(), isOnline: false },
-    });
+    const pinCode = await bcrypt.hash(setupPin, SALT_ROUNDS);
 
     await prisma.deviceSession.updateMany({
       where: { deviceId, revokedAt: null },
@@ -223,18 +209,23 @@ export const posDevicesService = {
       data: { logoutAt: new Date() },
     });
 
+    console.log({
+      action: 'RESET_PIN',
+      deviceId: device.id,
+      oldStatus: device.status,
+    });
+
     await posDeviceRepository.update(deviceId, {
-      status: 'PENDING_ACTIVATION',
-      active: true,
-      setupPinHash,
-      setupPinExpiresAt,
-      deviceToken: null,
-      deviceTokenHash: null,
-      tokenVersion: { increment: 1 },
-      activatedAt: null,
-      activationAttempts: 0,
-      lastActive: null,
+      pinCode,
       lastLoginAt: null,
+    });
+
+    const updated = await posDeviceRepository.findById(deviceId);
+
+    console.log({
+      action: 'RESET_PIN_SUCCESS',
+      deviceId: device.id,
+      status: updated.status,
     });
 
     await activityLogRepository.create({
@@ -246,7 +237,7 @@ export const posDevicesService = {
       ipAddress: getClientIp(req),
     });
 
-    return { deviceId: device.id, setupPin, setupPinExpiresAt };
+    return { deviceId: device.id, setupPin };
   },
 
   async toggleDevice(id, active, accountId, req) {
@@ -255,27 +246,31 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
-    const updateData = { active };
+    const status = active ? 'ACTIVE' : 'LOCKED';
+
+    console.log('[POS STATUS CHANGE]', {
+      deviceId: id,
+      oldStatus: device.status,
+      newStatus: status,
+      reason: active
+        ? 'MANUAL_ENABLE — admin kích hoạt thiết bị'
+        : 'MANUAL_DISABLE — admin vô hiệu hóa thiết bị',
+    });
+
     if (!active) {
-      updateData.deviceToken = null;
-      updateData.deviceTokenHash = null;
-
-      await prisma.shift.updateMany({
-        where: { posDeviceId: id, status: 'OPEN' },
-        data: { status: 'CLOSED', endTime: new Date(), isOnline: false },
-      });
-
       await prisma.deviceSession.updateMany({
         where: { deviceId: id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
     }
 
-    await posDeviceRepository.update(id, updateData);
+    console.log('[POS STATUS CHANGE] posDevices.service toggleDevice applied:', { id, status });
+
+    await posDeviceRepository.update(id, { status });
 
     await activityLogRepository.create({
       branchId: accountId,
@@ -295,18 +290,23 @@ export const posDevicesService = {
 
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied', 403);
     }
 
-    const updated = await posDeviceRepository.update(deviceId, { mode });
+    const template = resolveTemplate(
+      device.template === 'CASHIER_KITCHEN' ? 'CASHIER' : device.template,
+      mode,
+    );
+
+    const updated = await posDeviceRepository.update(deviceId, { template });
 
     await activityLogRepository.create({
       branchId: accountId,
       posDeviceId: device.id,
       action: 'POS_MODE_CHANGED',
       module: 'POS_DEVICES',
-      details: { deviceId: device.id, oldMode: device.mode, newMode: mode },
+      details: { deviceId: device.id, oldTemplate: device.template, newTemplate: template },
       ipAddress: getClientIp(req),
     });
 
@@ -320,14 +320,9 @@ export const posDevicesService = {
     const device = await posDeviceRepository.findById(id);
     if (!device) throw new AppError('Device not found', 404);
     if (device.deletedAt) throw new AppError('Device already deleted', 404);
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied', 403);
     }
-
-    await prisma.shift.updateMany({
-      where: { posDeviceId: id, status: 'OPEN' },
-      data: { status: 'CLOSED', endTime: new Date(), isOnline: false },
-    });
 
     await prisma.deviceSession.updateMany({
       where: { deviceId: id, revokedAt: null },
@@ -350,7 +345,7 @@ export const posDevicesService = {
     const device = await posDeviceRepository.findById(deviceId);
     if (!device) throw new AppError('Device not found', 404);
     const accountId = user.accountId || user.id;
-    if (device.branchId !== accountId) {
+    if (device.accountId !== accountId) {
       throw new AppError('Access denied', 403);
     }
     return activityLogRepository.findByDevice(deviceId, 100);

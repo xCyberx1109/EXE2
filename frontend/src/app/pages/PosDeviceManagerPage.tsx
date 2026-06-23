@@ -10,14 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { posDevicesV2Api } from '../api/posServices';
 import { APP_NAME } from '../../shared/constants';
-import type { PosDeviceV2, PosMode } from '../types';
+import type { PosDeviceV2, PosMachineTemplate } from '../types';
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING_ACTIVATION: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  ACTIVATED: 'bg-green-100 text-green-800 border-green-300',
-  ONLINE: 'bg-blue-100 text-blue-800 border-blue-300',
-  OFFLINE: 'bg-gray-100 text-gray-800 border-gray-300',
-  MAINTENANCE: 'bg-red-100 text-red-800 border-red-300',
+  ACTIVE: 'bg-green-100 text-green-800 border-green-300',
+  LOCKED: 'bg-gray-100 text-gray-800 border-gray-300',
 };
 
 export function PosDeviceManagerPage() {
@@ -25,7 +22,7 @@ export function PosDeviceManagerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [createDialog, setCreateDialog] = useState(false);
-  const [newDevice, setNewDevice] = useState({ name: '', type: 'CASHIER', mode: 'CASHIER' as PosMode });
+  const [newDevice, setNewDevice] = useState({ name: '', template: 'CASHIER' as PosMachineTemplate });
   const [newDeviceResult, setNewDeviceResult] = useState<{
     setupPin: string;
   } | null>(null);
@@ -54,7 +51,7 @@ export function PosDeviceManagerPage() {
     try {
       const result = await posDevicesV2Api.create(newDevice);
       setNewDeviceResult({ setupPin: result.setupPin });
-      setNewDevice({ name: '', type: 'CASHIER', mode: 'CASHIER' });
+      setNewDevice({ name: '', template: 'CASHIER' });
       await fetchDevices();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Tạo thiết bị thất bại');
@@ -153,8 +150,8 @@ export function PosDeviceManagerPage() {
               <div>
                 <label className="text-sm font-medium">Loại</label>
                 <Select
-                  value={newDevice.type}
-                  onValueChange={(v) => setNewDevice({ ...newDevice, type: v })}
+                  value={newDevice.template}
+                  onValueChange={(v) => setNewDevice({ ...newDevice, template: v as PosMachineTemplate })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -162,27 +159,9 @@ export function PosDeviceManagerPage() {
                   <SelectContent>
                     <SelectItem value="CASHIER">Thu ngân</SelectItem>
                     <SelectItem value="KITCHEN">Bếp</SelectItem>
-                    <SelectItem value="WAITER">Phục vụ bàn</SelectItem>
-                    <SelectItem value="TABLET">Máy tính bảng</SelectItem>
-                    <SelectItem value="KIOSK">KIOSK tự đặt</SelectItem>
-                    <SelectItem value="CUSTOMER_DISPLAY">Màn hình khách</SelectItem>
-                    <SelectItem value="MANAGER">Quản lý</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Chế độ</label>
-                <Select
-                  value={newDevice.mode}
-                  onValueChange={(v: PosMode) => setNewDevice({ ...newDevice, mode: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CASHIER">Thu ngân</SelectItem>
-                    <SelectItem value="KITCHEN">Hiển thị bếp</SelectItem>
-                    <SelectItem value="HYBRID">Kết hợp</SelectItem>
+                    <SelectItem value="CASHIER_KITCHEN">Thu Ngân & Bếp</SelectItem>
+                    <SelectItem value="BILLIARD">Bi-a</SelectItem>
+                    <SelectItem value="RESTAURANT">Nhà hàng</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -253,43 +232,19 @@ export function PosDeviceManagerPage() {
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Loại</span>
-                    <span>{device.type}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Chế độ</span>
-                    <Badge variant="secondary" className="text-xs">{device.mode}</Badge>
+                    <span className="text-gray-500">Template</span>
+                    <span>{device.template}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Kích hoạt</span>
                     <span>{device.active ? 'Có' : 'Không'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Đã kích hoạt</span>
-                    <span>{device.activatedAt ? new Date(device.activatedAt).toLocaleDateString() : 'Chưa'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Phiên bản Token</span>
-                    <span className="font-mono text-xs">{device.tokenVersion}</span>
-                  </div>
-                  {device.currentShift && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Ca</span>
-                      <span className="text-green-600 font-medium">
-                        Đang mở ({device.currentShift.cashier || 'Không có thu ngân'})
-                      </span>
-                    </div>
-                  )}
                   {device.lastActive && (
                     <div className="flex justify-between">
                       <span className="text-gray-500">Hoạt động gần nhất</span>
-                      <span className="text-xs">{new Date(device.lastActive).toLocaleString()}</span>
+                      <span className="text-xs">{new Date(device.lastActive).toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Đơn hôm nay</span>
-                    <span className="font-bold">{device.ordersToday}</span>
-                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t">
@@ -305,7 +260,7 @@ export function PosDeviceManagerPage() {
                     onClick={() => handleToggle(device.id, !device.active)}
                     className={!device.active ? 'text-green-600' : 'text-amber-600'}
                   >
-                    {device.active ? 'Vô hiệu' : 'Kích hoạt'}
+                    {device.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleViewLogs(device)}>
                     Nhật ký
@@ -341,7 +296,7 @@ export function PosDeviceManagerPage() {
                   <div className="flex justify-between">
                     <span className="font-medium">{log.action}</span>
                     <span className="text-gray-400 text-xs">
-                      {new Date(log.createdAt).toLocaleString()}
+                      {new Date(log.createdAt).toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                   {log.details && (

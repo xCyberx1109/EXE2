@@ -111,7 +111,7 @@ export const listOrderHistory = asyncHandler(async (req, res) => {
 /** Order Queue POS - module độc lập, không gắn bàn */
 export const listOrderQueue = asyncHandler(async (req, res) => {
   const ctx = req.user || req.posDevice;
-  const data = await orderService.listQueueOrders(ctx, {
+  const data = await orderService.listQueueOrders(ctx, req.posDevice, {
     search: req.query.search,
     status: req.query.status,
     paymentStatus: req.query.paymentStatus,
@@ -121,7 +121,7 @@ export const listOrderQueue = asyncHandler(async (req, res) => {
 
 export const createOrderQueue = asyncHandler(async (req, res) => {
   const ctx = req.user || req.posDevice;
-  const result = await orderService.createQueueOrder(req.body, ctx);
+  const result = await orderService.createQueueOrder(req.body, ctx, req.posDevice);
   sendSuccess(res, {
     message: 'Tạo Order Queue thành công',
     data: result.data,

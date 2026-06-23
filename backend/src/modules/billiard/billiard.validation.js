@@ -14,7 +14,7 @@ export const updateLayoutRules = [
 ];
 
 export const playNowRules = [
-  body('durationMinutes').isInt({ min: 1 }).withMessage('Thời gian chơi phải lớn hơn 0'),
+  body('durationMinutes').optional({ values: 'null' }).isInt({ min: 1 }).withMessage('Thời gian chơi phải lớn hơn 0'),
   body('customerName').optional().trim(),
   body('phone').optional().trim(),
 ];
@@ -22,8 +22,7 @@ export const playNowRules = [
 export const reserveRules = [
   body('customerName').trim().notEmpty().withMessage('Tên khách hàng là bắt buộc'),
   body('phone').optional().trim(),
-  body('reservationTime').isISO8601().withMessage('Thời gian đặt bàn không hợp lệ'),
-  body('durationMinutes').optional().isInt({ min: 1 }).withMessage('Thời gian chơi phải lớn hơn 0'),
+  body('reservationDate').isISO8601().withMessage('Ngày đặt không hợp lệ'),
   body('note').optional().trim(),
 ];
 

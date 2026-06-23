@@ -25,8 +25,8 @@ type SubscriptionStatus = Branch['subscriptionStatus'];
 
 const PLAN_OPTIONS: Array<{ value: Plan; label: string }> = [
   { value: 'BASIC', label: 'Cơ bản' },
-  { value: 'PRO', label: 'Chuyên nghiệp' },
-  { value: 'ENTERPRISE', label: 'Doanh nghiệp' },
+  { value: 'STANDARD', label: 'Chuyên nghiệp' },
+  { value: 'PREMIUM', label: 'Doanh nghiệp' },
 ];
 
 type BranchFormState = {

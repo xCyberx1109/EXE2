@@ -10,7 +10,10 @@ function getContext(req) {
 
 // Menu items
 export const listMenuItems = asyncHandler(async (req, res) => {
+  console.log('[MENU CONTROLLER] Query params:', req.query);
+  console.log('[MENU CONTROLLER] Context:', getContext(req));
   const data = await menuService.listMenuItems(req.query, getContext(req));
+  console.log('[MENU CONTROLLER] Returning data:', data);
   sendSuccess(res, { message: 'Lấy danh sách món thành công', data });
 });
 

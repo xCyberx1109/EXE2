@@ -12,7 +12,6 @@ import { setToken, getToken, clearToken } from '../api/client';
 import { authApi } from '../api/services';
 import {
   getPosToken,
-  setPosToken,
   clearAllPosStorage,
 } from '../api/posServices';
 
@@ -23,6 +22,8 @@ import type {
   DevicePermission,
   DeviceFeatures,
   PosDeviceTypeV2,
+  PosMachineTemplate,
+  PosMachineLoginResponse,
 } from '../types';
 
 import { deviceAuthApi } from '../api/services';
@@ -34,7 +35,16 @@ const STORAGE_KEYS = {
   DEVICE_FEATURES: 'fnb_device_features',
   ENABLED_FEATURES: 'fnb_enabled_features',
   FINGERPRINT: 'fnb_device_fingerprint',
+  POS_MACHINE_INFO: 'fnb_pos_machine_info',
+  POS_MACHINE_MODULE: 'fnb_pos_machine_module',
+  POS_MACHINE_PERMISSIONS: 'fnb_pos_machine_permissions',
 } as const;
+
+const POS_MACHINE_TOKEN_KEY = 'fnb_pos_machine_token';
+
+function getPosMachineToken() { return localStorage.getItem(POS_MACHINE_TOKEN_KEY); }
+function setPosMachineToken(token: string) { localStorage.setItem(POS_MACHINE_TOKEN_KEY, token); }
+function clearPosMachineToken() { localStorage.removeItem(POS_MACHINE_TOKEN_KEY); }
 
 interface AuthContextValue {
   isReady: boolean;
@@ -51,23 +61,27 @@ interface AuthContextValue {
 
   deviceType: PosDeviceTypeV2 | null;
 
+  /** POS Machine auth state */
+  posMachineInfo: PosMachineLoginResponse['machine'] | null;
+  posMachineTemplate: PosMachineTemplate | null;
+  posMachineModule: string | null;
+  posMachineModules: string[];
+
   setUser: (user: User | null) => void;
 
   login: (email: string, password: string) => Promise<User>;
-  loginWithDevicePin: (
-    setupPin: string,
-    fingerprint?: string,
-    deviceName?: string
-  ) => Promise<DeviceLoginResponse>;
+  loginWithPosPin: (pinCode: string) => Promise<PosMachineLoginResponse>;
 
   logout: () => void;
   logoutDevice: () => Promise<void>;
+  logoutPosMachine: () => void;
 
   hasDevicePermission: (permission: DevicePermission) => boolean;
   hasAnyDevicePermission: (permissions: DevicePermission[]) => boolean;
   hasDeviceFeature: (feature: string) => boolean;
 
   isDeviceMode: boolean;
+  isPosMachineMode: boolean;
 
   hasPermission: (permission?: string) => boolean;
   refreshPermissions: () => Promise<void>;
@@ -90,55 +104,6 @@ const normalizePermissions = (permissions: unknown): string[] => {
 };
 
 /* =========================
-   FINGERPRINT
-========================= */
-function generateFingerprint(): string {
-  let fp = localStorage.getItem(STORAGE_KEYS.FINGERPRINT);
-
-  if (!fp) {
-    const nav = window.navigator;
-    const screen = window.screen;
-
-    const raw = [
-      nav.userAgent,
-      nav.language,
-      screen.width,
-      screen.height,
-      screen.colorDepth,
-      Intl.DateTimeFormat().resolvedOptions().timeZone,
-    ].join('||');
-
-    fp = btoa(encodeURIComponent(raw)).slice(0, 64);
-    localStorage.setItem(STORAGE_KEYS.FINGERPRINT, fp);
-  }
-
-  return fp;
-}
-
-/* =========================
-   RESTORE STORAGE
-========================= */
-function restoreFromStorage() {
-  try {
-    return {
-      deviceInfo: JSON.parse(localStorage.getItem(STORAGE_KEYS.DEVICE_INFO) || 'null'),
-      branchInfo: JSON.parse(localStorage.getItem(STORAGE_KEYS.BRANCH_INFO) || 'null'),
-      devicePermissions: JSON.parse(localStorage.getItem(STORAGE_KEYS.DEVICE_PERMISSIONS) || '[]'),
-      deviceFeatures: JSON.parse(localStorage.getItem(STORAGE_KEYS.DEVICE_FEATURES) || 'null'),
-      enabledFeatures: JSON.parse(localStorage.getItem(STORAGE_KEYS.ENABLED_FEATURES) || '[]'),
-    };
-  } catch {
-    return {
-      deviceInfo: null,
-      branchInfo: null,
-      devicePermissions: [],
-      deviceFeatures: null,
-      enabledFeatures: [],
-    };
-  }
-}
-
-/* =========================
    CLEAR STORAGE
 ========================= */
 function clearAllStorage() {
@@ -151,50 +116,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   const [isAuthenticated, setIsAuthenticated] = useState(
-    !!getToken() || !!getPosToken()
+    !!getToken() || !!getPosMachineToken()
   );
 
   const [authMode, setAuthMode] = useState<AuthMode>(() => {
-    if (getToken()) return 'account';
-    if (getPosToken()) return 'device';
+    if (getPosMachineToken()) return 'pos_machine';
+    if (localStorage.getItem('fnb_auth_token')) return 'account';
     return 'account';
   });
 
   const [user, setUser] = useState<User | null>(null);
 
-  const restored =
-    isAuthenticated && authMode === 'device' ? restoreFromStorage() : null;
+  const [deviceInfo, setDeviceInfo] = useState<DeviceLoginResponse['device'] | null>(null);
 
-  const [deviceInfo, setDeviceInfo] = useState(
-    restored?.deviceInfo || null
-  );
+  const [branchInfo, setBranchInfo] = useState<DeviceLoginResponse['branch'] | null>(null);
 
-  const [branchInfo, setBranchInfo] = useState(
-    restored?.branchInfo || null
-  );
+  const [devicePermissions, setDevicePermissions] = useState<DevicePermission[]>([]);
 
-  const [devicePermissions, setDevicePermissions] = useState<DevicePermission[]>(
-    restored?.devicePermissions || []
-  );
+  const [deviceFeatures, setDeviceFeatures] = useState<DeviceFeatures | null>(null);
 
-  const [deviceFeatures, setDeviceFeatures] = useState<DeviceFeatures | null>(
-    restored?.deviceFeatures || null
-  );
-
-  const [enabledFeatures, setEnabledFeatures] = useState<string[]>(
-    restored?.enabledFeatures || []
-  );
+  const [enabledFeatures, setEnabledFeatures] = useState<string[]>([]);
 
   const deviceType = deviceInfo?.type as PosDeviceTypeV2 | null;
 
   /* =========================
+     POS MACHINE STATE
+  ========================= */
+  const [posMachineInfo, setPosMachineInfo] = useState<PosMachineLoginResponse['machine'] | null>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.POS_MACHINE_INFO) || 'null'); }
+    catch { return null; }
+  });
+  const [posMachineModule, setPosMachineModule] = useState<string | null>(() =>
+    localStorage.getItem(STORAGE_KEYS.POS_MACHINE_MODULE)
+  );
+  const posMachineTemplate = posMachineInfo?.template as PosMachineTemplate | null;
+
+  const posMachineModules = useMemo(() => {
+    if (!posMachineModule) return [];
+    const MODULE_MAP: Record<string, string[]> = {
+      BILLIARD: ['BILLIARD_TABLE'],
+      RESTAURANT: ['RESTAURANT_TABLE'],
+      ORDER_QUEUE: ['ORDER_QUEUE'],
+      ORDER: ['ORDER_QUEUE'],
+      ORDER_DISPATCH: ['ORDER_QUEUE'],
+    };
+    return MODULE_MAP[posMachineModule] || [];
+  }, [posMachineModule]);
+
+  /* =========================
      PERMISSION SET (FIX CORE BUG)
   ========================= */
+  const [posMachinePermissions, setPosMachinePermissions] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.POS_MACHINE_PERMISSIONS) || '[]'); }
+    catch { return []; }
+  });
+  
   const permissionSet = useMemo(() => {
-    return new Set(
-      normalizePermissions(user?.permissions)
-    );
-  }, [user]);
+    const allPermissions = [
+      ...normalizePermissions(user?.permissions),
+      ...normalizePermissions(posMachinePermissions)
+    ];
+    return new Set(allPermissions);
+  }, [user, posMachinePermissions]);
 
   /* =========================
      PERMISSION CHECK
@@ -250,35 +233,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* =========================
-     DEVICE LOGIN
+     POS MACHINE LOGIN (single official flow)
   ========================= */
-  const loginWithDevicePin = async (
-    setupPin: string,
-    fingerprint?: string,
-    deviceName?: string
-  ) => {
-    const fp = fingerprint || generateFingerprint();
-    const name = deviceName || `POS-${fp.slice(0, 8)}`;
-
-    const result = await deviceAuthApi.loginWithPin({
-      setupPin,
-      fingerprint: fp,
-      deviceName: name,
-    });
-
-    setPosToken(result.deviceToken);
-
-    setDeviceInfo(result.device);
-    setBranchInfo(result.branch);
-    setDevicePermissions(result.permissions || []);
-    setDeviceFeatures(result.features || null);
-    setEnabledFeatures(result.enabledFeatures || []);
-
-    setIsAuthenticated(true);
-    setAuthMode('device');
+  const loginWithPosPin = async (pinCode: string) => {
+    const { posMachineApi } = await import('../api/posServices');
 
     clearToken();
+    clearAllPosStorage();
+    clearAllStorage();
+
+    const result = await posMachineApi.login(pinCode);
+
+    setPosMachineToken(result.token);
+
+    setPosMachineInfo(result.machine);
+    setPosMachineModule(result.module);
+    setPosMachinePermissions(normalizePermissions(result.permissions));
+
+    localStorage.setItem(STORAGE_KEYS.POS_MACHINE_INFO, JSON.stringify(result.machine));
+    if (result.module) localStorage.setItem(STORAGE_KEYS.POS_MACHINE_MODULE, result.module);
+    if (result.permissions) localStorage.setItem(STORAGE_KEYS.POS_MACHINE_PERMISSIONS, JSON.stringify(result.permissions));
+
+    setIsAuthenticated(true);
+    setAuthMode('pos_machine');
+
     return result;
+  };
+
+  /* =========================
+     POS MACHINE LOGOUT
+  ========================= */
+  const logoutPosMachine = () => {
+    clearPosMachineToken();
+
+    setPosMachineInfo(null);
+    setPosMachineModule(null);
+    setPosMachinePermissions([]);
+
+    localStorage.removeItem(STORAGE_KEYS.POS_MACHINE_INFO);
+    localStorage.removeItem(STORAGE_KEYS.POS_MACHINE_MODULE);
+    localStorage.removeItem(STORAGE_KEYS.POS_MACHINE_PERMISSIONS);
+
+    setIsAuthenticated(false);
+    setAuthMode('account');
   };
 
   /* =========================
@@ -339,8 +336,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ========================= */
   useEffect(() => {
     const init = async () => {
-      const userToken = getToken();
-      const posToken = getPosToken();
+      const userToken = localStorage.getItem('fnb_auth_token');
+      const posMachineToken = getPosMachineToken();
+
+      if (posMachineToken) {
+        try {
+          const storedInfo = localStorage.getItem(STORAGE_KEYS.POS_MACHINE_INFO);
+          const storedModule = localStorage.getItem(STORAGE_KEYS.POS_MACHINE_MODULE);
+          const storedPermissions = localStorage.getItem(STORAGE_KEYS.POS_MACHINE_PERMISSIONS);
+
+          if (storedInfo) {
+            setPosMachineInfo(JSON.parse(storedInfo));
+            setPosMachineModule(storedModule);
+            if (storedPermissions) {
+              setPosMachinePermissions(JSON.parse(storedPermissions));
+            }
+            setIsAuthenticated(true);
+            setAuthMode('pos_machine');
+          }
+        } catch {
+          clearPosMachineToken();
+          setIsAuthenticated(false);
+        } finally {
+          setIsReady(true);
+        }
+        return;
+      }
 
       if (userToken) {
         try {
@@ -355,34 +376,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthMode('account');
         } catch {
           clearToken();
-          setIsAuthenticated(false);
-        } finally {
-          setIsReady(true);
-        }
-        return;
-      }
-
-      if (posToken) {
-        try {
-          const sessions = await deviceAuthApi.getSessions();
-
-          if (sessions?.length > 0) {
-            const stored = restoreFromStorage();
-
-            if (stored.deviceInfo?.id) {
-              setDeviceInfo(stored.deviceInfo);
-              setBranchInfo(stored.branchInfo);
-              setDevicePermissions(stored.devicePermissions);
-              setDeviceFeatures(stored.deviceFeatures);
-              setEnabledFeatures(stored.enabledFeatures);
-            }
-
-            setIsAuthenticated(true);
-            setAuthMode('device');
-          }
-        } catch {
-          clearAllPosStorage();
-          clearAllStorage();
           setIsAuthenticated(false);
         } finally {
           setIsReady(true);
@@ -412,18 +405,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         enabledFeatures,
         deviceType,
 
+        posMachineInfo,
+        posMachineTemplate,
+        posMachineModule,
+        posMachineModules,
+
         setUser,
         login,
-        loginWithDevicePin,
+        loginWithPosPin,
 
         logout,
         logoutDevice,
+        logoutPosMachine,
 
         hasDevicePermission,
         hasAnyDevicePermission,
         hasDeviceFeature,
 
         isDeviceMode: authMode === 'device',
+        isPosMachineMode: authMode === 'pos_machine',
 
         hasPermission,
         refreshPermissions,

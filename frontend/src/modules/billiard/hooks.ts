@@ -25,9 +25,9 @@ export function usePlayNow() {
 export function useReserve() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tableId, customerName, phone, reservationTime, durationMinutes, note }: {
-      tableId: string; customerName: string; phone?: string; reservationTime: string; durationMinutes?: number; note?: string;
-    }) => billiardApi.reserve(tableId, { customerName, phone, reservationTime, durationMinutes, note }),
+    mutationFn: ({ tableId, customerName, phone, reservationDate, note }: {
+      tableId: string; customerName: string; phone?: string; reservationDate: string; note?: string;
+    }) => billiardApi.reserve(tableId, { customerName, phone, reservationDate, note }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['billiard', 'tables'] }); },
   });
 }

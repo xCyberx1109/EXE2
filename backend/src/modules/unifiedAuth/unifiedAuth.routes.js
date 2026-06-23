@@ -26,7 +26,7 @@ router.put('/change-password', authenticate, changePasswordRules, validate, chan
 router.post('/forgot-password', forgotPasswordRules, validate, forgotPassword);
 router.post('/reset-password', resetPasswordRules, validate, resetPassword);
 
-// POS device auth
+// Legacy device session auth (refresh/logout only). POS login uses POST /pos-machine/login.
 router.post('/pos/login', deviceLoginRules, validate, deviceLogin);
 router.post('/pos/refresh', requireDeviceAuth, deviceRefreshRules, validate, deviceRefresh);
 router.post('/pos/logout', requireDeviceAuth, deviceLogout);

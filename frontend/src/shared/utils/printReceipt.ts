@@ -12,13 +12,6 @@ export interface ReceiptData {
   phone?: string;
   invoiceNumber: string;
   checkoutDate: string;
-  tableCode?: string;
-  tableType?: string;
-  sessionStart?: string;
-  sessionEnd?: string;
-  durationMinutes?: number;
-  hourlyRate?: number;
-  tableFee?: number;
   items: ReceiptLineItem[];
   foodTotal: number;
   serviceCharge?: number;
@@ -30,7 +23,6 @@ export interface ReceiptData {
 export function printReceipt(data: ReceiptData): void {
   const fmt = (n: number) => n.toLocaleString() + '₫';
   const hasItems = data.items.length > 0;
-  const isBilliard = !!data.tableCode;
 
   const itemsHtml = hasItems
     ? `<table class="items">
@@ -39,31 +31,7 @@ export function printReceipt(data: ReceiptData): void {
            ${data.items.map(i => `<tr><td>${i.name}</td><td class="qty">${i.quantity}</td><td class="price">${fmt(i.unitPrice)}</td><td class="total">${fmt(i.total)}</td></tr>`).join('')}
          </tbody>
        </table>`
-    : '<p class="empty">Không có món</p>';
-
-  let billiardHtml = '';
-  if (isBilliard) {
-    const start = data.sessionStart ? new Date(data.sessionStart) : null;
-    const mins = data.durationMinutes || 0;
-    const rate = data.hourlyRate ?? 0;
-
-    billiardHtml = `<hr />
-  <div class="section-title">PHIÊN CHƠI BI-A</div>
-  <div class="row"><span>Bàn</span><span>${data.tableCode}</span></div>
-  <div class="row"><span>Loại</span><span>${data.tableType || ''}</span></div>
-  <div class="row"><span>Bắt đầu</span><span>${start ? start.toLocaleTimeString() : ''}</span></div>
-  <div class="row"><span>Thời gian đặt</span><span>${mins} phút</span></div>
-  <div class="row"><span>Giá giờ</span><span>${fmt(Math.round(rate))} / giờ</span></div>
-  <div class="row" style="font-weight:bold"><span>Tiền chơi</span><span>${fmt(data.tableFee || 0)}</span></div>
-  <hr />
-  <div class="section-title">ĐỒ ĂN & THỨC UỐNG</div>
-  ${hasItems ? itemsHtml : '<div class="row"><span>Không có món</span><span>0₫</span></div>'}
-  <hr />
-  <div class="totals">
-    <div class="row"><span>Đồ ăn & Thức uống</span><span>${fmt(data.foodTotal)}</span></div>
-    <div class="row grand"><span>Tổng cộng</span><span>${fmt(data.grandTotal)}</span></div>
-  </div>`;
-  }
+    : '';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -104,17 +72,16 @@ export function printReceipt(data: ReceiptData): void {
   <hr />
   <div class="section-title">HÓA ĐƠN</div>
   <div class="row"><span>Hóa đơn #</span><span>${data.invoiceNumber}</span></div>
-  <div class="row"><span>Ngày</span><span>${new Date(data.checkoutDate).toLocaleDateString()} ${new Date(data.checkoutDate).toLocaleTimeString()}</span></div>
-  ${isBilliard ? billiardHtml : `
-  ${hasItems ? `<hr /><div class="section-title">MÓN</div>${itemsHtml}` : ''}
+  <div class="row"><span>Ngày</span><span>${new Date(data.checkoutDate).toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span></div>
+  ${hasItems ? `<hr />${itemsHtml}` : ''}
   <hr />
   <div class="totals">
-    ${hasItems ? `<div class="row"><span>Món</span><span>${fmt(data.foodTotal)}</span></div>` : ''}
+    ${hasItems ? `<div class="row"><span>Thành tiền</span><span>${fmt(data.foodTotal)}</span></div>` : ''}
     ${data.serviceCharge ? `<div class="row"><span>Phí dịch vụ</span><span>${fmt(data.serviceCharge)}</span></div>` : ''}
     ${data.tax ? `<div class="row"><span>Thuế</span><span>${fmt(data.tax)}</span></div>` : ''}
     ${data.discount ? `<div class="row"><span>Giảm giá</span><span>-${fmt(data.discount)}</span></div>` : ''}
     <div class="row grand"><span>Tổng cộng</span><span>${fmt(data.grandTotal)}</span></div>
-  </div>`}
+  </div>
   <hr />
   <div class="footer">
     <p>Cảm ơn quý khách!</p>

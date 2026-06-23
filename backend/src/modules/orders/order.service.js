@@ -111,7 +111,7 @@ export const orderService = {
   },
 
   /** Order Queue POS - lấy danh sách order queue */
-  async listQueueOrders(user, { search, status, paymentStatus } = {}) {
+  async listQueueOrders(user, posDevice, { search, status, paymentStatus } = {}) {
     const validStatuses = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
     const statusFilter = status ? String(status).toUpperCase() : null;
     if (statusFilter && !validStatuses.includes(statusFilter)) {
@@ -135,6 +135,34 @@ export const orderService = {
     if (!user) return [];
     const accountId = user.accountId || user.id;
     where.accountId = accountId;
+
+    // ── Filter theo posDeviceId cho CASHIER / CASHIER_KITCHEN ─────────────────
+    // machineId lấy từ posDevice (auth middleware) hoặc user.machineId (compat)
+    const machineId = posDevice?.id || user?.machineId || null;
+    const template = posDevice?.template || null;
+
+    // KITCHEN không filter posDeviceId — thấy toàn bộ đơn cần chế biến
+    // CASHIER / CASHIER_KITCHEN chỉ thấy đơn của chính máy đó
+    // paymentStatus=PAID là request từ OrdersToMakePanel (kitchen view) → không filter
+    const isKitchenView = paymentStatus === 'PAID';
+    const shouldFilterByDevice =
+      machineId &&
+      !isKitchenView &&
+      template !== 'KITCHEN';
+
+    if (shouldFilterByDevice) {
+      where.posDeviceId = machineId;
+    }
+
+    console.log('[ORDER QUEUE FILTER]', {
+      template: template ?? 'unknown (account user)',
+      machineId: machineId ?? 'none',
+      appliedFilter: shouldFilterByDevice ? `posDeviceId = ${machineId}` : 'none (kitchen or account view)',
+      isKitchenView,
+      paymentStatus,
+      accountId,
+    });
+
     if (search) {
       where.OR = [
         { orderNumber: { contains: search } },
@@ -146,7 +174,7 @@ export const orderService = {
   },
 
   /** Tạo Order Queue POS (không gắn bàn) */
-  async createQueueOrder(body, user = null) {
+  async createQueueOrder(body, user = null, posDevice = null) {
     console.log("[REQUEST BODY]", JSON.stringify(body, null, 2));
 
     const normalizedItems = await normalizeOrderItems(body.items);
@@ -195,9 +223,19 @@ export const orderService = {
       items: orderItemsData.length > 0 ? { create: orderItemsData } : undefined,
     };
 
-    if (body.posDeviceId) {
-      orderData.posDeviceId = body.posDeviceId;
+    // Tự động inject posDeviceId từ POS Machine auth context
+    // Ưu tiên: posDevice.id (auth middleware) > user.machineId (compat) > body.posDeviceId (legacy)
+    const resolvedPosDeviceId = posDevice?.id || user?.machineId || body.posDeviceId || null;
+    if (resolvedPosDeviceId) {
+      orderData.posDeviceId = resolvedPosDeviceId;
     }
+
+    console.log('[ORDER QUEUE FILTER]', {
+      template: posDevice?.template ?? 'unknown (account user)',
+      machineId: resolvedPosDeviceId ?? 'none',
+      appliedFilter: resolvedPosDeviceId ? `posDeviceId = ${resolvedPosDeviceId}` : 'none',
+      action: 'CREATE',
+    });
 
     console.log("[ORDER PAYLOAD]", JSON.stringify(orderData, null, 2));
     const order = await orderRepository.create(orderData);

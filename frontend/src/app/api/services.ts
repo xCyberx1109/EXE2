@@ -47,11 +47,12 @@ export const authApi = {
 const POS_TOKEN_KEY = 'fnb_pos_token';
 function getPosToken() { return localStorage.getItem(POS_TOKEN_KEY); }
 
-/** Lấy auth headers từ user token hoặc POS device token */
+/** Lấy auth headers từ user token hoặc POS device token hoặc POS machine token */
 function getAuthHeaders(): Record<string, string> {
   const userToken = localStorage.getItem('fnb_auth_token');
   const posToken = getPosToken();
-  const token = userToken || posToken;
+  const posMachineToken = localStorage.getItem('fnb_pos_machine_token');
+  const token = posMachineToken || userToken || posToken;
   if (!token) return {};
   return { 'Authorization': `Bearer ${token}` };
 }
@@ -79,11 +80,6 @@ export const deviceAuthApi = {
   logout: () =>
     deviceFetch<null>('/auth/pos/logout', { method: 'POST' }),
 
-  getSessions: () =>
-    deviceFetch<import('../types').DeviceSessionInfo[]>('/auth/pos/sessions'),
-
-  revokeSession: (sessionId: string) =>
-    deviceFetch<null>(`/auth/pos/sessions/${sessionId}`, { method: 'DELETE' }),
 };
 
 // --- Categories ---
@@ -412,12 +408,12 @@ export interface BilliardTable {
 export interface BilliardPlaySession {
   id: string;
   tableId: string;
-  startTime: string;
-  expectedEndTime: string;
+  startTime: string | null;
+  expectedEndTime: string | null;
   endTime: string | null;
   durationMinutes: number;
   tableFee: number;
-  status: 'PLAYING' | 'FINISHED' | 'CANCELLED';
+  status: 'PLAYING' | 'COMPLETED' | 'CANCELLED';
 }
 
 export interface BilliardReservation {
@@ -479,13 +475,13 @@ export const billiardApi = {
       body: JSON.stringify({ tables }),
     }),
 
-  playNow: (tableId: string, body: { durationMinutes: number; customerName?: string; phone?: string }) =>
+  playNow: (tableId: string, body: { durationMinutes?: number; customerName?: string; phone?: string }) =>
     apiFetch<{ session: BilliardPlaySession; order: import('../types').PosOrder }>(
       `/billiard/tables/${tableId}/play-now`,
       { method: 'POST', body: JSON.stringify(body) }
     ),
 
-  reserve: (tableId: string, body: { customerName: string; phone?: string; reservationTime: string; durationMinutes?: number; note?: string }) =>
+  reserve: (tableId: string, body: { customerName: string; phone?: string; reservationDate: string; note?: string }) =>
     apiFetch<BilliardReservation>(
       `/billiard/tables/${tableId}/reserve`,
       { method: 'POST', body: JSON.stringify(body) }

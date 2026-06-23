@@ -46,8 +46,8 @@ export function RightPanel({
   const isRestaurant = mode === 'RESTAURANT';
   if (!table) {
     return (
-      <div className={cn('flex flex-col h-full', className)}>
-        <div className="p-4 border-b border-border">
+      <div className={cn('flex flex-col flex-1 min-h-0 overflow-hidden', className)}>
+        <div className="p-4 border-b border-border shrink-0">
           <h2 className="text-lg font-semibold text-foreground">
             {layoutMode ? 'Chỉnh sửa bàn' : 'Chi tiết bàn'}
           </h2>
@@ -62,8 +62,8 @@ export function RightPanel({
   }
 
   return (
-    <div ref={panelRef} className={cn('flex flex-col h-full', className)}>
-      <div className="p-4 border-b border-border flex items-center justify-between">
+    <div ref={panelRef} className={cn('flex flex-col flex-1 min-h-0 overflow-hidden', className)}>
+      <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-foreground">
             {layoutMode ? 'Chỉnh sửa bàn' : (table.tableName || table.tableCode)}
@@ -87,56 +87,61 @@ export function RightPanel({
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {layoutMode ? (
-          <EditTablePanel mode={mode} table={table} onSuccess={onSuccess} onDirtyChange={onDirtyChange} />
-        ) : (
-          <>
-            {table.status === 'AVAILABLE' && !(table as any).isMerged && (
-              <AvailablePanel mode={mode} table={table} onSuccess={isRestaurant ? (onOrderCreated || onSuccess) : onSuccess} />
-            )}
-            {table.status === 'RESERVED' && (
-              isRestaurant ? (
+      {/* Khi bàn đang có khách (OCCUPIED/CHECKING_OUT), OccupiedPanel tự quản lý scroll nội bộ
+          nên wrapper không cần overflow-y-auto. Các trạng thái khác dùng scroll bình thường. */}
+      {(table.status === 'OCCUPIED' || table.status === 'CHECKING_OUT') && !layoutMode ? (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <OccupiedPanel
+            mode={mode}
+            table={table}
+            onSuccess={onSuccess}
+            onRefresh={onRefresh}
+            autoOpenDrawer={autoOpenDrawer}
+            onAutoOpenDrawerConsumed={onAutoOpenDrawerConsumed}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-4">
+          {layoutMode ? (
+            <EditTablePanel mode={mode} table={table} onSuccess={onSuccess} onDirtyChange={onDirtyChange} />
+          ) : (
+            <>
+              {table.status === 'AVAILABLE' && !(table as any).isMerged && (
+                <AvailablePanel mode={mode} table={table} onSuccess={isRestaurant ? (onOrderCreated || onSuccess) : onSuccess} />
+              )}
+              {table.status === 'RESERVED' && (
+                isRestaurant ? (
+                  <div className="space-y-4 p-4">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">Đã đặt</span>
+                    <p className="text-sm text-muted-foreground">Bàn này đã được đặt trước.</p>
+                  </div>
+                ) : (
+                  <ReservedPanel table={table} onSuccess={onSuccess} />
+                )
+              )}
+              {table.status === 'AVAILABLE' && (table as any).isMerged && (
                 <div className="space-y-4">
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">Đã đặt</span>
-                  <p className="text-sm text-muted-foreground">Bàn này đã được đặt trước.</p>
+                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">Đã gộp</span>
+                  <p className="text-sm text-muted-foreground">Bàn này đã được gộp vào bàn khác.</p>
                 </div>
-              ) : (
-                <ReservedPanel table={table} onSuccess={onSuccess} />
-              )
-            )}
-            {(table.status === 'OCCUPIED' || table.status === 'CHECKING_OUT') && (
-              <OccupiedPanel
-                mode={mode}
-                table={table}
-                onSuccess={onSuccess}
-                onRefresh={onRefresh}
-                autoOpenDrawer={autoOpenDrawer}
-                onAutoOpenDrawerConsumed={onAutoOpenDrawerConsumed}
-              />
-            )}
-            {table.status === 'AVAILABLE' && (table as any).isMerged && (
-              <div className="space-y-4">
-                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">Đã gộp</span>
-                <p className="text-sm text-muted-foreground">Bàn này đã được gộp vào bàn khác.</p>
-              </div>
-            )}
-            {table.status === 'CLEANING' && (
-              <div className="space-y-4">
-                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  Đang vệ sinh
-                </span>
-                <p className="text-sm text-muted-foreground">
-                  Bàn đang được vệ sinh và sẽ sẵn sàng sau.
-                </p>
-              </div>
-            )}
-            {table.status === 'DISABLED' && (
-              <EnableButton tableId={table.id} onSuccess={onSuccess} />
-            )}
-          </>
-        )}
-      </div>
+              )}
+              {table.status === 'CLEANING' && (
+                <div className="space-y-4">
+                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                    Đang vệ sinh
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    Bàn đang được vệ sinh và sẽ sẵn sàng sau.
+                  </p>
+                </div>
+              )}
+              {table.status === 'DISABLED' && (
+                <EnableButton tableId={table.id} onSuccess={onSuccess} />
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

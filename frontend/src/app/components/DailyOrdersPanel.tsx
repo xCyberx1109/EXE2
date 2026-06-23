@@ -31,7 +31,7 @@ export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const formatTime = (iso: string) =>
-    new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
   const renderStatus = (status: string) => {
     const cfg = STATUS_LABELS[status] || { label: status, className: 'bg-muted text-foreground' };

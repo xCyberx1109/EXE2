@@ -87,7 +87,7 @@ export const staffAuthService = {
       lastActivityAt: new Date(),
     });
 
-    await prisma.posDevice.update({
+    await prisma.pos_machines.update({
       where: { id: posDevice.id },
       data: { lastLoginAt: new Date() },
     });
