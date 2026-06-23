@@ -176,10 +176,62 @@ export const permissions = [
   { code: 'TABLE_UPDATE', name: 'Cập nhật bàn', module: 'table' },
   { code: 'TABLE_DELETE', name: 'Xóa bàn', module: 'table' },
   { code: 'TABLE_LAYOUT_EDIT', name: 'Chỉnh sửa sơ đồ bàn', module: 'table' },
+
+  // ================= RESTAURANT =================
+  { code: 'RESTAURANT_TABLE_VIEW', name: 'Xem bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_TABLE_CREATE', name: 'Tạo bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_TABLE_UPDATE', name: 'Cập nhật bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_TABLE_DELETE', name: 'Xóa bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_TABLE_LAYOUT_EDIT', name: 'Chỉnh sửa sơ đồ bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_TABLE_TRANSFER', name: 'Chuyển bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_TABLE_MERGE', name: 'Gộp bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_TABLE_SPLIT', name: 'Tách bàn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_ORDER_VIEW', name: 'Xem đơn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_ORDER_CREATE', name: 'Tạo đơn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_ORDER_UPDATE', name: 'Cập nhật đơn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_ORDER_DELETE', name: 'Xóa đơn nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_ORDER_ADD_ITEM', name: 'Thêm món nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_PAY_VIEW', name: 'Xem thanh toán nhà hàng', module: 'restaurant' },
+  { code: 'RESTAURANT_PAY_PROCESS', name: 'Thanh toán nhà hàng', module: 'restaurant' },
 ];
 
 export const subscriptionPlans = [
   { code: 'basic', name: 'Cơ bản', price: 0, billingInterval: 'MONTHLY' },
   { code: 'pro', name: 'Chuyên nghiệp', price: 499000, billingInterval: 'MONTHLY' },
   { code: 'enterprise', name: 'Doanh nghiệp', price: 1999000, billingInterval: 'MONTHLY' },
+];
+
+/** Gói Cơ bản */
+const BASIC_FEATURES = [
+  'pos_cashier',
+  'pos_kitchen',
+  'menu_management',
+  'kitchen_display',
+  'pos_order_queue',
+];
+/** Gói Chuyên nghiệp */
+const PRO_FEATURES = [
+  ...BASIC_FEATURES,
+  'inventory',
+  'customer_loyalty',
+  'online_ordering',
+  'voucher',
+];
+/** Gói Doanh nghiệp */
+const ENTERPRISE_FEATURES = [
+  ...PRO_FEATURES,
+  'multi_branch',
+  'billiard_table',
+  'billiard_session',
+  'billiard_reservation',
+  'billiard_layout',
+  'billiard_report',
+  'billiard_order',
+  'billiard_pay',
+];
+
+export const subscriptionPlanFeatures = [
+  { planCode: 'basic', featureCodes: BASIC_FEATURES },
+  { planCode: 'pro', featureCodes: PRO_FEATURES },
+  { planCode: 'enterprise', featureCodes: ENTERPRISE_FEATURES },
 ];

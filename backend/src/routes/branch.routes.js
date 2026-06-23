@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import { Prisma } from '@prisma/client';
+import { Prisma, SubscriptionStatus } from '@prisma/client';
 import prisma from '../prisma/client.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
@@ -10,24 +10,38 @@ import { requestLogger } from '../utils/logger.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
 import { enforceBranchScope } from '../middlewares/branchScope.js';
 import { sendInviteEmail, sendCredentialsEmail } from '../services/email.service.js';
+import { assignPlanPermissions, syncPlanPermissions } from '../services/planPermission.service.js';
 
 const router = Router();
 
 router.use(authenticate);
 router.use(enforceBranchScope);
 
-function formatBranch(account) {
+const PLAN_LABEL_MAP = {
+  basic: 'BASIC',
+  pro: 'STANDARD',
+  enterprise: 'PREMIUM',
+};
+
+function getPlanLabel(code) {
+  return PLAN_LABEL_MAP[code] || 'BASIC';
+}
+
+function formatBranch(account, subscription) {
+  const planCode = subscription?.plan?.code || 'basic';
   return {
     id: account.id,
     name: account.fullName,
     address: '',
     phone: account.phone || '',
-    plan: 'BASIC',
-    subscriptionStatus: 'ACTIVE',
-    subscriptionStart: account.createdAt instanceof Date
-      ? account.createdAt.toISOString()
-      : account.createdAt,
-    subscriptionEnd: new Date('2099-12-31').toISOString(),
+    plan: getPlanLabel(planCode),
+    subscriptionStatus: subscription?.status || 'ACTIVE',
+    subscriptionStart: subscription?.startDate instanceof Date
+      ? subscription.startDate.toISOString()
+      : (subscription?.startDate || account.createdAt),
+    subscriptionEnd: subscription?.endDate instanceof Date
+      ? subscription.endDate.toISOString()
+      : new Date('2099-12-31').toISOString(),
     active: account.active,
     createdAt: account.createdAt instanceof Date
       ? account.createdAt.toISOString()
@@ -44,6 +58,22 @@ function formatBranch(account) {
   };
 }
 
+async function getSubscription(accountId) {
+  return prisma.subscription.findFirst({
+    where: { branchId: accountId, deletedAt: null },
+    include: { plan: { select: { code: true, name: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+async function getPlanId(plan) {
+  const code = plan?.toLowerCase() === 'standard' ? 'pro'
+    : plan?.toLowerCase() === 'premium' ? 'enterprise'
+    : 'basic';
+  const found = await prisma.subscriptionPlan.findUnique({ where: { code }, select: { id: true } });
+  return found?.id || null;
+}
+
 function isAdminAll(user) {
   return user.permissions?.includes('ADMIN_ALL');
 }
@@ -56,19 +86,29 @@ router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) 
       const accounts = await prisma.account.findMany({
         orderBy: { createdAt: 'desc' },
       });
+      const subs = await prisma.subscription.findMany({
+        where: { branchId: { in: accounts.map((a) => a.id) }, deletedAt: null },
+        include: { plan: { select: { code: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      const subMap = {};
+      for (const s of subs) {
+        if (!subMap[s.branchId]) subMap[s.branchId] = s;
+      }
       return sendSuccess(res, {
         message: 'Lấy danh sách chi nhánh thành công',
-        data: accounts.map(formatBranch),
+        data: accounts.map((a) => formatBranch(a, subMap[a.id])),
       });
     }
 
     const account = await prisma.account.findUnique({
       where: { id: accountId },
     });
+    const sub = account ? await getSubscription(account.id) : null;
 
     sendSuccess(res, {
       message: 'Lấy danh sách chi nhánh thành công',
-      data: account ? [formatBranch(account)] : [],
+      data: account ? [formatBranch(account, sub)] : [],
     });
   } catch (err) {
     console.error('[GET /api/branches] Error:', err);
@@ -81,7 +121,7 @@ router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) 
 }));
 
 router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, res) => {
-  const { name, phone, email, fullName, active } = req.body;
+  const { name, phone, email, fullName, active, plan } = req.body;
   const { requestId } = req;
 
   if (!name || !email) {
@@ -138,10 +178,33 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
         });
       }
 
+      const planId = await getPlanId(plan);
+      if (planId) {
+        const subStart = req.body.subscriptionStart
+          ? new Date(req.body.subscriptionStart)
+          : new Date();
+        const subEnd = req.body.subscriptionEnd
+          ? new Date(req.body.subscriptionEnd)
+          : new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+
+        await tx.subscription.create({
+          data: {
+            branchId: newAccount.id,
+            planId,
+            status: SubscriptionStatus.ACTIVE,
+            startDate: subStart,
+            endDate: subEnd,
+            autoRenew: true,
+          },
+        });
+      }
+
       return newAccount;
     });
 
     requestLogger.log(requestId, `[BRANCH_CREATE] accountId=${account.id} email=${email}`);
+
+    await assignPlanPermissions(account.id, plan);
 
     sendCredentialsEmail({
       email: account.email,
@@ -210,9 +273,11 @@ router.put('/:id', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, 
       data,
     });
 
+    const sub = await getSubscription(id);
+
     sendSuccess(res, {
       message: 'Cập nhật chi nhánh thành công',
-      data: formatBranch(account),
+      data: formatBranch(account, sub),
     });
   } catch (err) {
     console.error('[PUT /api/branches/:id] Error:', err);
@@ -364,6 +429,88 @@ router.patch('/:id/unlock', requirePermission('BRANCH_UNLOCK'), asyncHandler(asy
     sendError(res, {
       statusCode: 500,
       message: 'Lỗi khi mở khóa tài khoản',
+      error: err.message,
+    });
+  }
+}));
+
+router.put('/:id/plan', requirePermission('BRANCH_UPDATE'), asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plan } = req.body;
+    const currentAccountId = req.user.accountId || req.user.id;
+
+    if (id !== currentAccountId && !isAdminAll(req.user)) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Bạn không có quyền thay đổi gói của tài khoản khác',
+      });
+    }
+
+    if (!plan) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'Vui lòng chọn gói (BASIC / STANDARD / PREMIUM)',
+      });
+    }
+
+    const planId = await getPlanId(plan);
+    if (!planId) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'Gói không hợp lệ',
+      });
+    }
+
+    const existingSub = await prisma.subscription.findFirst({
+      where: { branchId: id, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      if (existingSub) {
+        const subStart = new Date();
+        const subEnd = new Date(subStart);
+        subEnd.setFullYear(subEnd.getFullYear() + 1);
+
+        await tx.subscription.update({
+          where: { id: existingSub.id },
+          data: {
+            planId,
+            startDate: subStart,
+            endDate: subEnd,
+            status: SubscriptionStatus.ACTIVE,
+          },
+        });
+      } else {
+        const subStart = new Date();
+        const subEnd = new Date(subStart);
+        subEnd.setFullYear(subEnd.getFullYear() + 1);
+
+        await tx.subscription.create({
+          data: {
+            branchId: id,
+            planId,
+            status: SubscriptionStatus.ACTIVE,
+            startDate: subStart,
+            endDate: subEnd,
+            autoRenew: true,
+          },
+        });
+      }
+    });
+
+    await syncPlanPermissions(id, plan);
+
+    sendSuccess(res, {
+      message: 'Đã cập nhật gói dịch vụ thành công',
+      data: { plan },
+    });
+  } catch (err) {
+    console.error('[PUT /api/branches/:id/plan] Error:', err);
+    sendError(res, {
+      statusCode: 500,
+      message: 'Lỗi khi cập nhật gói dịch vụ',
       error: err.message,
     });
   }

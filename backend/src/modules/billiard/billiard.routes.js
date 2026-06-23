@@ -19,14 +19,14 @@ import {
   createRestaurantTableRules, updateRestaurantTableRules,
 } from './billiard.validation.js';
 import { validate } from '../../middlewares/validate.js';
-import { authenticate, requirePermission, requireAnyPermission, optionalAuth } from '../../middlewares/auth.js';
+import { authenticate, requirePermission, requireAnyPermission, optionalAuth, requireNotPosMachine } from '../../middlewares/auth.js';
 
 const router = Router();
 
 // ==================== BILLIARD TABLES ====================
 router.get('/billiard/tables', optionalAuth, listBilliardTables);
-router.post('/billiard/tables', authenticate, requirePermission('BILLIARD_TABLE_CREATE'), createTableRules, validate, createBilliardTable);
-router.put('/billiard/tables/layout', authenticate, requirePermission('BILLIARD_TABLE_LAYOUT_EDIT'), updateLayoutRules, validate, updateTableLayout);
+router.post('/billiard/tables', authenticate, requireNotPosMachine, requirePermission('BILLIARD_TABLE_CREATE'), createTableRules, validate, createBilliardTable);
+router.put('/billiard/tables/layout', authenticate, requireNotPosMachine, requirePermission('BILLIARD_TABLE_LAYOUT_EDIT'), updateLayoutRules, validate, updateTableLayout);
 
 // ==================== BILLIARD PLAY NOW → SESSION START ====================
 router.post('/billiard/tables/:tableId/play-now', authenticate, requirePermission('BILLIARD_SESSION_START'), [...tableIdParam, ...playNowRules], validate, playNow);
@@ -39,6 +39,7 @@ router.post('/billiard/tables/:tableId/cancel-reservation', authenticate, requir
 // ==================== BILLIARD SESSIONS ====================
 router.get('/billiard/tables/:tableId/current-session', optionalAuth, tableIdParam, validate, getCurrentSession);
 router.post('/billiard/sessions/:id/extend', authenticate, requirePermission('BILLIARD_SESSION_EXTEND'), [...idParam, ...extendSessionRules], validate, extendSession);
+
 router.post('/billiard/tables/:tableId/finish-session', authenticate, requirePermission('BILLIARD_SESSION_FINISH'), tableIdParam, validate, finishSession);
 
 // ==================== BILLIARD ORDERS ====================

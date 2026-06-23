@@ -1,9 +1,10 @@
-import { CheckCircle, XCircle, Phone, User, Clock, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, Phone, User, CalendarDays, FileText } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { useCheckIn, useCancelReservation } from '../hooks';
 import type { BilliardTableWithSession } from '../types';
 import { Loader2 } from 'lucide-react';
 import { useAsyncActionGuard } from '@/shared/hooks/useAsyncActionGuard';
+import { formatDate } from '@/shared/utils/date';
 
 interface ReservedPanelProps {
   table: BilliardTableWithSession;
@@ -47,8 +48,8 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
           </div>
 
           <div className="flex items-center gap-2 text-sm">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <span>{new Date(reservation.reservationTime).toLocaleString()}</span>
+            <CalendarDays className="w-4 h-4 text-muted-foreground" />
+            <span>{reservation.reservationTime ? formatDate(reservation.reservationTime) : 'Chưa có ngày đặt'}</span>
           </div>
 
           {reservation.note && (

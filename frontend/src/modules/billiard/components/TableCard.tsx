@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import type { BilliardTableWithSession } from '../types';
 import { cn } from '@/app/components/ui/utils';
 
@@ -12,35 +12,34 @@ const STATUS_STYLES: Record<string, { border: string; bg: string; text: string; 
   DISABLED: { border: 'border-gray-300 dark:border-gray-600', bg: 'bg-gray-100 dark:bg-gray-900/50', text: 'text-gray-400 dark:text-gray-500', label: 'Đã khóa' },
 };
 
-function useTimer(endTime: string | null, isCountdown: boolean): { display: string; expired: boolean } {
+function useCountUpTimer(startTime: string | null): string {
   const [display, setDisplay] = useState('00:00:00');
-  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
-    if (!endTime) { setDisplay('00:00:00'); setExpired(false); return; }
+    if (!startTime) { setDisplay('00:00:00'); return; }
+
+    const start = new Date(startTime).getTime();
+    console.log('[TABLECARD TIMER] startTime:', startTime, 'parsed:', start, 'now:', Date.now());
+
+    if (isNaN(start)) { setDisplay('00:00:00'); return; }
 
     function tick() {
-      const diff = isCountdown
-        ? new Date(endTime).getTime() - Date.now()
-        : Date.now() - new Date(endTime).getTime();
-      if (diff <= 0) {
-        if (isCountdown) { setDisplay('00:00:00'); setExpired(true); return; }
-        setDisplay('00:00:00'); setExpired(false); return;
-      }
-      setExpired(false);
-      const totalSec = Math.floor(diff / 1000);
+      const elapsedMs = Date.now() - start;
+      const totalSec = Math.max(0, Math.floor(elapsedMs / 1000));
       const h = Math.floor(totalSec / 3600);
       const m = Math.floor((totalSec % 3600) / 60);
       const s = totalSec % 60;
-      setDisplay(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      const next = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      console.log('[TABLECARD TIMER] tick:', next, 'elapsedMs:', elapsedMs);
+      setDisplay(next);
     }
 
     tick();
     const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [endTime, isCountdown]);
+    return () => { console.log('[TABLECARD TIMER] cleanup'); clearInterval(interval); };
+  }, [startTime]);
 
-  return { display, expired };
+  return display;
 }
 
 interface TableCardProps {
@@ -60,9 +59,11 @@ export function TableCard({ mode, table, selected, onSelect, draggable, onDragSt
   const style = STATUS_STYLES[table.status] || STATUS_STYLES.AVAILABLE;
   const isOccupied = table.status === 'OCCUPIED' || table.status === 'CHECKING_OUT';
 
-  const endTime = isRestaurant ? null : table.currentSession?.expectedEndTime ?? null;
+  const session = table.currentSession;
+  const isPlaying = session?.status === 'PLAYING';
 
-  const { display: remaining, expired: timeExpired } = useTimer(endTime, true);
+  const remaining = useCountUpTimer(session?.startTime ?? null);
+  console.log('[TABLECARD] table.status:', table.status, 'session:', session, 'session.status:', session?.status, 'isPlaying:', isPlaying, 'remaining:', remaining);
 
   const xPercent = position?.xPercent ?? table.xPercent ?? table.posX;
   const yPercent = position?.yPercent ?? table.yPercent ?? table.posY;
@@ -125,9 +126,8 @@ export function TableCard({ mode, table, selected, onSelect, draggable, onDragSt
           {isOccupied ? (
             <>
               <span className="truncate">{hourlyRate.toLocaleString()} ₫/giờ</span>
-              <span className="font-semibold text-blue-600 dark:text-blue-400 truncate">{table.currentSession?.durationMinutes ?? 0} ph</span>
-              <div className={cn('flex items-center gap-1 font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : 'text-foreground')}>
-                {timeExpired ? <AlertCircle className="w-[clamp(10px,0.8vw,14px)] h-[clamp(10px,0.8vw,14px)] shrink-0" /> : <Clock className="w-[clamp(10px,0.8vw,14px)] h-[clamp(10px,0.8vw,14px)] shrink-0" />}
+              <div className={cn('flex items-center gap-1 font-medium', 'text-foreground')}>
+                <Clock className="w-[clamp(10px,0.8vw,14px)] h-[clamp(10px,0.8vw,14px)] shrink-0" />
                 <span>{remaining}</span>
               </div>
             </>

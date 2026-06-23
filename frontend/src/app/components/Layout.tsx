@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig';
 import { APP_NAME } from '../../shared/constants';
 import { useTheme } from 'next-themes';
+import { PosMachineHeader } from './PosMachineHeader';
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
@@ -33,7 +34,7 @@ function isAllowedPath(path: string, flatItems: AppMenuItem[]): boolean {
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isReady, isAuthenticated, isDeviceMode, user, logout, hasPermission } = useAuth();
+  const { isReady, isAuthenticated, isDeviceMode, isPosMachineMode, user, logout, hasPermission } = useAuth();
   const { theme, setTheme } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -85,7 +86,18 @@ export function Layout() {
   }
 
   if (isDeviceMode) {
-    return <Navigate to="/pos-v2/dashboard" replace />;
+    return <Navigate to="/login" replace />;
+  }
+
+  if (isPosMachineMode) {
+    return (
+      <div className="h-screen flex flex-col bg-background overflow-hidden">
+        <PosMachineHeader />
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <Outlet />
+        </main>
+      </div>
+    );
   }
 
   if (user && !isAllowedPath(location.pathname, flatMenuItems)) {
@@ -221,7 +233,7 @@ export function Layout() {
 
       {/* Main content - scrollable */}
       <div className="flex-1 lg:pl-64 pt-14 lg:pt-0 h-full overflow-y-auto overflow-x-hidden">
-        <main className="p-6 min-h-full flex flex-col">
+        <main className="p-6 h-full min-h-0 flex flex-col overflow-hidden">
           <Outlet />
         </main>
       </div>

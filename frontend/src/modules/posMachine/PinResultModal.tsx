@@ -1,76 +1,39 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/app/components/ui/dialog';
-import { Button } from '@/app/components/ui/button';
-import { Copy, Check, Smartphone } from 'lucide-react';
+import { X } from 'lucide-react';
 
-interface PinResultModalProps {
+interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   machineName: string;
   pin: string;
 }
 
-export function PinResultModal({ open, onOpenChange, machineName, pin }: PinResultModalProps) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(pin);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = pin;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
-  };
+export function PinResultModal({ open, onOpenChange, machineName, pin }: Props) {
+  if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
-        <DialogTitle className="sr-only">Mã PIN máy POS</DialogTitle>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20">
+      <div className="bg-card rounded-xl border border-border shadow-xl w-full max-w-md p-6 text-center">
+        <h2 className="text-lg font-bold mb-2">Máy POS đã được tạo</h2>
+        <p className="text-sm text-muted-foreground mb-4">{machineName}</p>
 
-        <div className="text-center space-y-6 py-4">
-          <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <Smartphone className="w-7 h-7 text-primary" />
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-blue-800 font-medium mb-2">Mã PIN đăng nhập</p>
+          <div className="text-3xl font-bold tracking-[0.3em] text-blue-700 font-mono">
+            {pin}
           </div>
-
-          <div className="space-y-1">
-            <p className="text-lg font-semibold">{machineName}</p>
-            <p className="text-xs text-muted-foreground">Mã PIN đăng nhập</p>
-          </div>
-
-          <div className="bg-muted rounded-xl px-6 py-5 border-2 border-primary/20">
-            <div className="text-5xl font-bold tracking-[0.25em] text-foreground font-mono select-all">
-              {pin}
-            </div>
-          </div>
-
-          <Button onClick={handleCopy} className="w-full gap-2 h-11 text-base" variant="outline">
-            {copied ? (
-              <><Check className="w-5 h-5 text-green-500" />Đã sao chép</>
-            ) : (
-              <><Copy className="w-5 h-5" />Sao chép mã PIN</>
-            )}
-          </Button>
-
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
-            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-              PIN chỉ hiển thị một lần duy nhất. Vui lòng sao chép và gửi cho nhân viên trước khi đóng.
-            </p>
-          </div>
-
+          <p className="text-xs text-blue-600 mt-2">
+            Vui lòng sao chép mã PIN này và chuyển cho nhân viên
+          </p>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        <button
+          onClick={() => onOpenChange(false)}
+          className="flex items-center gap-2 mx-auto px-4 py-2 text-sm rounded-lg border hover:bg-muted transition-colors"
+        >
+          <X className="w-4 h-4" />
+          Đóng
+        </button>
+      </div>
+    </div>
   );
 }

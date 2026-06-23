@@ -138,7 +138,7 @@ export const unifiedAuthService = {
       email: user.email,
       fullName: user.fullName,
       resetLink,
-    }).catch(() => {});
+    }).catch(() => { });
 
     return { message: 'Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.' };
   },
@@ -200,35 +200,46 @@ export const unifiedAuthService = {
 
     const token = await generateUserToken(user);
 
-    sendWelcomeEmail({ email: user.email, fullName: user.fullName }).catch(() => {});
+    sendWelcomeEmail({ email: user.email, fullName: user.fullName }).catch(() => { });
 
     return { user: sanitizeUser(user), token };
   },
 
   async loginWithDevicePin({ setupPin, fingerprint, deviceName }, req) {
-    const candidates = await prisma.posDevice.findMany({
+    console.log('[POS_LOGIN_DEBUG] Request body:', { setupPin: setupPin ? `***${setupPin.slice(-2)}` : '(empty)', fingerprint: fingerprint ? 'present' : 'missing', deviceName });
+    console.log('[POS_LOGIN_DEBUG] setupPin type:', typeof setupPin, 'length:', setupPin?.length);
+
+    const devices = await prisma.pos_machines.findMany({
       where: {
-        setupPinHash: { not: null },
         deletedAt: null,
-        active: true,
-        status: { in: ['PENDING_ACTIVATION', 'ACTIVATED'] },
+        status: { in: ['ACTIVE', 'LOCKED'] },
       },
     });
 
+    console.log('[POS_LOGIN_DEBUG] Devices found in DB:', devices.length);
+    for (const d of devices) {
+      console.log('[POS_LOGIN_DEBUG] Device:', { id: d.id, name: d.name, status: d.status, pinCodePrefix: d.pinCode ? d.pinCode.substring(0, 10) + '...' : 'NULL' });
+    }
+
     let device = null;
-    for (const candidate of candidates) {
-      const pinValid = await bcrypt.compare(setupPin, candidate.setupPinHash);
-      if (pinValid) {
+    for (const candidate of devices) {
+      if (!candidate.pinCode) {
+        console.log('[POS_LOGIN_DEBUG] SKIP - pinCode is null for device:', candidate.id);
+        continue;
+      }
+      const matched = await bcrypt.compare(setupPin, candidate.pinCode);
+      console.log('[POS_LOGIN_DEBUG] bcrypt.compare:', { deviceId: candidate.id, deviceName: candidate.name, matched });
+      if (matched) {
         device = candidate;
         break;
       }
     }
 
-    if (!device) throw new AppError('Mã PIN không hợp lệ', 401);
-
-    if (device.activationAttempts >= RATE_LIMIT_ATTEMPTS) {
-      throw new AppError('Quá nhiều lần thử. Thiết bị đã bị khóa.', 429);
+    if (!device) {
+      console.log('[POS_LOGIN_DEBUG] FAILURE - no matching device found. Total candidates checked:', devices.length);
+      throw new AppError('Mã PIN không hợp lệ', 401);
     }
+    console.log('[POS_LOGIN_DEBUG] SUCCESS - matched device:', device.id, device.name);
 
     const deviceToken = generateDeviceToken();
     const deviceTokenHash = await hashToken(deviceToken);
@@ -271,37 +282,30 @@ export const unifiedAuthService = {
       });
     }
 
-    await posDeviceRepository.update(device.id, {
-      status: 'ACTIVATED',
-      activatedAt: device.activatedAt || new Date(),
-      deviceToken,
-      deviceTokenHash,
-      refreshTokenHash,
-      tokenVersion: { increment: 1 },
-      activationAttempts: 0,
-      lastFingerprint: fingerprint || null,
-      lastActive: new Date(),
-      lastLoginAt: new Date(),
+    await prisma.pos_machines.update({
+      where: { id: device.id },
+      data: {
+        lastLoginAt: new Date(),
+      },
     });
 
     await activityLogRepository.create({
       accountId: device.accountId,
       posDeviceId: device.id,
-      action: device.activatedAt ? 'DEVICE_RELOGIN' : 'DEVICE_ACTIVATED',
+      action: 'DEVICE_LOGIN',
       module: 'UNIFIED_AUTH',
       details: {
         name: device.name,
         fingerprint: fingerprint || null,
-        isNewActivation: !device.activatedAt,
       },
       ipAddress,
     });
 
     const branch = null;
 
-    const permissions = getPermissionsForDeviceType(device.type);
-    const features = getFeaturesForDeviceType(device.type);
-    const enabledFeatures = getEnabledFeaturesForDeviceType(device.type);
+    const permissions = getPermissionsForDeviceType(device.template);
+    const features = getFeaturesForDeviceType(device.template);
+    const enabledFeatures = getEnabledFeaturesForDeviceType(device.template);
 
     return {
       deviceToken,
@@ -310,9 +314,9 @@ export const unifiedAuthService = {
       device: {
         id: device.id,
         name: device.name,
-        type: device.type,
-        mode: device.mode,
-        status: 'ACTIVATED',
+        type: device.template,
+        mode: device.template,
+        status: 'ACTIVE',
       },
       permissions,
       features,

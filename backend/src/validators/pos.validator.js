@@ -17,6 +17,18 @@ export const createPosDeviceRules = [
     .withMessage('Chế độ không hợp lệ (CASHIER, KITCHEN, HYBRID)'),
 ];
 
+export const createPosMachineRules = [
+  body('name')
+    .trim()
+    .notEmpty()
+    .withMessage('Tên máy POS là bắt buộc'),
+  body('template')
+    .trim()
+    .notEmpty()
+    .isIn(['CASHIER', 'KITCHEN', 'CASHIER_KITCHEN', 'BILLIARD', 'RESTAURANT', 'CUSTOM'])
+    .withMessage('Template không hợp lệ (CASHIER, KITCHEN, CASHIER_KITCHEN, BILLIARD, RESTAURANT, CUSTOM)'),
+];
+
 export const posLoginRules = [
   body('pin')
     .trim()

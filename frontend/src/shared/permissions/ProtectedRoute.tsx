@@ -21,10 +21,10 @@ export function ProtectedRoute({
   requiredRBACPermissions,
   requiredFeatures,
   moduleName,
-  fallbackPath = '/pos-v2/dashboard',
+  fallbackPath = '/app',
 }: ProtectedRouteProps) {
   const {
-    isReady, isAuthenticated, isDeviceMode, authMode,
+    isReady, isAuthenticated, isDeviceMode, isPosMachineMode, authMode,
     deviceType, hasDevicePermission, hasDeviceFeature,
     deviceFeatures, user, hasPermission,
   } = useAuth();
@@ -43,6 +43,11 @@ export function ProtectedRoute({
         return <Navigate to="/app" replace />;
       }
     }
+  }
+
+  // POS Machine — pass through (template/module-based routing ensures correct access)
+  if (isPosMachineMode) {
+    return <>{children}</>;
   }
 
   // Device-level checks

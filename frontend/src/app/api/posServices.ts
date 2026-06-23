@@ -2,37 +2,17 @@ import { apiFetch } from './client';
 import type {
   PosMode,
   PosDeviceV2, CreatePosDeviceResponse,
-  StaffLoginResponse, ActiveStaff, OpenShiftRequest, CloseShiftRequest,
-  ShiftResponse, CurrentShift, DeviceRegeneratePinResponse, DeviceRevokeResponse,
+  DeviceRegeneratePinResponse, DeviceRevokeResponse, DeviceResetResponse,
+  PosMachine, PosMachineDetail, PosMachineTemplate,
+  PosMachineCreateResponse, PosMachineLoginResponse,
 } from '../types';
 
-const POS_TOKEN_KEY = 'fnb_pos_token';
-
-export const getPosToken = () => localStorage.getItem(POS_TOKEN_KEY);
-export const setPosToken = (token: string) => localStorage.setItem(POS_TOKEN_KEY, token);
-export const clearPosToken = () => localStorage.removeItem(POS_TOKEN_KEY);
-
-export const clearAllPosStorage = () => {
-  clearPosToken();
-};
-
-// ======== POS v2 API Services ========
-
-function posV2Fetch<T>(path: string, options: RequestInit & { auth?: boolean } = {}): Promise<T> {
-  const { auth = true, ...rest } = options;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (auth) {
-    const token = getPosToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-  }
-  return apiFetch<T>(path, { ...rest, headers });
-}
-
+// ======== POS v2 Device Management API ========
 export const posDevicesV2Api = {
   list: () =>
     apiFetch<PosDeviceV2[]>('/pos-v2/devices'),
 
-  create: (body: { name: string; type: string; mode?: PosMode }) =>
+  create: (body: { name: string; template: PosMachineTemplate }) =>
     apiFetch<CreatePosDeviceResponse>('/pos-v2/devices', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -45,7 +25,7 @@ export const posDevicesV2Api = {
     }),
 
   reset: (deviceId: string) =>
-    apiFetch<DeviceRegeneratePinResponse>('/pos-v2/devices/reset', {
+    apiFetch<DeviceResetResponse>('/pos-v2/devices/reset', {
       method: 'POST',
       body: JSON.stringify({ deviceId }),
     }),
@@ -80,85 +60,57 @@ export const posDevicesV2Api = {
     ),
 };
 
-export const staffAuthApi = {
-  loginPin: (pinCode: string) =>
-    posV2Fetch<StaffLoginResponse>('/pos-v2/staff-auth/login-pin', {
-      method: 'POST',
-      body: JSON.stringify({ pinCode }),
-    }),
-
-  logout: (accountId?: string) =>
-    posV2Fetch<null>('/pos-v2/staff-auth/logout', {
-      method: 'POST',
-      body: JSON.stringify({ accountId }),
-    }),
-
-  switchStaff: (pinCode: string) =>
-    posV2Fetch<StaffLoginResponse>('/pos-v2/staff-auth/switch', {
-      method: 'POST',
-      body: JSON.stringify({ pinCode }),
-    }),
-
-  activeStaff: () =>
-    posV2Fetch<ActiveStaff[]>('/pos-v2/staff-auth/active'),
-};
-
-export const shiftApi = {
-  open: (body: OpenShiftRequest) =>
-    posV2Fetch<ShiftResponse>('/pos-v2/shifts/open', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-
-  close: (body: CloseShiftRequest) =>
-    posV2Fetch<ShiftResponse>('/pos-v2/shifts/close', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-
-  current: () =>
-    posV2Fetch<CurrentShift | null>('/pos-v2/shifts/current'),
-
-  history: (params?: { limit?: number; offset?: number; status?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.limit) q.set('limit', String(params.limit));
-    if (params?.offset) q.set('offset', String(params.offset));
-    if (params?.status) q.set('status', params.status);
-    return posV2Fetch<{ shifts: ShiftResponse[]; total: number }>(
-      `/pos-v2/shifts/history?${q}`,
-    );
-  },
+// ======== POS Machine API (runtime device management) ========
+export const posMachineApi = {
+  list: () =>
+    apiFetch<PosMachine[]>('/pos-machine'),
 
   get: (id: string) =>
-    posV2Fetch<ShiftResponse>(`/pos-v2/shifts/${id}`),
-};
+    apiFetch<PosMachineDetail>(`/pos-machine/${id}`),
 
-// Legacy device auth (kept for backward compat)
-export const legacyDeviceAuthApi = {
-  refresh: () =>
-    posV2Fetch<{ deviceToken: string; expiresAt: string }>('/pos-v2/device-auth/refresh', {
+  create: (body: { name: string; template: PosMachineTemplate; pinCode?: string }) =>
+    apiFetch<PosMachineCreateResponse>('/pos-machine', {
       method: 'POST',
+      body: JSON.stringify(body),
     }),
 
-  logout: () =>
-    posV2Fetch<null>('/pos-v2/device-auth/logout', { method: 'POST' }),
+  update: (id: string, body: { name?: string; template?: PosMachineTemplate; pinCode?: string }) =>
+    apiFetch<PosMachine>(`/pos-machine/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  resetPin: (id: string) =>
+    apiFetch<{ id: string; pinCode: string }>(`/pos-machine/${id}/reset-pin`, {
+      method: 'PUT',
+    }),
+
+  toggleLock: (id: string) =>
+    apiFetch<PosMachine>(`/pos-machine/${id}/toggle-lock`, {
+      method: 'PUT',
+    }),
+
+  delete: (id: string) =>
+    apiFetch<null>(`/pos-machine/${id}`, { method: 'DELETE' }),
+
+  updatePermissions: (id: string, permissionIds: string[]) =>
+    apiFetch<null>(`/pos-machine/${id}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify({ permissions: permissionIds }),
+    }),
+
+  /** Official POS Machine login — do not use /auth/pos/login for this flow */
+  login: (pinCode: string) =>
+    apiFetch<PosMachineLoginResponse>('/pos-machine/login', {
+      method: 'POST',
+      body: JSON.stringify({ pinCode }),
+      auth: false,
+    }),
 };
 
-// Unified device auth API (uses new /auth/pos/* endpoints)
-export const deviceAuthApi = {
-  refresh: (refreshToken?: string) =>
-    apiFetch<{ deviceToken: string; refreshToken: string; expiresAt: string }>(
-      '/auth/pos/refresh',
-      {
-        method: 'POST',
-        body: JSON.stringify({ refreshToken: refreshToken || getPosToken() }),
-        auth: false,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getPosToken()}` },
-      } as RequestInit & { auth?: boolean }
-    ),
-  logout: () =>
-    apiFetch<null>('/auth/pos/logout', {
-      method: 'POST', auth: false,
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getPosToken()}` },
-    } as RequestInit & { auth?: boolean }),
-};
+// Device token helpers (used by device auth flows)
+const POS_TOKEN_KEY = 'fnb_pos_token';
+export const getPosToken = () => localStorage.getItem(POS_TOKEN_KEY);
+export const setPosToken = (token: string) => localStorage.setItem(POS_TOKEN_KEY, token);
+export const clearPosToken = () => localStorage.removeItem(POS_TOKEN_KEY);
+export const clearAllPosStorage = () => { clearPosToken(); };

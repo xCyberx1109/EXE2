@@ -1,17 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './queryKeys';
 import {
-  authApi, deviceAuthApi, categoryApi, menuApi, inventoryApi,
+  authApi, categoryApi, menuApi, inventoryApi,
   dashboardApi, branchApi, inviteApi, tableApi, ordersApi, ordersQueueApi,
 } from './services';
 import {
-  posDevicesV2Api, staffAuthApi, shiftApi,
+  posDevicesV2Api,
 } from './posServices';
 import { apiFetch } from './client';
 import type {
   MenuItem, InventoryItem, DashboardDataV2, CategoryItem,
   TableItem, OrderDetail, DailyOrdersResponse, InventoryStats,
-  ActiveStaff, CurrentShift, ShiftResponse, PosDeviceV2,
+  PosDeviceV2,
   DeleteDependencyReport, InventoryIssue, PaginatedResponse,
 } from '../types';
 import type { MenuItemPayload } from './services';
@@ -26,14 +26,6 @@ export function useCurrentUser() {
     queryFn: () => authApi.getMe(),
     staleTime: 1000 * 60 * 5,
     retry: false,
-  });
-}
-
-export function useAuthSessions() {
-  return useQuery({
-    queryKey: queryKeys.auth.sessions,
-    queryFn: () => deviceAuthApi.getSessions(),
-    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -737,88 +729,6 @@ export function useRevokeDeviceMutation() {
       posDevicesV2Api.revoke(deviceId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posDevices'] });
-    },
-  });
-}
-
-/* ========================================================================
-   Staff Auth Hooks
-   ======================================================================== */
-
-export function useActiveStaff() {
-  return useQuery({
-    queryKey: queryKeys.staff.active,
-    queryFn: () => staffAuthApi.activeStaff(),
-    staleTime: 1000 * 30,
-  });
-}
-
-export function useStaffLoginMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (pinCode: string) => staffAuthApi.loginPin(pinCode),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
-    },
-  });
-}
-
-export function useStaffLogoutMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (accountId?: string) => staffAuthApi.logout(accountId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
-    },
-  });
-}
-
-export function useStaffSwitchMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (pinCode: string) => staffAuthApi.switchStaff(pinCode),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
-    },
-  });
-}
-
-/* ========================================================================
-   Shift Hooks
-   ======================================================================== */
-
-export function useCurrentShift() {
-  return useQuery({
-    queryKey: queryKeys.shifts.current,
-    queryFn: () => shiftApi.current(),
-    staleTime: 1000 * 15,
-  });
-}
-
-export function useShiftHistory(params?: { limit?: number; offset?: number; status?: string }) {
-  return useQuery({
-    queryKey: queryKeys.shifts.history(params as Record<string, string | number | undefined>),
-    queryFn: () => shiftApi.history(params),
-    staleTime: 1000 * 30,
-  });
-}
-
-export function useOpenShiftMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: import('../types').OpenShiftRequest) => shiftApi.open(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shifts'] });
-    },
-  });
-}
-
-export function useCloseShiftMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: import('../types').CloseShiftRequest) => shiftApi.close(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shifts'] });
     },
   });
 }

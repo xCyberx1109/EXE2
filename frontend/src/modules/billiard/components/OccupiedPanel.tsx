@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import {
   Clock, Users, ShoppingCart, Plus, LogOut,
   Loader2, ArrowRightLeft, Merge, Split,
-  Printer, Ban, Timer, AlertCircle,
+  Printer, Ban, Timer,
 } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/app/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/app/components/ui/select';
@@ -19,42 +22,50 @@ import {
 import { OrderDrawer } from './OrderDrawer';
 import { printReceipt } from '@/shared/utils/printReceipt';
 import { cn } from '@/app/components/ui/utils';
-import { useAsyncActionGuard } from '@/shared/hooks/useAsyncActionGuard';
+import { useAsyncActionGuard, useConcurrentGuard } from '@/shared/hooks/useAsyncActionGuard';
+import { formatTime } from '@/shared/utils/date';
 import { useOptimisticOrderEditor } from '@/shared/hooks/useOptimisticOrderEditor';
 import { billiardApi } from '@/app/api/services';
 import type { BilliardTableWithSession } from '../types';
 
 const fmt = (n: number) => n.toLocaleString() + ' ₫';
 
-function useTimer(endTime: string | null, isCountdown: boolean) {
+function useCountUpTimer(startTime: string | null, frozenSeconds?: number): { display: string; elapsedSeconds: number } {
   const [display, setDisplay] = useState('00:00:00');
-  const [expired, setExpired] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
-    if (!endTime) { setDisplay('00:00:00'); setExpired(false); return; }
+    if (!startTime) { setDisplay('00:00:00'); setElapsedSeconds(0); return; }
+
+    const start = new Date(startTime).getTime();
+    if (isNaN(start)) { setDisplay('00:00:00'); setElapsedSeconds(0); return; }
+
+    if (frozenSeconds !== undefined) {
+      const fSec = Math.max(0, frozenSeconds);
+      const hh = Math.floor(fSec / 3600);
+      const mm = Math.floor((fSec % 3600) / 60);
+      const ss = fSec % 60;
+      setDisplay(`${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`);
+      setElapsedSeconds(fSec);
+      return;
+    }
 
     function tick() {
-      const diff = isCountdown
-        ? new Date(endTime).getTime() - Date.now()
-        : Date.now() - new Date(endTime).getTime();
-      if (diff <= 0) {
-        if (isCountdown) { setDisplay('00:00:00'); setExpired(true); return; }
-        setDisplay('00:00:00'); setExpired(false); return;
-      }
-      setExpired(false);
-      const totalSec = Math.floor(diff / 1000);
-      const h = Math.floor(totalSec / 3600);
-      const m = Math.floor((totalSec % 3600) / 60);
-      const s = totalSec % 60;
-      setDisplay(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      const eMs = Date.now() - start;
+      const tSec = Math.max(0, Math.floor(eMs / 1000));
+      const hh = Math.floor(tSec / 3600);
+      const mm = Math.floor((tSec % 3600) / 60);
+      const ss = tSec % 60;
+      setDisplay(`${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`);
+      setElapsedSeconds(tSec);
     }
 
     tick();
     const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [endTime, isCountdown]);
+    return () => { clearInterval(interval); };
+  }, [startTime, frozenSeconds]);
 
-  return { display, expired };
+  return { display, elapsedSeconds };
 }
 
 interface OccupiedPanelProps {
@@ -80,6 +91,16 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
   const [extendMins, setExtendMins] = useState(30);
   const [customExtend, setCustomExtend] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [checkoutSnapshot, setCheckoutSnapshot] = useState<{
+    endTime: Date;
+    elapsedSeconds: number;
+    playAmount: number;
+    foodTotal: number;
+    serviceCharge: number;
+    tax: number;
+    grandTotal: number;
+  } | null>(null);
 
   const extendSession = useExtendSession();
   const finishSession = useFinishSession();
@@ -103,13 +124,13 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
   const tax = orderSummary?.tax || 0;
   const hasItems = orderItems.length > 0;
 
-  const playingCost = orderSummary?.playingCost ?? session?.tableFee ?? 0;
   const hourlyRate = orderSummary?.hourlyRate ?? (table as any).hourlyRate ?? 0;
-  const bookedDuration = session?.durationMinutes ?? 0;
+  const isPlaying = session?.status === 'PLAYING';
 
-  const { display: remainingDisplay, expired: timeExpired } = useTimer(session?.expectedEndTime ?? null, true);
+  const { display: remainingDisplay, elapsedSeconds } = useCountUpTimer(session?.startTime ?? null, checkoutSnapshot?.elapsedSeconds);
+  const playAmount = isPlaying && hourlyRate > 0 ? Math.round((hourlyRate / 3600) * elapsedSeconds) : 0;
 
-  const grandTotal = playingCost + foodTotal + serviceCharge + tax;
+  const grandTotal = playAmount + foodTotal + serviceCharge + tax;
 
   const handleExtend = useAsyncActionGuard(async () => {
     if (!session) return;
@@ -120,36 +141,49 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
     onSuccess();
   }, { delay: 500 });
 
-  const handleFinish = useAsyncActionGuard(async () => {
-    await finishSession.mutateAsync(table.id);
+  const handleFinish = useConcurrentGuard(async () => {
+    const snap = checkoutSnapshot;
+    if (!snap) return;
 
-    const now = new Date();
-    const sessStart = session ? new Date(session.startTime) : now;
+    try {
+      await finishSession.mutateAsync(table.id);
 
-    printReceipt({
-      invoiceNumber: orderSummary?.orderNumber || table.id,
-      checkoutDate: now.toISOString(),
-      tableCode: table.tableCode,
-      tableType: table.tableType,
-      sessionStart: sessStart.toISOString(),
-      sessionEnd: now.toISOString(),
-      durationMinutes: bookedDuration,
-      hourlyRate,
-      tableFee: playingCost,
-      items: orderItems.map(i => ({
-        name: i.name,
-        quantity: i.quantity,
-        unitPrice: i.price,
-        total: i.lineTotal,
-      })),
-      foodTotal,
-      serviceCharge,
-      tax,
-      grandTotal,
-    });
+      const durMinutes = Math.floor(snap.elapsedSeconds / 60);
+      const durSeconds = snap.elapsedSeconds % 60;
 
-    onSuccess();
-  }, { delay: 500 });
+      const allItems = [
+        {
+          name: `Tiền giờ chơi<br/><span style="font-size:10px">${durMinutes} phút ${durSeconds} giây</span>`,
+          quantity: 1,
+          unitPrice: snap.playAmount,
+          total: snap.playAmount,
+        },
+        ...orderItems.map(i => ({
+          name: i.name,
+          quantity: i.quantity,
+          unitPrice: i.price,
+          total: i.lineTotal,
+        })),
+      ];
+      const itemsTotal = allItems.reduce((s, i) => s + i.total, 0);
+
+      printReceipt({
+        invoiceNumber: orderSummary?.orderNumber || table.id,
+        checkoutDate: snap.endTime.toISOString(),
+        items: allItems,
+        foodTotal: itemsTotal,
+        serviceCharge: snap.serviceCharge,
+        tax: snap.tax,
+        grandTotal: snap.grandTotal,
+      });
+
+      setCheckoutSnapshot(null);
+      setShowFinishConfirm(false);
+      onSuccess();
+    } catch {
+      toast.error('Thanh toán thất bại');
+    }
+  });
 
   if (!session) {
     return (
@@ -160,33 +194,27 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
     );
   }
 
-  const sessStartTime = new Date(session.startTime);
+  const sessStartTime = session.startTime ? new Date(session.startTime) : null;
 
   return (
     <>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">Đang chơi</span>
-          <div className={cn('flex items-center gap-1 text-xs font-medium', timeExpired ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>
-            {timeExpired ? <AlertCircle className="w-3 h-3" /> : <Timer className="w-3 h-3" />}
-            {remainingDisplay}
-          </div>
+          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
+            Đang chơi
+          </span>
+          {isPlaying && (
+            <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <Timer className="w-3 h-3" />
+              {remainingDisplay}
+            </div>
+          )}
         </div>
-
-        {timeExpired && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 p-2 text-xs text-red-700 dark:text-red-400 text-center font-medium">
-            Phiên chơi đã hết giờ
-          </div>
-        )}
 
         <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Bắt đầu</span>
-            <span className="font-medium">{sessStartTime.toLocaleTimeString()}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Thời gian đặt</span>
-            <span className="font-medium">{bookedDuration} phút</span>
+            <span className="font-medium">{formatTime(session.startTime) || '--:--'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Giá giờ</span>
@@ -194,7 +222,7 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
           </div>
           <div className="flex justify-between border-t border-border pt-2">
             <span className="text-muted-foreground font-medium">Tiền chơi</span>
-            <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">{fmt(playingCost)}</span>
+            <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">{fmt(playAmount)}</span>
           </div>
         </div>
 
@@ -228,7 +256,7 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
         <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Tiền chơi</span>
-            <span className="font-medium tabular-nums">{fmt(playingCost)}</span>
+            <span className="font-medium tabular-nums">{fmt(playAmount)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Đồ ăn & Thức uống</span>
@@ -257,10 +285,12 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
             <Button variant="outline" className="w-full justify-start" onClick={() => setDrawerOpen(true)}>
               <Plus className="w-4 h-4" /> Thêm đồ ăn / Thức uống
             </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => setShowExtend(true)}>
-              <Clock className="w-4 h-4" /> Gia hạn phiên
-            </Button>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleFinish.run} disabled={handleFinish.isBusy || finishSession.isPending}>
+            {isPlaying && (
+              <Button variant="outline" className="w-full justify-start" onClick={() => setShowExtend(true)}>
+                <Clock className="w-4 h-4" /> Gia hạn phiên
+              </Button>
+            )}
+            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => { setCheckoutSnapshot({ endTime: new Date(), elapsedSeconds, playAmount, foodTotal, serviceCharge, tax, grandTotal }); setShowFinishConfirm(true); }} disabled={!session || !!checkoutSnapshot || handleFinish.isBusy || finishSession.isPending}>
               {(handleFinish.isBusy || finishSession.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
               Thanh toán &mdash; {fmt(grandTotal)}
             </Button>
@@ -299,17 +329,91 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
         currentOrderId={orderId}
         mode="BILLIARD"
         onSuccess={() => { if (onRefresh) onRefresh(); }}
-        editorProps={{
-          items: optimisticEditor.items,
-          foodTotal: optimisticEditor.foodTotal,
-          isSyncing: optimisticEditor.isSyncing,
-          hasPending: optimisticEditor.hasPending,
-          addItem: optimisticEditor.addItem,
-          changeQuantity: optimisticEditor.changeQuantity,
-          removeItem: optimisticEditor.removeItem,
-          syncNow: optimisticEditor.syncNow,
-        }}
-      />
+          editorProps={{
+            items: optimisticEditor.items,
+            foodTotal: optimisticEditor.foodTotal,
+            isSyncing: optimisticEditor.isSyncing,
+            hasPending: optimisticEditor.hasPending,
+            addItem: optimisticEditor.addItem,
+            changeQuantity: optimisticEditor.changeQuantity,
+            removeItem: optimisticEditor.removeItem,
+            syncNow: optimisticEditor.syncNow,
+          }}
+        />
+
+      <Dialog open={showFinishConfirm} onOpenChange={(open) => { if (!open) { setShowFinishConfirm(false); setCheckoutSnapshot(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-center text-base uppercase tracking-wider">Thanh toán bàn</DialogTitle>
+            <DialogDescription className="text-center">
+              Bàn <strong>{table.tableName || table.tableCode}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          {checkoutSnapshot && (() => {
+            const snap = checkoutSnapshot;
+            const startDate = session?.startTime ? new Date(session.startTime) : new Date();
+            const endDate = snap.endTime;
+            const durMinutes = Math.floor(snap.elapsedSeconds / 60);
+            const durSeconds = snap.elapsedSeconds % 60;
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2 bg-muted/30 rounded-lg p-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Bắt đầu</span>
+                    <p className="font-medium tabular-nums">{formatTime(startDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Kết thúc</span>
+                    <p className="font-medium tabular-nums">{formatTime(endDate)}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center bg-muted/30 rounded-lg px-3 py-2">
+                  <span className="text-muted-foreground">Thời lượng</span>
+                  <span className="font-semibold tabular-nums">{durMinutes} phút {durSeconds} giây</span>
+                </div>
+
+                <div className="border-t border-border pt-2 space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tiền giờ chơi</span>
+                    <span className="font-medium tabular-nums">{fmt(snap.playAmount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Đồ ăn & Thức uống</span>
+                    <span className="font-medium tabular-nums">{fmt(snap.foodTotal)}</span>
+                  </div>
+                  {snap.serviceCharge > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Phí dịch vụ</span>
+                      <span className="font-medium tabular-nums">{fmt(snap.serviceCharge)}</span>
+                    </div>
+                  )}
+                  {snap.tax > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Thuế</span>
+                      <span className="font-medium tabular-nums">{fmt(snap.tax)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t-2 border-dashed border-border pt-2 flex justify-between text-base font-bold">
+                  <span>Tổng cộng</span>
+                  <span className="text-blue-600 dark:text-blue-400 tabular-nums">{fmt(snap.grandTotal)}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowFinishConfirm(false); setCheckoutSnapshot(null); }}>Hủy</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleFinish.run} disabled={handleFinish.isBusy}>
+              {handleFinish.isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+              Xác nhận thanh toán
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -471,137 +575,82 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
 
   return (
     <>
-      <div className="space-y-4">
-        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">Có khách</span>
-
-        <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">{(table as any).currentOrder?.guestCount || 1} khách</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <Label className="text-xs">Số khách</Label>
-            <div className="flex gap-1 mt-1">
-              <Input type="number" min={1} value={guestCount} onChange={(e) => setGuestCount(e.target.value)} className="h-8" />
-              <Button size="sm" variant="outline" onClick={handleUpdateGuestCount.run} disabled={handleUpdateGuestCount.isBusy || updateGuestCount.isPending}>Cập nhật</Button>
+      {/* ── Layout: flex column, fill height của wrapper ── */}
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* ── STICKY TOP: trạng thái + thông tin nhanh ── */}
+        <div className="shrink-0 px-4 pt-3 pb-2 border-b border-border bg-card">
+          <div className="flex items-center justify-between">
+            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">Có khách</span>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="w-3.5 h-3.5" />
+              <span>{(table as any).currentOrder?.guestCount || 1} khách</span>
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-border overflow-hidden">
-          <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
-            <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết đơn hàng</span>
-            {isLoading && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}
-          </div>
-          <div className="p-3">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin" /></div>
-            ) : !hasItems ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Chưa gọi món</p>
-            ) : (
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {items.map((item: any) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-foreground">
-                      <span className="text-muted-foreground mr-1">{item.quantity}x</span>
-                      {item.name}
-                    </span>
-                    <span className="font-medium tabular-nums">{item.lineTotal.toLocaleString()}₫</span>
-                  </div>
-                ))}
+        {/* ── SCROLLABLE BODY: chi tiết đơn + thao tác ── */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3"
+          style={{ overscrollBehavior: 'contain' }}
+        >
+          {/* Số khách */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Label className="text-xs">Số khách</Label>
+              <div className="flex gap-1 mt-1">
+                <Input type="number" min={1} value={guestCount} onChange={(e) => setGuestCount(e.target.value)} className="h-8" />
+                <Button size="sm" variant="outline" onClick={handleUpdateGuestCount.run} disabled={handleUpdateGuestCount.isBusy || updateGuestCount.isPending}>Cập nhật</Button>
               </div>
-            )}
+            </div>
           </div>
-        </div>
 
-        <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Món</span><span className="font-medium tabular-nums">{fmt(foodTotal)}</span></div>
-          {serviceCharge > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Phí dịch vụ</span><span className="font-medium tabular-nums">{fmt(serviceCharge)}</span></div>}
-          {tax > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Thuế</span><span className="font-medium tabular-nums">{fmt(tax)}</span></div>}
-          {discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Giảm giá</span><span className="font-medium tabular-nums">-{fmt(discount)}</span></div>}
-          <div className="flex justify-between text-base font-bold border-t border-border pt-2">
-            <span>Tổng cộng</span>
-            <span className="text-primary tabular-nums">{fmt(total)}</span>
+          {/* Chi tiết đơn hàng */}
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
+              <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết đơn hàng</span>
+              {isLoading && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}
+            </div>
+            <div className="p-3">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin" /></div>
+              ) : !hasItems ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Chưa gọi món</p>
+              ) : (
+                <div className="max-h-[40vh] overflow-y-auto -mr-1 pr-1">
+                  <div className="space-y-1.5">
+                    {items.map((item: any) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span className="text-foreground">
+                          <span className="text-muted-foreground mr-1">{item.quantity}x</span>
+                          {item.name}
+                        </span>
+                        <span className="font-medium tabular-nums">{item.lineTotal.toLocaleString()}₫</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
+          {/* Tóm tắt giá */}
+          <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Món</span><span className="font-medium tabular-nums">{fmt(foodTotal)}</span></div>
+            {serviceCharge > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Phí dịch vụ</span><span className="font-medium tabular-nums">{fmt(serviceCharge)}</span></div>}
+            {tax > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Thuế</span><span className="font-medium tabular-nums">{fmt(tax)}</span></div>}
+            {discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Giảm giá</span><span className="font-medium tabular-nums">-{fmt(discount)}</span></div>}
+          </div>
+
+          {/* Thêm món */}
           <Button variant="outline" className="w-full justify-start" onClick={() => setDrawerOpen(true)}>
             <Plus className="w-4 h-4" /> Thêm món
           </Button>
 
-          <Button variant="outline" className="w-full justify-start" onClick={() => { setShowTransfer(!showTransfer); setShowMerge(false); setShowSplit(false); }}>
-            <ArrowRightLeft className="w-4 h-4" /> Chuyển bàn
-          </Button>
-
-          {showTransfer && (
-            <div className="space-y-2 rounded-lg border p-3">
-              <Label>Chọn bàn đích</Label>
-              <Select value={targetTableId} onValueChange={setTargetTableId}>
-                <SelectTrigger><SelectValue placeholder="Chọn bàn trống..." /></SelectTrigger>
-                <SelectContent>
-                  {availableTables.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>{t.tableName || t.tableCode}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button size="sm" className="w-full" onClick={handleTransfer.run} disabled={handleTransfer.isBusy || !targetTableId || transferTable.isPending}>Xác nhận chuyển</Button>
-            </div>
-          )}
-
-          <Button variant="outline" className="w-full justify-start" onClick={() => { setShowMerge(!showMerge); setShowTransfer(false); setShowSplit(false); }}>
-            <Merge className="w-4 h-4" /> Gộp bàn
-          </Button>
-
-          {showMerge && (
-            <div className="space-y-2 rounded-lg border p-3">
-              <Label>Chọn bàn chính để gộp vào</Label>
-              <Select value={targetTableId} onValueChange={setTargetTableId}>
-                <SelectTrigger><SelectValue placeholder="Chọn bàn có khách..." /></SelectTrigger>
-                <SelectContent>
-                  {occupiedTables.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>{t.tableName || t.tableCode}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button size="sm" className="w-full" onClick={handleMerge.run} disabled={handleMerge.isBusy || !targetTableId || mergeTables.isPending}>Xác nhận gộp</Button>
-            </div>
-          )}
-
-          <Button variant="outline" className="w-full justify-start" onClick={() => { setShowSplit(!showSplit); setShowTransfer(false); setShowMerge(false); }}>
-            <Split className="w-4 h-4" /> Tách bàn
-          </Button>
-
-          {showSplit && (
-            <div className="space-y-2 rounded-lg border p-3">
-              <Label>Chọn món cần tách</Label>
-              {items.map((item: any) => (
-                <div key={item.id} className="flex items-center gap-2">
-                  <span className="flex-1 text-sm truncate">{item.name}</span>
-                  <Input type="number" min={0} max={item.quantity} value={splitItems[item.id] || 0} onChange={(e) => setSplitItems(prev => ({ ...prev, [item.id]: Math.min(parseInt(e.target.value) || 0, item.quantity) }))} className="w-16 h-8 text-center" />
-                  <span className="text-xs text-muted-foreground">/ {item.quantity}</span>
-                </div>
-              ))}
-              <div className="pt-2">
-                <Label>Chọn bàn đích (trống)</Label>
-                <Select value={targetTableId} onValueChange={setTargetTableId}>
-                  <SelectTrigger><SelectValue placeholder="Chọn bàn trống..." /></SelectTrigger>
-                  <SelectContent>
-                    {availableTables.map((t: any) => (
-                      <SelectItem key={t.id} value={t.id}>{t.tableName || t.tableCode}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button size="sm" className="w-full" onClick={handleSplit.run} disabled={handleSplit.isBusy || !targetTableId || splitOrder.isPending}>Xác nhận tách</Button>
-            </div>
-          )}
-
-          <div className="space-y-2">
+      
+        
+          {/* Ghi chú */}
+          <div className="space-y-1">
             <Label className="text-xs">Ghi chú</Label>
             <div className="flex gap-1">
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú..." className="h-8 text-sm" />
@@ -609,11 +658,7 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
             </div>
           </div>
 
-          <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => { setShowPayment(!showPayment); setShowTransfer(false); setShowMerge(false); setShowSplit(false); }}>
-            <LogOut className="w-4 h-4" />
-            Thanh toán — {fmt(total)}
-          </Button>
-
+          {/* Phương thức thanh toán — chỉ hiện khi mở panel */}
           {showPayment && (
             <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4">
               <Label className="text-sm font-semibold">Phương thức thanh toán</Label>
@@ -628,7 +673,7 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
               <div className="flex gap-2 pt-1">
                 <Button className="flex-1 gap-1.5" onClick={() => handlePay.run(true)} disabled={handlePay.isBusy || !hasItems}>
                   {handlePay.isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                  Thanh toán & In hóa đơn
+                  In hóa đơn
                 </Button>
                 <Button variant="outline" className="flex-1 gap-1.5" onClick={() => handlePay.run(false)} disabled={handlePay.isBusy || !hasItems}>
                   {handlePay.isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
@@ -637,6 +682,24 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
               </div>
             </div>
           )}
+
+          {/* Padding đáy để nội dung không bị footer che */}
+          <div className="h-2" />
+        </div>
+
+        {/* ── STICKY FOOTER: tổng tiền + nút thanh toán ── */}
+        <div className="shrink-0 border-t border-border bg-card px-4 py-3 space-y-2">
+          <div className="flex justify-between items-center text-base font-bold">
+            <span>Tổng cộng</span>
+            <span className="text-primary tabular-nums">{fmt(total)}</span>
+          </div>
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            onClick={() => { setShowPayment(!showPayment); setShowTransfer(false); setShowMerge(false); setShowSplit(false); }}
+          >
+            <LogOut className="w-4 h-4" />
+            {showPayment ? 'Đóng thanh toán' : `Thanh toán — ${fmt(total)}`}
+          </Button>
         </div>
       </div>
 

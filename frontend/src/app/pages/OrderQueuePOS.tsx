@@ -55,7 +55,7 @@ function formatMoney(value?: number) {
 
 function formatTime(value?: string) {
   if (!value) return '-';
-  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
 function getShortOrderNumber(order: OrderDetail): string {
@@ -107,7 +107,23 @@ function persistLabels(labels: OrderLabelMap) {
 
 /** Order Queue POS: single-screen cashier workflow for ticket-based open orders */
 export function OrderQueuePOS() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, posMachineTemplate } = useAuth();
+
+  // ── Template-based column visibility ──────────────────────────────────────
+  // CASHIER        : Menu + Orders (no kitchen)
+  // KITCHEN        : Kitchen only (full width)
+  // CASHIER_KITCHEN: All 3 columns
+  // Others         : All 3 columns (fallback)
+  const template = posMachineTemplate ?? 'CASHIER_KITCHEN';
+
+  const showMenuColumn    = template !== 'KITCHEN';
+  const showOrdersColumn  = template !== 'KITCHEN';
+  const showKitchenColumn = template === 'KITCHEN' || template === 'CASHIER_KITCHEN';
+
+  // Flex ratios per layout
+  // 3-col: menu=3 orders=5 kitchen=2  (current)
+  // 2-col (CASHIER): menu=35% orders=65%
+  // 1-col (KITCHEN): kitchen=100%
   const [orders, setOrders] = useState<OrderDetail[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -210,8 +226,9 @@ export function OrderQueuePOS() {
   }, [menuItems]);
 
   const filteredMenuItems = useMemo(() => {
+    console.log('[MENU ITEMS STATE]', menuItems);
     const keyword = productSearch.trim().toLowerCase();
-    return menuItems.filter(item => {
+    const result = menuItems.filter(item => {
       const matchCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const matchKeyword =
         !keyword ||
@@ -220,6 +237,8 @@ export function OrderQueuePOS() {
         item.description?.toLowerCase().includes(keyword);
       return matchCategory && matchKeyword;
     });
+    console.log('[FILTERED MENU ITEMS]', result);
+    return result;
   }, [menuItems, productSearch, selectedCategory]);
 
   const sortedOpenOrders = useMemo(() => {
@@ -279,15 +298,29 @@ export function OrderQueuePOS() {
   };
 
   useEffect(() => {
-    loadOrders();
-    menuApi
-      .list({ available: 'true' })
-      .then(setMenuItems)
-      .catch(() => setMenuItems([]));
-    inventoryApi
-      .list()
-      .then((inv) => setInventoryItems(Array.isArray(inv) ? inv : []))
-      .catch(() => setInventoryItems([]));
+    const fetchData = () => {
+      loadOrders();
+      menuApi
+        .list({ available: 'true' })
+        .then((data) => {
+          console.log('[MENU API RESPONSE]', data);
+          setMenuItems(data);
+        })
+        .catch((e) => {
+          console.log('[MENU API ERROR]', e);
+          setMenuItems([]);
+        });
+      inventoryApi
+        .list()
+        .then((inv) => setInventoryItems(Array.isArray(inv) ? inv : []))
+        .catch(() => setInventoryItems([]));
+    };
+
+    fetchData();
+
+    const handleRefresh = () => fetchData();
+    window.addEventListener('pos-refresh', handleRefresh);
+    return () => window.removeEventListener('pos-refresh', handleRefresh);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -620,7 +653,11 @@ export function OrderQueuePOS() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-xl lg:text-2xl font-black tracking-tight text-foreground">Điều phối đơn hàng</h1>
-            <p className="text-xs lg:text-sm text-muted-foreground">Thực đơn • Đơn đang mở • Điều phối sản xuất</p>
+            <p className="text-xs lg:text-sm text-muted-foreground">
+              {template === 'CASHIER' && 'Thực đơn • Đơn đang mở'}
+              {template === 'KITCHEN' && 'Đơn cần làm'}
+              {template !== 'CASHIER' && template !== 'KITCHEN' && 'Thực đơn • Đơn đang mở • Điều phối sản xuất'}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             {loading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
@@ -639,10 +676,14 @@ export function OrderQueuePOS() {
         {error && <div className="mt-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-2 text-sm font-medium text-red-700 dark:text-red-400">{error}</div>}
       </div>
 
-      {/* Main content: 3-column layout */}
+      {/* Main content: dynamic column layout based on POS Machine template */}
       <div className="flex-1 flex gap-3 lg:gap-4 overflow-hidden px-3 lg:px-4 pb-3 lg:pb-4">
-        {/* Left: Product Menu (30%) */}
-        <section className="flex flex-col lg:flex-[3] min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+        {/* Left: Product Menu — CASHIER / CASHIER_KITCHEN only */}
+        {showMenuColumn && (
+        <section
+          className="flex flex-col min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden"
+          style={{ flex: showKitchenColumn ? '3 1 0%' : '0 0 35%' }}
+        >
           <div className="shrink-0 p-3 lg:p-4 border-b border-border">
             <div className="flex flex-col gap-2">
               <div className="min-w-0">
@@ -738,9 +779,14 @@ export function OrderQueuePOS() {
             </div>
           </div>
         </section>
+        )}
 
-        {/* Center: Open Orders (50%) */}
-        <aside className="flex flex-col lg:flex-[5] min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+        {/* Center: Open Orders — CASHIER / CASHIER_KITCHEN only */}
+        {showOrdersColumn && (
+        <aside
+          className="flex flex-col min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden"
+          style={{ flex: showKitchenColumn ? '5 1 0%' : '0 0 65%' }}
+        >
           {/* Fixed header + search */}
           <div className="shrink-0 border-b border-border p-3 lg:p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -1037,11 +1083,17 @@ export function OrderQueuePOS() {
             </div>
           )}
         </aside>
+        )}
 
-        {/* Right: Orders To Make (20%) */}
-        <div className="lg:flex-[2] min-w-[280px] flex flex-col">
+        {/* Right: Orders To Make — KITCHEN / CASHIER_KITCHEN only */}
+        {showKitchenColumn && (
+        <div
+          className="flex flex-col"
+          style={{ flex: (showMenuColumn || showOrdersColumn) ? '2 1 0%' : '1 1 100%', minWidth: (showMenuColumn || showOrdersColumn) ? '280px' : '0' }}
+        >
           <OrdersToMakePanel refreshKey={ordersToMakeRefresh} />
         </div>
+        )}
       </div>
     </div>
   );

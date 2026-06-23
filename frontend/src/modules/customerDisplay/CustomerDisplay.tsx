@@ -64,7 +64,7 @@ export function CustomerDisplay() {
                     </div>
                     <div className="flex items-center gap-2 mt-4 text-xs text-gray-400">
                       <Timer className="w-3 h-3" />
-                      <span>{new Date(order.createdAt).toLocaleTimeString('vi-VN')}</span>
+                      <span>{new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </CardContent>
                 </Card>

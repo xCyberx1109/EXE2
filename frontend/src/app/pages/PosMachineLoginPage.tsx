@@ -3,13 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { APP_NAME } from '../../shared/constants';
 import { Loader2, Smartphone, CheckCircle2 } from 'lucide-react';
-
-const POS_MACHINE_ROUTES: Record<string, string> = {
-  CASHIER: '/app/pos-system',
-  KITCHEN: '/app/order-queue',
-  CASHIER_KITCHEN: '/app/order-queue',
-  BILLIARD: '/app/billiard',
-};
+import { getRouteByTemplate } from '../../shared/permissions/posTemplateRoutes';
 
 let renderCount = 0;
 
@@ -25,29 +19,33 @@ export function PosMachineLoginPage() {
   const [success, setSuccess] = useState(false);
 
   renderCount++;
-  console.log('[POS Machine Login] render', renderCount, { pathname: location.pathname, isReady, isAuthenticated, authMode, template: posMachineTemplate, success });
+  console.log('[POS Machine Login] render', renderCount, {
+    pathname: location.pathname,
+    isReady,
+    isAuthenticated,
+    authMode,
+    template: posMachineTemplate,
+    success,
+  });
 
+  // Redirect sau khi đăng nhập thành công (1.5s để hiển thị success UI)
   useEffect(() => {
-    console.log('[POS Machine Login] Effect 1 (post-login redirect)', { success, template: posMachineInfo?.template });
-    if (success && posMachineInfo?.template) {
-      const template = posMachineInfo.template;
-      const route = POS_MACHINE_ROUTES[template] || '/app';
-      const timer = setTimeout(() => {
-        console.log('[POS Machine Login] Effect 1: navigating to', route);
-        navigate(route, { replace: true });
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [success, posMachineInfo?.template, navigate]);
+    if (!success || !posMachineTemplate) return;
+    const route = getRouteByTemplate(posMachineTemplate);
+    console.log('[POS Login] success → navigate to', route, 'template:', posMachineTemplate);
+    const timer = setTimeout(() => {
+      navigate(route, { replace: true });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [success, posMachineTemplate, navigate]);
 
+  // Nếu đã đăng nhập sẵn (reload trang), redirect ngay
   useEffect(() => {
-    console.log('[POS Machine Login] Effect 2 (auto-redirect)', { isReady, isAuthenticated, authMode, template: posMachineTemplate, pathname: location.pathname });
-    if (isReady && isAuthenticated && authMode === 'pos_machine' && posMachineTemplate) {
-      const route = POS_MACHINE_ROUTES[posMachineTemplate] || '/app';
-      if (location.pathname !== route && location.pathname !== '/pos-machine/login') {
-        console.log('[POS Machine Login] Effect 2: redirecting to', route);
-        navigate(route, { replace: true });
-      }
+    if (!isReady || !isAuthenticated || authMode !== 'pos_machine' || !posMachineTemplate) return;
+    const route = getRouteByTemplate(posMachineTemplate);
+    if (location.pathname !== route && location.pathname !== '/pos-machine/login') {
+      console.log('[POS Login] already authed → navigate to', route, 'template:', posMachineTemplate);
+      navigate(route, { replace: true });
     }
   }, [isReady, isAuthenticated, authMode, posMachineTemplate, navigate, location.pathname]);
 
@@ -61,7 +59,8 @@ export function PosMachineLoginPage() {
 
     setLoading(true);
     try {
-      await loginWithPosPin(pinCode);
+      const result = await loginWithPosPin(pinCode);
+      console.log('[POS Login] loginWithPosPin success, template:', result.machine?.template);
       setSuccess(true);
     } catch (err: any) {
       setError(err?.message || 'Mã PIN không hợp lệ');

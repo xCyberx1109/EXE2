@@ -54,6 +54,12 @@ export function UnifiedDashboard({
     if (updated) setSelectedTable(updated);
   }, [tables]);
 
+  useEffect(() => {
+    const handleRefresh = () => refetch();
+    window.addEventListener('pos-refresh', handleRefresh);
+    return () => window.removeEventListener('pos-refresh', handleRefresh);
+  }, [refetch]);
+
   const handleClose = useCallback(() => {
     if (layoutMode && dirtyRef.current) {
       const confirmed = window.confirm('Bạn có thay đổi chưa lưu. Hủy bỏ?');
@@ -122,7 +128,7 @@ export function UnifiedDashboard({
         )}
       </div>
 
-      <div className="w-[clamp(280px,25vw,420px)] shrink-0 bg-card rounded-xl border border-border overflow-hidden">
+      <div className="w-[380px] shrink-0 bg-card rounded-xl border border-border h-full min-h-0 flex flex-col overflow-hidden">
         <RightPanel
           mode={mode}
           table={selectedTable}

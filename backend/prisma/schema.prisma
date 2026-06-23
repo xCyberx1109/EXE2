@@ -53,19 +53,18 @@ model FeaturePermission {
 }
 
 model Permission {
-  id                      String                    @id @default(cuid())
-  code                    String                    @unique
-  name                    String
-  description             String?
-  module                  String
-  isSystem                Boolean                   @default(false)
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
-  deletedAt               DateTime?
-  accountPermissions      AccountPermission[]
-  deviceTypePermissions   DeviceTypePermission[]
-  featurePermissions      FeaturePermission[]
-  pos_machine_permissions pos_machine_permissions[]
+  id                    String                 @id @default(cuid())
+  code                  String                 @unique
+  name                  String
+  description           String?
+  module                String
+  isSystem              Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+  accountPermissions    AccountPermission[]
+  deviceTypePermissions DeviceTypePermission[]
+  featurePermissions    FeaturePermission[]
 
   @@index([module])
   @@map("permissions")
@@ -226,7 +225,7 @@ model PlaySession {
   startTime       DateTime
   expectedEndTime DateTime
   endTime         DateTime?
-  durationMinutes Int
+  durationMinutes Int               @default(0)
   tableFee        Decimal           @default(0) @db.Decimal(12, 2)
   status          PlaySessionStatus @default(PLAYING)
   createdAt       DateTime          @default(now())
@@ -246,8 +245,8 @@ model Reservation {
   branchId        String
   customerName    String
   phone           String?
-  reservationTime DateTime
-  durationMinutes Int               @default(60)
+  reservationTime DateTime?
+  durationMinutes Int?
   note            String?
   status          ReservationStatus @default(PENDING)
   createdAt       DateTime          @default(now())
@@ -870,28 +869,17 @@ model permissions_backup {
   @@ignore
 }
 
-model pos_machine_permissions {
-  id           String       @id
-  posMachineId String
-  permissionId String
-  permissions  Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  pos_machines pos_machines @relation(fields: [posMachineId], references: [id], onDelete: Cascade)
-
-  @@unique([posMachineId, permissionId])
-}
-
 model pos_machines {
-  id                      String                    @id
-  accountId               String
-  name                    String
-  pinCode                 String
-  template                PosMachineTemplate        @default(CASHIER)
-  status                  PosMachineStatus          @default(ACTIVE)
-  lastLoginAt             DateTime?
-  deletedAt               DateTime?
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
-  pos_machine_permissions pos_machine_permissions[]
+  id          String             @id @default(cuid())
+  accountId   String
+  name        String
+  pinCode     String
+  template    PosMachineTemplate @default(CASHIER)
+  status      PosMachineStatus   @default(ACTIVE)
+  lastLoginAt DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@index([accountId])
 }
@@ -1039,8 +1027,9 @@ enum TableStatus {
 }
 
 enum PlaySessionStatus {
+  WAITING
   PLAYING
-  FINISHED
+  COMPLETED
   CANCELLED
 }
 
@@ -1061,6 +1050,7 @@ enum PosMachineTemplate {
   KITCHEN
   CASHIER_KITCHEN
   BILLIARD
+  RESTAURANT
   CUSTOM
 }
 

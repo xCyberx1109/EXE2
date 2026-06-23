@@ -15,7 +15,7 @@ export function DeviceGuard({
   children,
   allowedTypes,
   requiredPermissions,
-  fallbackPath = '/pos-v2/dashboard',
+  fallbackPath = '/login',
 }: DeviceGuardProps) {
   const { isReady, isAuthenticated, isDeviceMode, deviceType, hasDevicePermission } = useAuth();
 

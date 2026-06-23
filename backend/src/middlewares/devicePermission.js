@@ -19,7 +19,7 @@ function logDenied(req, action, details) {
 
 export function requireDevicePermission(...requiredPermissions) {
   return (req, _res, next) => {
-    if (req.authType === 'user') {
+    if (req.authType === 'user' || req.authType === 'pos_machine') {
       return next();
     }
 
@@ -48,7 +48,7 @@ export function requireDevicePermission(...requiredPermissions) {
 
 export function requireDeviceType(...allowedTypes) {
   return (req, _res, next) => {
-    if (req.authType === 'user') {
+    if (req.authType === 'user' || req.authType === 'pos_machine') {
       return next();
     }
 
@@ -73,7 +73,7 @@ export function requireDeviceType(...allowedTypes) {
 
 export function requireDeviceFeature(...requiredFeatures) {
   return (req, _res, next) => {
-    if (req.authType === 'user') {
+    if (req.authType === 'user' || req.authType === 'pos_machine') {
       return next();
     }
 

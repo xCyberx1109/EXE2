@@ -48,8 +48,12 @@ export const menuService = {
 
   // --- Menu Items ---
   async listMenuItems({ search, category, categoryId, available, accountId: queryAccountId }, user) {
+    console.log('[MENU SERVICE] listMenuItems called with params:', { search, category, categoryId, available, queryAccountId });
+    console.log('[MENU SERVICE] User context:', user);
+    
     // Account isolation: if no authenticated user, return empty list to prevent cross-account leak
     if (!user && !queryAccountId) {
+      console.log('[MENU SERVICE] No user or queryAccountId, returning empty array');
       return [];
     }
 
@@ -72,7 +76,10 @@ export const menuService = {
       where.accountId = queryAccountId;
     }
 
+    console.log('[MENU SERVICE] Prisma where:', where);
+
     let items = await menuItemRepository.findMany(where);
+    console.log('[MENU SERVICE] Found items (raw):', items);
 
     if (search) {
       const q = search.toLowerCase();
@@ -83,7 +90,9 @@ export const menuService = {
       );
     }
 
-    return items.map(mapMenuItem);
+    const result = items.map(mapMenuItem);
+    console.log('[MENU SERVICE] Returning mapped items:', result);
+    return result;
   },
 
   async getMenuItem(id, user) {

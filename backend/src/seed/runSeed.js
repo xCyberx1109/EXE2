@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt';
 import config from '../config/index.js';
 import prisma from '../prisma/client.js';
 import {
-  PosDeviceType,
   SubscriptionStatus,
   OrderStatus,
   PaymentMethod,
@@ -19,9 +18,30 @@ import {
   features,
   permissions,
   subscriptionPlans,
+  subscriptionPlanFeatures,
 } from './data.js';
 
 const FEATURE_PERMISSIONS = [
+  // POS_CASHIER
+  { featureCode: 'pos_cashier', permissionCodes: ['POS_OPEN', 'POS_CLOSE', 'POS_CREATE_ORDER', 'POS_CANCEL_ORDER'] },
+  // POS_KITCHEN
+  { featureCode: 'pos_kitchen', permissionCodes: ['ORDER_VIEW', 'DASHBOARD_VIEW'] },
+  // INVENTORY
+  { featureCode: 'inventory', permissionCodes: ['INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_DELETE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST'] },
+  // MENU_MANAGEMENT
+  { featureCode: 'menu_management', permissionCodes: ['MENU_VIEW', 'MENU_CREATE', 'MENU_UPDATE', 'MENU_DELETE'] },
+  // CUSTOMER_LOYALTY
+  { featureCode: 'customer_loyalty', permissionCodes: ['CUSTOMER_VIEW', 'CUSTOMER_CREATE', 'CUSTOMER_UPDATE', 'CUSTOMER_DELETE'] },
+  // ONLINE_ORDERING
+  { featureCode: 'online_ordering', permissionCodes: ['ORDER_VIEW', 'ORDER_CREATE', 'ORDER_UPDATE', 'ORDER_DELETE', 'ORDER_HISTORY_VIEW'] },
+  // MULTI_BRANCH
+  { featureCode: 'multi_branch', permissionCodes: ['BRANCH_VIEW', 'BRANCH_CREATE', 'BRANCH_UPDATE', 'BRANCH_DELETE', 'BRANCH_LOCK', 'BRANCH_UNLOCK', 'BRANCH_FORCE_DELETE'] },
+  // KITCHEN_DISPLAY
+  { featureCode: 'kitchen_display', permissionCodes: ['DASHBOARD_VIEW', 'ORDER_VIEW'] },
+  // POS_ORDER_QUEUE
+  { featureCode: 'pos_order_queue', permissionCodes: ['POS_ORDER_QUEUE_VIEW', 'POS_ORDER_QUEUE_CREATE', 'POS_ORDER_QUEUE_UPDATE', 'POS_ORDER_QUEUE_DELETE', 'POS_ORDER_QUEUE_PAY'] },
+  // VOUCHER (no dedicated permissions yet)
+  { featureCode: 'voucher', permissionCodes: [] },
   // BILLIARD_TABLE
   { featureCode: 'billiard_table', permissionCodes: ['BILLIARD_TABLE_VIEW', 'BILLIARD_TABLE_CREATE', 'BILLIARD_TABLE_UPDATE', 'BILLIARD_TABLE_DELETE', 'BILLIARD_TABLE_LAYOUT_EDIT'] },
   // BILLIARD_SESSION
@@ -66,6 +86,7 @@ export async function seedDatabase() {
   const permissionMap = await syncPermissions();
   await syncFeaturePermissions(featureMap, permissionMap);
   const planMap = await syncSubscriptionPlans();
+  await syncSubscriptionPlanFeatures(planMap, featureMap);
 
   // =========================
   // ACCOUNT / TENANT
@@ -100,68 +121,38 @@ export async function seedDatabase() {
   console.log(`  ✓ Subscription created`);
 
   // =========================
-  // POS DEVICE
+  // POS DEVICE (pos_machines)
   // =========================
-  const cashierPos = await prisma.posDevice.upsert({
-    where: { deviceCode: 'POS-CASHIER-01' },
-    update: {
-      branchId: accountId,
+  const cashierPos = await prisma.pos_machines.create({
+    data: {
+      id: `seed-${accountId}-cashier-01`,
+      accountId,
       name: 'POS Thu ngân',
-      type: PosDeviceType.CASHIER,
-      mode: 'CASHIER',
-      devicePin: '111111',
-      active: true,
-    },
-    create: {
-      branchId: accountId,
-      name: 'POS Thu ngân',
-      deviceCode: 'POS-CASHIER-01',
-      type: PosDeviceType.CASHIER,
-      mode: 'CASHIER',
-      devicePin: '111111',
-      active: true,
+      template: 'CASHIER',
+      pinCode: await bcrypt.hash('111111', 10),
+      status: 'ACTIVE',
     },
   });
 
-  await prisma.posDevice.upsert({
-    where: { deviceCode: 'POS-KITCHEN-01' },
-    update: {
-      branchId: accountId,
+  await prisma.pos_machines.create({
+    data: {
+      id: `seed-${accountId}-kitchen-01`,
+      accountId,
       name: 'POS Bếp',
-      type: PosDeviceType.TABLET,
-      mode: 'KITCHEN',
-      devicePin: '222222',
-      active: true,
-    },
-    create: {
-      branchId: accountId,
-      name: 'POS Bếp',
-      deviceCode: 'POS-KITCHEN-01',
-      type: PosDeviceType.TABLET,
-      mode: 'KITCHEN',
-      devicePin: '222222',
-      active: true,
+      template: 'KITCHEN',
+      pinCode: await bcrypt.hash('222222', 10),
+      status: 'ACTIVE',
     },
   });
 
-  await prisma.posDevice.upsert({
-    where: { deviceCode: 'POS-HYBRID-01' },
-    update: {
-      branchId: accountId,
+  await prisma.pos_machines.create({
+    data: {
+      id: `seed-${accountId}-hybrid-01`,
+      accountId,
       name: 'POS Hybrid',
-      type: PosDeviceType.TABLET,
-      mode: 'HYBRID',
-      devicePin: '333333',
-      active: true,
-    },
-    create: {
-      branchId: accountId,
-      name: 'POS Hybrid',
-      deviceCode: 'POS-HYBRID-01',
-      type: PosDeviceType.TABLET,
-      mode: 'HYBRID',
-      devicePin: '333333',
-      active: true,
+      template: 'CASHIER_KITCHEN',
+      pinCode: await bcrypt.hash('333333', 10),
+      status: 'ACTIVE',
     },
   });
 
@@ -224,6 +215,10 @@ export async function seedDatabase() {
     'BILLIARD_ORDER_VIEW', 'BILLIARD_ORDER_CREATE', 'BILLIARD_ORDER_UPDATE', 'BILLIARD_ORDER_ADD_ITEM',
     'BILLIARD_PAY_VIEW', 'BILLIARD_PAY_PROCESS',
     'BILLIARD_REPORT_VIEW',
+    'RESTAURANT_TABLE_VIEW', 'RESTAURANT_TABLE_CREATE', 'RESTAURANT_TABLE_UPDATE',
+    'RESTAURANT_TABLE_LAYOUT_EDIT', 'RESTAURANT_TABLE_TRANSFER', 'RESTAURANT_TABLE_MERGE', 'RESTAURANT_TABLE_SPLIT',
+    'RESTAURANT_ORDER_VIEW', 'RESTAURANT_ORDER_CREATE', 'RESTAURANT_ORDER_UPDATE', 'RESTAURANT_ORDER_ADD_ITEM',
+    'RESTAURANT_PAY_VIEW', 'RESTAURANT_PAY_PROCESS',
   ];
 
   await mapConcurrent(managerPerms, async (permCode) => {
@@ -456,6 +451,35 @@ export async function syncSubscriptionPlans() {
   }
   console.log(`  ✓ ${subscriptionPlans.length} plans synchronized`);
   return planMap;
+}
+
+/**
+ * Đồng bộ SubscriptionPlan ↔ Feature associations.
+ */
+export async function syncSubscriptionPlanFeatures(planMap, featureMap) {
+  console.log('→ Đồng bộ subscription plan features...');
+  let count = 0;
+  for (const spf of subscriptionPlanFeatures) {
+    const planId = planMap[spf.planCode];
+    if (!planId) {
+      console.warn(`  ⚠ Plan not found: ${spf.planCode}`);
+      continue;
+    }
+    for (const featCode of spf.featureCodes) {
+      const featureId = featureMap[featCode];
+      if (!featureId) {
+        console.warn(`  ⚠ Feature not found: ${featCode}`);
+        continue;
+      }
+      await prisma.subscriptionPlanFeature.upsert({
+        where: { subscriptionPlanId_featureId: { subscriptionPlanId: planId, featureId } },
+        update: {},
+        create: { subscriptionPlanId: planId, featureId },
+      });
+      count++;
+    }
+  }
+  console.log(`  ✓ ${count} plan-features synchronized`);
 }
 
 /** Run seed if empty — dùng cho CLI, không gọi từ server runtime */

@@ -7,7 +7,6 @@
 export const queryKeys = {
   auth: {
     me: ['auth', 'me'] as const,
-    sessions: ['auth', 'sessions'] as const,
   },
   categories: {
     all: ['categories', 'list'] as const,
@@ -59,15 +58,6 @@ export const queryKeys = {
     all: ['posDevices'] as const,
     detail: (id: string) => ['posDevices', id] as const,
     logs: (id: string) => ['posDevices', 'logs', id] as const,
-  },
-  staff: {
-    active: ['staff', 'active'] as const,
-  },
-  shifts: {
-    current: ['shifts', 'current'] as const,
-    history: (params?: Record<string, string | number | undefined>) =>
-      ['shifts', 'history', params] as const,
-    detail: (id: string) => ['shifts', 'detail', id] as const,
   },
   permissions: {
     all: ['permissions'] as const,

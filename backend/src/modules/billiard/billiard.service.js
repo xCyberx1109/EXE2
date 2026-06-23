@@ -1,4 +1,5 @@
 import prisma from '../../prisma/client.js';
+import { PlaySessionStatus } from '@prisma/client';
 import { AppError } from '../../utils/AppError.js';
 import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 import { tableRepository } from '../../repositories/table.repository.js';
@@ -181,6 +182,7 @@ export const billiardService = {
         status: t.status,
         currentSession: session ? {
           id: session.id,
+          status: session.status,
           startTime: session.startTime,
           expectedEndTime: session.expectedEndTime,
           endTime: session.endTime,
@@ -359,25 +361,42 @@ export const billiardService = {
       throw new AppError('Bàn không ở trạng thái sẵn sàng', 400);
     }
 
-    const accountId = user.accountId || user.id;
     const hourlyRate = Number(table.hourlyRate);
-    const tableFee = computePlayCost(hourlyRate, durationMinutes);
-    const startTime = new Date();
-    const expectedEndTime = new Date(startTime.getTime() + durationMinutes * 60000);
+    const now = new Date();
+    const effectiveDuration = durationMinutes && durationMinutes > 0 ? durationMinutes : 60;
+
+    const startTime = now;
+    const expectedEndTime = new Date(now.getTime() + effectiveDuration * 60000);
+    const tableFee = computePlayCost(hourlyRate, effectiveDuration);
+    const status = PlaySessionStatus.PLAYING;
+
+    const data = {
+      tableId,
+      startTime,
+      expectedEndTime,
+      durationMinutes: effectiveDuration,
+      tableFee,
+      status,
+    };
+    console.log('[PLAY SESSION CREATE]', data);
 
     const result = await prisma.$transaction(async (tx) => {
       const orderNumber = `BLL-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
+      const accountId = user.accountId || user.id;
+
       const order = await tx.order.create({
         data: {
           accountId,
-          createdBy: user.id || accountId,
+          createdBy: accountId,
           orderNumber,
           tableId,
           source: 'BILLIARD',
           status: 'CONFIRMED',
           paymentStatus: 'UNPAID',
           orderType: 'DINE_IN',
+          tableName: table.tableName,
+          tableCode: table.tableCode,
           subtotal: 0,
           tax: 0,
           total: 0,
@@ -385,17 +404,7 @@ export const billiardService = {
           profit: 0,
         },
       });
-
-      const session = await tx.playSession.create({
-        data: {
-          tableId,
-          startTime,
-          expectedEndTime,
-          durationMinutes,
-          tableFee,
-          status: 'PLAYING',
-        },
-      });
+      const session = await tx.playSession.create({ data });
 
       await tx.order.update({
         where: { id: order.id },
@@ -413,7 +422,7 @@ export const billiardService = {
     return result;
   },
 
-  async reserveTable(tableId, { customerName, phone, reservationTime, durationMinutes, note }, user) {
+  async reserveTable(tableId, { customerName, phone, reservationDate, note }, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
     assertBranchAccess(table, user, 'bàn');
@@ -431,8 +440,7 @@ export const billiardService = {
           branchId: accountId,
           customerName,
           phone,
-          reservationTime: new Date(reservationTime),
-          durationMinutes: durationMinutes || 60,
+          reservationTime: reservationDate ? new Date(reservationDate) : new Date(),
           note,
           status: 'PENDING',
         },
@@ -465,7 +473,7 @@ export const billiardService = {
 
     const accountId = user.accountId || user.id;
     const hourlyRate = Number(table.hourlyRate);
-    const durationMinutes = reservation.durationMinutes;
+    const durationMinutes = reservation.durationMinutes || 60;
     const tableFee = computePlayCost(hourlyRate, durationMinutes);
     const startTime = new Date();
     const expectedEndTime = new Date(startTime.getTime() + durationMinutes * 60000);
@@ -498,7 +506,7 @@ export const billiardService = {
           expectedEndTime,
           durationMinutes,
           tableFee,
-          status: 'PLAYING',
+          status: PlaySessionStatus.PLAYING,
         },
       });
 
@@ -556,9 +564,11 @@ export const billiardService = {
     if (table) assertBranchAccess(table, user, 'bàn');
 
     const now = new Date();
-    const end = new Date(session.expectedEndTime);
-    const remainingMs = Math.max(0, end.getTime() - now.getTime());
-    const remainingMinutes = Math.floor(remainingMs / 60000);
+    let remainingMinutes = 0;
+    if (session.expectedEndTime) {
+      const end = new Date(session.expectedEndTime);
+      remainingMinutes = Math.max(0, Math.floor((end.getTime() - now.getTime()) / 60000));
+    }
 
     return {
       id: session.id,
@@ -587,18 +597,22 @@ export const billiardService = {
     const table = await tableRepository.findById(session.tableId);
     if (table) assertBranchAccess(table, user, 'bàn');
 
-    if (session.status !== 'PLAYING') {
-      throw new AppError('Phiên chơi đã kết thúc', 400);
+    if (session.status !== PlaySessionStatus.PLAYING) {
+      throw new AppError('Phiên chơi không ở trạng thái đang chơi', 400);
     }
 
     const hourlyRate = table ? Number(table.hourlyRate) : 0;
-    const newDuration = session.durationMinutes + additionalMinutes;
-    const newTableFee = computePlayCost(hourlyRate, newDuration);
-    const newExpectedEnd = new Date(session.expectedEndTime.getTime() + additionalMinutes * 60000);
+    const now = new Date();
+    const elapsedMinutes = session.startTime
+      ? Math.floor((now.getTime() - new Date(session.startTime).getTime()) / 60000)
+      : 0;
+    const totalDuration = elapsedMinutes + additionalMinutes;
+    const newTableFee = computePlayCost(hourlyRate, totalDuration);
+    const newExpectedEnd = new Date(now.getTime() + additionalMinutes * 60000);
 
     return playSessionRepository.update(sessionId, {
       expectedEndTime: newExpectedEnd,
-      durationMinutes: newDuration,
+      durationMinutes: totalDuration,
       tableFee: newTableFee,
     });
   },
@@ -615,12 +629,20 @@ export const billiardService = {
     const accountId = user.accountId || user.id;
     const userId = user.id || accountId;
 
-    const playingCost = Number(session.tableFee);
+    const startedAt = session.startTime ? new Date(session.startTime).getTime() : now.getTime();
+    const elapsedMinutes = Math.ceil((now.getTime() - startedAt) / 60000);
+    const hourlyRate = Number(table.hourlyRate);
+    const playingCost = computePlayCost(hourlyRate, elapsedMinutes);
 
     return prisma.$transaction(async (tx) => {
       await tx.playSession.update({
         where: { id: session.id },
-        data: { status: 'FINISHED', endTime: now },
+        data: {
+          status: PlaySessionStatus.COMPLETED,
+          endTime: now,
+          durationMinutes: elapsedMinutes,
+          tableFee: playingCost,
+        },
       });
 
       const order = await tx.order.findFirst({
@@ -637,7 +659,8 @@ export const billiardService = {
           });
         }
 
-        const grandTotal = Number(order.total) + playingCost;
+        const foodDrinkTotal = Number(order.total);
+        const grandTotal = foodDrinkTotal + playingCost;
 
         await tx.payment.create({
           data: {
@@ -647,8 +670,6 @@ export const billiardService = {
             status: 'PAID',
           },
         });
-
-        const foodDrinkTotal = Number(order.total);
 
         await tx.order.update({
           where: { id: order.id },
@@ -660,9 +681,9 @@ export const billiardService = {
             total: grandTotal,
             tableName: table.tableName,
             tableCode: table.tableCode,
-            sessionStartTime: session.startTime,
-            playingDurationMinutes: session.durationMinutes,
-            hourlyRate: Number(table.hourlyRate),
+            sessionStartTime: session.startTime || now,
+            playingDurationMinutes: elapsedMinutes,
+            hourlyRate,
             playingCost,
             foodDrinkTotal,
           },
@@ -674,7 +695,7 @@ export const billiardService = {
         data: { status: 'AVAILABLE' },
       });
 
-      return { id: session.id, status: 'FINISHED', orderCompleted: !!order, playingCost };
+      return { id: session.id, status: PlaySessionStatus.COMPLETED, orderCompleted: !!order, playingCost };
     });
   },
 
@@ -908,7 +929,7 @@ export const billiardService = {
 
       const session = await tx.playSession.findFirst({
         where: {
-          status: 'PLAYING',
+          status: PlaySessionStatus.PLAYING,
           order: { id: orderId },
         },
       });
@@ -1109,7 +1130,7 @@ export const billiardService = {
         if (order.sessionId) {
           await tx.playSession.update({
             where: { id: order.sessionId },
-            data: { status: 'FINISHED', endTime: now },
+            data: { status: PlaySessionStatus.COMPLETED, endTime: now },
           });
         }
 

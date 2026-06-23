@@ -5,16 +5,11 @@ export const createPosDeviceRules = [
     .trim()
     .notEmpty()
     .withMessage('Device name is required'),
-  body('type')
+  body('template')
     .trim()
     .notEmpty()
-    .isIn(['CASHIER', 'KITCHEN', 'TABLET', 'KIOSK'])
-    .withMessage('Invalid device type (CASHIER, KITCHEN, TABLET, KIOSK)'),
-  body('mode')
-    .optional()
-    .trim()
-    .isIn(['CASHIER', 'KITCHEN', 'HYBRID'])
-    .withMessage('Invalid mode (CASHIER, KITCHEN, HYBRID)'),
+    .isIn(['CASHIER', 'KITCHEN', 'CASHIER_KITCHEN', 'BILLIARD', 'RESTAURANT', 'CUSTOM'])
+    .withMessage('Invalid template (CASHIER, KITCHEN, CASHIER_KITCHEN, BILLIARD, RESTAURANT, CUSTOM)'),
 ];
 
 export const resetDeviceRules = [
