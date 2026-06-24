@@ -107,10 +107,8 @@ export function BranchManagement() {
     setForm((current) => ({ ...current, plan }));
     const planPerms = PLAN_PERMISSIONS[plan as PlanKey] || [];
     setSelectedPermissions((prev) => {
-      const base = new Set(planPerms);
-      const advanced = prev.filter((p) => isAdvancedPermission(p));
-      advanced.forEach((p) => base.add(p));
-      return Array.from(base);
+      const merged = new Set([...prev, ...planPerms]);
+      return Array.from(merged);
     });
   }, []);
 

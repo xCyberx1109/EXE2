@@ -146,11 +146,13 @@ export const rbacController = {
     );
 
     await prisma.$transaction(async (tx) => {
-      await tx.accountPermission.deleteMany({
-        where: { accountId: targetAccountId },
-      });
-
+      // Only replace permissions when permissions payload is provided.
+      // When plan-only (no permissions), preserve existing manually-assigned permissions.
       if (uniqueByPermissionId.length > 0) {
+        await tx.accountPermission.deleteMany({
+          where: { accountId: targetAccountId },
+        });
+
         const createData = uniqueByPermissionId.map((p) => ({
           accountId: targetAccountId,
           permissionId: p.permissionId,
@@ -195,16 +197,12 @@ export const rbacController = {
       }
     });
 
-    // Sync plan-based permissions AFTER transaction.
-    // Only run when the client did NOT send explicit permissions (plan-only change).
-    // When permissions array is present, the frontend already computed the final set
-    // and we must NOT let syncPlanPermissions override non-plan permissions to false.
-    if (plan && (!req.body.permissions || !Array.isArray(req.body.permissions) || req.body.permissions.length === 0)) {
+    // Grant plan permissions when plan changed without explicit permissions payload.
+    // This only adds plan permissions — never removes manually-assigned ones.
+    if (plan && uniqueByPermissionId.length === 0) {
       syncPlanPermissions(targetAccountId, plan).catch((err) => {
         console.error('[RBAC] Error syncing plan permissions:', err.message);
       });
-    } else if (plan) {
-      console.log(`[RBAC] Skipped syncPlanPermissions — permissions payload provided (${uniqueByPermissionId.length} items)`);
     }
 
     sendSuccess(res, { message: 'Cập nhật quyền tài khoản thành công' });

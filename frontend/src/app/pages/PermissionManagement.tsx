@@ -234,13 +234,10 @@ export function PermissionManagement() {
     const planPermIds = planPerms
       .map((code) => codeToIdMap.get(code))
       .filter(Boolean) as string[];
-    const advancedIds = accountPermissions
-      .filter((ap) => {
-        const code = permIdToCodeMap.get(ap.permissionId);
-        return code && isAdvancedPermission(code) && ap.allowed;
-      })
+    const currentIds = accountPermissions
+      .filter((ap) => ap.allowed)
       .map((ap) => ap.permissionId);
-    const merged = new Set([...planPermIds, ...advancedIds]);
+    const merged = new Set([...currentIds, ...planPermIds]);
     const newPerms = Array.from(merged).map((id) => ({
       permissionId: id,
       allowed: true,
@@ -254,7 +251,7 @@ export function PermissionManagement() {
     } catch {
       // silent
     }
-  }, [selectedAccount, codeToIdMap, permIdToCodeMap, accountPermissions]);
+  }, [selectedAccount, codeToIdMap, accountPermissions]);
 
   const handleTogglePermission = useCallback((permId: string) => {
     setAccountPermissions((prev) => {
@@ -269,31 +266,22 @@ export function PermissionManagement() {
   const handleSave = useCallback(async () => {
     if (!selectedAccount) return;
     try {
-      const planPerms = PLAN_PERMISSIONS[selectedPlan] || [];
-      const planPermIds = new Set(
-        planPerms.map((code) => codeToIdMap.get(code)).filter(Boolean) as string[],
-      );
-      const advancedIds = accountPermissions
-        .filter((ap) => {
-          const code = permIdToCodeMap.get(ap.permissionId);
-          return code && isAdvancedPermission(code) && ap.allowed;
-        })
-        .map((ap) => ap.permissionId);
-      const merged = new Set([...planPermIds, ...advancedIds]);
-      const newPerms = Array.from(merged).map((id) => ({
-        permissionId: id,
-        allowed: true,
-      }));
+      const currentPerms = accountPermissions
+        .filter((ap) => ap.allowed)
+        .map((ap) => ({
+          permissionId: ap.permissionId,
+          allowed: true,
+        }));
       await api.put(`/rbac/accounts/${selectedAccount.id}/permissions`, {
         plan: selectedPlan,
-        permissions: newPerms,
+        permissions: currentPerms,
       });
-      setAccountPermissions(newPerms);
+      setAccountPermissions(currentPerms);
       alert('Đã lưu thay đổi quyền cho ' + selectedAccount.fullName);
     } catch {
       alert('Lỗi khi lưu quyền');
     }
-  }, [selectedAccount, selectedPlan, accountPermissions, codeToIdMap, permIdToCodeMap]);
+  }, [selectedAccount, selectedPlan, accountPermissions]);
 
   const filteredAccounts = accounts.filter(
     (a) =>

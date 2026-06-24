@@ -87,28 +87,14 @@ export async function syncPlanPermissions(accountId, plan, tx) {
     select: { permissionId: true },
   });
 
-  const newPermissionIds = new Set(featurePermissions.map((fp) => fp.permissionId));
+  const planPermissionIds = new Set(featurePermissions.map((fp) => fp.permissionId));
 
-  if (newPermissionIds.size === 0) {
-    console.warn(`[PlanPermission] No permission IDs resolved for plan ${planCode} on account ${accountId} — skipping sync to prevent wiping all permissions`);
+  if (planPermissionIds.size === 0) {
+    console.warn(`[PlanPermission] No permission IDs resolved for plan ${planCode} on account ${accountId} — skipping`);
     return;
   }
 
-  const currentPermissions = await orm.accountPermission.findMany({
-    where: { accountId },
-    select: { permissionId: true, allowed: true },
-  });
-
-  for (const cp of currentPermissions) {
-    if (!newPermissionIds.has(cp.permissionId)) {
-      await orm.accountPermission.update({
-        where: { accountId_permissionId: { accountId, permissionId: cp.permissionId } },
-        data: { allowed: false },
-      });
-    }
-  }
-
-  for (const permissionId of newPermissionIds) {
+  for (const permissionId of planPermissionIds) {
     await orm.accountPermission.upsert({
       where: { accountId_permissionId: { accountId, permissionId } },
       update: { allowed: true },
@@ -116,5 +102,5 @@ export async function syncPlanPermissions(accountId, plan, tx) {
     });
   }
 
-  console.log(`[PlanPermission] Synced permissions for plan ${planCode} on account ${accountId} (${newPermissionIds.size} active)`);
+  console.log(`[PlanPermission] Granted ${planPermissionIds.size} permissions for plan ${planCode} on account ${accountId}`);
 }
