@@ -124,11 +124,12 @@ export function Layout() {
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-sidebar-border">
-              <div>
-                <h1 className="text-xl font-bold text-sidebar-foreground">{APP_NAME}</h1>
-                <p className="text-sm text-sidebar-foreground/60 mt-1">Hệ thống quản lý {APP_NAME}</p>
-              </div>
+          <div className="p-6 border-b border-sidebar-border flex items-center justify-center">
+              <img
+                src="/Logo.png"
+                alt="POSitive Logo"
+                className="h-14 w-auto object-contain"
+              />
           </div>
           
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

@@ -207,6 +207,7 @@ export type BranchPayload = Pick<
 > & {
   email: string;
   fullName?: string;
+  permissions?: string[];
 };
 
 export type CreateBranchResult = {
