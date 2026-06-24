@@ -2,18 +2,19 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Shield, Lock, User, Save, Search, Calendar, BadgeCheck,
-  Layers, List, ChevronRight, ChevronDown, CircleDot, UtensilsCrossed,
+  Layers, List, ChevronDown, ChevronUp, CircleDot, UtensilsCrossed,
   Package, Smartphone, Building2, LayoutDashboard, FileText, ShoppingCart,
   ClipboardList, Users, BarChart3, Clock, Monitor, Grid3X3, Download,
-  Settings, UserPen, Play, CalendarCheck, ShoppingBag, CreditCard,
-  ChartColumn, Trash2, ShieldCheck, Table,
+  Settings, Trash2, Check, Plus, ShieldAlert, Unlock,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
-  SUBSCRIPTION_PLANS, getPlanFeatures, getLockedFeatures,
-  getOwnPlanPermissions, isFeatureFullyAssigned, determinePlan,
-  type PlanKey, type PlanFeature,
-} from '../../shared/permissions/permissionPlans';
+  PLAN_ORDER, PLAN_PERMISSIONS, ADVANCED_PERMISSIONS,
+  ADVANCED_FEATURES, SYSTEM_DANGER_PERMISSIONS,
+  MODULE_GROUPS, getPlanPermissionCount,
+  getOwnPlanFeatures, isAdvancedPermission,
+  type PlanKey,
+} from '../../constants/planPermissions';
 
 interface Permission {
   id: string;
@@ -49,14 +50,55 @@ interface AccountPermission {
   allowed: boolean;
 }
 
-const FEATURE_ICONS: Record<string, LucideIcon> = {
-  LayoutDashboard, Table, FileText, ShoppingCart, ClipboardList,
-  UtensilsCrossed, Users, Package, BarChart3, Clock, Monitor, CircleDot,
-  Smartphone, Shield, Download, Building2, UserPen, Grid3X3, Settings,
-  Play, CalendarCheck, ShoppingBag, CreditCard, ChartColumn, Trash2, ShieldCheck,
+type CardKey = PlanKey | 'ADVANCED';
+
+const PLAN_LABELS: Record<PlanKey, string> = {
+  BASIC: 'Cơ bản',
+  STANDARD: 'Chuyên nghiệp',
+  PREMIUM: 'Doanh nghiệp',
 };
 
-const PLAN_ORDER: PlanKey[] = ['BASIC', 'STANDARD', 'PREMIUM'];
+const CARD_CONFIG: Array<{ key: CardKey; label: string; count: number; desc: string; isPlan: boolean }> = [
+  { key: 'BASIC', label: 'Cơ bản', count: getPlanPermissionCount('BASIC'), desc: 'Quyền dành cho cửa hàng nhỏ', isPlan: true },
+  { key: 'STANDARD', label: 'Chuyên nghiệp', count: getPlanPermissionCount('STANDARD'), desc: 'Bao gồm toàn bộ Cơ bản. Thêm kho, ca làm việc, điều phối đơn hàng...', isPlan: true },
+  { key: 'PREMIUM', label: 'Doanh nghiệp', count: getPlanPermissionCount('PREMIUM'), desc: 'Bao gồm toàn bộ Chuyên nghiệp. Thêm Billiard, Nhà hàng, báo cáo nâng cao...', isPlan: true },
+  { key: 'ADVANCED', label: 'Nâng cao', count: ADVANCED_PERMISSIONS.length, desc: 'Không phải gói bán. Là tập hợp quyền quản trị đặc biệt.', isPlan: false },
+];
+
+const CARD_COLORS: Record<CardKey, { text: string; border: string; bg: string; badge: string; ring: string; iconBg: string }> = {
+  BASIC: {
+    text: 'text-green-600 dark:text-green-400',
+    border: 'border-green-200 dark:border-green-800',
+    bg: 'bg-green-50 dark:bg-green-950/20',
+    badge: 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400',
+    ring: 'ring-green-500/30',
+    iconBg: 'bg-green-100 dark:bg-green-900/30',
+  },
+  STANDARD: {
+    text: 'text-blue-600 dark:text-blue-400',
+    border: 'border-blue-200 dark:border-blue-800',
+    bg: 'bg-blue-50 dark:bg-blue-950/20',
+    badge: 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
+    ring: 'ring-blue-500/30',
+    iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+  },
+  PREMIUM: {
+    text: 'text-purple-600 dark:text-purple-400',
+    border: 'border-purple-200 dark:border-purple-800',
+    bg: 'bg-purple-50 dark:bg-purple-950/20',
+    badge: 'bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400',
+    ring: 'ring-purple-500/30',
+    iconBg: 'bg-purple-100 dark:bg-purple-900/30',
+  },
+  ADVANCED: {
+    text: 'text-orange-600 dark:text-orange-400',
+    border: 'border-orange-200 dark:border-orange-800',
+    bg: 'bg-orange-50 dark:bg-orange-950/20',
+    badge: 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400',
+    ring: 'ring-orange-500/30',
+    iconBg: 'bg-orange-100 dark:bg-orange-900/30',
+  },
+};
 
 function formatDate(dateStr: string) {
   try {
@@ -68,6 +110,18 @@ function formatDate(dateStr: string) {
   }
 }
 
+function determinePlanFromPerms(codes: string[]): PlanKey {
+  const set = new Set(codes);
+  const planPermCounts = PLAN_ORDER.map((p) => ({
+    plan: p,
+    count: PLAN_PERMISSIONS[p].filter((c) => set.has(c)).length,
+    total: PLAN_PERMISSIONS[p].length,
+  }));
+  const best = planPermCounts.reduce((a, b) => (a.count / a.total > b.count / b.total ? a : b));
+  if (best.count / best.total >= 0.7) return best.plan;
+  return 'BASIC';
+}
+
 export function PermissionManagement() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -76,7 +130,7 @@ export function PermissionManagement() {
   const [accountPermissions, setAccountPermissions] = useState<AccountPermission[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'plan' | 'advanced'>('plan');
+  const [tab, setTab] = useState<'plan' | 'all'>('plan');
 
   useEffect(() => {
     loadInitialData();
@@ -96,13 +150,11 @@ export function PermissionManagement() {
         api.get<Account[]>('/rbac/accounts'),
         api.get<Permission[]>('/rbac/permissions'),
       ]);
-
       const dedupedPermissions = Array.from(
         new Map(
           (permsData || []).map((p) => [p.code ?? p.id, p]),
         ).values(),
       );
-
       setAccounts(accountsData || []);
       setPermissions(dedupedPermissions);
     } catch (err: any) {
@@ -141,6 +193,14 @@ export function PermissionManagement() {
     return new Map(permissions.map((p) => [p.id, p.code]));
   }, [permissions]);
 
+  const idToNameMap = useMemo(() => {
+    return new Map(permissions.map((p) => [p.id, p.name]));
+  }, [permissions]);
+
+  const idToModuleMap = useMemo(() => {
+    return new Map(permissions.map((p) => [p.id, p.module]));
+  }, [permissions]);
+
   const accountPermIdSet = useMemo(() => {
     return new Set(
       accountPermissions
@@ -158,53 +218,43 @@ export function PermissionManagement() {
   const currentPlan = useMemo(() => {
     if (!selectedAccount) return null;
     const allCodes = new Set(accountPermCodes);
-    // Nếu account chưa được chọn hoặc chưa load permissions, dùng account.assignedPermissions
     if (allCodes.size === 0 && selectedAccount.assignedPermissions) {
       selectedAccount.assignedPermissions.forEach((ap) => {
         if (ap.allowed) allCodes.add(ap.permissionCode);
       });
     }
-    return determinePlan(Array.from(allCodes));
+    return determinePlanFromPerms(Array.from(allCodes));
   }, [selectedAccount, accountPermCodes]);
 
-  const handleSave = useCallback(async () => {
+  const selectedPlan = useMemo(() => currentPlan || 'BASIC', [currentPlan]);
+
+  const handleSelectPlan = useCallback(async (plan: PlanKey) => {
     if (!selectedAccount) return;
+    const planPerms = PLAN_PERMISSIONS[plan] || [];
+    const planPermIds = planPerms
+      .map((code) => codeToIdMap.get(code))
+      .filter(Boolean) as string[];
+    const advancedIds = accountPermissions
+      .filter((ap) => {
+        const code = permIdToCodeMap.get(ap.permissionId);
+        return code && isAdvancedPermission(code) && ap.allowed;
+      })
+      .map((ap) => ap.permissionId);
+    const merged = new Set([...planPermIds, ...advancedIds]);
+    const newPerms = Array.from(merged).map((id) => ({
+      permissionId: id,
+      allowed: true,
+    }));
+    setAccountPermissions(newPerms);
     try {
       await api.put(`/rbac/accounts/${selectedAccount.id}/permissions`, {
-        permissions: accountPermissions,
+        plan,
+        permissions: newPerms,
       });
-      alert('Đã lưu thay đổi quyền cho tài khoản ' + selectedAccount.fullName);
     } catch {
-      alert('Lỗi khi lưu quyền');
+      // silent
     }
-  }, [selectedAccount, accountPermissions]);
-
-  const handleToggleFeature = useCallback(
-    (feature: PlanFeature) => {
-      setAccountPermissions((prev) => {
-        const existing = new Map(prev.map((p) => [p.permissionId, p]));
-        const newPerms = new Map(existing);
-
-        const allAssigned = feature.permissions.every((code) => {
-          const id = codeToIdMap.get(code);
-          return id && existing.has(id);
-        });
-
-        for (const code of feature.permissions) {
-          const id = codeToIdMap.get(code);
-          if (!id) continue;
-          if (allAssigned) {
-            newPerms.delete(id);
-          } else {
-            newPerms.set(id, { permissionId: id, allowed: true });
-          }
-        }
-
-        return Array.from(newPerms.values());
-      });
-    },
-    [codeToIdMap],
-  );
+  }, [selectedAccount, codeToIdMap, permIdToCodeMap, accountPermissions]);
 
   const handleTogglePermission = useCallback((permId: string) => {
     setAccountPermissions((prev) => {
@@ -216,16 +266,34 @@ export function PermissionManagement() {
     });
   }, []);
 
-  const groupedPermissions = useMemo(() => {
-    return permissions.reduce(
-      (acc, perm) => {
-        if (!acc[perm.module]) acc[perm.module] = [];
-        acc[perm.module].push(perm);
-        return acc;
-      },
-      {} as Record<string, Permission[]>,
-    );
-  }, [permissions]);
+  const handleSave = useCallback(async () => {
+    if (!selectedAccount) return;
+    try {
+      const planPerms = PLAN_PERMISSIONS[selectedPlan] || [];
+      const planPermIds = new Set(
+        planPerms.map((code) => codeToIdMap.get(code)).filter(Boolean) as string[],
+      );
+      const advancedIds = accountPermissions
+        .filter((ap) => {
+          const code = permIdToCodeMap.get(ap.permissionId);
+          return code && isAdvancedPermission(code) && ap.allowed;
+        })
+        .map((ap) => ap.permissionId);
+      const merged = new Set([...planPermIds, ...advancedIds]);
+      const newPerms = Array.from(merged).map((id) => ({
+        permissionId: id,
+        allowed: true,
+      }));
+      await api.put(`/rbac/accounts/${selectedAccount.id}/permissions`, {
+        plan: selectedPlan,
+        permissions: newPerms,
+      });
+      setAccountPermissions(newPerms);
+      alert('Đã lưu thay đổi quyền cho ' + selectedAccount.fullName);
+    } catch {
+      alert('Lỗi khi lưu quyền');
+    }
+  }, [selectedAccount, selectedPlan, accountPermissions, codeToIdMap, permIdToCodeMap]);
 
   const filteredAccounts = accounts.filter(
     (a) =>
@@ -265,7 +333,6 @@ export function PermissionManagement() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border">
         <button
           onClick={() => setTab('plan')}
@@ -279,20 +346,20 @@ export function PermissionManagement() {
           Gói dịch vụ
         </button>
         <button
-          onClick={() => setTab('advanced')}
+          onClick={() => setTab('all')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'advanced'
+            tab === 'all'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           <List className="w-4 h-4 inline mr-1.5" />
-          Quyền nâng cao
+          Toàn bộ quyền
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Account List Sidebar */}
+        {/* Sidebar */}
         <div className="md:col-span-1 space-y-4">
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
             <div className="p-4 bg-muted border-b border-border">
@@ -312,16 +379,12 @@ export function PermissionManagement() {
             </div>
             <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
               {filteredAccounts.map((account) => {
-                const plan = determinePlan(
+                const plan = determinePlanFromPerms(
                   account.assignedPermissions
                     .filter((ap) => ap.allowed)
                     .map((ap) => ap.permissionCode),
                 );
-                const planColors: Record<PlanKey, string> = {
-                  BASIC: 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-950/30',
-                  STANDARD: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/30',
-                  PREMIUM: 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/30',
-                };
+                const c = CARD_COLORS[plan];
                 return (
                   <button
                     key={account.id}
@@ -343,33 +406,18 @@ export function PermissionManagement() {
                         <User className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p
-                            className={`font-medium text-sm truncate ${
-                              selectedAccount?.id === account.id
-                                ? 'text-primary'
-                                : 'text-foreground'
-                            }`}
-                          >
-                            {account.fullName}
-                          </p>
-                        </div>
+                        <p className={`font-medium text-sm truncate ${
+                          selectedAccount?.id === account.id ? 'text-primary' : 'text-foreground'
+                        }`}>
+                          {account.fullName}
+                        </p>
                         <p className="text-[11px] text-muted-foreground truncate">
                           {account.email}
                         </p>
-                        <span
-                          className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium mt-0.5 ${planColors[plan]}`}
-                        >
-                          {SUBSCRIPTION_PLANS[plan].name}
+                        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium mt-0.5 ${c.text} ${c.badge}`}>
+                          {PLAN_LABELS[plan]}
                         </span>
                       </div>
-                      <ChevronRight
-                        className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${
-                          selectedAccount?.id === account.id
-                            ? 'text-primary translate-x-0.5'
-                            : 'text-muted-foreground/50'
-                        }`}
-                      />
                     </div>
                   </button>
                 );
@@ -378,11 +426,11 @@ export function PermissionManagement() {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main */}
         <div className="md:col-span-2">
           {selectedAccount ? (
             <>
-              {/* Account Info Bar */}
+              {/* Account Info */}
               <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mb-4">
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -400,10 +448,8 @@ export function PermissionManagement() {
                   </div>
                   {currentPlan && (
                     <div className="text-right">
-                      <div
-                        className={`text-xs font-semibold ${SUBSCRIPTION_PLANS[currentPlan].color}`}
-                      >
-                        Gói: {SUBSCRIPTION_PLANS[currentPlan].name}
+                      <div className={`text-xs font-semibold ${CARD_COLORS[currentPlan].text}`}>
+                        Gói: {PLAN_LABELS[currentPlan]}
                       </div>
                       <div className="text-[11px] text-muted-foreground mt-0.5">
                         <Calendar className="w-3 h-3 inline mr-1" />
@@ -416,21 +462,21 @@ export function PermissionManagement() {
 
               {tab === 'plan' ? (
                 <PlanTabView
-                  selectedAccount={selectedAccount}
-                  accountPermissions={accountPermissions}
-                  accountPermIdSet={accountPermIdSet}
-                  codeToIdMap={codeToIdMap}
-                  currentPlan={currentPlan}
-                  onToggleFeature={handleToggleFeature}
+                  selectedPlan={selectedPlan}
+                  onSelectPlan={handleSelectPlan}
                   onSave={handleSave}
                 />
               ) : (
-                <AdvancedTabView
-                  selectedAccount={selectedAccount}
+                <AllPermissionsTab
+                  permissions={permissions}
                   accountPermissions={accountPermissions}
-                  groupedPermissions={groupedPermissions}
                   accountPermIdSet={accountPermIdSet}
-                  onTogglePermission={handleTogglePermission}
+                  codeToIdMap={codeToIdMap}
+                  permIdToCodeMap={permIdToCodeMap}
+                  idToNameMap={idToNameMap}
+                  idToModuleMap={idToModuleMap}
+                  currentPlan={selectedPlan}
+                  onToggle={handleTogglePermission}
                   onSave={handleSave}
                 />
               )}
@@ -440,12 +486,9 @@ export function PermissionManagement() {
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                 <Lock className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium text-foreground">
-                Chưa chọn tài khoản
-              </h3>
+              <h3 className="text-lg font-medium text-foreground">Chưa chọn tài khoản</h3>
               <p className="text-muted-foreground mt-2 max-w-xs">
-                Chọn một tài khoản từ danh sách bên trái để quản lý gói dịch vụ và
-                quyền truy cập.
+                Chọn một tài khoản từ danh sách bên trái để quản lý gói dịch vụ và quyền truy cập.
               </p>
             </div>
           )}
@@ -455,259 +498,331 @@ export function PermissionManagement() {
   );
 }
 
-/* =============================
-   PLAN TAB
-============================= */
+/* ============================
+   TAB 1: GÓI DỊCH VỤ
+   ============================ */
 function PlanTabView({
-  selectedAccount,
-  accountPermissions,
-  accountPermIdSet,
-  codeToIdMap,
-  currentPlan,
-  onToggleFeature,
+  selectedPlan,
+  onSelectPlan,
   onSave,
 }: {
-  selectedAccount: Account;
-  accountPermissions: AccountPermission[];
-  accountPermIdSet: Set<string>;
-  codeToIdMap: Map<string, string>;
-  currentPlan: PlanKey | null;
-  onToggleFeature: (feature: PlanFeature) => void;
+  selectedPlan: PlanKey;
+  onSelectPlan: (plan: PlanKey) => void;
   onSave: () => void;
 }) {
-  const [expandedSection, setExpandedSection] = useState<'current' | 'locked' | null>('current');
+  const [selectedCard, setSelectedCard] = useState<CardKey>(selectedPlan);
+  const [expanded, setExpanded] = useState(true);
 
-  const planFeatures = useMemo(
-    () => (currentPlan ? getPlanFeatures(currentPlan) : []),
-    [currentPlan],
-  );
-  const lockedFeatures = useMemo(
-    () => (currentPlan ? getLockedFeatures(currentPlan) : []),
-    [currentPlan],
-  );
+  useEffect(() => {
+    setSelectedCard(selectedPlan);
+  }, [selectedPlan]);
+
+  const handleCardClick = (key: CardKey) => {
+    setSelectedCard(key);
+    setExpanded(true);
+    if (key !== 'ADVANCED') {
+      onSelectPlan(key as PlanKey);
+    }
+  };
+
+  const isPlan = selectedCard !== 'ADVANCED';
+  const card = CARD_CONFIG.find((c) => c.key === selectedCard)!;
 
   return (
-    <div className="space-y-4">
-      {/* Plan Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {PLAN_ORDER.map((key) => {
-          const plan = SUBSCRIPTION_PLANS[key];
-          const isCurrent = key === currentPlan;
+    <div className="space-y-5">
+      {/* 4 Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {CARD_CONFIG.map((cfg) => {
+          const isActive = selectedCard === cfg.key;
+          const isCurrentPlan = cfg.isPlan && cfg.key === selectedPlan;
+          const c = CARD_COLORS[cfg.key];
           return (
-            <div
-              key={key}
-              className={`relative rounded-xl border p-4 transition-all ${
-                isCurrent
-                  ? `${plan.borderColor} ${plan.bgColor} ring-2 ring-offset-2 ${plan.borderColor.replace('border-', 'ring-')}`
-                  : 'border-border bg-card'
+            <button
+              key={cfg.key}
+              type="button"
+              onClick={() => handleCardClick(cfg.key)}
+              className={`relative rounded-xl border-2 p-4 text-left transition-all ${
+                isActive
+                  ? `${c.border} ${c.bg} ring-2 ${c.ring} ring-offset-2 shadow-md`
+                  : 'border-border bg-card hover:border-muted-foreground/30 hover:shadow-sm'
               }`}
             >
-              {isCurrent && (
-                <span
-                  className={`absolute -top-2 -right-2 text-[10px] px-2 py-0.5 rounded-full font-bold ${plan.badgeColor}`}
-                >
-                  Đang dùng
+              {isCurrentPlan && (
+                <span className={`absolute -top-2.5 -right-2.5 text-[10px] px-2 py-0.5 rounded-full font-bold ${c.badge} shadow-sm`}>
+                  Đang sử dụng
                 </span>
               )}
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className={`font-bold text-base ${isCurrent ? plan.color : 'text-foreground'}`}>
-                  {plan.name}
-                </h3>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${c.iconBg} mb-2`}>
+                {cfg.key === 'BASIC' && <LayoutDashboard className={`w-4 h-4 ${c.text}`} />}
+                {cfg.key === 'STANDARD' && <Building2 className={`w-4 h-4 ${c.text}`} />}
+                {cfg.key === 'PREMIUM' && <BadgeCheck className={`w-4 h-4 ${c.text}`} />}
+                {cfg.key === 'ADVANCED' && <ShieldAlert className={`w-4 h-4 ${c.text}`} />}
               </div>
-              <p className="text-xs text-muted-foreground mb-1">
-                {plan.featureCountLabel}
+              <h3 className={`font-bold text-base ${isActive ? c.text : 'text-foreground'}`}>
+                {cfg.label}
+              </h3>
+              <p className={`text-lg font-bold ${isActive ? c.text : 'text-foreground'} mt-1`}>
+                {cfg.count}
               </p>
-              <p className="text-sm font-semibold text-foreground">{plan.price}</p>
-            </div>
+              <p className={`text-[11px] ${isActive ? c.text : 'text-muted-foreground'} opacity-80`}>
+                {cfg.key === 'ADVANCED' ? 'quyền đặc biệt' : 'quyền được cấp'}
+              </p>
+            </button>
           );
         })}
       </div>
 
-      {/* Current Plan Features */}
+      {/* Detail Accordion */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <button
-          onClick={() => setExpandedSection(expandedSection === 'current' ? null : 'current')}
+          onClick={() => setExpanded(!expanded)}
           className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <BadgeCheck className="w-5 h-5 text-green-500" />
+            {isPlan ? (
+              <BadgeCheck className={`w-5 h-5 ${CARD_COLORS[selectedCard as PlanKey].text}`} />
+            ) : (
+              <ShieldAlert className="w-5 h-5 text-orange-500" />
+            )}
             <span className="font-semibold text-foreground">
-              {currentPlan ? SUBSCRIPTION_PLANS[currentPlan].name : ''} — Tính năng được cấp
+              {isPlan ? card.label : 'Quyền quản trị đặc biệt'}
             </span>
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-              {planFeatures.length} tính năng
+              {card.count} quyền
             </span>
           </div>
-          <ChevronDown
-            className={`w-4 h-4 text-muted-foreground transition-transform ${
-              expandedSection === 'current' ? 'rotate-0' : '-rotate-90'
-            }`}
-          />
+          {expanded ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
         </button>
 
-        {expandedSection === 'current' && (
-          <div className="px-4 pb-4 border-t border-border">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-              {planFeatures.map((feature) => {
-                const fullyAssigned = isFeatureFullyAssigned(
-                  feature,
-                  accountPermIdSet,
-                  codeToIdMap,
-                );
-                const IconComp = FEATURE_ICONS[feature.icon] || Shield;
-                return (
-                  <label
-                    key={feature.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      fullyAssigned
-                        ? 'bg-primary/5 border-primary/30 text-primary'
-                        : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
-                    }`}
-                  >
-                    <div className="relative flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={fullyAssigned}
-                        onChange={() => onToggleFeature(feature)}
-                        className="w-5 h-5 text-primary rounded-md border-border bg-input-background focus:ring-primary transition-all"
-                      />
-                    </div>
-                    <IconComp className="w-5 h-5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold">{feature.name}</p>
-                      <p className="text-[10px] opacity-60">{feature.description}</p>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
+        {expanded && (
+          <div className="border-t border-border px-4 pb-4 pt-3 space-y-4">
+            {isPlan ? (
+              <PlanFeaturesDetail planKey={selectedCard as PlanKey} />
+            ) : (
+              <AdvancedFeaturesDetail />
+            )}
           </div>
         )}
       </div>
 
-      {/* Locked Features */}
-      {lockedFeatures.length > 0 && (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-          <button
-            onClick={() => setExpandedSection(expandedSection === 'locked' ? null : 'locked')}
-            className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-muted-foreground" />
-              <span className="font-semibold text-foreground">
-                Yêu cầu nâng cấp
-              </span>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                {lockedFeatures.length} tính năng
-              </span>
-            </div>
-            <ChevronDown
-              className={`w-4 h-4 text-muted-foreground transition-transform ${
-                expandedSection === 'locked' ? 'rotate-0' : '-rotate-90'
-              }`}
-            />
-          </button>
-
-          {expandedSection === 'locked' && (
-            <div className="px-4 pb-4 border-t border-border">
-              {/* Group locked features by target plan */}
-              {(['STANDARD', 'PREMIUM'] as PlanKey[]).map((targetPlan) => {
-                if (targetPlan === currentPlan) return null;
-                const planInfo = SUBSCRIPTION_PLANS[targetPlan];
-                const features = getOwnPlanPermissions(targetPlan)
-                  .map((code) => {
-                    // Find feature that contains this permission
-                    for (const f of SUBSCRIPTION_PLANS[targetPlan].features) {
-                      if (f.permissions.includes(code)) return f;
-                    }
-                    return null;
-                  })
-                  .filter((f, i, arr) => f && arr.findIndex((x) => x?.id === f?.id) === i);
-
-                const uniqueFeatures = SUBSCRIPTION_PLANS[targetPlan].features.filter(
-                  (f) => !getPlanFeatures(currentPlan || 'BASIC').some((pf) => pf.id === f.id),
-                );
-
-                if (uniqueFeatures.length === 0) return null;
-
-                return (
-                  <div key={targetPlan} className="mt-3">
-                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-                      Nâng cấp lên {planInfo.name}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {uniqueFeatures.map((feature) => {
-                        const IconComp = FEATURE_ICONS[feature.icon] || Shield;
-                        return (
-                          <div
-                            key={feature.id}
-                            className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30 opacity-70"
-                          >
-                            <Lock className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                            <IconComp className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {feature.name}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {feature.description}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Save Button */}
+      {/* Save */}
       <div className="flex justify-end">
         <button
           onClick={onSave}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm"
         >
           <Save className="w-4 h-4" />
-          Lưu quyền hạn
+          Lưu thay đổi
         </button>
       </div>
     </div>
   );
 }
 
-/* =============================
-   ADVANCED TAB
-============================= */
-function AdvancedTabView({
-  selectedAccount,
+function PlanFeaturesDetail({ planKey }: { planKey: PlanKey }) {
+  const idx = PLAN_ORDER.indexOf(planKey);
+  return (
+    <>
+      {PLAN_ORDER.map((pKey, i) => {
+        const features = getOwnPlanFeatures(pKey);
+        if (features.length === 0) return null;
+        const isIncluded = i <= idx;
+        if (!isIncluded) return null;
+        return (
+          <div key={pKey}>
+            {i > 0 && (
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Check className="w-3 h-3 text-green-500" />
+                Bao gồm toàn bộ {PLAN_LABELS[PLAN_ORDER[i - 1]]}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {features.map((feat) => (
+                <span
+                  key={feat}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border bg-primary/5 border-primary/20 text-primary"
+                >
+                  <Plus className="w-3 h-3" />
+                  {feat}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function AdvancedFeaturesDetail() {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Nhóm quyền quản trị đặc biệt:
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {ADVANCED_FEATURES.map((feat) => (
+          <span
+            key={feat}
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400"
+          >
+            <ShieldAlert className="w-3 h-3" />
+            {feat}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================
+   TAB 2: TOÀN BỘ QUYỀN
+   ============================ */
+function AllPermissionsTab({
+  permissions,
   accountPermissions,
-  groupedPermissions,
   accountPermIdSet,
-  onTogglePermission,
+  codeToIdMap,
+  permIdToCodeMap,
+  idToNameMap,
+  idToModuleMap,
+  currentPlan,
+  onToggle,
   onSave,
 }: {
-  selectedAccount: Account;
+  permissions: Permission[];
   accountPermissions: AccountPermission[];
-  groupedPermissions: Record<string, Permission[]>;
   accountPermIdSet: Set<string>;
-  onTogglePermission: (permId: string) => void;
+  codeToIdMap: Map<string, string>;
+  permIdToCodeMap: Map<string, string>;
+  idToNameMap: Map<string, string>;
+  idToModuleMap: Map<string, string>;
+  currentPlan: PlanKey;
+  onToggle: (permId: string) => void;
   onSave: () => void;
 }) {
+  const [search, setSearch] = useState('');
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+
+  const planPermSet = useMemo(() => {
+    return new Set(PLAN_PERMISSIONS[currentPlan] || []);
+  }, [currentPlan]);
+
+  const advancedPermSet = useMemo(() => {
+    return new Set(ADVANCED_PERMISSIONS);
+  }, []);
+
+  const dangerSet = useMemo(() => {
+    return new Set(SYSTEM_DANGER_PERMISSIONS);
+  }, []);
+
+  const groupedPermissions = useMemo(() => {
+    const groups: Array<{
+      module: string;
+      label: string;
+      perms: Array<{ id: string; code: string; name: string }>;
+    }> = [];
+
+    for (const group of MODULE_GROUPS) {
+      const perms = group.permissions
+        .map((code) => {
+          const id = codeToIdMap.get(code);
+          if (!id) return null;
+          return {
+            id,
+            code,
+            name: idToNameMap.get(id) || code,
+          };
+        })
+        .filter(Boolean) as Array<{ id: string; code: string; name: string }>;
+
+      if (perms.length === 0) continue;
+
+      groups.push({
+        module: group.module,
+        label: group.label,
+        perms,
+      });
+    }
+
+    // Also add any permissions not in MODULE_GROUPS
+    const groupedCodes = new Set(
+      MODULE_GROUPS.flatMap((g) => g.permissions),
+    );
+    const orphans = permissions
+      .filter((p) => !groupedCodes.has(p.code))
+      .map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+      }));
+    if (orphans.length > 0) {
+      groups.push({
+        module: 'other',
+        label: 'Khác',
+        perms: orphans,
+      });
+    }
+
+    return groups;
+  }, [permissions, codeToIdMap, idToNameMap]);
+
+  const searchLower = search.toLowerCase();
+  const filteredGroups = useMemo(() => {
+    if (!searchLower) return groupedPermissions;
+    return groupedPermissions
+      .map((g) => ({
+        ...g,
+        perms: g.perms.filter(
+          (p) =>
+            p.code.toLowerCase().includes(searchLower) ||
+            p.name.toLowerCase().includes(searchLower) ||
+            g.label.toLowerCase().includes(searchLower),
+        ),
+      }))
+      .filter((g) => g.perms.length > 0);
+  }, [groupedPermissions, searchLower]);
+
+  const toggleModule = (module: string) => {
+    setExpandedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(module)) next.delete(module);
+      else next.add(module);
+      return next;
+    });
+  };
+
+  // Expand all modules by default
+  useEffect(() => {
+    setExpandedModules(new Set(groupedPermissions.map((g) => g.module)));
+  }, [groupedPermissions]);
+
+  const totalCount = accountPermissions.filter((ap) => ap.allowed).length;
+  const allCount = permissions.length;
+
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-border flex items-center justify-between bg-card sticky top-0 z-10">
-        <div className="flex items-center gap-2">
+      <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 bg-card sticky top-0 z-10">
+        <div className="flex items-center gap-2 flex-1">
           <List className="w-5 h-5 text-muted-foreground" />
-          <span className="font-semibold text-foreground text-sm">
-            Chi tiết quyền — {selectedAccount.fullName}
-          </span>
+          <span className="font-semibold text-foreground text-sm">Toàn bộ quyền</span>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-            {accountPermissions.length}/{Object.values(groupedPermissions).flat().length} quyền
+            {totalCount}/{allCount} quyền
           </span>
+        </div>
+        <div className="relative flex-1 max-w-xs">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Tìm permission..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-input rounded-lg text-sm bg-input-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
         </div>
         <button
           onClick={onSave}
@@ -717,45 +832,91 @@ function AdvancedTabView({
           Lưu
         </button>
       </div>
-      <div className="p-6 overflow-y-auto max-h-[600px]">
-        <div className="space-y-8">
-          {Object.entries(groupedPermissions).map(([module, perms]) => (
-            <div key={module} className="space-y-3">
-              <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <span className="w-2 h-2 bg-primary rounded-full" />
-                {module}
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {perms.map((perm) => {
-                  const isChecked = accountPermIdSet.has(perm.id);
-                  return (
-                    <label
-                      key={perm.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        isChecked
-                          ? 'bg-primary/5 border-primary/30 text-primary ring-1 ring-primary/20'
-                          : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
-                      }`}
-                    >
-                      <div className="relative flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => onTogglePermission(perm.id)}
-                          className="w-5 h-5 text-primary rounded-md border-border bg-input-background focus:ring-primary transition-all"
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{perm.name}</p>
-                        <p className="text-[10px] opacity-60 font-mono">{perm.code}</p>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
+
+      <div className="p-4 overflow-y-auto max-h-[650px] space-y-3">
+        {filteredGroups.map((group) => {
+          const isExpanded = expandedModules.has(group.module);
+          const checkedCount = group.perms.filter((p) => accountPermIdSet.has(p.id)).length;
+          return (
+            <div key={group.module} className="rounded-xl border border-border overflow-hidden">
+              <button
+                onClick={() => toggleModule(group.module)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  )}
+                  <span className="text-sm font-semibold text-foreground">{group.label}</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                    {checkedCount}/{group.perms.length}
+                  </span>
+                </div>
+              </button>
+              {isExpanded && (
+                <div className="divide-y divide-border">
+                  {group.perms.map((p) => {
+                    const isChecked = accountPermIdSet.has(p.id);
+                    const isPlanPerm = planPermSet.has(p.code);
+                    const isAdvanced = advancedPermSet.has(p.code);
+                    const isDanger = dangerSet.has(p.code);
+                    return (
+                      <label
+                        key={p.id}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${
+                          isPlanPerm && isChecked
+                            ? 'bg-primary/[0.03]'
+                            : 'hover:bg-muted/30'
+                        }`}
+                      >
+                        <div className="relative flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => onToggle(p.id)}
+                            className="w-4 h-4 text-primary rounded border-border bg-input-background focus:ring-primary transition-all"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            {isPlanPerm && isChecked && (
+                              <Unlock className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                            )}
+                            <span className={`text-sm font-medium ${
+                              isChecked ? 'text-foreground' : 'text-muted-foreground'
+                            }`}>
+                              {p.code}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground/70 truncate">{p.name}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {isDanger && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                              Quyền hệ thống
+                            </span>
+                          )}
+                          {isAdvanced && !isDanger && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                              Nâng cao
+                            </span>
+                          )}
+                          {isPlanPerm && !isAdvanced && !isDanger && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-950/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
+                              Thuộc gói
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );

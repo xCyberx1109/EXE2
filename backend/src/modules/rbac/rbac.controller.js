@@ -2,6 +2,13 @@ import prisma from '../../prisma/client.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess, sendError } from '../../utils/apiResponse.js';
 import { AppError } from '../../utils/AppError.js';
+import { syncPlanPermissions } from '../../services/planPermission.service.js';
+
+const PLAN_CODE_MAP = {
+  BASIC: 'basic',
+  STANDARD: 'pro',
+  PREMIUM: 'enterprise',
+};
 
 export const rbacController = {
   // --- Permissions ---
@@ -125,7 +132,7 @@ export const rbacController = {
     }
 
     const targetAccountId = isAdminAll ? accountId : currentAccountId;
-    const { permissions } = req.body; // Array of { permissionId, allowed }
+    const { permissions, plan } = req.body; // Array of { permissionId, allowed }, optional plan
 
     // Defensive: dedupe payload by permissionId before writing
     const normalized = Array.isArray(permissions) ? permissions : [];
@@ -144,15 +151,61 @@ export const rbacController = {
       });
 
       if (uniqueByPermissionId.length > 0) {
-        await tx.accountPermission.createMany({
-          data: uniqueByPermissionId.map((p) => ({
-            accountId: targetAccountId,
-            permissionId: p.permissionId,
-            allowed: p.allowed,
-          })),
-        });
+        const createData = uniqueByPermissionId.map((p) => ({
+          accountId: targetAccountId,
+          permissionId: p.permissionId,
+          allowed: p.allowed,
+        }));
+        console.log('[RBAC PERMISSION CREATE]', JSON.stringify(createData, null, 2));
+        await tx.accountPermission.createMany({ data: createData });
+      }
+
+      // Cập nhật subscription plan nếu có
+      if (plan) {
+        const planCode = PLAN_CODE_MAP[plan.toUpperCase()];
+        if (planCode) {
+          const subscriptionPlan = await tx.subscriptionPlan.findUnique({
+            where: { code: planCode },
+            select: { id: true },
+          });
+          if (subscriptionPlan) {
+            const existingSub = await tx.subscription.findFirst({
+              where: { branchId: targetAccountId, deletedAt: null },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (existingSub) {
+              await tx.subscription.update({
+                where: { id: existingSub.id },
+                data: { planId: subscriptionPlan.id },
+              });
+            } else {
+              await tx.subscription.create({
+                data: {
+                  branchId: targetAccountId,
+                  planId: subscriptionPlan.id,
+                  status: 'ACTIVE',
+                  startDate: new Date(),
+                  endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+                  autoRenew: true,
+                },
+              });
+            }
+          }
+        }
       }
     });
+
+    // Sync plan-based permissions AFTER transaction.
+    // Only run when the client did NOT send explicit permissions (plan-only change).
+    // When permissions array is present, the frontend already computed the final set
+    // and we must NOT let syncPlanPermissions override non-plan permissions to false.
+    if (plan && (!req.body.permissions || !Array.isArray(req.body.permissions) || req.body.permissions.length === 0)) {
+      syncPlanPermissions(targetAccountId, plan).catch((err) => {
+        console.error('[RBAC] Error syncing plan permissions:', err.message);
+      });
+    } else if (plan) {
+      console.log(`[RBAC] Skipped syncPlanPermissions — permissions payload provided (${uniqueByPermissionId.length} items)`);
+    }
 
     sendSuccess(res, { message: 'Cập nhật quyền tài khoản thành công' });
   }),

@@ -58,7 +58,7 @@ export async function assignPlanPermissions(accountId, plan, tx) {
     });
   }
 
-  console.log(`[PlanPermission] Granted ${permissionIds.length} permissions for plan ${planCode} to account ${accountId}`);
+  console.log(`[PlanPermission] Granted ${permissionIds.length} permissions for plan ${planCode} to account ${accountId}`, permissionIds);
 }
 
 export async function syncPlanPermissions(accountId, plan, tx) {
@@ -88,6 +88,11 @@ export async function syncPlanPermissions(accountId, plan, tx) {
   });
 
   const newPermissionIds = new Set(featurePermissions.map((fp) => fp.permissionId));
+
+  if (newPermissionIds.size === 0) {
+    console.warn(`[PlanPermission] No permission IDs resolved for plan ${planCode} on account ${accountId} — skipping sync to prevent wiping all permissions`);
+    return;
+  }
 
   const currentPermissions = await orm.accountPermission.findMany({
     where: { accountId },

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Building2,
@@ -14,11 +14,15 @@ import {
   X,
   XCircle,
   Lock,
+  Shield,
+  Check,
 } from 'lucide-react';
 import { branchApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import type { Branch } from '../types';
 import type { BranchPayload, CreateBranchResult } from '../api/services';
+import { PLAN_PERMISSIONS, MODULE_GROUPS, getPlanPermissionCount, isAdvancedPermission } from '../../constants/planPermissions';
+import type { PlanKey } from '../../constants/planPermissions';
 
 type Plan = Branch['plan'];
 type SubscriptionStatus = Branch['subscriptionStatus'];
@@ -60,7 +64,7 @@ const toDateInputValue = (value?: string) => {
   return new Date(value).toISOString().slice(0, 10);
 };
 
-const toPayload = (form: BranchFormState): BranchPayload => ({
+const toPayload = (form: BranchFormState, permissions: string[]): BranchPayload => ({
   name: form.name.trim(),
   address: form.address.trim(),
   phone: form.phone.trim(),
@@ -71,6 +75,7 @@ const toPayload = (form: BranchFormState): BranchPayload => ({
   active: form.active,
   email: form.email.trim(),
   fullName: '',
+  permissions,
 });
 
 export function BranchManagement() {
@@ -95,6 +100,26 @@ export function BranchManagement() {
   const [forceDeleteBranch, setForceDeleteBranch] = useState<Branch | null>(null);
   const [confirmName, setConfirmName] = useState('');
   const [forceDeleting, setForceDeleting] = useState(false);
+
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(() => [...PLAN_PERMISSIONS['BASIC']]);
+
+  const handlePlanChange = useCallback((plan: Plan) => {
+    setForm((current) => ({ ...current, plan }));
+    const planPerms = PLAN_PERMISSIONS[plan as PlanKey] || [];
+    setSelectedPermissions((prev) => {
+      const base = new Set(planPerms);
+      const advanced = prev.filter((p) => isAdvancedPermission(p));
+      advanced.forEach((p) => base.add(p));
+      return Array.from(base);
+    });
+  }, []);
+
+  const togglePermission = useCallback((code: string) => {
+    setSelectedPermissions((prev) => {
+      if (prev.includes(code)) return prev.filter((p) => p !== code);
+      return [...prev, code];
+    });
+  }, []);
 
   const isEditing = Boolean(editingBranchId);
   const isEditModalOpen = Boolean(editingBranchId);
@@ -143,12 +168,14 @@ export function BranchManagement() {
     setIsCreateModalOpen(false);
     setEditingBranchId(null);
     setForm(createDefaultForm());
+    setSelectedPermissions([...PLAN_PERMISSIONS['BASIC']]);
   };
 
   const handleOpenCreateModal = () => {
     setError(null);
     setEditingBranchId(null);
     setForm(createDefaultForm());
+    setSelectedPermissions([...PLAN_PERMISSIONS['BASIC']]);
     setIsCreateModalOpen(true);
   };
 
@@ -168,7 +195,7 @@ export function BranchManagement() {
 
     try {
       setError(null);
-      const payload = toPayload(form);
+      const payload = toPayload(form, selectedPermissions);
 
       if (editingBranchId) {
         const updatedBranch = await branchApi.update(editingBranchId, payload);
@@ -496,7 +523,7 @@ export function BranchManagement() {
                   <span className="text-sm font-medium text-foreground">Gói</span>
                   <select
                     value={form.plan}
-                    onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
+                    onChange={(event) => handlePlanChange(event.target.value as Plan)}
                     disabled={saving}
                     className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   >
@@ -576,6 +603,70 @@ export function BranchManagement() {
                   </button>
                 </div>
               </div>
+
+              {!editingBranchId && (
+                <div className={`space-y-4 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
+                  <div className="border-t border-border pt-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Shield className="w-5 h-5 text-primary" />
+                      <h3 className="text-base font-semibold text-foreground">Phân quyền theo gói</h3>
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3 mb-4">
+                      <Check className="w-5 h-5 text-primary" />
+                      <span className="text-sm font-medium text-foreground">
+                        {getPlanPermissionCount(form.plan as PlanKey)} quyền được cấp bởi gói {PLAN_OPTIONS.find((p) => p.value === form.plan)?.label}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-1">
+                      {(() => {
+                        const planPerms = new Set(PLAN_PERMISSIONS[form.plan as PlanKey] || []);
+                        return MODULE_GROUPS.flatMap((group) => {
+                          const groupPerms = group.permissions.filter((p) => selectedPermissions.includes(p) || planPerms.has(p));
+                          if (groupPerms.length === 0) return [];
+                          const block = (
+                            <div key={group.module} className="space-y-1.5">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</p>
+                              <div className="space-y-1">
+                                {group.permissions.map((code) => {
+                                  const isPlanPerm = planPerms.has(code);
+                                  const isSelected = selectedPermissions.includes(code);
+                                  const isAdvanced = isAdvancedPermission(code);
+                                  if (!isPlanPerm && !isSelected && !isAdvanced) return null;
+                                  return (
+                                    <label
+                                      key={code}
+                                      className={`flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-sm transition-colors ${
+                                        isPlanPerm
+                                          ? 'bg-primary/5 text-foreground'
+                                          : isSelected
+                                          ? 'bg-accent text-foreground'
+                                          : 'text-muted-foreground hover:bg-accent/50'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isPlanPerm || isSelected}
+                                        disabled={isPlanPerm}
+                                        onChange={() => togglePermission(code)}
+                                        className="rounded border-input text-primary focus:ring-primary/20 disabled:opacity-60"
+                                      />
+                                      <span className="flex-1">{code}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                          return [block];
+                        });
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </form>
           </div>
         </div>
@@ -656,7 +747,7 @@ export function BranchManagement() {
                   <span className="text-sm font-medium text-foreground">Gói</span>
                   <select
                     value={form.plan}
-                    onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
+                    onChange={(event) => handlePlanChange(event.target.value as Plan)}
                     disabled={saving}
                     className="w-full rounded-lg border border-input bg-input-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                   >

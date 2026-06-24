@@ -121,7 +121,7 @@ router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) 
 }));
 
 router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, res) => {
-  const { name, phone, email, fullName, active, plan } = req.body;
+  const { name, phone, email, fullName, active, plan, permissions } = req.body;
   const { requestId } = req;
 
   if (!name || !email) {
@@ -205,6 +205,25 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
     requestLogger.log(requestId, `[BRANCH_CREATE] accountId=${account.id} email=${email}`);
 
     await assignPlanPermissions(account.id, plan);
+
+    if (permissions && Array.isArray(permissions) && permissions.length > 0) {
+      try {
+        const permRecords = await prisma.permission.findMany({
+          where: { code: { in: permissions } },
+          select: { id: true, code: true },
+        });
+
+        for (const p of permRecords) {
+          await prisma.accountPermission.upsert({
+            where: { accountId_permissionId: { accountId: account.id, permissionId: p.id } },
+            update: { allowed: true },
+            create: { accountId: account.id, permissionId: p.id, allowed: true },
+          });
+        }
+      } catch (err) {
+        console.error('[POST /api/branches] Error saving custom permissions:', err.message);
+      }
+    }
 
     sendCredentialsEmail({
       email: account.email,
