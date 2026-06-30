@@ -71,7 +71,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     getTopSellingItems(ctx, orderWhere),
     getLowStockItems(accountWhere),
     prisma.menuItem.count({ where: { available: true, deletedAt: null, ...accountWhere } }),
-    getRecentActivities(branchWhere),
+    getRecentActivities(accountWhere),
     getQuickStats(orderWhere, thirtyDaysAgo),
   ]);
 
@@ -152,10 +152,9 @@ async function getRevenueChartData(orderWhere, range, _todayStart, sevenDaysAgo,
 
 async function getTopSellingItems(ctx, orderWhere) {
   const accountId = orderWhere.accountId;
-  const accountFilter = { order: { accountId } };
 
   // MenuItem-based top selling
-  const menuItemWhere = { menuItemId: { not: { equals: null } }, order: { status: 'COMPLETED' }, ...accountFilter };
+  const menuItemWhere = { menuItemId: { not: { equals: null } }, order: { status: 'COMPLETED', accountId } };
   const menuItemGrouped = await prisma.orderItem.groupBy({
     by: ['menuItemId'],
     where: { ...menuItemWhere, menuItemId: { not: { equals: null } } },
@@ -165,7 +164,7 @@ async function getTopSellingItems(ctx, orderWhere) {
   });
 
   // Direct inventory top selling (items with inventoryId and no menuItemId)
-  const inventoryWhere = { inventoryId: { not: { equals: null } }, menuItemId: null, order: { status: 'COMPLETED' }, ...accountFilter };
+  const inventoryWhere = { inventoryId: { not: { equals: null } }, menuItemId: null, order: { status: 'COMPLETED', accountId } };
   const inventoryGrouped = await prisma.orderItem.groupBy({
     by: ['inventoryId'],
     where: inventoryWhere,
@@ -261,22 +260,27 @@ async function getLowStockItems(branchWhere) {
     }));
 }
 
-async function getRecentActivities(branchWhere) {
-  if (!branchWhere?.branchId) return [];
-  const logs = await prisma.activityLog.findMany({
-    where: branchWhere,
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-    include: { account: { select: { id: true, fullName: true } } },
-  });
-  return logs.map((l) => ({
-    id: l.id,
-    action: l.action,
-    module: l.module,
-    details: l.details,
-    createdAt: l.createdAt,
-    user: l.account?.fullName || null,
-  }));
+async function getRecentActivities(where) {
+  try {
+    if (!where?.accountId) return [];
+    const logs = await prisma.activityLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: { account: { select: { id: true, fullName: true } } },
+    });
+    return logs.map((l) => ({
+      id: l.id,
+      action: l.action,
+      module: l.module,
+      details: l.details,
+      createdAt: l.createdAt,
+      user: l.account?.fullName || null,
+    }));
+  } catch (err) {
+    console.error('[Dashboard] getRecentActivities error:', err.message);
+    return [];
+  }
 }
 
 async function getQuickStats(orderWhere, thirtyDaysAgo) {
