@@ -8,6 +8,7 @@ import {
   useToggleMenuItemAvailabilityMutation, useDeleteMenuItemMutation,
 } from '../api/hooks';
 import { useDebounce } from '../../shared/hooks/useDebounce';
+import { DataTable, type Column } from '../components/DataTable';
 import type { MenuItem } from '../types';
 
 type RecipeRow = {
@@ -21,13 +22,36 @@ export function MenuManagement() {
   const { isReady } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const debouncedSearch = useDebounce(searchTerm, 300);
-  const { data: menuItems = [], isLoading } = useMenuItems({
+  const { data: menuResponse, isLoading } = useMenuItems({
+    page,
+    limit: pageSize,
     search: debouncedSearch || undefined,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
   });
   const { data: topSelling = [] } = useTopSellingMenuItems();
-  const { data: ingredients = [] } = useInventoryItems();
+  const { data: ingredientsResponse } = useInventoryItems();
+
+  const menuItems = menuResponse?.data ?? [];
+  const pagination = menuResponse?.pagination;
+  const ingredients = ingredientsResponse?.data ?? [];
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setPage(1);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setPage(1);
+  };
   const createMutation = useCreateMenuItemMutation();
   const updateMutation = useUpdateMenuItemMutation();
   const toggleMutation = useToggleMenuItemAvailabilityMutation();
@@ -202,17 +226,103 @@ export function MenuManagement() {
     }
   };
 
-  if (isLoading && menuItems.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <Loader2 className="w-8 h-8 animate-spin mr-2" />
-        Đang tải menu...
-      </div>
-    );
-  }
+  const columns: Column<MenuItem>[] = [
+    {
+      key: 'name',
+      header: 'Tên món',
+      render: (item) => (
+        <div>
+          <div className="font-medium text-foreground">{item.name}</div>
+          <div className="text-sm text-muted-foreground">{item.description}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'Danh mục',
+      className: 'text-muted-foreground',
+      render: (item) => <>{item.category}</>,
+    },
+    {
+      key: 'recipe',
+      header: 'Công thức',
+      className: 'text-muted-foreground',
+      render: (item) =>
+        item.ingredients?.length ? (
+          <div className="space-y-1">
+            {item.ingredients.slice(0, 3).map((row) => (
+              <div key={row.id} className="text-muted-foreground">
+                {row.ingredient?.name || 'Nguyên liệu'}:{' '}
+                <span className="font-medium">
+                  {Number(row.amount).toLocaleString()} {row.ingredient?.unit || ''}
+                </span>
+              </div>
+            ))}
+            {item.ingredients.length > 3 && (
+              <div className="text-xs text-muted-foreground">+{item.ingredients.length - 3} nguyên liệu</div>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">Chưa có</span>
+        ),
+    },
+    {
+      key: 'price',
+      header: 'Giá bán',
+      className: 'font-medium',
+      render: (item) => <>{item.price.toLocaleString()} ₫</>,
+    },
+    {
+      key: 'cost',
+      header: 'Giá vốn',
+      render: (item) => <>{item.cost.toLocaleString()} ₫</>,
+    },
+    {
+      key: 'profit',
+      header: 'Lợi nhuận',
+      render: (item) => {
+        const profit = item.price - item.cost;
+        const profitMargin = item.price > 0 ? ((profit / item.price) * 100).toFixed(1) : '0';
+        return (
+          <>
+            <div className="text-green-600 font-medium">{profit.toLocaleString()} ₫</div>
+            <div className="text-xs text-muted-foreground">{profitMargin}%</div>
+          </>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Trạng thái',
+      render: (item) => (
+        <button
+          onClick={() => handleToggleAvailability(item.id)}
+          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${item.available ? 'bg-green-100 text-green-800' : 'bg-muted text-foreground'}`}
+        >
+          {item.available ? 'Khả dụng' : 'Ngừng bán'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Thao tác',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (item) => (
+        <>
+          <button onClick={() => handleEdit(item)} className="text-primary hover:text-primary/80 mr-3">
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Quản lý Menu</h1>
@@ -227,7 +337,7 @@ export function MenuManagement() {
         </button>
       </div>
 
-      <div className="bg-card rounded-lg border border-border p-4">
+      <div className="bg-card rounded-lg border border-border p-4 flex-shrink-0">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -235,13 +345,13 @@ export function MenuManagement() {
               type="text"
               placeholder="Tìm kiếm món ăn..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => setSelectedCategory('all')}
+              onClick={() => handleCategoryChange('all')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-foreground hover:bg-accent'
@@ -263,7 +373,7 @@ export function MenuManagement() {
               categories.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat.name)}
+                  onClick={() => handleCategoryChange(cat.name)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === cat.name
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-foreground hover:bg-accent'
@@ -277,82 +387,16 @@ export function MenuManagement() {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted border-b border-border">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Tên món</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Danh mục</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Công thức</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Giá bán</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Giá vốn</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Lợi nhuận</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Trạng thái</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredItems.map((item) => {
-                const profit = item.price - item.cost;
-                const profitMargin = item.price > 0 ? ((profit / item.price) * 100).toFixed(1) : '0';
-                return (
-                  <tr key={item.id} className="hover:bg-accent">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-foreground">{item.name}</div>
-                      <div className="text-sm text-muted-foreground">{item.description}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{item.category}</td>
-                    <td className="px-6 py-4 text-sm">
-                      {item.ingredients?.length ? (
-                        <div className="space-y-1">
-                          {item.ingredients.slice(0, 3).map((row) => (
-                            <div key={row.id} className="text-muted-foreground">
-                              {row.ingredient?.name || 'Nguyên liệu'}:{' '}
-                              <span className="font-medium">
-                                {Number(row.amount).toLocaleString()}{' '}
-                                {row.ingredient?.unit || ''}
-                              </span>
-                            </div>
-                          ))}
-                          {item.ingredients.length > 3 && (
-                            <div className="text-xs text-muted-foreground">+{item.ingredients.length - 3} nguyên liệu</div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Chưa có</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">{item.price.toLocaleString()} ₫</td>
-                    <td className="px-6 py-4 text-sm">{item.cost.toLocaleString()} ₫</td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="text-green-600 font-medium">{profit.toLocaleString()} ₫</div>
-                      <div className="text-xs text-muted-foreground">{profitMargin}%</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleToggleAvailability(item.id)}
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${item.available ? 'bg-green-100 text-green-800' : 'bg-muted text-foreground'
-                          }`}
-                      >
-                        {item.available ? 'Khả dụng' : 'Ngừng bán'}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleEdit(item)} className="text-primary hover:text-primary/80 mr-3">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filteredItems}
+        keyExtractor={(item) => item.id}
+        loading={isLoading}
+        emptyMessage="Không có món ăn nào."
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={handlePageSizeChange}
+      />
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -416,7 +460,7 @@ export function MenuManagement() {
               </div>
 
               <div className="border border-border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-shrink-0">
                   <div>
                     <label className="block text-sm font-medium">Công thức nguyên liệu</label>
                     <p className="text-xs text-muted-foreground mt-1">Nhập số lượng nguyên liệu cần dùng cho 1 phần món</p>

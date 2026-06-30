@@ -1,4 +1,5 @@
 import { AppError } from '../../utils/AppError.js';
+import { parsePagination, paginatedResponse } from '../../utils/pagination.js';
 import { mapMenuItem, slugify } from '../../utils/mappers.js';
 import { categoryRepository } from '../../repositories/category.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
@@ -47,13 +48,10 @@ export const menuService = {
   },
 
   // --- Menu Items ---
-  async listMenuItems({ search, category, categoryId, available, accountId: queryAccountId }, user) {
-    console.log('[MENU SERVICE] listMenuItems called with params:', { search, category, categoryId, available, queryAccountId });
-    console.log('[MENU SERVICE] User context:', user);
+  async listMenuItems({ search, category, categoryId, available, accountId: queryAccountId, page, limit }, user) {
+    console.log('[MENU SERVICE] listMenuItems called with params:', { search, category, categoryId, available, queryAccountId, page, limit });
     
-    // Account isolation: if no authenticated user, return empty list to prevent cross-account leak
     if (!user && !queryAccountId) {
-      console.log('[MENU SERVICE] No user or queryAccountId, returning empty array');
       return [];
     }
 
@@ -76,23 +74,21 @@ export const menuService = {
       where.accountId = queryAccountId;
     }
 
-    console.log('[MENU SERVICE] Prisma where:', where);
-
-    let items = await menuItemRepository.findMany(where);
-    console.log('[MENU SERVICE] Found items (raw):', items);
-
     if (search) {
-      const q = search.toLowerCase();
-      items = items.filter(
-        (i) =>
-          i.name.toLowerCase().includes(q) ||
-          (i.description || '').toLowerCase().includes(q)
-      );
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
-    const result = items.map(mapMenuItem);
-    console.log('[MENU SERVICE] Returning mapped items:', result);
-    return result;
+    if (page && limit) {
+      const { page: p, limit: l } = parsePagination({ page, limit });
+      const [items, total] = await menuItemRepository.findMany(where, { page: p, limit: l });
+      return paginatedResponse(items.map(mapMenuItem), total, { page: p, limit: l });
+    }
+
+    const items = await menuItemRepository.findMany(where);
+    return items.map(mapMenuItem);
   },
 
   async getMenuItem(id, user) {

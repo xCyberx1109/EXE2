@@ -1,8 +1,10 @@
 import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
+import { parsePagination, paginatedResponse } from '../../utils/pagination.js';
 import { mapPosOrder, mapOrderDetail } from '../../utils/mappers.js';
 import { orderRepository } from '../../repositories/order.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
+import { logAction } from '../../utils/auditLogger.js';
 
 export const orderService = {
   /** Lấy tất cả đơn cho kitchen queue */
@@ -62,11 +64,19 @@ export const orderService = {
       });
     }
 
+    logAction({
+      accountId: order.accountId,
+      employeeId: user?.employeeId,
+      action: 'ORDER_KITCHEN_STATUS',
+      module: 'POS_ORDER',
+      details: { orderId: order.id, orderNumber: order.orderNumber, oldStatus: order.kitchenStatus, newStatus: normalized },
+    });
+
     return { id: updated.id, kitchenStatus: updated.kitchenStatus };
   },
 
   /** Order History - permission-based access control */
-  async listOrderHistory(user, { startDate, endDate, status, source } = {}) {
+  async listOrderHistory(user, { startDate, endDate, status, source, page, limit } = {}) {
     if (!user) return [];
     const where = {
       accountId: user.accountId || user.id,
@@ -89,6 +99,16 @@ export const orderService = {
 
     if (source) {
       where.source = source;
+    }
+
+    if (page && limit) {
+      const { page: p, limit: l } = parsePagination({ page, limit });
+      const [orders, total] = await orderRepository.findMany(where, { page: p, limit: l });
+      return paginatedResponse(
+        orders.map(mapOrderDetail),
+        total,
+        { page: p, limit: l }
+      );
     }
 
     const orders = await prisma.order.findMany({
@@ -253,6 +273,15 @@ export const orderService = {
       total: Number(i.total),
     })), null, 2));
 
+    logAction({
+      accountId: order.accountId,
+      employeeId: user?.employeeId,
+      posDeviceId: order.posDeviceId,
+      action: 'ORDER_CREATED',
+      module: 'POS_ORDER',
+      details: { orderId: order.id, orderNumber: order.orderNumber, itemCount: orderItemsData.length, total: order.total, source: 'ORDER_QUEUE_POS' },
+    });
+
     return { data: mapPosOrder(order), created: true };
   },
 
@@ -317,6 +346,16 @@ export const orderService = {
     const updated = needsItems
       ? await orderRepository.update(id, updateData)
       : await orderRepository.updateStatus(id, updateData);
+
+    logAction({
+      accountId: order.accountId,
+      employeeId: user?.employeeId,
+      posDeviceId: order.posDeviceId,
+      action: 'ORDER_UPDATED',
+      module: 'POS_ORDER',
+      details: { orderId: order.id, orderNumber: order.orderNumber, changes: Object.keys(updateData), itemsReplaced: needsItems },
+    });
+
     return mapPosOrder(updated);
   },
 
@@ -439,6 +478,16 @@ export const orderService = {
       });
 
       console.log(`[TRANSACTION END] Payment transaction committed for order: ${id}`);
+
+      logAction({
+        accountId: order.accountId,
+        employeeId: user?.employeeId,
+        posDeviceId: order.posDeviceId,
+        action: 'ORDER_PAID',
+        module: 'POS_ORDER',
+        details: { orderId: order.id, orderNumber: order.orderNumber, total: Number(order.total), paymentMethod: paymentMethodFinal, itemCount: beforeItems.length },
+      });
+
       return mapPosOrder(updated);
     } catch (error) {
       console.error("[PAYMENT ERROR] ===== START =====");
@@ -481,6 +530,16 @@ export const orderService = {
       status: 'CANCELLED',
       deletedAt: new Date(),
     });
+
+    logAction({
+      accountId: order.accountId,
+      employeeId: user?.employeeId,
+      posDeviceId: order.posDeviceId,
+      action: 'ORDER_CANCELLED',
+      module: 'POS_ORDER',
+      details: { orderId: order.id, orderNumber: order.orderNumber },
+    });
+
     return mapPosOrder(updated);
   },
 
@@ -649,6 +708,15 @@ export const orderService = {
     console.log("[ORDER CREATE DATA]", JSON.stringify(orderData, null, 2));
     const order = await orderRepository.create(orderData);
 
+    logAction({
+      accountId: order.accountId,
+      employeeId: user?.employeeId,
+      posDeviceId: order.posDeviceId,
+      action: 'ORDER_CREATED',
+      module: 'POS_ORDER',
+      details: { orderId: order.id, orderNumber: order.orderNumber, tableNumber, itemCount: orderItemsData.length, total: order.total, source: order.source },
+    });
+
     return mapPosOrder(order);
   },
 
@@ -661,6 +729,15 @@ export const orderService = {
       throw new AppError('Bạn không có quyền xóa đơn hàng này', 403);
     }
     await orderRepository.delete(id);
+
+    logAction({
+      accountId: order.accountId,
+      employeeId: user?.employeeId,
+      posDeviceId: order.posDeviceId,
+      action: 'ORDER_DELETED',
+      module: 'POS_ORDER',
+      details: { orderId: order.id, orderNumber: order.orderNumber },
+    });
   },
 
    /** Thanh toán - hoàn tất đơn + trừ kho (atomic per order) */
@@ -718,8 +795,17 @@ export const orderService = {
           timeout: 30000,
         });
 
-       completed.push(mapPosOrder(updated));
-     }
+        completed.push(mapPosOrder(updated));
+
+        logAction({
+          accountId: order.accountId,
+          employeeId: user?.employeeId,
+          posDeviceId: order.posDeviceId,
+          action: 'ORDER_PAID',
+          module: 'POS_ORDER',
+          details: { orderId: order.id, orderNumber: order.orderNumber, total: Number(order.total), paymentMethod: paymentMethodFinal, tableNumber },
+        });
+      }
 
       // --- Update table(s) status to AVAILABLE ---
       const tableIds = [...new Set(orders.map(o => o.tableId).filter(Boolean))];

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   loginPosMachine,
+  loginPosMachineByPin,
+  listActivePosMachines,
   listPosMachines,
   getPosMachine,
   createPosMachine,
@@ -16,6 +18,8 @@ import { createPosMachineRules, posDeviceIdParam } from '../../validators/pos.va
 const router = Router();
 
 router.post('/login', loginPosMachine);
+router.post('/login-by-pin', loginPosMachineByPin);
+router.get('/active', listActivePosMachines);
 
 router.use(authenticate);
 

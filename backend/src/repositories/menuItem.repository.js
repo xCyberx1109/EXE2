@@ -19,12 +19,28 @@ function sanitizePayload(data) {
 }
 
 export const menuItemRepository = {
-  findMany: (where = {}) =>
-    prisma.menuItem.findMany({
-      where: { deletedAt: null, ...where },
+  findMany: (where = {}, options = {}) => {
+    const finalWhere = { deletedAt: null, ...where };
+    const { page, limit } = options;
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      return Promise.all([
+        prisma.menuItem.findMany({
+          where: finalWhere,
+          include: { ...includeCategory, ...includeIngredients },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limit,
+        }),
+        prisma.menuItem.count({ where: finalWhere }),
+      ]);
+    }
+    return prisma.menuItem.findMany({
+      where: finalWhere,
       include: { ...includeCategory, ...includeIngredients },
       orderBy: { name: 'asc' },
-    }),
+    });
+  },
 
   findById: (id) =>
     prisma.menuItem.findUnique({

@@ -57,11 +57,13 @@ export const features = [
   { code: 'billiard_order', name: 'Gọi món Billiard', module: 'billiard', isCore: false, sortOrder: 16 },
   { code: 'billiard_pay', name: 'Thanh toán Billiard', module: 'billiard', isCore: false, sortOrder: 17 },
   { code: 'pos_order_queue', name: 'POS Order Queue', module: 'pos', isCore: true, sortOrder: 18 },
+  // Staff Management
+  { code: 'staff_management', name: 'Quản lý nhân viên POS', module: 'staff', isCore: false, sortOrder: 19 },
 ];
 
 export const permissions = [
   // ================= ADMIN =================
-  { code: 'ADMIN_ALL', name: 'Toàn quyền hệ thống', module: 'admin', isSystem: true },
+  { code: 'VIEW_AUDIT_LOG', name: 'Xem nhật ký hệ thống', module: 'admin' },
 
   // ================= BILLIARD =================
   { code: 'BILLIARD_TABLE_VIEW', name: 'Xem bàn Billiard', module: 'billiard' },
@@ -193,6 +195,24 @@ export const permissions = [
   { code: 'RESTAURANT_ORDER_ADD_ITEM', name: 'Thêm món nhà hàng', module: 'restaurant' },
   { code: 'RESTAURANT_PAY_VIEW', name: 'Xem thanh toán nhà hàng', module: 'restaurant' },
   { code: 'RESTAURANT_PAY_PROCESS', name: 'Thanh toán nhà hàng', module: 'restaurant' },
+
+  // ================= STAFF =================
+  { code: 'STAFF_VIEW', name: 'Xem danh sách nhân viên', module: 'staff' },
+  { code: 'STAFF_CREATE', name: 'Thêm nhân viên mới', module: 'staff' },
+  { code: 'STAFF_UPDATE', name: 'Cập nhật thông tin nhân viên', module: 'staff' },
+  { code: 'STAFF_DELETE', name: 'Xóa nhân viên', module: 'staff' },
+  { code: 'STAFF_MANAGE', name: 'Quản lý toàn bộ nhân viên', module: 'staff' },
+  { code: 'STAFF_MANAGE_PIN', name: 'Quản lý mã PIN nhân viên', module: 'staff' },
+  { code: 'STAFF_RESET_PIN', name: 'Đặt lại mã PIN nhân viên', module: 'staff' },
+  { code: 'STAFF_VIEW_PIN', name: 'Xem mã PIN nhân viên (Admin)', module: 'staff' },
+  { code: 'STAFF_ASSIGN_POS_MACHINE', name: 'Gán máy POS cho nhân viên', module: 'staff' },
+  { code: 'STAFF_REMOVE_POS_MACHINE', name: 'Gỡ máy POS khỏi nhân viên', module: 'staff' },
+  { code: 'STAFF_VIEW_POS_MACHINE', name: 'Xem máy POS được gán', module: 'staff' },
+  { code: 'STAFF_VIEW_ACTIVITY', name: 'Xem hoạt động nhân viên', module: 'staff' },
+  { code: 'STAFF_VIEW_LOGIN_HISTORY', name: 'Xem lịch sử đăng nhập POS', module: 'staff' },
+  { code: 'STAFF_VIEW_PERFORMANCE', name: 'Xem hiệu suất nhân viên', module: 'staff' },
+  { code: 'STAFF_SESSION_VIEW', name: 'Xem phiên làm việc POS', module: 'staff' },
+  { code: 'STAFF_SESSION_FORCE_LOGOUT', name: 'Buộc đăng xuất phiên POS', module: 'staff' },
 ];
 
 export const subscriptionPlans = [
@@ -216,6 +236,7 @@ const PRO_FEATURES = [
   'customer_loyalty',
   'online_ordering',
   'voucher',
+  'staff_management',
 ];
 /** Gói Doanh nghiệp */
 const ENTERPRISE_FEATURES = [

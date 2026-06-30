@@ -1,11 +1,9 @@
-import bcrypt from 'bcrypt';
 import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { posDeviceRepository } from '../../repositories/posDevice.repository.js';
 import { activityLogRepository } from '../../repositories/activityLog.repository.js';
 
 const SETUP_PIN_LENGTH = 6;
-const SALT_ROUNDS = 10;
 
 const VALID_TEMPLATES = ['CASHIER', 'KITCHEN', 'CASHIER_KITCHEN', 'BILLIARD', 'RESTAURANT', 'CUSTOM'];
 
@@ -33,13 +31,11 @@ export const posDevicesService = {
 
     const resolvedTemplate = resolveTemplate(template);
     const setupPin = generateSetupPin();
-    const pinCode = await bcrypt.hash(setupPin, SALT_ROUNDS);
 
     const payload = {
       name,
       accountId,
       template: resolvedTemplate,
-      pinCode,
       status: 'LOCKED',
     };
     console.log('[POS DEVICE CREATE]', payload);
@@ -47,7 +43,7 @@ export const posDevicesService = {
     console.log('[POS DEVICE CREATED]', device);
 
     await activityLogRepository.create({
-      branchId: accountId,
+
       posDeviceId: device.id,
       action: 'CREATE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -68,11 +64,23 @@ export const posDevicesService = {
   },
 
   async listDevices(user) {
+    console.log("[POS] listDevices v2 - user:", JSON.stringify({ id: user?.id, accountId: user?.accountId, source: user?.source, permissions: user?.permissions?.length }));
+
     if (!user.permissions?.includes('POS_DEVICE_VIEW')) {
+      console.log("[POS] listDevices v2 - MISSING PERMISSION: POS_DEVICE_VIEW");
       return [];
     }
+
     const accountId = user.accountId || user.id;
+    console.log("[POS] listDevices v2 - accountId:", accountId);
+
     const devices = await posDeviceRepository.findByAccountId(accountId);
+    console.log("[POS] listDevices v2 - FOUND:", devices.length, "devices for accountId:", accountId);
+
+    if (devices.length === 0) {
+      console.log("[POS] listDevices v2 - RAW DUMP:", await prisma.pos_machines.findMany({}));
+    }
+
     return devices.map((d) => ({
       id: d.id,
       name: d.name,
@@ -86,12 +94,9 @@ export const posDevicesService = {
   },
 
   async getDevice(id, user) {
-    const device = await posDeviceRepository.findByIdWithAccount(id);
-    if (!device) throw new AppError('Device not found', 404);
     const accountId = user.accountId || user.id;
-    if (device.accountId !== accountId) {
-      throw new AppError('Access denied to this device', 403);
-    }
+    const device = await posDeviceRepository.findByIdWithAccount(id, accountId);
+    if (!device) throw new AppError('Device not found', 404);
     return device;
   },
 
@@ -106,16 +111,11 @@ export const posDevicesService = {
     }
 
     const setupPin = generateSetupPin();
-    const pinCode = await bcrypt.hash(setupPin, SALT_ROUNDS);
 
     console.log({
       action: 'REGENERATE_SETUP_PIN',
       deviceId: device.id,
       oldStatus: device.status,
-    });
-
-    await posDeviceRepository.update(deviceId, {
-      pinCode,
     });
 
     console.log({
@@ -125,7 +125,7 @@ export const posDevicesService = {
     });
 
     await activityLogRepository.create({
-      branchId: accountId,
+
       posDeviceId: device.id,
       action: 'REGENERATE_SETUP_PIN',
       module: 'POS_DEVICES',
@@ -175,7 +175,7 @@ export const posDevicesService = {
     });
 
     await activityLogRepository.create({
-      branchId: accountId,
+
       posDeviceId: device.id,
       action: 'REVOKE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -197,7 +197,6 @@ export const posDevicesService = {
     }
 
     const setupPin = generateSetupPin();
-    const pinCode = await bcrypt.hash(setupPin, SALT_ROUNDS);
 
     await prisma.deviceSession.updateMany({
       where: { deviceId, revokedAt: null },
@@ -216,7 +215,6 @@ export const posDevicesService = {
     });
 
     await posDeviceRepository.update(deviceId, {
-      pinCode,
       lastLoginAt: null,
     });
 
@@ -229,7 +227,7 @@ export const posDevicesService = {
     });
 
     await activityLogRepository.create({
-      branchId: accountId,
+
       posDeviceId: device.id,
       action: 'RESET_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -273,7 +271,7 @@ export const posDevicesService = {
     await posDeviceRepository.update(id, { status });
 
     await activityLogRepository.create({
-      branchId: accountId,
+
       posDeviceId: device.id,
       action: active ? 'ENABLE_POS_DEVICE' : 'DISABLE_POS_DEVICE',
       module: 'POS_DEVICES',
@@ -302,7 +300,7 @@ export const posDevicesService = {
     const updated = await posDeviceRepository.update(deviceId, { template });
 
     await activityLogRepository.create({
-      branchId: accountId,
+
       posDeviceId: device.id,
       action: 'POS_MODE_CHANGED',
       module: 'POS_DEVICES',
@@ -332,7 +330,7 @@ export const posDevicesService = {
     await posDeviceRepository.softDelete(id);
 
     await activityLogRepository.create({
-      branchId: accountId,
+
       posDeviceId: device.id,
       action: 'DELETE_POS_DEVICE',
       module: 'POS_DEVICES',

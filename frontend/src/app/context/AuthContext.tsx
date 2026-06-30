@@ -24,6 +24,7 @@ import type {
   PosDeviceTypeV2,
   PosMachineTemplate,
   PosMachineLoginResponse,
+  LoginByPinResult,
 } from '../types';
 
 import { deviceAuthApi } from '../api/services';
@@ -70,7 +71,8 @@ interface AuthContextValue {
   setUser: (user: User | null) => void;
 
   login: (email: string, password: string) => Promise<User>;
-  loginWithPosPin: (pinCode: string) => Promise<PosMachineLoginResponse>;
+  loginWithPosPin: (pinCode: string, machineId?: string) => Promise<PosMachineLoginResponse>;
+  loginByPin: (pinCode: string) => Promise<LoginByPinResult>;
 
   logout: () => void;
   logoutDevice: () => Promise<void>;
@@ -186,7 +188,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (permission?: string): boolean => {
       if (!permission) return true;
 
-      if (permissionSet.has('ADMIN_ALL')) return true;
 
       return permissionSet.has(permission);
     },
@@ -235,14 +236,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* =========================
      POS MACHINE LOGIN (single official flow)
   ========================= */
-  const loginWithPosPin = async (pinCode: string) => {
+  const loginWithPosPin = async (pinCode: string, machineId?: string) => {
     const { posMachineApi } = await import('../api/posServices');
 
     clearToken();
     clearAllPosStorage();
     clearAllStorage();
 
-    const result = await posMachineApi.login(pinCode);
+    const result = await posMachineApi.login(pinCode, machineId);
 
     setPosMachineToken(result.token);
 
@@ -256,6 +257,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsAuthenticated(true);
     setAuthMode('pos_machine');
+
+    return result;
+  };
+
+  /* =========================
+     POS MACHINE LOGIN BY PIN ONLY (auto-detect device)
+  ========================= */
+  const loginByPin = async (pinCode: string) => {
+    const { posMachineApi } = await import('../api/posServices');
+
+    const result = await posMachineApi.loginByPin(pinCode);
+
+    if (!('requiresMachineSelection' in result)) {
+      clearToken();
+      clearAllPosStorage();
+      clearAllStorage();
+
+      setPosMachineToken(result.token);
+      setPosMachineInfo(result.machine);
+      setPosMachineModule(result.module);
+      setPosMachinePermissions(normalizePermissions(result.permissions));
+
+      localStorage.setItem(STORAGE_KEYS.POS_MACHINE_INFO, JSON.stringify(result.machine));
+      if (result.module) localStorage.setItem(STORAGE_KEYS.POS_MACHINE_MODULE, result.module);
+      if (result.permissions) localStorage.setItem(STORAGE_KEYS.POS_MACHINE_PERMISSIONS, JSON.stringify(result.permissions));
+
+      setIsAuthenticated(true);
+      setAuthMode('pos_machine');
+    }
 
     return result;
   };
@@ -413,6 +443,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser,
         login,
         loginWithPosPin,
+        loginByPin,
 
         logout,
         logoutDevice,

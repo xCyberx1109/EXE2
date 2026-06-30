@@ -4,8 +4,9 @@
 -- billiard.routes.js but were missing from the permissions table.
 -- ============================================================
 
-INSERT INTO permissions (code, name, module, "isSystem", "createdAt", "updatedAt")
-VALUES
+INSERT INTO permissions (id, code, name, module, "isSystem", "createdAt", "updatedAt")
+SELECT gen_random_uuid()::text, v.*
+FROM (VALUES
   ('RESTAURANT_TABLE_VIEW',     'Xem bàn nhà hàng',               'restaurant', false, NOW(), NOW()),
   ('RESTAURANT_TABLE_CREATE',   'Tạo bàn nhà hàng',               'restaurant', false, NOW(), NOW()),
   ('RESTAURANT_TABLE_UPDATE',   'Cập nhật bàn nhà hàng',          'restaurant', false, NOW(), NOW()),
@@ -21,9 +22,10 @@ VALUES
   ('RESTAURANT_ORDER_ADD_ITEM', 'Thêm món nhà hàng',              'restaurant', false, NOW(), NOW()),
   ('RESTAURANT_PAY_VIEW',       'Xem thanh toán nhà hàng',        'restaurant', false, NOW(), NOW()),
   ('RESTAURANT_PAY_PROCESS',    'Thanh toán nhà hàng',            'restaurant', false, NOW(), NOW())
-ON CONFLICT (code) DO NOTHING;
+) AS v(code, name, module, isSystem, createdAt, updatedAt)
+WHERE NOT EXISTS (SELECT 1 FROM permissions p WHERE p.code = v.code);
 
 -- Also ensure MENU_VIEW exists (needed by CASHIER, KITCHEN, CASHIER_KITCHEN, BILLIARD, RESTAURANT)
-INSERT INTO permissions (code, name, module, "isSystem", "createdAt", "updatedAt")
-VALUES ('MENU_VIEW', 'Xem thực đơn', 'menu', false, NOW(), NOW())
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO permissions (id, code, name, module, "isSystem", "createdAt", "updatedAt")
+SELECT gen_random_uuid()::text, 'MENU_VIEW', 'Xem thực đơn', 'menu', false, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM permissions p WHERE p.code = 'MENU_VIEW');

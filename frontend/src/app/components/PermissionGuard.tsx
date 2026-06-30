@@ -49,6 +49,5 @@ export function usePermissions() {
   return {
     hasPermission,
     permissions: extractPermissionCodes(user?.permissions),
-    isAdmin: hasPermission('ADMIN_ALL'),
   };
 }

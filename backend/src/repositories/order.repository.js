@@ -26,12 +26,21 @@ const includeItemsLight = {
 };
 
 export const orderRepository = {
-  findMany: (where = {}) =>
-    prisma.order.findMany({
+  findMany: (where = {}, options = {}) => {
+    const { page, limit } = options;
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      return Promise.all([
+        prisma.order.findMany({ where, include: includeItems, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+        prisma.order.count({ where }),
+      ]);
+    }
+    return prisma.order.findMany({
       where,
       include: includeItems,
       orderBy: { createdAt: 'desc' },
-    }),
+    });
+  },
 
   /** Lightweight version for queue lists — skips menuItem/category join */
   findManyLight: (where = {}) =>

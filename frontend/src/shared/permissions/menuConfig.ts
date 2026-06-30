@@ -37,6 +37,12 @@ export const APP_MENU: AppMenuItem[] = [
     ],
   },
   {
+    name: 'Nhân viên',
+    children: [
+      { name: 'Nhân viên', href: '/app/staff', icon: 'Users', requiredPermission: 'STAFF_VIEW' },
+    ],
+  },
+  {
     name: 'Thiết bị',
     children: [
       { name: 'Thiết bị POS', href: '/app/pos-devices-v2', icon: 'Smartphone', requiredPermission: 'POS_DEVICE_VIEW' },

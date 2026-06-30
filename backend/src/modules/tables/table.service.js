@@ -1,12 +1,18 @@
 import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
+import { parsePagination, paginatedResponse } from '../../utils/pagination.js';
 import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 import { tableRepository } from '../../repositories/table.repository.js';
 import { rectsOverlap, findAvailablePosition } from '../../utils/tableOverlap.js';
 
 export const tableService = {
-  async list(user) {
+  async list(user, { page, limit } = {}) {
     const where = buildBranchWhere(user, { isActive: true }, 'accountId');
+    if (page && limit) {
+      const { page: p, limit: l } = parsePagination({ page, limit });
+      const [tables, total] = await tableRepository.findMany(where, { page: p, limit: l });
+      return paginatedResponse(Array.isArray(tables) ? tables : [], total, { page: p, limit: l });
+    }
     const tables = await tableRepository.findMany(where);
     return Array.isArray(tables) ? tables : [];
   },

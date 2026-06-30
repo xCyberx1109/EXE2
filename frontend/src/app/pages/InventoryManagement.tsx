@@ -7,7 +7,9 @@ import {
   useDeleteInventoryItemMutation,
 } from '../api/hooks';
 import { useDebounce } from '../../shared/hooks/useDebounce';
+import { DataTable, type Column } from '../components/DataTable';
 import type { InventoryItem, DeleteDependencyReport } from '../types';
+import { INGREDIENT_UNITS } from '../../shared/constants';
 
 type StockStatus = 'all' | 'LOW_STOCK' | 'NORMAL';
 
@@ -15,11 +17,33 @@ export function InventoryManagement() {
   const { isReady, hasPermission } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [stockStatus, setStockStatus] = useState<StockStatus>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const debouncedSearch = useDebounce(searchTerm, 300);
-  const { data: inventoryItems = [], isLoading } = useInventoryItems({
+  const { data: inventoryResponse, isLoading } = useInventoryItems({
+    page,
+    limit: pageSize,
     search: debouncedSearch || undefined,
-    status: stockStatus !== 'all' ? stockStatus : undefined,
+    lowStock: stockStatus === 'LOW_STOCK' || undefined,
   });
+
+  const inventoryItems = inventoryResponse?.data ?? [];
+  const pagination = inventoryResponse?.pagination;
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setPage(1);
+  };
+
+  const handleStockStatus = (status: StockStatus) => {
+    setStockStatus(status);
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setPage(1);
+  };
   const { data: stats } = useInventoryStats();
   const createMutation = useCreateInventoryItemMutation();
   const updateMutation = useUpdateInventoryItemMutation();
@@ -131,18 +155,102 @@ export function InventoryManagement() {
     );
   }
 
-  if (isLoading && inventoryItems.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <Loader2 className="w-8 h-8 animate-spin mr-2" />
-        Đang tải tồn kho...
-      </div>
-    );
-  }
+  const columns: Column<InventoryItem>[] = [
+    {
+      key: 'name',
+      header: 'Tên hàng hóa',
+      render: (item) => {
+        const isLowStock = item.quantity <= item.warningQuantity;
+        return (
+          <div className="flex items-center gap-2">
+            {isLowStock && <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />}
+            <div className="font-medium text-foreground">{item.name}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'quantity',
+      header: 'Số lượng',
+      render: (item) => {
+        const isLowStock = item.quantity <= item.warningQuantity;
+        return (
+          <span className={`font-medium ${isLowStock ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
+            {item.quantity} {item.unit}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'warning',
+      header: 'Ngưỡng cảnh báo',
+      className: 'text-muted-foreground',
+      render: (item) => <>{item.warningQuantity} {item.unit}</>,
+    },
+    {
+      key: 'status',
+      header: 'Trạng thái',
+      render: (item) => {
+        const isLowStock = item.quantity <= item.warningQuantity;
+        return isLowStock ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
+            <AlertTriangle className="w-3 h-3" /> Sắp hết
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+            Bình thường
+          </span>
+        );
+      },
+    },
+    {
+      key: 'price',
+      header: 'Đơn giá',
+      render: (item) => <>{item.price.toLocaleString()} ₫</>,
+    },
+    {
+      key: 'totalValue',
+      header: 'Giá trị',
+      className: 'font-medium',
+      render: (item) => <>{(item.quantity * item.price).toLocaleString()} ₫</>,
+    },
+    {
+      key: 'supplier',
+      header: 'Nhà cung cấp',
+      className: 'text-muted-foreground',
+      render: (item) => <>{item.supplier}</>,
+    },
+    {
+      key: 'updated',
+      header: 'Cập nhật',
+      className: 'text-muted-foreground',
+      render: (item) => <>{item.lastUpdated}</>,
+    },
+    {
+      key: 'actions',
+      header: 'Thao tác',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (item) => (
+        <>
+          {hasPermission('INVENTORY_UPDATE') && (
+            <button onClick={() => handleEdit(item)} className="text-primary hover:text-primary/80 mr-3">
+              <Edit className="w-4 h-4" />
+            </button>
+          )}
+          {hasPermission('INVENTORY_DELETE') && (
+            <button onClick={() => handleDelete(item.id)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full space-y-6">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Quản lý Tồn kho</h1>
           <p className="text-muted-foreground mt-1">Theo dõi và quản lý hàng tồn kho</p>
@@ -158,7 +266,7 @@ export function InventoryManagement() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
         <div className="bg-card rounded-lg border border-border p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -189,7 +297,7 @@ export function InventoryManagement() {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border border-border p-4">
+      <div className="bg-card rounded-lg border border-border p-4 flex-shrink-0">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -197,12 +305,12 @@ export function InventoryManagement() {
               type="text"
               placeholder="Tìm kiếm hàng hóa, nhà cung cấp..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <button
-            onClick={() => setStockStatus(stockStatus === 'LOW_STOCK' ? 'all' : 'LOW_STOCK')}
+            onClick={() => handleStockStatus(stockStatus === 'LOW_STOCK' ? 'all' : 'LOW_STOCK')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               stockStatus === 'LOW_STOCK'
                 ? 'bg-orange-600 text-white'
@@ -212,7 +320,7 @@ export function InventoryManagement() {
             Sắp hết hàng
           </button>
           <button
-            onClick={() => setStockStatus(stockStatus === 'NORMAL' ? 'all' : 'NORMAL')}
+            onClick={() => handleStockStatus(stockStatus === 'NORMAL' ? 'all' : 'NORMAL')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               stockStatus === 'NORMAL'
                 ? 'bg-green-600 text-white'
@@ -224,74 +332,16 @@ export function InventoryManagement() {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted border-b border-border">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Tên hàng hóa</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Số lượng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Ngưỡng cảnh báo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Trạng thái</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Đơn giá</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Giá trị</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Nhà cung cấp</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Cập nhật</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="bg-card divide-y divide-border">
-              {inventoryItems.map((item) => {
-                const isLowStock = item.quantity <= item.warningQuantity;
-                const itemTotalValue = item.quantity * item.price;
-                return (
-                  <tr key={item.id} className={`hover:bg-accent ${isLowStock ? 'bg-orange-50 dark:bg-orange-950/30' : ''}`}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {isLowStock && <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
-                        <div className="font-medium text-foreground">{item.name}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`font-medium ${isLowStock ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
-                        {item.quantity} {item.unit}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{item.warningQuantity} {item.unit}</td>
-                    <td className="px-6 py-4 text-sm">
-                      {isLowStock ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
-                          <AlertTriangle className="w-3 h-3" /> Sắp hết
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
-                          Bình thường
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground">{item.price.toLocaleString()} ₫</td>
-                    <td className="px-6 py-4 text-sm font-medium text-foreground">{itemTotalValue.toLocaleString()} ₫</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{item.supplier}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{item.lastUpdated}</td>
-                    <td className="px-6 py-4 text-right text-sm">
-                      {hasPermission('INVENTORY_UPDATE') && (
-                        <button onClick={() => handleEdit(item)} className="text-primary hover:text-primary/80 mr-3">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      )}
-                      {hasPermission('INVENTORY_DELETE') && (
-                        <button onClick={() => handleDelete(item.id)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={inventoryItems}
+        keyExtractor={(item) => item.id}
+        loading={isLoading}
+        emptyMessage="Không có hàng hóa nào."
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={handlePageSizeChange}
+      />
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -328,10 +378,9 @@ export function InventoryManagement() {
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full px-3 py-2 border border-input rounded-lg bg-input-background"
                   >
-                    <option value="KG">Kg</option>
-                    <option value="LITER">Lít</option>
-                    <option value="PIECE">Chiếc</option>
-                    <option value="UNIT">Gói</option>
+                    {INGREDIENT_UNITS.map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>

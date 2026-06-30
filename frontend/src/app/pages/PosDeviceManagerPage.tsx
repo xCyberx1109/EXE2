@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Lock, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -247,29 +248,24 @@ export function PosDeviceManagerPage() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t">
-                  <Button variant="outline" size="sm" onClick={() => handleRegeneratePin(device.id)}>
-                    PIN mới
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleReset(device.id)}>
-                    Đặt lại
-                  </Button>
+                <div className="flex items-center justify-between mt-4 pt-3 border-t">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => handleToggle(device.id, !device.active)}
-                    className={!device.active ? 'text-green-600' : 'text-amber-600'}
+                    className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                    title={device.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
                   >
-                    {device.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
+                    <Lock className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleViewLogs(device)}>
-                    Nhật ký
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleRevoke(device.id)}>
-                    Thu hồi
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete(device.id)}>
-                    Xóa
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(device.id)}
+                    className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </CardContent>

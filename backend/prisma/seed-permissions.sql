@@ -18,7 +18,7 @@ DELETE FROM "permissions";
 INSERT INTO "permissions" ("id", "code", "name", "module", "isSystem", "createdAt", "updatedAt") VALUES
 
 -- ADMIN (1 permission)
-(gen_random_uuid()::text, 'ADMIN_ALL', 'Toàn quyền hệ thống', 'admin', true, NOW(), NOW()),
+(gen_random_uuid()::text, 'VIEW_AUDIT_LOG', 'Xem nhật ký hệ thống', 'admin', false, NOW(), NOW()),
 
 -- BILLIARD (21 permissions)
 (gen_random_uuid()::text, 'BILLIARD_TABLE_VIEW', 'Xem bàn Billiard', 'billiard', false, NOW(), NOW()),

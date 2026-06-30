@@ -23,6 +23,7 @@ import type { Branch } from '../types';
 import type { BranchPayload, CreateBranchResult } from '../api/services';
 import { PLAN_PERMISSIONS, MODULE_GROUPS, getPlanPermissionCount, isAdvancedPermission } from '../../constants/planPermissions';
 import type { PlanKey } from '../../constants/planPermissions';
+import { DataTable, type Column } from '../components/DataTable';
 
 type Plan = Branch['plan'];
 type SubscriptionStatus = Branch['subscriptionStatus'];
@@ -89,6 +90,8 @@ export function BranchManagement() {
   const [form, setForm] = useState<BranchFormState>(createDefaultForm);
   const [error, setError] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [resetPasswordBranch, setResetPasswordBranch] = useState<Branch | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -293,9 +296,116 @@ export function BranchManagement() {
     }
   };
 
+  const columns: Column<Branch>[] = [
+    { key: 'name', header: 'Tên chi nhánh', render: (branch) => <div className="font-semibold text-foreground">{branch.name}</div> },
+    { key: 'contact', header: 'Liên hệ', render: (branch) => (
+      <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-muted-foreground" />
+          <span>{branch.address}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Phone className="w-4 h-4 text-muted-foreground" />
+          <span>{branch.phone}</span>
+        </div>
+      </div>
+    )},
+    { key: 'plan', header: 'Gói', render: (branch) => (
+      <span className="inline-flex w-max items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
+        {PLAN_OPTIONS.find((plan) => plan.value === branch.plan)?.label ?? branch.plan}
+      </span>
+    )},
+    { key: 'status', header: 'Trạng thái', className: 'text-center', render: (branch) => (
+      <div className="flex items-center justify-center gap-2">
+        {branch.active ? (
+          <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400" />
+        ) : (
+          <XCircle className="w-5 h-5 text-muted-foreground" />
+        )}
+        {(hasPermission('BRANCH_LOCK') && branch.active) || (hasPermission('BRANCH_UNLOCK') && !branch.active) ? (
+          <button
+            type="button"
+            onClick={() => handleToggleStatus(branch)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              branch.active ? 'bg-primary' : 'bg-input'
+            }`}
+            aria-label={`Đổi trạng thái ${branch.name}`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-card shadow transition-transform ${
+                branch.active ? 'translate-x-5' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        ) : null}
+      </div>
+    )},
+    { key: 'actions', header: 'Thao tác', className: 'text-right', render: (branch) => (
+      <div className="flex justify-end gap-2">
+        {hasPermission('BRANCH_UPDATE') && (
+          <button
+            type="button"
+            onClick={() => {
+              setResetPasswordBranch(branch);
+              setNewPassword('');
+              setResetPasswordError(null);
+              setResetPasswordSuccess(null);
+            }}
+            className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-accent"
+          >
+            <Lock className="w-4 h-4" />
+            Đặt lại mật khẩu
+          </button>
+        )}
+        {hasPermission('BRANCH_UPDATE') && (
+          <button
+            type="button"
+            onClick={() => handleEdit(branch)}
+            className="inline-flex items-center gap-1 rounded-lg border border-input px-3 py-2 text-sm font-medium text-primary hover:bg-accent"
+          >
+            <Edit3 className="w-4 h-4" />
+            Sửa
+          </button>
+        )}
+        {hasPermission('BRANCH_DELETE') && (
+          <button
+            type="button"
+            onClick={() => handleDelete(branch)}
+            disabled={deletingId === branch.id}
+            className="inline-flex items-center gap-1 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Trash2 className="w-4 h-4" />
+            {deletingId === branch.id ? 'Đang xóa...' : 'Xóa'}
+          </button>
+        )}
+        {hasPermission('BRANCH_FORCE_DELETE') && (
+          <button
+            type="button"
+            onClick={() => { setForceDeleteBranch(branch); setConfirmName(''); }}
+            className="inline-flex items-center gap-1 rounded-lg border border-destructive/50 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+          >
+            Xóa vĩnh viễn
+          </button>
+        )}
+      </div>
+    )},
+  ];
+
+  const paginatedBranches = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return branches.slice(start, start + pageSize);
+  }, [branches, page, pageSize]);
+
+  const pagination = useMemo(() => branches.length > pageSize ? {
+    page,
+    total: branches.length,
+    totalPages: Math.ceil(branches.length / pageSize),
+    limit: pageSize,
+  } : undefined, [branches, page, pageSize]);
+
   return (
-    <div className="space-y-6">
-      <div className="bg-card rounded-xl border border-border p-6">
+    <div className="flex flex-col h-full space-y-6">
+      <div className="bg-card rounded-xl border border-border p-6 flex-shrink-0">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center">
@@ -321,130 +431,19 @@ export function BranchManagement() {
       </div>
 
       {error && !isCreateModalOpen && !isEditModalOpen && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive flex-shrink-0">{error}</div>
       )}
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-muted-foreground">Đang tải danh sách chi nhánh...</div>
-        ) : branches.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">Chưa có chi nhánh nào.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-muted border-b border-border">
-                  <th className="px-6 py-4 font-medium text-foreground">Tên chi nhánh</th>
-                  <th className="px-6 py-4 font-medium text-foreground">Liên hệ</th>
-                  <th className="px-6 py-4 font-medium text-foreground">Gói</th>
-                  <th className="px-6 py-4 font-medium text-foreground text-center">Trạng thái</th>
-                  <th className="px-6 py-4 font-medium text-foreground text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {branches.map((branch) => (
-                  <tr key={branch.id} className="hover:bg-accent transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-foreground">{branch.name}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-muted-foreground" />
-                          <span>{branch.address}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-muted-foreground" />
-                          <span>{branch.phone}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex w-max items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
-                        {PLAN_OPTIONS.find((plan) => plan.value === branch.plan)?.label ?? branch.plan}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        {branch.active ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-muted-foreground" />
-                        )}
-                        {(hasPermission('BRANCH_LOCK') && branch.active) || (hasPermission('BRANCH_UNLOCK') && !branch.active) ? (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(branch)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              branch.active ? 'bg-primary' : 'bg-input'
-                            }`}
-                            aria-label={`Đổi trạng thái ${branch.name}`}
-                          >
-                            <span
-                              className={`inline-block h-5 w-5 rounded-full bg-card shadow transition-transform ${
-                                branch.active ? 'translate-x-5' : 'translate-x-1'
-                              }`}
-                            />
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        {hasPermission('BRANCH_UPDATE') && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setResetPasswordBranch(branch);
-                              setNewPassword('');
-                              setResetPasswordError(null);
-                              setResetPasswordSuccess(null);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-accent"
-                          >
-                            <Lock className="w-4 h-4" />
-                            Đặt lại mật khẩu
-                          </button>
-                        )}
-                        {hasPermission('BRANCH_UPDATE') && (
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(branch)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-input px-3 py-2 text-sm font-medium text-primary hover:bg-accent"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            Sửa
-                          </button>
-                        )}
-                        {hasPermission('BRANCH_DELETE') && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(branch)}
-                            disabled={deletingId === branch.id}
-                            className="inline-flex items-center gap-1 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            {deletingId === branch.id ? 'Đang xóa...' : 'Xóa'}
-                          </button>
-                        )}
-                        {hasPermission('BRANCH_FORCE_DELETE') && (
-                          <button
-                            type="button"
-                            onClick={() => { setForceDeleteBranch(branch); setConfirmName(''); }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-destructive/50 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
-                          >
-                            Xóa vĩnh viễn
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <DataTable
+        columns={columns}
+        data={branches}
+        keyExtractor={(branch) => branch.id}
+        loading={loading}
+        emptyMessage="Chưa có chi nhánh nào."
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      />
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

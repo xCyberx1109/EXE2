@@ -209,37 +209,39 @@ export const unifiedAuthService = {
     console.log('[POS_LOGIN_DEBUG] Request body:', { setupPin: setupPin ? `***${setupPin.slice(-2)}` : '(empty)', fingerprint: fingerprint ? 'present' : 'missing', deviceName });
     console.log('[POS_LOGIN_DEBUG] setupPin type:', typeof setupPin, 'length:', setupPin?.length);
 
-    const devices = await prisma.pos_machines.findMany({
+    const employees = await prisma.employee.findMany({
       where: {
         deletedAt: null,
-        status: { in: ['ACTIVE', 'LOCKED'] },
+        status: 'ACTIVE',
       },
     });
 
-    console.log('[POS_LOGIN_DEBUG] Devices found in DB:', devices.length);
-    for (const d of devices) {
-      console.log('[POS_LOGIN_DEBUG] Device:', { id: d.id, name: d.name, status: d.status, pinCodePrefix: d.pinCode ? d.pinCode.substring(0, 10) + '...' : 'NULL' });
-    }
+    console.log('[POS_LOGIN_DEBUG] Employees found in DB:', employees.length);
 
-    let device = null;
-    for (const candidate of devices) {
-      if (!candidate.pinCode) {
-        console.log('[POS_LOGIN_DEBUG] SKIP - pinCode is null for device:', candidate.id);
-        continue;
-      }
-      const matched = await bcrypt.compare(setupPin, candidate.pinCode);
-      console.log('[POS_LOGIN_DEBUG] bcrypt.compare:', { deviceId: candidate.id, deviceName: candidate.name, matched });
+    let matchedEmployee = null;
+    for (const emp of employees) {
+      if (!emp.pinCode) continue;
+      const matched = await bcrypt.compare(setupPin, emp.pinCode);
       if (matched) {
-        device = candidate;
+        matchedEmployee = emp;
         break;
       }
     }
 
-    if (!device) {
-      console.log('[POS_LOGIN_DEBUG] FAILURE - no matching device found. Total candidates checked:', devices.length);
+    if (!matchedEmployee) {
+      console.log('[POS_LOGIN_DEBUG] FAILURE - no matching employee found. Total checked:', employees.length);
       throw new AppError('Mã PIN không hợp lệ', 401);
     }
-    console.log('[POS_LOGIN_DEBUG] SUCCESS - matched device:', device.id, device.name);
+
+    const device = await prisma.pos_machines.findFirst({
+      where: { accountId: matchedEmployee.accountId, deletedAt: null, status: 'ACTIVE' },
+    });
+
+    if (!device) {
+      throw new AppError('Không tìm thấy máy POS cho chi nhánh này', 404);
+    }
+
+    console.log('[POS_LOGIN_DEBUG] SUCCESS - matched employee:', matchedEmployee.id, matchedEmployee.fullName, 'device:', device.id, device.name);
 
     const deviceToken = generateDeviceToken();
     const deviceTokenHash = await hashToken(deviceToken);
@@ -282,20 +284,26 @@ export const unifiedAuthService = {
       });
     }
 
-    await prisma.pos_machines.update({
-      where: { id: device.id },
-      data: {
-        lastLoginAt: new Date(),
-      },
-    });
+    await Promise.all([
+      prisma.pos_machines.update({
+        where: { id: device.id },
+        data: { lastLoginAt: new Date() },
+      }),
+      prisma.employee.update({
+        where: { id: matchedEmployee.id },
+        data: { lastLoginAt: new Date() },
+      }),
+    ]);
 
     await activityLogRepository.create({
       accountId: device.accountId,
+      employeeId: matchedEmployee.id,
       posDeviceId: device.id,
       action: 'DEVICE_LOGIN',
       module: 'UNIFIED_AUTH',
       details: {
         name: device.name,
+        employeeName: matchedEmployee.fullName,
         fingerprint: fingerprint || null,
       },
       ipAddress,

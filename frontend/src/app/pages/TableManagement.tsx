@@ -10,6 +10,7 @@ import {
 import { tableApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import { useAsyncActionGuard } from '@/shared/hooks/useAsyncActionGuard';
+import { DataTable, type Column } from '../components/DataTable';
 import type { TableItem, TableStatus } from '../types';
 
 const STATUS_OPTIONS: Array<{ value: TableStatus; label: string }> = [
@@ -54,6 +55,9 @@ export function TableManagement() {
   const [editingTableId, setEditingTableId] = useState<string | null>(null);
   const [form, setForm] = useState<TableFormState>(createDefaultForm);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; totalPages: number } | null>(null);
 
   const isEditing = Boolean(editingTableId);
   const isEditModalOpen = Boolean(editingTableId);
@@ -62,8 +66,14 @@ export function TableManagement() {
     try {
       setLoading(true);
       setError(null);
-      const data = await tableApi.list();
-      setTables(data);
+      const data = await tableApi.list({ page, limit: pageSize });
+      if (Array.isArray(data)) {
+        setTables(data);
+        setPagination(null);
+      } else {
+        setTables(data.data);
+        setPagination(data.pagination);
+      }
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tải danh sách bàn');
     } finally {
@@ -73,7 +83,7 @@ export function TableManagement() {
 
   useEffect(() => {
     fetchTables();
-  }, []);
+  }, [page, pageSize]);
 
   const resetForm = () => {
     setIsCreateModalOpen(false);
@@ -168,17 +178,63 @@ export function TableManagement() {
     }
   }, { delay: 500 });
 
+  const columns: Column<TableItem>[] = [
+    { key: 'tableCode', header: 'Mã bàn', render: (item) => <span className="font-semibold text-foreground">{item.tableCode}</span> },
+    { key: 'tableName', header: 'Tên bàn', render: (item) => <span className="text-muted-foreground">{item.tableName || '—'}</span> },
+    { key: 'capacity', header: 'Sức chứa', render: (item) => <span className="text-muted-foreground">{item.capacity}</span> },
+    {
+      key: 'status',
+      header: 'Trạng thái',
+      render: (item) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[item.status].class}`}>
+          {STATUS_BADGE[item.status].label}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Thao tác',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (item) => (
+        <div className="flex justify-end gap-2">
+          {hasPermission('TABLE_UPDATE') && (
+            <button
+              type="button"
+              onClick={() => handleEdit(item)}
+              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+            >
+              <Edit3 className="w-4 h-4" />
+              Sửa
+            </button>
+          )}
+          {hasPermission('TABLE_DELETE') && (
+            <button
+              type="button"
+              onClick={() => handleDelete.run(item)}
+              disabled={handleDelete.isBusy || deletingId === item.id}
+              className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Trash2 className="w-4 h-4" />
+              {deletingId === item.id ? 'Đang xóa...' : 'Xóa'}
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="flex flex-col h-full space-y-6">
+      <div className="flex-shrink-0 bg-card rounded-xl border border-border p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <Grid3X3 className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý bàn</h1>
-              <p className="text-sm text-gray-500 mt-1">Quản lý danh sách bàn trong chi nhánh.</p>
+              <h1 className="text-2xl font-bold text-foreground">Quản lý bàn</h1>
+              <p className="text-sm text-muted-foreground mt-1">Quản lý danh sách bàn trong chi nhánh.</p>
             </div>
           </div>
 
@@ -199,84 +255,25 @@ export function TableManagement() {
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Đang tải danh sách bàn...</div>
-        ) : tables.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">Chưa có bàn nào.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 font-medium text-gray-700">Mã bàn</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Tên bàn</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Sức chứa</th>
-                  <th className="px-6 py-4 font-medium text-gray-700">Trạng thái</th>
-                  <th className="px-6 py-4 font-medium text-gray-700 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {tables.map((table) => (
-                  <tr key={table.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-gray-900">{table.tableCode}</td>
-                    <td className="px-6 py-4 text-gray-600">{table.tableName || '—'}</td>
-                    <td className="px-6 py-4 text-gray-600">{table.capacity}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[table.status].class}`}>
-                        {STATUS_BADGE[table.status].label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        {hasPermission('TABLE_UPDATE') && (
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(table)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            Sửa
-                          </button>
-                        )}
-                        {hasPermission('TABLE_DELETE') && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete.run(table)}
-                            disabled={handleDelete.isBusy || deletingId === table.id}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            {deletingId === table.id ? 'Đang xóa...' : 'Xóa'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <DataTable columns={columns} data={tables} keyExtractor={(item) => item.id} loading={loading} emptyMessage="Chưa có bàn nào." pagination={pagination} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
 
       {(isCreateModalOpen || isEditModalOpen) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl">
             <form onSubmit={(e) => handleSubmit.run(e)} className="space-y-5 p-6">
-              <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-4">
+              <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-semibold text-foreground">
                     {isEditing ? 'Cập nhật bàn' : 'Thêm bàn mới'}
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     {isEditing ? 'Chỉnh sửa thông tin bàn.' : 'Tạo bàn mới trong chi nhánh.'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-600 hover:bg-gray-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-gray-600 hover:bg-muted"
                 >
                   <X className="w-4 h-4" />
                   Đóng
@@ -337,7 +334,7 @@ export function TableManagement() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted"
                 >
                   Hủy
                 </button>

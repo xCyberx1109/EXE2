@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './queryKeys';
 import {
   authApi, categoryApi, menuApi, inventoryApi,
-  dashboardApi, branchApi, inviteApi, tableApi, ordersApi, ordersQueueApi,
+  dashboardApi, branchApi, inviteApi, tableApi, ordersApi, ordersQueueApi, employeeApi,
 } from './services';
 import {
   posDevicesV2Api,
@@ -12,7 +12,7 @@ import type {
   MenuItem, InventoryItem, DashboardDataV2, CategoryItem,
   TableItem, OrderDetail, DailyOrdersResponse, InventoryStats,
   PosDeviceV2,
-  DeleteDependencyReport, InventoryIssue, PaginatedResponse,
+  DeleteDependencyReport, InventoryIssue, PaginatedResponse, EmployeeFormData,
 } from '../types';
 import type { MenuItemPayload } from './services';
 
@@ -49,7 +49,7 @@ export function useCategories() {
     queryKey: queryKeys.categories.all,
     queryFn: () => categoryApi.list({ limit: 1000, active: true }),
     staleTime: 1000 * 60 * 5,
-    select: (data) => data?.items ?? [],
+    select: (res) => res?.data ?? [],
   });
 }
 
@@ -58,7 +58,6 @@ export function useCategoryList(filters?: {
   limit?: number;
   search?: string;
   sort?: string;
-  sortOrder?: string;
   active?: boolean;
   includeDeleted?: boolean;
   deleted?: boolean;
@@ -81,7 +80,7 @@ export function useCategory(id: string) {
 export function useCreateCategoryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
+    mutationFn: (body: { name: string; description?: string; active?: boolean; slug?: string }) =>
       categoryApi.create(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -92,7 +91,7 @@ export function useCreateCategoryMutation() {
 export function useUpdateCategoryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
+    mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string; active?: boolean; slug?: string }) =>
       categoryApi.update(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -124,12 +123,15 @@ export function useRestoreCategoryMutation() {
    Menu Hooks
    ======================================================================== */
 
-export function useMenuItems(filters?: { search?: string; category?: string; available?: string; accountId?: string }) {
+export function useMenuItems(filters?: { page?: number; limit?: number; search?: string; category?: string; available?: string; accountId?: string }) {
   return useQuery({
-    queryKey: queryKeys.menu.all(filters as Record<string, string | undefined>),
+    queryKey: queryKeys.menu.all(filters as Record<string, string | number | undefined>),
     queryFn: () => menuApi.list(filters),
     staleTime: 1000 * 30,
-    select: (data) => Array.isArray(data) ? data : [],
+    select: (data) => {
+      if (Array.isArray(data)) return { data, pagination: undefined as any };
+      return data;
+    },
   });
 }
 
@@ -194,12 +196,15 @@ export function useDeleteMenuItemMutation() {
    Inventory Hooks
    ======================================================================== */
 
-export function useInventoryItems(filters?: { search?: string; lowStock?: boolean; status?: string }) {
+export function useInventoryItems(filters?: { page?: number; limit?: number; search?: string; lowStock?: boolean; status?: string }) {
   return useQuery({
-    queryKey: queryKeys.inventory.all(filters as Record<string, string | boolean | undefined>),
+    queryKey: queryKeys.inventory.all(filters as Record<string, string | number | boolean | undefined>),
     queryFn: () => inventoryApi.list(filters),
     staleTime: 1000 * 30,
-    select: (data) => Array.isArray(data) ? data : [],
+    select: (data) => {
+      if (Array.isArray(data)) return { data, pagination: undefined as any };
+      return data;
+    },
   });
 }
 
@@ -291,11 +296,15 @@ export function useTablesPos() {
   });
 }
 
-export function useAdminTables() {
+export function useAdminTables(filters?: { page?: number; limit?: number }) {
   return useQuery({
     queryKey: queryKeys.tables.all,
-    queryFn: () => tableApi.list(),
+    queryFn: () => tableApi.list(filters),
     staleTime: 1000 * 30,
+    select: (data) => {
+      if (Array.isArray(data)) return { data, pagination: undefined as any };
+      return data;
+    },
   });
 }
 
@@ -750,5 +759,73 @@ export function useSetPasswordMutation() {
   return useMutation({
     mutationFn: ({ token, password }: { token: string; password: string }) =>
       inviteApi.setPassword(token, password),
+  });
+}
+
+/* ========================================================================
+   Employee Hooks
+   ======================================================================== */
+
+export function useEmployeeList(filters?: { page?: number; limit?: number; search?: string; status?: string }) {
+  return useQuery({
+    queryKey: queryKeys.employees.list(filters as Record<string, string | number | undefined>),
+    queryFn: () => employeeApi.list(filters),
+  });
+}
+
+export function useEmployee(id: string) {
+  return useQuery({
+    queryKey: queryKeys.employees.detail(id),
+    queryFn: () => employeeApi.get(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateEmployeeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: EmployeeFormData) => employeeApi.create(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
+    },
+  });
+}
+
+export function useResetPinMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => employeeApi.resetPin(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
+    },
+  });
+}
+
+export function useUpdateEmployeeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Partial<EmployeeFormData>) =>
+      employeeApi.update(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
+    },
+  });
+}
+
+export function useEmployeeLogs(id: string, params?: { page?: number; limit?: number; action?: string; module?: string; startDate?: string; endDate?: string }) {
+  return useQuery({
+    queryKey: queryKeys.employees.logs(id, params as Record<string, string | undefined>),
+    queryFn: () => employeeApi.logs(id, params),
+    enabled: !!id,
+  });
+}
+
+export function useDeleteEmployeeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => employeeApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
+    },
   });
 }

@@ -56,6 +56,14 @@ const FEATURE_PERMISSIONS = [
   { featureCode: 'billiard_order', permissionCodes: ['BILLIARD_ORDER_VIEW', 'BILLIARD_ORDER_CREATE', 'BILLIARD_ORDER_UPDATE', 'BILLIARD_ORDER_DELETE', 'BILLIARD_ORDER_ADD_ITEM'] },
   // BILLIARD_PAY
   { featureCode: 'billiard_pay', permissionCodes: ['BILLIARD_PAY_VIEW', 'BILLIARD_PAY_PROCESS'] },
+  // STAFF_MANAGEMENT
+  { featureCode: 'staff_management', permissionCodes: [
+    'STAFF_VIEW', 'STAFF_CREATE', 'STAFF_UPDATE', 'STAFF_DELETE', 'STAFF_MANAGE',
+    'STAFF_MANAGE_PIN', 'STAFF_RESET_PIN', 'STAFF_VIEW_PIN',
+    'STAFF_ASSIGN_POS_MACHINE', 'STAFF_REMOVE_POS_MACHINE', 'STAFF_VIEW_POS_MACHINE',
+    'STAFF_VIEW_ACTIVITY', 'STAFF_VIEW_LOGIN_HISTORY', 'STAFF_VIEW_PERFORMANCE',
+    'STAFF_SESSION_VIEW', 'STAFF_SESSION_FORCE_LOGOUT',
+  ] },
 ];
 
 const SALT_ROUNDS = 10;
@@ -121,7 +129,7 @@ export async function seedDatabase() {
   console.log(`  ✓ Subscription created`);
 
   // =========================
-  // POS DEVICE (pos_machines)
+  // POS DEVICE (pos_machines) — no pinCode, PIN belongs to Employee
   // =========================
   const cashierPos = await prisma.pos_machines.create({
     data: {
@@ -129,34 +137,89 @@ export async function seedDatabase() {
       accountId,
       name: 'POS Thu ngân',
       template: 'CASHIER',
-      pinCode: await bcrypt.hash('111111', 10),
       status: 'ACTIVE',
     },
   });
 
-  await prisma.pos_machines.create({
+  const kitchenPos = await prisma.pos_machines.create({
     data: {
       id: `seed-${accountId}-kitchen-01`,
       accountId,
       name: 'POS Bếp',
       template: 'KITCHEN',
-      pinCode: await bcrypt.hash('222222', 10),
       status: 'ACTIVE',
     },
   });
 
-  await prisma.pos_machines.create({
+  const hybridPos = await prisma.pos_machines.create({
     data: {
       id: `seed-${accountId}-hybrid-01`,
       accountId,
       name: 'POS Hybrid',
       template: 'CASHIER_KITCHEN',
-      pinCode: await bcrypt.hash('333333', 10),
       status: 'ACTIVE',
     },
   });
 
   const posDeviceId = cashierPos.id;
+
+  // =========================
+  // EMPLOYEES — PIN đăng nhập POS thuộc về Employee
+  // =========================
+  const emp1 = await prisma.employee.upsert({
+    where: { accountId_employeeCode: { accountId, employeeCode: 'EMP-001' } },
+    update: {},
+    create: {
+      accountId,
+      employeeCode: 'EMP-001',
+      fullName: 'Nhân viên thu ngân',
+      phone: '0901111111',
+      email: 'cashier@store.com',
+      pinCode: await bcrypt.hash('111111', 10),
+      status: 'ACTIVE',
+    },
+  });
+
+  const emp2 = await prisma.employee.upsert({
+    where: { accountId_employeeCode: { accountId, employeeCode: 'EMP-002' } },
+    update: {},
+    create: {
+      accountId,
+      employeeCode: 'EMP-002',
+      fullName: 'Nhân viên bếp',
+      phone: '0902222222',
+      email: 'kitchen@store.com',
+      pinCode: await bcrypt.hash('222222', 10),
+      status: 'ACTIVE',
+    },
+  });
+
+  const emp3 = await prisma.employee.upsert({
+    where: { accountId_employeeCode: { accountId, employeeCode: 'EMP-003' } },
+    update: {},
+    create: {
+      accountId,
+      employeeCode: 'EMP-003',
+      fullName: 'Nhân viên hybrid',
+      phone: '0903333333',
+      email: 'hybrid@store.com',
+      pinCode: await bcrypt.hash('333333', 10),
+      status: 'ACTIVE',
+    },
+  });
+
+  // =========================
+  // EMPLOYEE ↔ POS MACHINE (quyền sử dụng máy POS)
+  // =========================
+  await prisma.employeePosMachine.createMany({
+    data: [
+      { employeeId: emp1.id, posMachineId: cashierPos.id },
+      { employeeId: emp2.id, posMachineId: kitchenPos.id },
+      { employeeId: emp3.id, posMachineId: cashierPos.id },
+      { employeeId: emp3.id, posMachineId: hybridPos.id },
+    ],
+    skipDuplicates: true,
+  });
 
   // =========================
   // ADMIN (ACCOUNT)
@@ -240,8 +303,8 @@ export async function seedDatabase() {
   for (const cat of categories) {
     const created = await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: { name: cat.name, description: cat.description, sortOrder: cat.sortOrder ?? 0, active: cat.active ?? true },
-      create: { name: cat.name, slug: cat.slug, description: cat.description, sortOrder: cat.sortOrder ?? 0, active: cat.active ?? true },
+      update: { name: cat.name, description: cat.description, active: cat.active ?? true },
+      create: { name: cat.name, slug: cat.slug, description: cat.description, active: cat.active ?? true },
     });
     categoryMap[cat.name] = created.id;
   }
