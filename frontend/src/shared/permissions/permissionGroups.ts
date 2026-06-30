@@ -168,11 +168,11 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     id: 'system_admin',
     name: 'Quản trị hệ thống',
-    description: 'Toàn quyền hệ thống: tất cả permissions bao gồm ADMIN_ALL',
+    description: 'Toàn quyền hệ thống: tất cả permissions quan trọng',
     icon: 'Shield',
     color: 'red',
     permissions: [
-      'ADMIN_ALL',
+      'VIEW_AUDIT_LOG',
       'DASHBOARD_VIEW',
       'ORDER_VIEW',
       'ORDER_CREATE',

@@ -285,6 +285,7 @@ model Account {
   ordersCreated                Order[]                @relation("OrderCreatedBy")
   shifts                       Shift[]
   staffSessions                StaffSession[]
+  employees                    Employee[]
 
   @@index([email])
   @@map("accounts")
@@ -354,7 +355,6 @@ model Category {
   name        String
   slug        String
   description String?
-  sortOrder   Int        @default(0)
   active      Boolean    @default(true)
   deletedAt   DateTime?
   createdAt   DateTime   @default(now())
@@ -784,8 +784,8 @@ model InviteToken {
 
 model ActivityLog {
   id          String   @id @default(cuid())
-  branchId    String?
   accountId   String?
+  employeeId  String?
   posDeviceId String?
   action      String
   module      String
@@ -794,10 +794,11 @@ model ActivityLog {
   userAgent   String?
   createdAt   DateTime @default(now())
   account     Account? @relation(fields: [accountId], references: [id])
+  employee    Employee? @relation(fields: [employeeId], references: [id])
 
   @@index([accountId, createdAt])
   @@index([module, action])
-  @@index([branchId, createdAt])
+  @@index([employeeId, createdAt])
   @@map("activity_logs")
 }
 
@@ -873,7 +874,6 @@ model pos_machines {
   id          String             @id @default(cuid())
   accountId   String
   name        String
-  pinCode     String
   template    PosMachineTemplate @default(CASHIER)
   status      PosMachineStatus   @default(ACTIVE)
   lastLoginAt DateTime?
@@ -881,7 +881,68 @@ model pos_machines {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
+  sessions            PosMachineSession[]
+  employeePosMachines EmployeePosMachine[]
+
   @@index([accountId])
+}
+
+model Employee {
+  id           String          @id @default(cuid())
+  accountId    String
+  employeeCode String
+  fullName     String
+  phone        String?
+  email        String?
+  pinCode      String
+  status       EmployeeStatus  @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  deletedAt    DateTime?
+
+  account        Account              @relation(fields: [accountId], references: [id])
+  sessions       PosMachineSession[]
+  posMachines    EmployeePosMachine[]
+  activityLogs   ActivityLog[]
+
+  @@unique([accountId, employeeCode])
+  @@index([accountId])
+  @@index([status])
+  @@map("employees")
+}
+
+model PosMachineSession {
+  id           String       @id @default(cuid())
+  employeeId   String
+  posMachineId String
+  loginAt      DateTime     @default(now())
+  logoutAt     DateTime?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+
+  employee   Employee     @relation(fields: [employeeId], references: [id])
+  posMachine pos_machines @relation(fields: [posMachineId], references: [id])
+
+  @@index([employeeId])
+  @@index([posMachineId])
+  @@index([isActive])
+  @@map("pos_machine_sessions")
+}
+
+model EmployeePosMachine {
+  id           String       @id @default(cuid())
+  employeeId   String
+  posMachineId String
+  createdAt    DateTime     @default(now())
+
+  employee   Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  posMachine pos_machines @relation(fields: [posMachineId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, posMachineId])
+  @@index([employeeId])
+  @@index([posMachineId])
+  @@map("employee_pos_machines")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -1043,6 +1104,12 @@ enum ReservationStatus {
 enum PosMachineStatus {
   ACTIVE
   LOCKED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
 enum PosMachineTemplate {

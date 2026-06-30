@@ -18,15 +18,29 @@ function logContext(req) {
 
 export const loginPosMachine = asyncHandler(async (req, res) => {
   logContext(req);
-  console.log('[POS_MACHINE_DEBUG] Controller: loginPosMachine called, body keys:', Object.keys(req.body), 'has pinCode:', !!req.body.pinCode);
   const data = await posMachineService.loginWithPin(req.body, req);
-  console.log('[POS_MACHINE_DEBUG] Controller: loginPosMachine SUCCESS, machine:', data.machine?.name, 'has token:', !!data.token);
   sendSuccess(res, { message: 'Đăng nhập máy POS thành công', data, statusCode: 200 });
+});
+
+export const loginPosMachineByPin = asyncHandler(async (req, res) => {
+  logContext(req);
+  const data = await posMachineService.loginByPin(req.body, req);
+  const message = data.requiresMachineSelection
+    ? 'Vui lòng chọn máy POS'
+    : 'Đăng nhập máy POS thành công';
+  sendSuccess(res, { message, data, statusCode: 200 });
+});
+
+export const listActivePosMachines = asyncHandler(async (req, res) => {
+  const accountId = req.query.accountId;
+  const data = await posMachineService.listActiveMachines(accountId);
+  sendSuccess(res, { message: 'Danh sách máy POS đang hoạt động', data });
 });
 
 export const listPosMachines = asyncHandler(async (req, res) => {
   logContext(req);
   const accountId = req.user.accountId || req.user.id;
+  console.log("[POS] listPosMachines controller - accountId extracted:", accountId, "| req.user:", JSON.stringify({ id: req.user?.id, accountId: req.user?.accountId, source: req.user?.source }));
   const data = await posMachineService.listMachines(accountId);
   sendSuccess(res, { message: 'Danh sách máy POS', data });
 });

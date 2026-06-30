@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FileText, Calendar, DollarSign, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { taxRecords as initialTaxRecords, TaxRecord } from '../data/mockData';
+import { DataTable, type Column } from '../components/DataTable';
 
 export function TaxManagement() {
   const [taxRecords, setTaxRecords] = useState<TaxRecord[]>(initialTaxRecords);
@@ -10,6 +11,8 @@ export function TaxManagement() {
     revenue: '',
     taxRate: 10,
   });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const totalTax = taxRecords.reduce((sum, record) => sum + record.taxAmount, 0);
   const paidTax = taxRecords
@@ -104,16 +107,55 @@ export function TaxManagement() {
     },
   ];
 
+  const paginatedRecords = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return taxRecords.slice(start, start + pageSize);
+  }, [taxRecords, page, pageSize]);
+
+  const pagination = useMemo(() => taxRecords.length > pageSize ? {
+    page,
+    limit: pageSize,
+    total: taxRecords.length,
+    totalPages: Math.ceil(taxRecords.length / pageSize),
+  } : undefined, [taxRecords, page, pageSize]);
+
+  const columns: Column<TaxRecord>[] = [
+    { key: 'taxPeriod', header: 'Kỳ tính thuế', render: (record) => {
+      const monthDate = new Date(record.month + '-01');
+      const monthName = monthDate.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
+      return (
+        <div className="flex items-center gap-2">
+          {getStatusIcon(record.status)}
+          <span className="font-medium text-foreground">{monthName}</span>
+        </div>
+      );
+    }},
+    { key: 'revenue', header: 'Doanh thu', render: (record) => <span className="font-medium text-foreground">{record.revenue.toLocaleString()} ₫</span> },
+    { key: 'taxRate', header: 'Thuế suất', render: (record) => <span>{record.taxRate}%</span> },
+    { key: 'taxAmount', header: 'Số tiền thuế', render: (record) => <span className="font-bold text-blue-600">{record.taxAmount.toLocaleString()} ₫</span> },
+    { key: 'status', header: 'Trạng thái', render: (record) => getStatusBadge(record.status) },
+    { key: 'actions', header: 'Thao tác', className: 'text-right', render: (record) => (
+      <div className="text-right">
+        {record.status === 'pending' && (
+          <button onClick={() => handleUpdateStatus(record.id, 'paid')} className="text-sm font-medium text-green-600 hover:text-green-900 mr-3">Đánh dấu đã thanh toán</button>
+        )}
+        {record.status === 'paid' && (
+          <button onClick={() => handleUpdateStatus(record.id, 'pending')} className="text-sm font-medium text-orange-600 hover:text-orange-900">Hoàn tác</button>
+        )}
+      </div>
+    )},
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full space-y-6">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Thuế</h1>
-          <p className="text-gray-500 mt-1">Theo dõi và quản lý nghĩa vụ thuế</p>
+          <h1 className="text-2xl font-bold text-foreground">Quản lý Thuế</h1>
+          <p className="text-muted-foreground mt-1">Theo dõi và quản lý nghĩa vụ thuế</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
         >
           <FileText className="w-5 h-5" />
           Khai báo thuế mới
@@ -121,18 +163,18 @@ export function TaxManagement() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div
               key={stat.name}
-              className="bg-white rounded-lg border border-gray-200 p-6"
+              className="bg-card rounded-lg border border-border p-6"
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-sm text-gray-500">{stat.name}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                  <p className="text-sm text-muted-foreground">{stat.name}</p>
+                  <p className="text-2xl font-bold text-foreground mt-2">{stat.value}</p>
                 </div>
                 <div className={`p-3 rounded-lg ${stat.color}`}>
                   <Icon className="w-6 h-6" />
@@ -143,92 +185,36 @@ export function TaxManagement() {
         })}
       </div>
 
-      {/* Tax Records Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Lịch sử khai báo thuế</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kỳ tính thuế</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doanh thu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thuế suất</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số tiền thuế</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {taxRecords.map((record) => {
-                const monthDate = new Date(record.month + '-01');
-                const monthName = monthDate.toLocaleDateString('vi-VN', { 
-                  year: 'numeric', 
-                  month: 'long' 
-                });
-                return (
-                  <tr key={record.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(record.status)}
-                        <span className="font-medium text-gray-900">{monthName}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {record.revenue.toLocaleString()} ₫
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{record.taxRate}%</td>
-                    <td className="px-6 py-4 text-sm font-bold text-blue-600">
-                      {record.taxAmount.toLocaleString()} ₫
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(record.status)}</td>
-                    <td className="px-6 py-4 text-right">
-                      {record.status === 'pending' && (
-                        <button
-                          onClick={() => handleUpdateStatus(record.id, 'paid')}
-                          className="text-sm font-medium text-green-600 hover:text-green-900 mr-3"
-                        >
-                          Đánh dấu đã thanh toán
-                        </button>
-                      )}
-                      {record.status === 'paid' && (
-                        <button
-                          onClick={() => handleUpdateStatus(record.id, 'pending')}
-                          className="text-sm font-medium text-orange-600 hover:text-orange-900"
-                        >
-                          Hoàn tác
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={paginatedRecords}
+        keyExtractor={(record) => record.id}
+        emptyMessage="Chưa có kỳ khai báo thuế nào."
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      />
 
       {/* Tax Information */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Thông tin thuế GTGT</h2>
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Thông tin thuế GTGT</h2>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-600">Thuế suất áp dụng:</span>
-              <span className="font-medium text-gray-900">10%</span>
+            <div className="flex justify-between py-2 border-b border-border">
+              <span className="text-muted-foreground">Thuế suất áp dụng:</span>
+              <span className="font-medium text-foreground">10%</span>
             </div>
-            <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-600">Phương pháp tính:</span>
-              <span className="font-medium text-gray-900">Trực tiếp trên doanh thu</span>
+            <div className="flex justify-between py-2 border-b border-border">
+              <span className="text-muted-foreground">Phương pháp tính:</span>
+              <span className="font-medium text-foreground">Trực tiếp trên doanh thu</span>
             </div>
-            <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-600">Kỳ khai báo:</span>
-              <span className="font-medium text-gray-900">Hàng tháng</span>
+            <div className="flex justify-between py-2 border-b border-border">
+              <span className="text-muted-foreground">Kỳ khai báo:</span>
+              <span className="font-medium text-foreground">Hàng tháng</span>
             </div>
             <div className="flex justify-between py-2">
-              <span className="text-gray-600">Hạn nộp thuế:</span>
-              <span className="font-medium text-gray-900">Ngày 20 tháng sau</span>
+              <span className="text-muted-foreground">Hạn nộp thuế:</span>
+              <span className="font-medium text-foreground">Ngày 20 tháng sau</span>
             </div>
           </div>
         </div>
@@ -258,45 +244,45 @@ export function TaxManagement() {
 
       {/* Add Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Khai báo thuế mới</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-foreground mb-4">Khai báo thuế mới</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kỳ tính thuế</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Kỳ tính thuế</label>
                 <input
                   type="month"
                   required
                   value={formData.month}
                   onChange={(e) => setFormData({ ...formData, month: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Doanh thu (₫)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Doanh thu (₫)</label>
                 <input
                   type="number"
                   required
                   value={formData.revenue}
                   onChange={(e) => setFormData({ ...formData, revenue: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Nhập doanh thu"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Thuế suất (%)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Thuế suất (%)</label>
                 <select
                   value={formData.taxRate}
                   onChange={(e) => setFormData({ ...formData, taxRate: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value={5}>5%</option>
                   <option value={10}>10%</option>
                 </select>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-muted rounded-lg p-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Số tiền thuế phải nộp:</span>
+                  <span className="text-sm text-muted-foreground">Số tiền thuế phải nộp:</span>
                   <span className="text-lg font-bold text-blue-600">
                     {((Number(formData.revenue) * formData.taxRate) / 100).toLocaleString()} ₫
                   </span>
@@ -306,13 +292,13 @@ export function TaxManagement() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-input text-foreground rounded-lg hover:bg-accent"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
                 >
                   Tạo khai báo
                 </button>

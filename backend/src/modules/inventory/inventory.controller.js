@@ -7,7 +7,8 @@ function getContext(req) {
 }
 
 export const listIngredients = asyncHandler(async (req, res) => {
-  const data = await inventoryService.listIngredients(req.query, getContext(req));
+  const { search, lowStock, status, page, limit } = req.query;
+  const data = await inventoryService.listIngredients({ search, lowStock, status, page, limit }, getContext(req));
   sendSuccess(res, { message: 'Lấy danh sách nguyên liệu thành công', data });
 });
 

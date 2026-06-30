@@ -8,8 +8,9 @@ function getContext(req) {
 }
 
 export const listTables = asyncHandler(async (req, res) => {
-  const data = await tableService.list(getContext(req));
-  sendSuccess(res, { message: 'Lấy danh sách bàn thành công', data: Array.isArray(data) ? data : [] });
+  const { page, limit } = req.query;
+  const data = await tableService.list(getContext(req), { page, limit });
+  sendSuccess(res, { message: 'Lấy danh sách bàn thành công', data });
 });
 
 export const getTable = asyncHandler(async (req, res) => {

@@ -30,8 +30,16 @@ const tableWithActiveOrder = {
 };
 
 export const tableRepository = {
-  findMany: (where = {}) => {
+  findMany: (where = {}, options = {}) => {
     const cleanWhere = Object.fromEntries(Object.entries(where).filter(([, v]) => v !== undefined));
+    const { page, limit } = options;
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      return Promise.all([
+        prisma.table.findMany({ where: cleanWhere, ...tableWithActiveOrder, orderBy: [{ tableCode: 'asc' }], skip, take: limit }),
+        prisma.table.count({ where: cleanWhere }),
+      ]);
+    }
     return prisma.table.findMany({ where: cleanWhere, ...tableWithActiveOrder, orderBy: [{ tableCode: 'asc' }] });
   },
 

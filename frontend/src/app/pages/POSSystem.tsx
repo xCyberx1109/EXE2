@@ -40,7 +40,7 @@ export function POSSystem() {
       inventoryApi.list(),
     ]).then(([items, cats, inv]) => {
       setMenuItems(items);
-      setCategories(cats.items ?? []);
+      setCategories(cats.data ?? []);
       setInventoryItems(Array.isArray(inv) ? inv : []);
     }).catch(console.error);
   }, []);

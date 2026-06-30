@@ -2,8 +2,15 @@ import prisma from '../prisma/client.js';
 
 export const ingredientRepository = {
   findMany: (where = {}, options = {}) => {
-    const { includeInactive = false } = options;
+    const { includeInactive = false, page, limit } = options;
     const finalWhere = includeInactive ? where : { ...where, available: true };
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      return Promise.all([
+        prisma.ingredient.findMany({ where: finalWhere, orderBy: { name: 'asc' }, skip, take: limit }),
+        prisma.ingredient.count({ where: finalWhere }),
+      ]);
+    }
     return prisma.ingredient.findMany({ where: finalWhere, orderBy: { name: 'asc' } });
   },
 

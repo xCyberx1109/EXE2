@@ -66,4 +66,12 @@ export const queryKeys = {
   invite: {
     verify: (token: string) => ['invite', 'verify', token] as const,
   },
+  employees: {
+    all: ['employees'] as const,
+    list: (filters?: Record<string, string | undefined>) =>
+      ['employees', 'list', filters] as const,
+    detail: (id: string) => ['employees', 'detail', id] as const,
+    logs: (id: string, params?: Record<string, string | undefined>) =>
+      ['employees', 'logs', id, params] as const,
+  },
 };

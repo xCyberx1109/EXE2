@@ -31,13 +31,13 @@ export const rbacController = {
   }),
 
   // --- Account-level Direct Permissions (for PermissionManagement frontend) ---
-  // ADMIN_ALL: xem toàn bộ account trong hệ thống
+  // PERMISSION_MANAGE: xem toàn bộ account trong hệ thống
   // Người dùng thường: chỉ xem account của chính mình
   getAccounts: asyncHandler(async (req, res) => {
     const currentAccountId = req.user.accountId || req.user.id;
-    const isAdminAll = req.user.permissions?.includes('ADMIN_ALL');
+    const canManageAll = req.user.permissions?.includes('PERMISSION_MANAGE');
 
-    const whereClause = isAdminAll ? {} : { id: currentAccountId };
+    const whereClause = canManageAll ? {} : { id: currentAccountId };
 
     const accounts = await prisma.account.findMany({
       where: whereClause,
@@ -91,11 +91,11 @@ export const rbacController = {
   getAccountPermissions: asyncHandler(async (req, res) => {
     const { accountId } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
-    const isAdminAll = req.user.permissions?.includes('ADMIN_ALL');
+    const canManageAll = req.user.permissions?.includes('PERMISSION_MANAGE');
 
-    // ADMIN_ALL: xem permissions của bất kỳ account nào
+    // PERMISSION_MANAGE: xem permissions của bất kỳ account nào
     // Người dùng thường: chỉ xem permissions của chính mình
-    if (accountId !== currentAccountId && !isAdminAll) {
+    if (accountId !== currentAccountId && !canManageAll) {
       return sendSuccess(res, { data: [] });
     }
 
@@ -120,18 +120,18 @@ export const rbacController = {
   updateAccountPermissions: asyncHandler(async (req, res) => {
     const { accountId } = req.params;
     const currentAccountId = req.user.accountId || req.user.id;
-    const isAdminAll = req.user.permissions?.includes('ADMIN_ALL');
+    const canManageAll = req.user.permissions?.includes('PERMISSION_MANAGE');
 
-    // ADMIN_ALL: cập nhật permissions cho bất kỳ account nào
+    // PERMISSION_MANAGE: cập nhật permissions cho bất kỳ account nào
     // Người dùng thường: chỉ cập nhật permissions của chính mình
-    if (accountId !== currentAccountId && !isAdminAll) {
+    if (accountId !== currentAccountId && !canManageAll) {
       return sendError(res, {
         statusCode: 403,
         message: 'Bạn không có quyền cập nhật quyền cho tài khoản khác',
       });
     }
 
-    const targetAccountId = isAdminAll ? accountId : currentAccountId;
+    const targetAccountId = canManageAll ? accountId : currentAccountId;
     const { permissions, plan } = req.body; // Array of { permissionId, allowed }, optional plan
 
     // Defensive: dedupe payload by permissionId before writing

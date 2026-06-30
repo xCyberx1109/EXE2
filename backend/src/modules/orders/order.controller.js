@@ -104,6 +104,8 @@ export const listOrderHistory = asyncHandler(async (req, res) => {
     endDate: req.query.endDate,
     status: req.query.status,
     source: req.query.source,
+    page: req.query.page,
+    limit: req.query.limit,
   });
   sendSuccess(res, { message: 'Lấy lịch sử đơn hàng thành công', data });
 });

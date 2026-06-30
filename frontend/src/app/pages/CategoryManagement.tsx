@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Plus, Search, Loader2, FolderTree, RotateCcw, Trash2, Edit3,
+  Plus, Search, FolderTree, RotateCcw, Trash2, Edit3,
 } from 'lucide-react';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { useAuth } from '../context/AuthContext';
@@ -21,20 +21,16 @@ import { Button } from '../components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../components/ui/select';
-import {
-  Pagination, PaginationContent, PaginationItem, PaginationLink,
-  PaginationNext, PaginationPrevious,
-} from '../components/ui/pagination';
+import { DataTable, type Column } from '../components/DataTable';
 import type { CategoryItem } from '../types';
 
 type FilterTab = 'all' | 'active' | 'inactive' | 'deleted';
-type SortField = 'sortOrder' | 'name' | 'createdAt';
+type SortField = 'name' | 'createdAt';
 
 interface CategoryForm {
   name: string;
   slug: string;
   description: string;
-  sortOrder: string;
   active: boolean;
 }
 
@@ -42,7 +38,6 @@ const emptyForm = (): CategoryForm => ({
   name: '',
   slug: '',
   description: '',
-  sortOrder: '0',
   active: true,
 });
 
@@ -63,13 +58,14 @@ export function CategoryManagement() {
 
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState<FilterTab>('active');
-  const [sort, setSort] = useState<SortField>('sortOrder');
+  const [sort, setSort] = useState<SortField>('name');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PER_PAGE);
   const debouncedSearch = useDebounce(search, 300);
 
   const queryFilters = {
     page,
-    limit: PER_PAGE,
+    limit: pageSize,
     search: debouncedSearch || undefined,
     sort,
     active: filterTab === 'active' ? true : filterTab === 'inactive' ? false : undefined,
@@ -78,7 +74,7 @@ export function CategoryManagement() {
   };
 
   const { data, isLoading, isFetching } = useCategoryList(queryFilters);
-  const items = data?.items ?? [];
+  const items = data?.data ?? [];
   const pagination = data?.pagination;
 
   const createMutation = useCreateCategoryMutation();
@@ -115,7 +111,6 @@ export function CategoryManagement() {
       name: cat.name,
       slug: cat.slug,
       description: cat.description || '',
-      sortOrder: String(cat.sortOrder),
       active: cat.active,
     });
     setFormError(null);
@@ -128,11 +123,6 @@ export function CategoryManagement() {
       setFormError('Tên danh mục là bắt buộc');
       return;
     }
-    const sortOrder = parseInt(form.sortOrder, 10);
-    if (isNaN(sortOrder) || sortOrder < 0) {
-      setFormError('Thứ tự phải là số không âm');
-      return;
-    }
 
     setSaving(true);
     setFormError(null);
@@ -141,7 +131,6 @@ export function CategoryManagement() {
         name: form.name.trim(),
         slug: form.slug.trim() || undefined,
         description: form.description.trim() || undefined,
-        sortOrder,
         active: form.active,
       };
 
@@ -195,9 +184,92 @@ export function CategoryManagement() {
 
   const totalPages = pagination?.totalPages ?? 1;
 
+  const columns: Column<CategoryItem>[] = [
+    {
+      key: 'name',
+      header: 'Tên danh mục',
+      render: (cat) => (
+        <span className={`font-medium ${cat.deletedAt ? 'line-through opacity-60' : ''}`}>
+          {cat.name}
+        </span>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Mô tả',
+      className: 'text-muted-foreground max-w-[200px] truncate',
+      render: (cat) => cat.description || '\u2014',
+    },
+    {
+      key: 'status',
+      header: 'Trạng thái',
+      headerClassName: 'text-center',
+      className: 'text-center',
+      render: (cat) => {
+        if (cat.deletedAt) {
+          return <Badge variant="destructive">Đã xóa</Badge>;
+        }
+        return cat.active
+          ? <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Hoạt động</Badge>
+          : <Badge variant="secondary">Ẩn</Badge>;
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Thao tác',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (cat) => {
+        const isDeleted = !!cat.deletedAt;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {isDeleted ? (
+              canDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRestore(cat.id)}
+                  title="Khôi phục"
+                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              )
+            ) : (
+              <>
+                {canUpdate && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEdit(cat)}
+                    title="Sửa"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeleteTarget(cat)}
+                    disabled={cat.itemCount > 0}
+                    title={cat.itemCount > 0 ? 'Không thể xóa danh mục đang có món ăn' : 'Xóa'}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col h-full space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
             <FolderTree className="w-6 h-6 text-purple-600" />
@@ -208,191 +280,53 @@ export function CategoryManagement() {
           </div>
         </div>
         {canCreate && (
-          <Button variant="default" size="sm" onClick={() => { setForm(emptyForm()); setIsDialogOpen(true); }}>
+          <Button variant="default" size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" />
             Thêm danh mục
           </Button>
         )}
       </div>
 
-      <div className="bg-card rounded-xl border border-border">
-        <div className="p-4 border-b border-border space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Tìm kiếm theo tên hoặc slug..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="pl-9"
-              />
-            </div>
-            <Select value={sort} onValueChange={handleSortChange}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sortOrder">Thứ tự</SelectItem>
-                <SelectItem value="name">Tên A-Z</SelectItem>
-                <SelectItem value="createdAt">Ngày tạo</SelectItem>
-              </SelectContent>
-            </Select>
+      <div className="bg-card rounded-xl border border-border p-4 space-y-4 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm kiếm theo tên hoặc slug..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="pl-9"
+            />
           </div>
-
-          <div className="flex gap-1 flex-wrap">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => handleTabChange(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  filterTab === tab.key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <Select value={sort} onValueChange={handleSortChange}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Tên A-Z</SelectItem>
+              <SelectItem value="createdAt">Ngày tạo</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Đang tải...
-            </div>
-          ) : items.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground">
-              {debouncedSearch ? 'Không tìm thấy danh mục phù hợp' : 'Chưa có danh mục nào'}
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-muted border-b border-border">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase w-16">STT</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Tên</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase hidden md:table-cell">Slug</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase hidden lg:table-cell">Mô tả</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase w-20">Số món</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase w-24">Trạng thái</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase w-36">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {items.map((cat) => {
-                  const isDeleted = !!cat.deletedAt;
-                  return (
-                    <tr key={cat.id} className={`hover:bg-accent/50 transition-colors ${isDeleted ? 'opacity-60' : ''}`}>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{cat.sortOrder}</td>
-                      <td className="px-4 py-3">
-                        <span className={`font-medium ${isDeleted ? 'line-through' : ''}`}>{cat.name}</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{cat.slug}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell max-w-[200px] truncate">
-                        {cat.description || '\u2014'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">{cat.itemCount}</td>
-                      <td className="px-4 py-3 text-center">
-                        {isDeleted ? (
-                          <Badge variant="destructive">Đã xóa</Badge>
-                        ) : cat.active ? (
-                          <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Hoạt động</Badge>
-                        ) : (
-                          <Badge variant="secondary">Ẩn</Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {isDeleted ? (
-                            canDelete && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRestore(cat.id)}
-                                title="Khôi phục"
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              >
-                                <RotateCcw className="w-4 h-4" />
-                              </Button>
-                            )
-                          ) : (
-                            <>
-                              {canUpdate && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openEdit(cat)}
-                                  title="Sửa"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </Button>
-                              )}
-                              {canDelete && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setDeleteTarget(cat)}
-                                  disabled={cat.itemCount > 0}
-                                  title={cat.itemCount > 0 ? 'Không thể xóa danh mục đang có món ăn' : 'Xóa'}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+        <div className="flex gap-1 flex-wrap">
+          {FILTER_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleTabChange(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                filterTab === tab.key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-
-        {pagination && totalPages > 1 && (
-          <div className="p-4 border-t border-border">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => goToPage(Math.max(1, page - 1))}
-                    className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
-                </PaginationItem>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-                  .map((p, idx, arr) => (
-                    <span key={p} className="contents">
-                      {idx > 0 && arr[idx - 1] !== p - 1 && (
-                        <PaginationItem>
-                          <span className="flex h-9 w-9 items-center justify-center text-sm">...</span>
-                        </PaginationItem>
-                      )}
-                      <PaginationItem>
-                        <PaginationLink
-                          isActive={p === page}
-                          onClick={() => goToPage(p)}
-                          className="cursor-pointer"
-                        >
-                          {p}
-                        </PaginationLink>
-                      </PaginationItem>
-                    </span>
-                  ))}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => goToPage(Math.min(totalPages, page + 1))}
-                    className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
       </div>
+
+      <DataTable columns={columns} data={items} keyExtractor={(item) => item.id} loading={isLoading} emptyMessage="Chưa có danh mục nào." pagination={pagination} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); }}>
@@ -435,27 +369,16 @@ export function CategoryManagement() {
                 placeholder="Mô tả (không bắt buộc)"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Thứ tự</label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.sortOrder}
-                  onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
+            <div className="flex items-center pb-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-              </div>
-              <div className="space-y-2 flex items-end pb-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.active}
-                    onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  <span className="text-sm font-medium">Hoạt động</span>
-                </label>
-              </div>
+                <span className="text-sm font-medium">Hoạt động</span>
+              </label>
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={resetForm}>Hủy</Button>

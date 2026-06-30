@@ -14,3 +14,22 @@ export const sendError = (res, { message = 'Có lỗi xảy ra', error = null, s
     error,
   });
 };
+
+/** Response danh sách có pagination
+ *  data: { data: items[], pagination: { page, limit, total, totalPages } }
+ */
+export const sendPaginatedSuccess = (res, {
+  message = 'Thành công',
+  items,
+  pagination: { page, limit, total, totalPages },
+  statusCode = 200,
+}) => {
+  return res.status(statusCode).json({
+    success: true,
+    message,
+    data: {
+      data: items,
+      pagination: { page, limit, total, totalPages },
+    },
+  });
+};

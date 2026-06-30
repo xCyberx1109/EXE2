@@ -44,7 +44,6 @@ export interface CategoryItem {
   name: string;
   slug: string;
   description?: string;
-  sortOrder: number;
   active: boolean;
   itemCount: number;
   createdAt: string;
@@ -60,7 +59,7 @@ export interface PaginationMeta {
 }
 
 export interface PaginatedResponse<T> {
-  items: T[];
+  data: T[];
   pagination: PaginationMeta;
 }
 
@@ -475,7 +474,7 @@ export type DevicePermission =
 
   | 'DASHBOARD_VIEW'
 
-  | 'ADMIN_ALL';
+  | 'VIEW_AUDIT_LOG';
 
 export interface DeviceFeatures {
   modules: string[];
@@ -712,15 +711,76 @@ export interface PosMachineLoginResponse {
     template: PosMachineTemplate;
     status: string;
   };
+  employee?: {
+    id: string;
+    fullName: string;
+    employeeCode: string;
+  };
   module: string;
   permissions: string[];
 }
+
+export interface LoginByPinMachine {
+  id: string;
+  name: string;
+  template: PosMachineTemplate;
+  status: string;
+}
+
+export type LoginByPinResult =
+  | PosMachineLoginResponse
+  | { requiresMachineSelection: true; employee: { id: string; fullName: string; employeeCode: string }; machines: LoginByPinMachine[] };
 
 export interface PosMachineCreateResponse {
   id: string;
   name: string;
   template: PosMachineTemplate;
   status: string;
-  pinCode: string;
   createdAt: string;
+}
+
+// ====== Activity Log Types ======
+export interface ActivityLogEntry {
+  id: string;
+  accountId: string | null;
+  employeeId: string | null;
+  posDeviceId: string | null;
+  action: string;
+  module: string;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+export type EmployeeLogsResponse = PaginatedResponse<ActivityLogEntry>;
+
+// ====== Employee Types ======
+export interface Employee {
+  id: string;
+  accountId: string;
+  employeeCode: string;
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignedMachineIds: string[];
+}
+
+export interface EmployeeCreateResponse {
+  employee: Employee;
+  generatedPin?: string;
+}
+
+export interface EmployeeFormData {
+  employeeCode: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  pinCode: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  assignedMachineIds: string[];
 }

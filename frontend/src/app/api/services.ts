@@ -13,6 +13,7 @@ import type {
   TableItem,
   DeleteDependencyReport,
   InventoryIssue,
+  Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse,
   PaginatedResponse,
 } from '../types';
 
@@ -89,7 +90,6 @@ export const categoryApi = {
     limit?: number;
     search?: string;
     sort?: string;
-    sortOrder?: string;
     active?: boolean;
     includeDeleted?: boolean;
     deleted?: boolean;
@@ -99,7 +99,6 @@ export const categoryApi = {
     if (params?.limit) q.set('limit', String(params.limit));
     if (params?.search) q.set('search', params.search);
     if (params?.sort) q.set('sort', params.sort);
-    if (params?.sortOrder) q.set('sortOrder', params.sortOrder);
     if (params?.active !== undefined) q.set('active', String(params.active));
     if (params?.includeDeleted) q.set('includeDeleted', 'true');
     if (params?.deleted) q.set('deleted', 'true');
@@ -111,10 +110,10 @@ export const categoryApi = {
   get: (id: string) =>
     apiFetch<CategoryItem>(`/categories/${id}`),
 
-  create: (body: { name: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
+  create: (body: { name: string; description?: string; active?: boolean; slug?: string }) =>
     apiFetch<CategoryItem>('/categories', { method: 'POST', body: JSON.stringify(body) }),
 
-  update: (id: string, body: { name?: string; description?: string; sortOrder?: number; active?: boolean; slug?: string }) =>
+  update: (id: string, body: { name?: string; description?: string; active?: boolean; slug?: string }) =>
     apiFetch<CategoryItem>(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   delete: (id: string) =>
@@ -126,15 +125,17 @@ export const categoryApi = {
 
 // --- Menu ---
 export const menuApi = {
-  list: (params?: { search?: string; category?: string; available?: string; accountId?: string }) => {
+  list: (params?: { page?: number; limit?: number; search?: string; category?: string; available?: string; accountId?: string }) => {
     const q = new URLSearchParams();
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.limit) q.set('limit', String(params.limit));
     if (params?.search) q.set('search', params.search);
     if (params?.category && params.category !== 'all') q.set('category', params.category);
     if (params?.available) q.set('available', params.available);
     if (params?.accountId) q.set('accountId', params.accountId);
     const query = q.toString();
     const headers = getAuthHeaders();
-    return apiFetch<MenuItem[]>(`/menu-items${query ? `?${query}` : ''}`, { auth: false, headers });
+    return apiFetch<PaginatedResponse<MenuItem> | MenuItem[]>(`/menu-items${query ? `?${query}` : ''}`, { auth: false, headers });
   },
 
   getById: (id: string) =>
@@ -158,13 +159,15 @@ export const menuApi = {
 
 // --- Inventory ---
 export const inventoryApi = {
-  list: (params?: { search?: string; lowStock?: boolean; status?: string }) => {
+  list: (params?: { page?: number; limit?: number; search?: string; lowStock?: boolean; status?: string }) => {
     const q = new URLSearchParams();
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.limit) q.set('limit', String(params.limit));
     if (params?.search) q.set('search', params.search);
     if (params?.lowStock) q.set('lowStock', 'true');
     if (params?.status) q.set('status', params.status);
     const query = q.toString();
-    return apiFetch<InventoryItem[]>(`/ingredients${query ? `?${query}` : ''}`);
+    return apiFetch<PaginatedResponse<InventoryItem> | InventoryItem[]>(`/ingredients${query ? `?${query}` : ''}`);
   },
 
   stats: () => apiFetch<InventoryStats>('/ingredients/stats'),
@@ -265,7 +268,12 @@ export const inviteApi = {
 
 // --- Tables ---
 export const tableApi = {
-  list: () => apiFetch<TableItem[]>('/tables'),
+  list: (params?: { page?: number; limit?: number }) => {
+    const q = params ? '?' + new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null))
+    ).toString() : '';
+    return apiFetch<PaginatedResponse<TableItem> | TableItem[]>(`/tables${q}`);
+  },
 
   get: (id: string) => apiFetch<TableItem>(`/tables/${id}`),
 
@@ -318,14 +326,16 @@ export const ordersApi = {
     apiFetch<import('../types').OrderDetailSimple>(`/orders/${orderId}`),
 
   /** Lịch sử đơn hàng */
-  history: (params?: { startDate?: string; endDate?: string; status?: string; source?: string }) => {
+  history: (params?: { startDate?: string; endDate?: string; status?: string; source?: string; page?: number; limit?: number }) => {
     const q = new URLSearchParams();
     if (params?.startDate) q.set('startDate', params.startDate);
     if (params?.endDate) q.set('endDate', params.endDate);
     if (params?.status) q.set('status', params.status.toUpperCase());
     if (params?.source) q.set('source', params.source);
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.limit) q.set('limit', String(params.limit));
     const query = q.toString();
-    return apiFetch<import('../types').OrderDetail[]>(`/orders/history${query ? `?${query}` : ''}`);
+    return apiFetch<import('../types').OrderDetail[] | import('../types').PaginatedResponse<import('../types').OrderDetail>>(`/orders/history${query ? `?${query}` : ''}`);
   },
 
   getActiveByTable: (tableId: string) =>
@@ -704,4 +714,44 @@ export const restaurantApi = {
       `/restaurant/orders/${orderId}/note`,
       { method: 'PUT', body: JSON.stringify({ note }) }
     ),
+};
+
+// ======== Employee API ========
+export const employeeApi = {
+  list: (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const q = params ? '?' + new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null && v !== ''))
+    ).toString() : '';
+    return apiFetch<PaginatedResponse<Employee>>(`/employees${q}`);
+  },
+
+  get: (id: string) =>
+    apiFetch<Employee>(`/employees/${id}`),
+
+  create: (body: EmployeeFormData) =>
+    apiFetch<EmployeeCreateResponse>('/employees', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  resetPin: (id: string) =>
+    apiFetch<{ employeeId: string; generatedPin: string }>(`/employees/${id}/reset-pin`, {
+      method: 'POST',
+    }),
+
+  update: (id: string, body: Partial<EmployeeFormData>) =>
+    apiFetch<Employee>(`/employees/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<null>(`/employees/${id}`, { method: 'DELETE' }),
+
+  logs: (id: string, params?: { page?: number; limit?: number; action?: string; module?: string; startDate?: string; endDate?: string }) => {
+    const query = params ? '?' + new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null && v !== ''))
+    ).toString() : '';
+    return apiFetch<EmployeeLogsResponse>(`/employees/${id}/logs${query}`);
+  },
 };

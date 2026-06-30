@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ordersApi } from '../api/services';
-import type { OrderDetail } from '../types';
+import { DataTablePagination } from '../components/DataTablePagination';
+import type { OrderDetail, PaginatedResponse } from '../types';
 import { Calendar, Eye, Filter, Loader2, RefreshCw, Search } from 'lucide-react';
 import { APP_NAME } from '../../shared/constants';
 
@@ -57,8 +58,12 @@ export function OrderHistoryPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; totalPages: number } | null>(null);
+  const [loadKey, setLoadKey] = useState(0);
 
-  const loadOrders = () => {
+  const loadOrders = (loadPage: number, loadLimit: number) => {
     setLoading(true);
     setError(null);
     ordersApi
@@ -67,15 +72,26 @@ export function OrderHistoryPage() {
         endDate: endDate || undefined,
         status: statusFilter || undefined,
         source: sourceFilter || undefined,
+        page: loadPage,
+        limit: loadLimit,
       })
-      .then(data => setOrders(data || []))
+      .then(data => {
+        if (data && typeof data === 'object' && 'data' in data && 'pagination' in data) {
+          const paginated = data as PaginatedResponse<OrderDetail>;
+          setOrders(paginated.data || []);
+          setPagination(paginated.pagination);
+        } else {
+          setOrders((data || []) as OrderDetail[]);
+          setPagination(null);
+        }
+      })
       .catch((e: any) => setError(e.message || 'Không thể tải lịch sử đơn hàng'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    loadOrders(page, pageSize);
+  }, [loadKey]);
 
   const filteredOrders = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -87,18 +103,34 @@ export function OrderHistoryPage() {
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
-    loadOrders();
+    setPage(1);
+    setLoadKey(k => k + 1);
+  };
+
+  const handleRefresh = () => {
+    setLoadKey(k => k + 1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    setLoadKey(k => k + 1);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+    setLoadKey(k => k + 1);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full space-y-6">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Lịch sử đơn hàng</h1>
           <p className="text-muted-foreground text-sm">Tra cứu đơn hàng đã hoàn tất</p>
         </div>
         <button
-          onClick={loadOrders}
+          onClick={handleRefresh}
           disabled={loading}
           className="flex items-center gap-2 rounded-lg border border-input bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-60"
         >
@@ -107,7 +139,7 @@ export function OrderHistoryPage() {
         </button>
       </div>
 
-      <form onSubmit={handleFilter} className="rounded-xl border border-border bg-card p-4">
+      <form onSubmit={handleFilter} className="rounded-xl border border-border bg-card p-4 flex-shrink-0">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
@@ -174,7 +206,7 @@ export function OrderHistoryPage() {
         </div>
       </form>
 
-      <div className="relative">
+      <div className="relative flex-shrink-0">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           value={search}
@@ -185,14 +217,14 @@ export function OrderHistoryPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive flex-shrink-0">
           {error}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card">
         <table className="min-w-full divide-y divide-border">
-          <thead className="bg-muted">
+          <thead className="bg-muted sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mã đơn</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ngày</th>
@@ -251,6 +283,19 @@ export function OrderHistoryPage() {
           </tbody>
         </table>
       </div>
+
+      {pagination && (
+        <div className="flex-shrink-0">
+          <DataTablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            pageSize={pagination.limit}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

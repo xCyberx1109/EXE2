@@ -75,19 +75,19 @@ async function getPlanId(plan) {
 }
 
 function isAdminAll(user) {
-  return user.permissions?.includes('ADMIN_ALL');
+  return user.permissions?.includes('PERMISSION_MANAGE');
 }
 
 router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) => {
   try {
-    const accountId = req.user.accountId || req.user.id;
+    const canManageAll = isAdminAll(req.user);
 
-    if (isAdminAll(req.user)) {
+    if (canManageAll) {
       const accounts = await prisma.account.findMany({
         orderBy: { createdAt: 'desc' },
       });
       const subs = await prisma.subscription.findMany({
-        where: { branchId: { in: accounts.map((a) => a.id) }, deletedAt: null },
+        where: { branchId: { in: accounts.map(a => a.id) }, deletedAt: null },
         include: { plan: { select: { code: true, name: true } } },
         orderBy: { createdAt: 'desc' },
       });
@@ -97,10 +97,11 @@ router.get('/', requirePermission('BRANCH_VIEW'), asyncHandler(async (req, res) 
       }
       return sendSuccess(res, {
         message: 'Lấy danh sách chi nhánh thành công',
-        data: accounts.map((a) => formatBranch(a, subMap[a.id])),
+        data: accounts.map(a => formatBranch(a, subMap[a.id])),
       });
     }
 
+    const accountId = req.user.accountId || req.user.id;
     const account = await prisma.account.findUnique({
       where: { id: accountId },
     });

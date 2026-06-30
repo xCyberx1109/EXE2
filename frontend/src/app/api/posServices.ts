@@ -4,7 +4,7 @@ import type {
   PosDeviceV2, CreatePosDeviceResponse,
   DeviceRegeneratePinResponse, DeviceRevokeResponse, DeviceResetResponse,
   PosMachine, PosMachineDetail, PosMachineTemplate,
-  PosMachineCreateResponse, PosMachineLoginResponse,
+  PosMachineCreateResponse, PosMachineLoginResponse, LoginByPinResult,
 } from '../types';
 
 // ======== POS v2 Device Management API ========
@@ -62,19 +62,22 @@ export const posDevicesV2Api = {
 
 // ======== POS Machine API (runtime device management) ========
 export const posMachineApi = {
+  listActive: () =>
+    apiFetch<PosMachine[]>('/pos-machine/active', { auth: false }),
+
   list: () =>
     apiFetch<PosMachine[]>('/pos-machine'),
 
   get: (id: string) =>
     apiFetch<PosMachineDetail>(`/pos-machine/${id}`),
 
-  create: (body: { name: string; template: PosMachineTemplate; pinCode?: string }) =>
+  create: (body: { name: string; template: PosMachineTemplate }) =>
     apiFetch<PosMachineCreateResponse>('/pos-machine', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
 
-  update: (id: string, body: { name?: string; template?: PosMachineTemplate; pinCode?: string }) =>
+  update: (id: string, body: { name?: string; template?: PosMachineTemplate }) =>
     apiFetch<PosMachine>(`/pos-machine/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -99,9 +102,17 @@ export const posMachineApi = {
       body: JSON.stringify({ permissions: permissionIds }),
     }),
 
-  /** Official POS Machine login — do not use /auth/pos/login for this flow */
-  login: (pinCode: string) =>
+  /** Official POS Machine login — requires machineId and pinCode */
+  login: (pinCode: string, machineId?: string) =>
     apiFetch<PosMachineLoginResponse>('/pos-machine/login', {
+      method: 'POST',
+      body: JSON.stringify({ pinCode, machineId }),
+      auth: false,
+    }),
+
+  /** PIN-only login — no machine selection needed */
+  loginByPin: (pinCode: string) =>
+    apiFetch<LoginByPinResult>('/pos-machine/login-by-pin', {
       method: 'POST',
       body: JSON.stringify({ pinCode }),
       auth: false,

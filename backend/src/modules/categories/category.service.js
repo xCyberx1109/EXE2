@@ -1,5 +1,6 @@
 import { AppError } from '../../utils/AppError.js';
 import { slugify } from '../../utils/mappers.js';
+import { paginatedResponse } from '../../utils/pagination.js';
 import { categoryRepository } from '../../repositories/category.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 
@@ -9,7 +10,6 @@ function mapCategory(c) {
     name: c.name,
     slug: c.slug,
     description: c.description,
-    sortOrder: c.sortOrder,
     active: c.active,
     itemCount: c._count?.menuItems ?? 0,
     createdAt: c.createdAt,
@@ -20,7 +20,7 @@ function mapCategory(c) {
 
 export const categoryService = {
   async list(query) {
-    const { page = 1, limit = 20, search, sort, sortOrder, active, includeDeleted, deleted } = query;
+    const { page = 1, limit = 20, search, sort, active, includeDeleted, deleted } = query;
 
     const [items, total] = await Promise.all([
       categoryRepository.findAll({
@@ -28,7 +28,6 @@ export const categoryService = {
         limit: Number(limit),
         search,
         sort,
-        sortOrder,
         active: active !== undefined ? active === 'true' || active === true : undefined,
         includeDeleted,
         deleted,
@@ -41,15 +40,7 @@ export const categoryService = {
       }),
     ]);
 
-    return {
-      items: items.map(mapCategory),
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        totalPages: Math.ceil(total / Number(limit)),
-      },
-    };
+    return paginatedResponse(items.map(mapCategory), total, { page: Number(page), limit: Number(limit) });
   },
 
   async getById(id) {
@@ -68,7 +59,6 @@ export const categoryService = {
       name: data.name.trim(),
       slug,
       description: data.description?.trim() || null,
-      sortOrder: data.sortOrder ?? 0,
       active: data.active ?? true,
     });
 
@@ -99,7 +89,6 @@ export const categoryService = {
     }
 
     if (data.description !== undefined) updateData.description = data.description?.trim() || null;
-    if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
     if (data.active !== undefined) updateData.active = data.active;
 
     const updated = await categoryRepository.update(id, updateData);

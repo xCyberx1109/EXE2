@@ -31,17 +31,16 @@ function buildOrderBy(sort, orderDir) {
   const direction = orderDir === 'desc' ? 'desc' : 'asc';
   const sortMap = {
     createdAt: { createdAt: direction },
-    sortOrder: { sortOrder: direction },
     name: { name: direction },
   };
-  return sortMap[sort] || { sortOrder: 'asc' };
+  return sortMap[sort] || { name: 'asc' };
 }
 
 export const categoryRepository = {
-  findAll: ({ page = 1, limit = 20, search, sort, sortOrder, active, includeDeleted, deleted } = {}) => {
+  findAll: ({ page = 1, limit = 20, search, sort, active, includeDeleted, deleted } = {}) => {
     const skip = (page - 1) * limit;
     const where = buildWhere({ search, active, includeDeleted, deleted });
-    const orderBy = buildOrderBy(sort, sortOrder);
+    const orderBy = buildOrderBy(sort);
 
     return prisma.category.findMany({
       where,
@@ -91,7 +90,7 @@ export const categoryRepository = {
   findMany: (where = {}) =>
     prisma.category.findMany({
       where: { deletedAt: null, ...where },
-      orderBy: { sortOrder: 'asc' },
+      orderBy: { name: 'asc' },
       include: { _count: { select: { menuItems: true } } },
     }),
 };

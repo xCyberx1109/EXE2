@@ -135,7 +135,7 @@ export const PLAN_PERMISSIONS: Record<PlanKey, string[]> = {
 };
 
 export const ADVANCED_PERMISSIONS: string[] = [
-  'ADMIN_ALL',
+  'VIEW_AUDIT_LOG',
   'PERMISSION_VIEW',
   'PERMISSION_ASSIGN',
   'PERMISSION_MANAGE',
@@ -228,7 +228,7 @@ export const ADVANCED_GROUPS: AdvancedGroup[] = [
     id: 'system',
     label: 'Quản trị hệ thống',
     icon: 'Shield',
-    permissions: ['ADMIN_ALL', 'PERMISSION_VIEW', 'PERMISSION_ASSIGN', 'PERMISSION_MANAGE', 'SETTINGS_VIEW', 'SETTINGS_UPDATE'],
+    permissions: ['VIEW_AUDIT_LOG', 'PERMISSION_VIEW', 'PERMISSION_ASSIGN', 'PERMISSION_MANAGE', 'SETTINGS_VIEW', 'SETTINGS_UPDATE'],
   },
   {
     id: 'branch',
@@ -286,7 +286,6 @@ export const ADVANCED_FEATURES: string[] = [
 ];
 
 export const SYSTEM_DANGER_PERMISSIONS: string[] = [
-  'ADMIN_ALL',
   'PERMISSION_MANAGE',
   'BRANCH_FORCE_DELETE',
 ];

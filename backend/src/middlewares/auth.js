@@ -253,12 +253,6 @@ export const requirePermission = (permissionCode) => (req, _res, next) => {
   console.log(`[RBAC] Checking permission "${permissionCode}" for id ${context.id}`);
   console.log("[RBAC] PERMISSIONS:", JSON.stringify(permissions));
 
-  // Admin bypass via ADMIN_ALL permission (not role-based)
-  if (permissions.includes('ADMIN_ALL')) {
-    console.log(`[RBAC] ADMIN_ALL override - granting "${permissionCode}"`);
-    return next();
-  }
-
   console.log('[RBAC DEBUG]', {
     requiredPermission: permissionCode,
     availablePermissions: permissions,
@@ -300,11 +294,6 @@ export const requireAnyPermission = (permissionCodes) => (req, _res, next) => {
   const permissions = context.permissions || req.devicePermissions || [];
 
   console.log(`[RBAC] Checking ANY permission [${permissionCodes.join(', ')}] for id ${context.id}`);
-
-  if (permissions.includes('ADMIN_ALL')) {
-    console.log(`[RBAC] ADMIN_ALL override - granting any of [${permissionCodes.join(', ')}]`);
-    return next();
-  }
 
   const hasAny = permissionCodes.some(code => permissions.includes(code));
   if (!hasAny) {
