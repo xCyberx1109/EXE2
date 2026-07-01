@@ -6,6 +6,7 @@ import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig'
 import { APP_NAME } from '../../shared/constants';
 import { useTheme } from 'next-themes';
 import { PosMachineHeader } from './PosMachineHeader';
+import { ThemeToggle } from './ui/ThemeToggle';
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
@@ -110,12 +111,15 @@ export function Layout() {
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-card border-b border-border px-4 py-3 z-40">
         <div className="flex items-center justify-between">
           <h1 className="font-semibold text-lg text-foreground">{APP_NAME}</h1>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-md hover:bg-accent text-foreground"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-md hover:bg-accent text-foreground"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -124,7 +128,10 @@ export function Layout() {
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-sidebar-border flex items-center justify-center">
+          <div className="p-6 border-b border-sidebar-border flex items-center justify-center relative">
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <ThemeToggle />
+              </div>
               <img
                 src="/Logo.png"
                 alt="POSitive Logo"
