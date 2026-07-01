@@ -5,7 +5,7 @@ import {
   getIngredientTransactions, listTransactions,
 } from './inventory.controller.js';
 import {
-  ingredientRules, ingredientUpdateRules, ingredientIdParam, stockTransactionRules, inventoryListQuery,
+  ingredientRules, ingredientUpdateRules, ingredientIdParam, stockInRules, stockOutRules, inventoryListQuery,
 } from '../../validators/inventory.validator.js';
 import { validate } from '../../middlewares/validate.js';
 import { authenticate, optionalAuth, requirePermission } from '../../middlewares/auth.js';
@@ -23,7 +23,7 @@ router.get('/inventory/transactions', authenticate, requirePermission('INVENTORY
 router.post('/ingredients', authenticate, requirePermission('INVENTORY_CREATE'), ingredientRules, validate, createIngredient);
 router.put('/ingredients/:id', authenticate, requirePermission('INVENTORY_UPDATE'), [...ingredientIdParam, ...ingredientUpdateRules], validate, updateIngredient);
 router.delete('/ingredients/:id', authenticate, requirePermission('INVENTORY_DELETE'), ingredientIdParam, validate, deleteIngredient);
-router.post('/ingredients/:id/stock-in', authenticate, requirePermission('INVENTORY_IMPORT'), [...ingredientIdParam, ...stockTransactionRules], validate, stockIn);
-router.post('/ingredients/:id/stock-out', authenticate, requirePermission('INVENTORY_EXPORT'), [...ingredientIdParam, ...stockTransactionRules], validate, stockOut);
+router.post('/ingredients/:id/stock-in', authenticate, requirePermission('INVENTORY_IMPORT'), [...ingredientIdParam, ...stockInRules], validate, stockIn);
+router.post('/ingredients/:id/stock-out', authenticate, requirePermission('INVENTORY_EXPORT'), [...ingredientIdParam, ...stockOutRules], validate, stockOut);
 
 export default router;

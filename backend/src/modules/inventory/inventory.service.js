@@ -5,6 +5,12 @@ import { mapIngredient, mapInventoryTransaction } from '../../utils/mappers.js';
 import { ingredientRepository } from '../../repositories/ingredient.repository.js';
 import { inventoryTransactionRepository } from '../../repositories/inventoryTransaction.repository.js';
 import { logAction } from '../../utils/auditLogger.js';
+import { STOCK_IN_TYPES, STOCK_OUT_TYPES, REASON_REQUIRED_TYPES } from '../../validators/inventory.validator.js';
+
+function normalizeTransactionType(type, fallback, allowedTypes) {
+  const normalized = typeof type === 'string' && type.trim() ? type.trim().toUpperCase() : fallback;
+  return allowedTypes.includes(normalized) ? normalized : fallback;
+}
 
 export const inventoryService = {
   async listIngredients({ search, lowStock, status, page, limit }, user) {
@@ -112,17 +118,64 @@ export const inventoryService = {
       }
     }
 
-    const item = await ingredientRepository.update(id, {
-      ...body,
-      lastUpdated: new Date(),
-    });
+    // `note` không phải field của Ingredient — chỉ dùng để ghi lý do điều chỉnh tồn kho (nếu có).
+    const { note, ...updateFields } = body;
+
+    const beforeQuantity = Number(existing.quantity);
+    const hasQuantityChange =
+      updateFields.quantity !== undefined &&
+      updateFields.quantity !== null &&
+      updateFields.quantity !== '' &&
+      Number(updateFields.quantity) !== beforeQuantity;
+
+    if (hasQuantityChange && user) {
+      const permissions = user.permissions || [];
+      if (!permissions.includes('INVENTORY_ADJUST')) {
+        throw new AppError('Bạn cần quyền Điều chỉnh tồn kho (INVENTORY_ADJUST) để thay đổi số lượng', 403);
+      }
+    }
+
+    const afterQuantity = hasQuantityChange ? Number(updateFields.quantity) : beforeQuantity;
+
+    const operations = [
+      prisma.ingredient.update({
+        where: { id },
+        data: { ...updateFields, lastUpdated: new Date() },
+      }),
+    ];
+
+    if (hasQuantityChange) {
+      operations.push(
+        prisma.inventoryTransaction.create({
+          data: {
+            ingredientId: id,
+            accountId: existing.accountId,
+            type: 'ADJUST',
+            quantity: Math.abs(afterQuantity - beforeQuantity),
+            beforeQuantity,
+            afterQuantity,
+            note: note || null,
+            createdBy: user?.id || 'system',
+          },
+        })
+      );
+    }
+
+    const [item] = await prisma.$transaction(operations);
 
     logAction({
       accountId: item.accountId,
       employeeId: user?.employeeId,
       action: 'INVENTORY_UPDATED',
       module: 'INVENTORY',
-      details: { ingredientId: item.id, name: item.name, changes: Object.keys(body) },
+      details: {
+        ingredientId: item.id,
+        name: item.name,
+        changes: Object.keys(updateFields),
+        quantityAdjusted: hasQuantityChange,
+        beforeQuantity: hasQuantityChange ? beforeQuantity : undefined,
+        afterQuantity: hasQuantityChange ? afterQuantity : undefined,
+      },
     });
 
     return mapIngredient(item);
@@ -182,13 +235,15 @@ export const inventoryService = {
   },
 
   /** Nhập kho */
-  async stockIn(ingredientId, { quantity, note }, user) {
-    return applyTransaction(ingredientId, 'IN', quantity, note, user);
+  async stockIn(ingredientId, { quantity, note, type }, user) {
+    const txType = normalizeTransactionType(type, 'IMPORT', STOCK_IN_TYPES);
+    return applyTransaction(ingredientId, 'IN', txType, quantity, note, user);
   },
 
   /** Xuất kho */
-  async stockOut(ingredientId, { quantity, note }, user) {
-    return applyTransaction(ingredientId, 'OUT', quantity, note, user);
+  async stockOut(ingredientId, { quantity, note, type }, user) {
+    const txType = normalizeTransactionType(type, 'OUT', STOCK_OUT_TYPES);
+    return applyTransaction(ingredientId, 'OUT', txType, quantity, note, user);
   },
 
   async getTransactionHistory(ingredientId, user) {
@@ -214,25 +269,36 @@ export const inventoryService = {
   },
 };
 
-async function applyTransaction(ingredientId, type, quantity, note, user) {
+/**
+ * @param {'IN'|'OUT'} direction - chiều tăng/giảm số lượng (không được lưu xuống DB).
+ * @param {string} type - giá trị enum InventoryTransactionType thực sự lưu xuống DB
+ *   (IMPORT/OUT/ADJUST/RETURN/WASTE). Tách riêng khỏi `direction` vì trước đây code
+ *   lưu thẳng 'IN' xuống cột `type`, nhưng enum không có giá trị 'IN' -> Prisma throw lỗi
+ *   mỗi lần gọi stock-in. Xem STOCK_IN_TYPES/STOCK_OUT_TYPES trong inventory.validator.js.
+ */
+async function applyTransaction(ingredientId, direction, type, quantity, note, user) {
   const ingredient = await ingredientRepository.findById(ingredientId);
   if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
-    if (user) {
-      const accountId = user.accountId || user.id;
-      if (accountId && ingredient.accountId !== accountId) {
-        throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
-      }
+  if (user) {
+    const accountId = user.accountId || user.id;
+    if (accountId && ingredient.accountId !== accountId) {
+      throw new AppError('Bạn không có quyền thao tác với nguyên liệu này', 403);
     }
+  }
 
-    const qty = Number(quantity);
+  if (REASON_REQUIRED_TYPES.includes(type) && !note) {
+    throw new AppError('Vui lòng nhập lý do cho loại giao dịch này (hao hụt/điều chỉnh)', 400);
+  }
+
+  const qty = Number(quantity);
   const current = Number(ingredient.quantity);
 
-  if (type === 'OUT' && current < qty) {
+  if (direction === 'OUT' && current < qty) {
     throw new AppError('Số lượng tồn kho không đủ để xuất', 400);
   }
 
-  const newQty = type === 'IN' ? current + qty : current - qty;
+  const newQty = direction === 'IN' ? current + qty : current - qty;
 
   const txData = {
     ingredientId,
@@ -241,7 +307,7 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
     quantity: qty,
     beforeQuantity: current,
     afterQuantity: newQty,
-    note,
+    note: note || null,
     createdBy: user?.id || 'system',
   };
   console.log("[INVENTORY TRANSACTION CREATE]", JSON.stringify(txData, null, 2));
@@ -263,9 +329,9 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
   logAction({
     accountId: ingredient.accountId,
     employeeId: user?.employeeId,
-    action: type === 'IN' ? 'INVENTORY_STOCK_IN' : 'INVENTORY_STOCK_OUT',
+    action: direction === 'IN' ? 'INVENTORY_STOCK_IN' : 'INVENTORY_STOCK_OUT',
     module: 'INVENTORY',
-    details: { ingredientId: ingredient.id, name: ingredient.name, quantity: qty, beforeQuantity: current, afterQuantity: newQty, note },
+    details: { ingredientId: ingredient.id, name: ingredient.name, type, quantity: qty, beforeQuantity: current, afterQuantity: newQty, note },
   });
 
   return {
