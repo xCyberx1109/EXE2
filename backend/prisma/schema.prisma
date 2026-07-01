@@ -697,6 +697,10 @@ model OrderItem {
   total       Decimal             @default(0) @db.Decimal(12, 2)
   note        String?
   inventoryId String?             @map("inventory_id")
+  // Snapshot cong thuc (danh sach { ingredientId, ingredientName, unit, amount }) tai thoi diem
+  // tao don. Cho phep null (don cu truoc khi co tinh nang nay) -> fallback ve query cong thuc
+  // hien tai luc thanh toan, giu nguyen hanh vi cu.
+  recipeSnapshot Json?
   modifiers   OrderItemModifier[]
   inventory   Ingredient?         @relation(fields: [inventoryId], references: [id])
   kot         Kot?                @relation(fields: [kotId], references: [id])

@@ -17,6 +17,41 @@ const ORDER_ITEMS_INCLUDE = {
   },
 };
 
+/**
+ * Chup lai cong thuc hien tai cua 1 menu item de luu vao OrderItem.recipeSnapshot.
+ * Muc dich: du sau nay cong thuc bi sua doi, don hang da tao van tru kho theo dung
+ * cong thuc tai thoi diem khach dat mon — khong bi anh huong boi thay doi cong thuc sau do.
+ */
+async function buildRecipeSnapshot(menuItemId) {
+  if (!menuItemId) return null;
+  const recipes = await prisma.menuItemIngredient.findMany({
+    where: { menuItemId },
+    include: { ingredient: { select: { name: true, unit: true } } },
+  });
+  if (recipes.length === 0) return null;
+  return recipes.map((r) => ({
+    ingredientId: r.ingredientId,
+    ingredientName: r.ingredient?.name,
+    unit: r.ingredient?.unit,
+    amount: Number(r.amount),
+  }));
+}
+
+/**
+ * Chuyen recipeSnapshot (JSON luu san) thanh danh sach { ingredientId, amount, ingredient }
+ * giong het shape ma deductInventoryForOrderTx/validateInventoryForOrder mong doi tu
+ * menuItemIngredient.findMany({include:{ingredient:true}}) — chi khac la "amount" lay tu
+ * snapshot (co dinh) thay vi cong thuc hien tai, con "ingredient" (ton kho, gia) luon lay LIVE.
+ */
+async function resolveRecipeFromSnapshot(tx, snapshot) {
+  const ingredientIds = snapshot.map((s) => s.ingredientId);
+  const ingredients = await tx.ingredient.findMany({ where: { id: { in: ingredientIds } } });
+  const byId = new Map(ingredients.map((i) => [i.id, i]));
+  return snapshot
+    .map((s) => ({ ingredientId: s.ingredientId, amount: s.amount, ingredient: byId.get(s.ingredientId) }))
+    .filter((r) => r.ingredient); // bo qua neu nguyen lieu da bi xoa sau khi tao don
+}
+
 export const orderService = {
   /** Lấy tất cả đơn cho kitchen queue */
   async listKitchenQueue(user) {
@@ -214,7 +249,7 @@ export const orderService = {
     let subtotal = 0;
     let cost = 0;
 
-    const orderItemsData = normalizedItems.map((item) => {
+    const orderItemsData = await Promise.all(normalizedItems.map(async (item) => {
       const lineTotal = item.price * item.quantity;
       const lineCost = item.cost * item.quantity;
       subtotal += lineTotal;
@@ -225,8 +260,9 @@ export const orderService = {
         price: item.price,
         cost: item.cost,
         quantity: item.quantity,
+        recipeSnapshot: await buildRecipeSnapshot(item.menuItemId),
       };
-    });
+    }));
 
     console.log("[ORDER ITEMS DATA - chưa lưu]", JSON.stringify(orderItemsData, null, 2));
     console.log("[CALC] subtotal =", subtotal, ", cost =", cost);
@@ -332,7 +368,7 @@ export const orderService = {
       const normalizedItems = await normalizeOrderItems(body.items);
       let subtotal = 0;
       let cost = 0;
-      const orderItemsData = normalizedItems.map((item) => {
+      const orderItemsData = await Promise.all(normalizedItems.map(async (item) => {
         const lineTotal = item.price * item.quantity;
         const lineCost = item.cost * item.quantity;
         subtotal += lineTotal;
@@ -343,8 +379,9 @@ export const orderService = {
           price: item.price,
           cost: item.cost,
           quantity: item.quantity,
+          recipeSnapshot: await buildRecipeSnapshot(item.menuItemId),
         };
-      });
+      }));
       const discount = body.discount !== undefined ? Number(body.discount) : 0;
       const tax = 0;
       const total = Math.max(0, subtotal - discount);
@@ -901,10 +938,14 @@ async function validateInventoryForOrder(order) {
       continue;
     }
 
-    const recipes = await prisma.menuItemIngredient.findMany({
-      where: { menuItemId: orderItem.menuItemId },
-      include: { ingredient: true },
-    });
+    // Uu tien dung recipeSnapshot (cong thuc tai thoi diem tao don) neu co, de nhat quan voi
+    // luc thuc su tru kho — fallback ve cong thuc hien tai cho don cu chua co snapshot.
+    const recipes = orderItem.recipeSnapshot?.length > 0
+      ? await resolveRecipeFromSnapshot(prisma, orderItem.recipeSnapshot)
+      : await prisma.menuItemIngredient.findMany({
+          where: { menuItemId: orderItem.menuItemId },
+          include: { ingredient: true },
+        });
 
     const missingIngredients = [];
 
@@ -1064,10 +1105,14 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
       continue;
     }
 
-    const recipes = await tx.menuItemIngredient.findMany({
-      where: { menuItemId: orderItem.menuItemId },
-      include: { ingredient: true },
-    });
+    // Uu tien tru kho theo recipeSnapshot (cong thuc luc tao don) — neu cong thuc bi sua doi
+    // sau khi don da tao, don nay van tru dung nhu da chup, khong bi anh huong.
+    const recipes = orderItem.recipeSnapshot?.length > 0
+      ? await resolveRecipeFromSnapshot(tx, orderItem.recipeSnapshot)
+      : await tx.menuItemIngredient.findMany({
+          where: { menuItemId: orderItem.menuItemId },
+          include: { ingredient: true },
+        });
 
     for (const recipe of recipes) {
       const totalUsage = Number(recipe.amount) * orderItem.quantity;
