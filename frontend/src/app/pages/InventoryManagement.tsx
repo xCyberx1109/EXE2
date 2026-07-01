@@ -384,33 +384,33 @@ export function InventoryManagement() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (item) => (
-        <>
+        <div className="flex items-center justify-end gap-2 flex-nowrap">
           {hasPermission('INVENTORY_VIEW') && (
-            <button onClick={() => setHistoryItem(item)} title="Lịch sử giao dịch" className="text-muted-foreground hover:text-foreground mr-3">
+            <button onClick={() => setHistoryItem(item)} title="Lịch sử giao dịch" className="text-muted-foreground hover:text-foreground">
               <History className="w-4 h-4" />
             </button>
           )}
           {hasPermission('INVENTORY_IMPORT') && (
-            <button onClick={() => openStockModal(item, 'IN')} title="Nhập kho" className="text-green-600 hover:text-green-700 dark:text-green-400 mr-3">
+            <button onClick={() => openStockModal(item, 'IN')} title="Nhập kho" className="text-green-600 hover:text-green-700 dark:text-green-400">
               <ArrowUpCircle className="w-4 h-4" />
             </button>
           )}
           {hasPermission('INVENTORY_EXPORT') && (
-            <button onClick={() => openStockModal(item, 'OUT')} title="Xuất kho" className="text-orange-600 hover:text-orange-700 dark:text-orange-400 mr-3">
+            <button onClick={() => openStockModal(item, 'OUT')} title="Xuất kho" className="text-orange-600 hover:text-orange-700 dark:text-orange-400">
               <ArrowDownCircle className="w-4 h-4" />
             </button>
           )}
           {hasPermission('INVENTORY_UPDATE') && (
-            <button onClick={() => handleEdit(item)} className="text-primary hover:text-primary/80 mr-3">
+            <button onClick={() => handleEdit(item)} title="Sửa" className="text-primary hover:text-primary/80">
               <Edit className="w-4 h-4" />
             </button>
           )}
           {hasPermission('INVENTORY_DELETE') && (
-            <button onClick={() => handleDelete(item.id)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">
+            <button onClick={() => handleDelete(item.id)} title="Xóa" className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
-        </>
+        </div>
       ),
     },
   ];
@@ -991,7 +991,7 @@ export function InventoryManagement() {
                         <p className="font-medium text-foreground text-sm">
                           {TRANSACTION_TYPE_LABELS[tx.type] ?? tx.type}
                           {' — '}
-                          {tx.beforeQuantity !== null && tx.afterQuantity !== null
+                          {tx.beforeQuantity != null && tx.afterQuantity != null
                             ? `${tx.beforeQuantity} → ${tx.afterQuantity}`
                             : `${tx.quantity}`}
                           {' '}{tx.ingredientUnit ?? historyItem.unit}
