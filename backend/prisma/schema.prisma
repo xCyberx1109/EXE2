@@ -441,6 +441,7 @@ model Ingredient {
   inventoryTransactions InventoryTransaction[]
   adjustmentRequests    InventoryAdjustmentRequest[]
   batches               IngredientBatch[]
+  reservations          InventoryReservation[]
   menuItems             MenuItemIngredient[]
   orderItems            OrderItem[]
   stockAlerts           StockAlert[]
@@ -482,6 +483,24 @@ enum IngredientBatchStatus {
   ACTIVE
   DEPLETED
   EXPIRED
+}
+
+// Giu cho tam thoi tren Ingredient tu luc don hang duoc tao/sua toi luc thanh toan hoac huy,
+// de ngan 2 don cung luc "thay" con hang trong khi thuc te chi du cho 1 don (rieng le, khong
+// tinh vao Ingredient.quantity — chi dung de tinh "so luong kha dung" khi tao don moi).
+model InventoryReservation {
+  id           String   @id @default(cuid())
+  accountId    String
+  orderId      String
+  ingredientId String
+  quantity     Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([ingredientId])
+  @@index([orderId])
+  @@map("inventory_reservations")
 }
 
 model StockAlert {
@@ -653,6 +672,7 @@ model Order {
   table                  Table?            @relation("TableOrders", fields: [tableId], references: [id])
   payments               Payment[]
   redeemedVouchers       RedeemedVoucher[]
+  inventoryReservations  InventoryReservation[]
 
   @@index([shiftId])
   @@index([orderNumber])

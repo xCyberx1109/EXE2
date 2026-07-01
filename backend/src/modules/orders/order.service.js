@@ -7,6 +7,16 @@ import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { logAction } from '../../utils/auditLogger.js';
 import { consumeIngredientBatchesFEFO } from '../../utils/inventoryBatches.js';
 
+// Phai khop voi `includeItems` trong order.repository.js (khong export) - dung khi tao/sua don
+// qua tx truc tiep (khong qua repository) de giu cho ton kho trong cung 1 transaction.
+const ORDER_ITEMS_INCLUDE = {
+  items: {
+    include: {
+      menuItem: { include: { category: true } },
+    },
+  },
+};
+
 export const orderService = {
   /** Lấy tất cả đơn cho kitchen queue */
   async listKitchenQueue(user) {
@@ -259,12 +269,19 @@ export const orderService = {
     });
 
     console.log("[ORDER PAYLOAD]", JSON.stringify(orderData, null, 2));
-    const order = await orderRepository.create(orderData);
+
+    // Tao don + giu cho ton kho trong cung 1 transaction: neu khong du hang kha dung
+    // (co the da bi don khac giu cho), toan bo viec tao don se bi rollback.
+    // Include giong het orderRepository.create (items.menuItem.category) de khong mat du lieu
+    // hien thi (mapPosOrder dung item.menuItem?.category?.name).
+    const order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({ data: orderData, include: ORDER_ITEMS_INCLUDE });
+      await reserveInventoryForOrderTx(tx, created);
+      return created;
+    });
 
     // Kiểm tra OrderItems sau khi tạo
-    const createdItems = await prisma.orderItem.findMany({
-      where: { orderId: order.id },
-    });
+    const createdItems = order.items;
     console.log("[ORDER ITEMS - sau khi tạo]", JSON.stringify(createdItems.map(i => ({
       id: i.id,
       name: i.name,
@@ -343,9 +360,14 @@ export const orderService = {
       };
     }
 
-    // Use lighter update when only changing status (no items/discount)
+    // Use lighter update when only changing status (no items/discount).
+    // Khi doi items, phai giu cho lai ton kho theo danh sach moi trong cung 1 transaction.
     const updated = needsItems
-      ? await orderRepository.update(id, updateData)
+      ? await prisma.$transaction(async (tx) => {
+          const result = await tx.order.update({ where: { id }, data: updateData, include: ORDER_ITEMS_INCLUDE });
+          await reserveInventoryForOrderTx(tx, result);
+          return result;
+        })
       : await orderRepository.updateStatus(id, updateData);
 
     logAction({
@@ -465,6 +487,9 @@ export const orderService = {
         console.log(`[CHECKOUT] Calculate ingredients for order ${lockedOrder.orderNumber}`);
         await deductInventoryForOrderTx(tx, updatedOrder, userId || lockedOrder.createdBy);
 
+        // Da tru kho that su -> khong can giu cho tam thoi nua.
+        await releaseReservationsForOrder(tx, id);
+
         console.log("[STEP 5] Update order - mark inventoryDeducted=true");
         await tx.order.update({
           where: { id },
@@ -527,9 +552,12 @@ export const orderService = {
       }
     }
 
-    const updated = await orderRepository.update(id, {
-      status: 'CANCELLED',
-      deletedAt: new Date(),
+    const updated = await prisma.$transaction(async (tx) => {
+      await releaseReservationsForOrder(tx, id);
+      return tx.order.update({
+        where: { id },
+        data: { status: 'CANCELLED', deletedAt: new Date() },
+      });
     });
 
     logAction({
@@ -907,6 +935,81 @@ async function validateInventoryForOrder(order) {
 
   console.log(`[INVENTORY VALIDATE] Result: ${issues.length} issue(s) found`);
   return issues;
+}
+
+/** Gom nhu cau nguyen lieu tu danh sach order items (theo cong thuc menu hoac ban thang tu kho). */
+async function computeRequiredIngredients(tx, orderItems) {
+  const required = new Map(); // ingredientId -> so luong can
+
+  for (const item of orderItems) {
+    if (item.inventoryId && !item.menuItemId) {
+      required.set(item.inventoryId, (required.get(item.inventoryId) || 0) + Number(item.quantity));
+      continue;
+    }
+    if (!item.menuItemId) continue;
+
+    const recipes = await tx.menuItemIngredient.findMany({ where: { menuItemId: item.menuItemId } });
+    for (const recipe of recipes) {
+      const usage = Number(recipe.amount) * Number(item.quantity);
+      required.set(recipe.ingredientId, (required.get(recipe.ingredientId) || 0) + usage);
+    }
+  }
+
+  return required;
+}
+
+/**
+ * Giu cho tam thoi ton kho cho 1 don hang (PENDING, chua thanh toan), ngan 2 don cung luc
+ * "thay" con hang trong khi thuc te chi du cho 1 don. Dung SELECT...FOR UPDATE de khoa row
+ * Ingredient — nguoi goi thu 2 gan nhu dong thoi se PHAI CHO tran giao dich thu nhat commit/
+ * rollback truoc khi doc duoc so lieu, tranh race condition thuc su (khong chi giam xac suat).
+ *
+ * Goi trong 1 Prisma interactive transaction (tx). Neu khong du kha dung, throw AppError 400 —
+ * toan bo transaction (bao gom viec tao/sua don) se bi rollback.
+ */
+async function reserveInventoryForOrderTx(tx, order) {
+  const orderItems = order.items || [];
+  const required = await computeRequiredIngredients(tx, orderItems);
+
+  if (required.size === 0) {
+    await tx.inventoryReservation.deleteMany({ where: { orderId: order.id } });
+    return;
+  }
+
+  for (const [ingredientId, amount] of required.entries()) {
+    const locked = await tx.$queryRaw`SELECT "id", "name", "quantity" FROM "ingredients" WHERE "id" = ${ingredientId} FOR UPDATE`;
+    const ingredient = locked[0];
+    if (!ingredient) continue; // nguyen lieu khong con ton tai — se duoc phat hien o buoc validate/deduct khac
+
+    const reservedElsewhere = await tx.inventoryReservation.aggregate({
+      _sum: { quantity: true },
+      where: { ingredientId, orderId: { not: order.id } },
+    });
+    const reserved = Number(reservedElsewhere._sum.quantity || 0);
+    const available = Number(ingredient.quantity) - reserved;
+
+    if (available < amount) {
+      throw new AppError(
+        `Không đủ tồn kho khả dụng cho "${ingredient.name}" (có thể đã được đơn khác giữ chỗ). Cần ${amount}, còn khả dụng ${available}.`,
+        400
+      );
+    }
+  }
+
+  // Tat ca nguyen lieu deu du -> thay the toan bo reservation cu bang reservation moi cua don nay.
+  await tx.inventoryReservation.deleteMany({ where: { orderId: order.id } });
+  await tx.inventoryReservation.createMany({
+    data: Array.from(required.entries()).map(([ingredientId, amount]) => ({
+      accountId: order.accountId,
+      orderId: order.id,
+      ingredientId,
+      quantity: amount,
+    })),
+  });
+}
+
+async function releaseReservationsForOrder(tx, orderId) {
+  await tx.inventoryReservation.deleteMany({ where: { orderId } });
 }
 
 /**
