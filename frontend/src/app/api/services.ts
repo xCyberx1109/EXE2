@@ -17,6 +17,7 @@ import type {
   IngredientBatch,
   WasteReport,
   FoodCostReport,
+  InventoryTransactionRecord,
   Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse,
   PaginatedResponse,
 } from '../types';
@@ -254,6 +255,9 @@ export const inventoryApi = {
     const query = q.toString();
     return apiFetch<FoodCostReport>(`/inventory/reports/food-cost${query ? `?${query}` : ''}`);
   },
+
+  getIngredientTransactions: (ingredientId: string) =>
+    apiFetch<InventoryTransactionRecord[]>(`/ingredients/${ingredientId}/transactions`),
 };
 
 // --- Dashboard ---

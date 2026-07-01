@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Plus, Edit, Trash2, Search, AlertTriangle, TrendingDown, Loader2, ArrowUpCircle, ArrowDownCircle,
-  ClipboardCheck, Check, X, CalendarClock, BarChart3,
+  ClipboardCheck, Check, X, CalendarClock, BarChart3, History,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -10,12 +10,12 @@ import {
   useDeleteInventoryItemMutation, useStockInMutation, useStockOutMutation,
   useAdjustmentRequests, useApproveAdjustmentRequestMutation, useRejectAdjustmentRequestMutation,
   useApprovalThreshold, useUpdateApprovalThresholdMutation, useExpiringBatches,
-  useWasteReport, useFoodCostReport,
+  useWasteReport, useFoodCostReport, useIngredientTransactions,
 } from '../api/hooks';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { DataTable, type Column } from '../components/DataTable';
 import type { InventoryItem, DeleteDependencyReport } from '../types';
-import { INGREDIENT_UNITS, STOCK_IN_TYPES, STOCK_OUT_TYPES, REASON_REQUIRED_STOCK_TYPES } from '../../shared/constants';
+import { INGREDIENT_UNITS, STOCK_IN_TYPES, STOCK_OUT_TYPES, REASON_REQUIRED_STOCK_TYPES, TRANSACTION_TYPE_LABELS } from '../../shared/constants';
 
 type StockDirection = 'IN' | 'OUT';
 
@@ -96,6 +96,9 @@ export function InventoryManagement() {
   const [showReports, setShowReports] = useState(false);
   const { data: wasteReport } = useWasteReport(undefined, undefined, showReports && canViewReports);
   const { data: foodCostReport } = useFoodCostReport(undefined, undefined, showReports && canViewReports);
+
+  const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null);
+  const { data: transactionHistory = [], isLoading: historyLoading } = useIngredientTransactions(historyItem?.id ?? null);
 
   const lowStockCount = stats?.lowStockCount ?? inventoryItems.filter(i => i.quantity <= i.warningQuantity).length;
   const totalValue = stats?.totalValue ?? inventoryItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
@@ -382,6 +385,11 @@ export function InventoryManagement() {
       className: 'text-right',
       render: (item) => (
         <>
+          {hasPermission('INVENTORY_VIEW') && (
+            <button onClick={() => setHistoryItem(item)} title="Lịch sử giao dịch" className="text-muted-foreground hover:text-foreground mr-3">
+              <History className="w-4 h-4" />
+            </button>
+          )}
           {hasPermission('INVENTORY_IMPORT') && (
             <button onClick={() => openStockModal(item, 'IN')} title="Nhập kho" className="text-green-600 hover:text-green-700 dark:text-green-400 mr-3">
               <ArrowUpCircle className="w-4 h-4" />
@@ -953,6 +961,51 @@ export function InventoryManagement() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {historyItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-lg max-w-2xl w-full p-6 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Lịch sử giao dịch</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">{historyItem.name}</p>
+              </div>
+              <button onClick={() => setHistoryItem(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {historyLoading ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">Đang tải...</p>
+            ) : transactionHistory.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">Chưa có giao dịch nào.</p>
+            ) : (
+              <div className="space-y-2">
+                {transactionHistory.map((tx) => (
+                  <div key={tx.id} className="border border-border rounded-lg p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-foreground text-sm">
+                          {TRANSACTION_TYPE_LABELS[tx.type] ?? tx.type}
+                          {' — '}
+                          {tx.beforeQuantity !== null && tx.afterQuantity !== null
+                            ? `${tx.beforeQuantity} → ${tx.afterQuantity}`
+                            : `${tx.quantity}`}
+                          {' '}{tx.ingredientUnit ?? historyItem.unit}
+                        </p>
+                        {tx.note && <p className="text-sm text-muted-foreground mt-0.5">Lý do: {tx.note}</p>}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Người thực hiện: {tx.user?.fullName ?? 'Hệ thống'} — {new Date(tx.createdAt).toLocaleString('vi-VN')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
