@@ -130,7 +130,7 @@ export function BranchManagement() {
       setLoading(true);
       setError(null);
       const data = await branchApi.list();
-      setBranches(data);
+      setBranches(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tải danh sách chi nhánh');
     } finally {
@@ -206,7 +206,7 @@ export function BranchManagement() {
       } else {
         const result = await branchApi.create(payload);
         const data = await branchApi.list();
-        setBranches(data);
+        setBranches(Array.isArray(data) ? data : []);
         toast.success(`Đã gửi thông tin đăng nhập đến email ${result.email}`);
       }
 

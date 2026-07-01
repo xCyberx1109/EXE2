@@ -39,8 +39,9 @@ export function POSSystem() {
       categoryApi.list(),
       inventoryApi.list(),
     ]).then(([items, cats, inv]) => {
-      setMenuItems(items);
-      setCategories(cats.data ?? []);
+      setMenuItems(Array.isArray(items) ? items : []);
+      const catData = Array.isArray(cats) ? cats : (cats?.data ?? []);
+      setCategories(catData);
       setInventoryItems(Array.isArray(inv) ? inv : []);
     }).catch(console.error);
   }, []);
@@ -75,10 +76,10 @@ export function POSSystem() {
         setTables(prevTables =>
           prevTables.map(table => {
 
-            const orders = data
+            const orders = (Array.isArray(data) ? data : [])
               .filter((o: any) => Number(o.table) === table.number)
               .flatMap((o: any) =>
-                o.items.map((item: any) => ({
+                (o.items ?? []).map((item: any) => ({
                   ...item,
                   orderedAt: new Date(o.time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                 }))

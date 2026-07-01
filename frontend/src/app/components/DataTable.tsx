@@ -69,7 +69,7 @@ export function DataTable<T>({
                   {error}
                 </td>
               </tr>
-            ) : data.length === 0 ? (
+            ) : !Array.isArray(data) || data.length === 0 ? (
               <tr>
                 <td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">
                   {emptyMessage}

@@ -20,7 +20,7 @@ export function SalesChart({ data, chartRange }: { data: RevenueChartPoint[]; ch
   const tooltipBg = isDark ? '#1f2937' : '#ffffff';
   const tooltipBorder = isDark ? '#374151' : '#e5e7eb';
 
-  if (data.length === 0) {
+  if (!Array.isArray(data) || data.length === 0) {
     return <EmptyState message="Không có dữ liệu doanh thu" icon={BarChart3} />;
   }
 

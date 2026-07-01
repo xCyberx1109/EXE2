@@ -43,9 +43,10 @@ export function BilliardLayout() {
       setLoading(true);
       setError(null);
       const data = await billiardApi.listTables();
-      setTables(data);
+      const tableList = Array.isArray(data) ? data : [];
+      setTables(tableList);
       const pos: Record<string, { xPercent: number; yPercent: number }> = {};
-      data.forEach((t) => {
+      tableList.forEach((t) => {
         pos[t.id] = { xPercent: t.xPercent ?? t.posX, yPercent: t.yPercent ?? t.posY };
       });
       setPositions(pos);

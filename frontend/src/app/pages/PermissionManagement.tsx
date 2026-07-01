@@ -111,7 +111,7 @@ function formatDate(dateStr: string) {
 }
 
 function determinePlanFromPerms(codes: string[]): PlanKey {
-  const set = new Set(codes);
+  const set = new Set(Array.isArray(codes) ? codes : []);
   const planPermCounts = PLAN_ORDER.map((p) => ({
     plan: p,
     count: PLAN_PERMISSIONS[p].filter((c) => set.has(c)).length,
@@ -186,22 +186,27 @@ export function PermissionManagement() {
   };
 
   const codeToIdMap = useMemo(() => {
+    if (!Array.isArray(permissions)) return new Map();
     return new Map(permissions.map((p) => [p.code, p.id]));
   }, [permissions]);
 
   const permIdToCodeMap = useMemo(() => {
+    if (!Array.isArray(permissions)) return new Map();
     return new Map(permissions.map((p) => [p.id, p.code]));
   }, [permissions]);
 
   const idToNameMap = useMemo(() => {
+    if (!Array.isArray(permissions)) return new Map();
     return new Map(permissions.map((p) => [p.id, p.name]));
   }, [permissions]);
 
   const idToModuleMap = useMemo(() => {
+    if (!Array.isArray(permissions)) return new Map();
     return new Map(permissions.map((p) => [p.id, p.module]));
   }, [permissions]);
 
   const accountPermIdSet = useMemo(() => {
+    if (!Array.isArray(accountPermissions)) return new Set();
     return new Set(
       accountPermissions
         .filter((ap) => ap.allowed)
@@ -209,22 +214,22 @@ export function PermissionManagement() {
     );
   }, [accountPermissions]);
 
-  const accountPermCodes = useMemo(() => {
-    return Array.from(accountPermIdSet)
-      .map((id) => permIdToCodeMap.get(id))
-      .filter(Boolean) as string[];
-  }, [accountPermIdSet, permIdToCodeMap]);
-
-  const currentPlan = useMemo(() => {
-    if (!selectedAccount) return null;
-    const allCodes = new Set(accountPermCodes);
-    if (allCodes.size === 0 && selectedAccount.assignedPermissions) {
-      selectedAccount.assignedPermissions.forEach((ap) => {
-        if (ap.allowed) allCodes.add(ap.permissionCode);
-      });
-    }
-    return determinePlanFromPerms(Array.from(allCodes));
-  }, [selectedAccount, accountPermCodes]);
+    const accountPermCodes = useMemo(() => {
+      if (!selectedAccount) return [];
+      return (selectedAccount.assignedPermissions ?? [])
+        .filter((ap) => ap.allowed)
+        .map((ap) => ap.permissionCode);
+    }, [selectedAccount]);
+    const currentPlan = useMemo(() => {
+      if (!selectedAccount) return null;
+      const allCodes = new Set(accountPermCodes);
+      if (allCodes.size === 0 && Array.isArray(selectedAccount.assignedPermissions)) {
+        selectedAccount.assignedPermissions.forEach((ap) => {
+          if (ap.allowed) allCodes.add(ap.permissionCode);
+        });
+      }
+      return determinePlanFromPerms(Array.from(allCodes));
+    }, [selectedAccount, accountPermCodes]);
 
   const selectedPlan = useMemo(() => currentPlan || 'BASIC', [currentPlan]);
 

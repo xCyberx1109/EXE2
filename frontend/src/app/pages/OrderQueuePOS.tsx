@@ -280,7 +280,7 @@ export function OrderQueuePOS() {
     ordersQueueApi
       .list({ paymentStatus: 'UNPAID' })
       .then(data => {
-        const openOrders = data.filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)));
+        const openOrders = (Array.isArray(data) ? data : []).filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)));
         const sorted = [...openOrders].sort(
           (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
@@ -304,7 +304,7 @@ export function OrderQueuePOS() {
         .list({ available: 'true' })
         .then((data) => {
           console.log('[MENU API RESPONSE]', data);
-          setMenuItems(data);
+          setMenuItems(Array.isArray(data) ? data : []);
         })
         .catch((e) => {
           console.log('[MENU API ERROR]', e);

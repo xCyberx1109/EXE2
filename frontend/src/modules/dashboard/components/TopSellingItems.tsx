@@ -12,12 +12,13 @@ const formatVND = (n: number) => {
 const formatNumber = (n: number) => n.toLocaleString('vi-VN');
 
 export function TopSellingItems({ items }: { items: DashboardTopItem[] }) {
+  const safeItems = Array.isArray(items) ? items : [];
   return (
     <div className="bg-card rounded-xl border border-border p-5">
       <SectionHeader title="Món bán chạy" actionLabel="Xem tất cả" actionHref="/app/menu" />
-      {items.length > 0 ? (
+      {safeItems.length > 0 ? (
         <div className="space-y-3">
-          {items.map((item, idx) => (
+          {safeItems.map((item, idx) => (
             <div key={item.menuItemId} className="flex items-center gap-4 py-2.5 border-b border-border last:border-0">
               <span className={`flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${
                 idx === 0 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :

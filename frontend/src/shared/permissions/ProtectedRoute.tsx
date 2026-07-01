@@ -72,9 +72,9 @@ export function ProtectedRoute({
 
     if (moduleName) {
       const canAccess = deviceFeatures
-        ? !deviceFeatures.hide.includes('all-interactive') &&
-          !deviceFeatures.hide.includes(moduleName) &&
-          deviceFeatures.modules.includes(moduleName)
+        ? !(deviceFeatures.hide ?? []).includes('all-interactive') &&
+          !(deviceFeatures.hide ?? []).includes(moduleName) &&
+          (deviceFeatures.modules ?? []).includes(moduleName)
         : false;
       if (!canAccess) {
         return <Navigate to={fallbackPath} replace />;

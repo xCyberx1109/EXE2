@@ -100,7 +100,7 @@ export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
           <Loader2 className="w-6 h-6 animate-spin mr-2" />
           Đang tải đơn hàng...
         </div>
-      ) : !data || data.orders.length === 0 ? (
+      ) : !data || !data.orders || data.orders.length === 0 ? (
         <p className="text-center py-12 text-muted-foreground">Không có đơn hàng trong ngày này</p>
       ) : (
         <div className="overflow-x-auto">
@@ -118,7 +118,7 @@ export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {data.orders.map((order) => (
+              {data.orders?.map((order) => (
                 <OrderRow
                   key={order.id}
                   order={order}
@@ -187,7 +187,7 @@ function OrderRow({
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items.map((item) => (
+                  {(order.items ?? []).map((item) => (
                     <tr key={item.id} className="border-t border-border">
                       <td className="py-1.5 text-foreground">{item.name}</td>
                       <td className="py-1.5 text-foreground">{item.quantity}</td>

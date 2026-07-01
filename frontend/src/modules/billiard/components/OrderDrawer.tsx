@@ -52,10 +52,13 @@ export function OrderDrawer({ open, onClose, tableId, tableName, tableCode, curr
   const isRestaurant = mode === 'RESTAURANT';
   const displayName = tableName || tableCode;
 
-  const { data: menuItems = [], isLoading: menuLoading } = useMenuItems({ available: 'true' });
+  const { data: menuData, isLoading: menuLoading } = useMenuItems({ available: 'true' });
   const { data: orderData, isLoading: orderLoading } = useRestaurantTableOrder(tableId);
 
-  const { data: inventoryItems = [], isLoading: itemsLoading } = useInventoryItems();
+  const { data: inventoryData, isLoading: itemsLoading } = useInventoryItems();
+
+  const menuItems = Array.isArray(menuData) ? menuData : (menuData?.data ?? []);
+  const inventoryItems = Array.isArray(inventoryData) ? inventoryData : (inventoryData?.data ?? []);
   const { data: orderSummary, isLoading: summaryLoading } = useTableOrderSummary(tableId);
 
   const order = orderData as any;

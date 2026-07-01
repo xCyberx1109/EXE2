@@ -55,8 +55,9 @@ interface TableFloorProps {
   onLayoutModeChange: (mode: boolean) => void;
 }
 
-export function TableFloor({ mode, tables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
+export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
   const { hasPermission, isPosMachineMode } = useAuth();
+  const tables = Array.isArray(rawTables) ? rawTables : [];
   const [showCreate, setShowCreate] = useState(false);
   const [positions, setPositions] = useState<Record<string, { xPercent: number; yPercent: number }>>({});
   const updateLayout = useUpdateLayout(mode);

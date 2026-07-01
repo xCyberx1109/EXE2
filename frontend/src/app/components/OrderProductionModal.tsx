@@ -59,7 +59,7 @@ export function OrderProductionModal({ order, onClose }: OrderProductionModalPro
           <div>
             <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Danh sách món</h3>
             <div className="space-y-2">
-              {order.items.map((item) => (
+              {(order.items ?? []).map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl border border-border bg-muted p-3">
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-bold text-foreground">{item.name}</span>
