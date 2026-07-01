@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Plus, Search, FolderTree, RotateCcw, Trash2, Edit3, Eye, X, UtensilsCrossed,
+  Plus, Search, FolderTree, RotateCcw, Trash2, Edit3, Eye, X, UtensilsCrossed, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { useAuth } from '../context/AuthContext';
@@ -93,6 +93,7 @@ export function CategoryManagement() {
   const [deleting, setDeleting] = useState(false);
 
   const { data: stats } = useCategoryStats();
+  const [statsExpanded, setStatsExpanded] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const { data: viewingCategory, isLoading: viewingLoading } = useCategory(viewingId);
 
@@ -302,27 +303,37 @@ export function CategoryManagement() {
 
       {stats && (
         <div className="bg-card rounded-xl border border-border p-4 flex-shrink-0">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Tổng danh mục</p>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {stats.totalCategories}
-                <span className="text-sm font-normal text-muted-foreground ml-1">
-                  ({stats.totalActiveCategories} đang hoạt động)
-                </span>
-              </p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-6">
+              <div>
+                <p className="text-xs text-muted-foreground">Tổng danh mục</p>
+                <p className="text-lg font-bold text-foreground">
+                  {stats.totalCategories}
+                  <span className="text-xs font-normal text-muted-foreground ml-1">
+                    ({stats.totalActiveCategories} đang hoạt động)
+                  </span>
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Tổng số món trong menu</p>
+                <p className="text-lg font-bold text-foreground">{stats.totalItems}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Tổng số món trong menu</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{stats.totalItems}</p>
-            </div>
+            {stats.byCategory.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setStatsExpanded((v) => !v)}
+              >
+                Phân bổ theo danh mục
+                {statsExpanded ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
+              </Button>
+            )}
           </div>
 
-          {stats.byCategory.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Phân bổ món ăn theo danh mục
-              </p>
+          {statsExpanded && stats.byCategory.length > 0 && (
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 mt-3 pt-3 border-t border-border">
               {stats.byCategory.map((c) => (
                 <div key={c.id} className="flex items-center gap-3">
                   <span className="w-32 shrink-0 truncate text-sm text-foreground" title={c.name}>

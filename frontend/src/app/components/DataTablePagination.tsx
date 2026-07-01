@@ -79,7 +79,7 @@ export function DataTablePagination({
         )}
       </div>
 
-      <Pagination>
+      <Pagination className="w-auto mx-0 flex-shrink-0">
         <PaginationContent>
           <PaginationItem>
             <PaginationLink
