@@ -10,6 +10,8 @@ import type {
   User,
   Branch,
   CategoryItem,
+  CategoryDetail,
+  CategoryStats,
   TableItem,
   DeleteDependencyReport,
   InventoryIssue,
@@ -113,7 +115,9 @@ export const categoryApi = {
   },
 
   get: (id: string) =>
-    apiFetch<CategoryItem>(`/categories/${id}`),
+    apiFetch<CategoryDetail>(`/categories/${id}`),
+
+  stats: () => apiFetch<CategoryStats>('/categories/stats'),
 
   create: (body: { name: string; description?: string; active?: boolean; slug?: string }) =>
     apiFetch<CategoryItem>('/categories', { method: 'POST', body: JSON.stringify(body) }),

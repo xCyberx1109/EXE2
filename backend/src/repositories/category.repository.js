@@ -47,7 +47,7 @@ export const categoryRepository = {
       orderBy,
       skip,
       take: limit,
-      include: { _count: { select: { menuItems: true } } },
+      include: { _count: { select: { menuItems: { where: { deletedAt: null } } } } },
     });
   },
 
@@ -59,7 +59,29 @@ export const categoryRepository = {
   findById: (id) =>
     prisma.category.findUnique({
       where: { id },
-      include: { _count: { select: { menuItems: true } } },
+      include: { _count: { select: { menuItems: { where: { deletedAt: null } } } } },
+    }),
+
+  /** Dùng cho màn hình xem chi tiết — kèm danh sách món ăn thuộc danh mục (chưa xóa). */
+  findByIdWithItems: (id) =>
+    prisma.category.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { menuItems: { where: { deletedAt: null } } } },
+        menuItems: {
+          where: { deletedAt: null },
+          select: { id: true, name: true, price: true, available: true },
+          orderBy: { name: 'asc' },
+        },
+      },
+    }),
+
+  /** Dùng cho thống kê phân bổ danh mục — chỉ danh mục chưa xóa. */
+  findAllWithCounts: () =>
+    prisma.category.findMany({
+      where: { deletedAt: null },
+      include: { _count: { select: { menuItems: { where: { deletedAt: null } } } } },
+      orderBy: { name: 'asc' },
     }),
 
   findBySlug: (slug) =>
@@ -73,7 +95,7 @@ export const categoryRepository = {
     prisma.category.update({
       where: { id },
       data,
-      include: { _count: { select: { menuItems: true } } },
+      include: { _count: { select: { menuItems: { where: { deletedAt: null } } } } },
     }),
 
   softDelete: (id) =>
@@ -91,6 +113,6 @@ export const categoryRepository = {
     prisma.category.findMany({
       where: { deletedAt: null, ...where },
       orderBy: { name: 'asc' },
-      include: { _count: { select: { menuItems: true } } },
+      include: { _count: { select: { menuItems: { where: { deletedAt: null } } } } },
     }),
 };

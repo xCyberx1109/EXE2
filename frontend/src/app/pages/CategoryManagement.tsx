@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
-  Plus, Search, FolderTree, RotateCcw, Trash2, Edit3,
+  Plus, Search, FolderTree, RotateCcw, Trash2, Edit3, Eye, X, UtensilsCrossed,
 } from 'lucide-react';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { useAuth } from '../context/AuthContext';
 import {
   useCategoryList, useCreateCategoryMutation,
   useUpdateCategoryMutation, useDeleteCategoryMutation, useRestoreCategoryMutation,
+  useCategoryStats, useCategory,
 } from '../api/hooks';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -90,6 +91,10 @@ export function CategoryManagement() {
 
   const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const { data: stats } = useCategoryStats();
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const { data: viewingCategory, isLoading: viewingLoading } = useCategory(viewingId);
 
   const isEditing = !!editing;
 
@@ -223,6 +228,14 @@ export function CategoryManagement() {
         const isDeleted = !!cat.deletedAt;
         return (
           <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewingId(cat.id)}
+              title="Xem chi tiết"
+            >
+              <Eye className="w-4 h-4" />
+            </Button>
             {isDeleted ? (
               canDelete && (
                 <Button
@@ -286,6 +299,50 @@ export function CategoryManagement() {
           </Button>
         )}
       </div>
+
+      {stats && (
+        <div className="bg-card rounded-xl border border-border p-4 flex-shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Tổng danh mục</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {stats.totalCategories}
+                <span className="text-sm font-normal text-muted-foreground ml-1">
+                  ({stats.totalActiveCategories} đang hoạt động)
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Tổng số món trong menu</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{stats.totalItems}</p>
+            </div>
+          </div>
+
+          {stats.byCategory.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Phân bổ món ăn theo danh mục
+              </p>
+              {stats.byCategory.map((c) => (
+                <div key={c.id} className="flex items-center gap-3">
+                  <span className="w-32 shrink-0 truncate text-sm text-foreground" title={c.name}>
+                    {c.name}
+                  </span>
+                  <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-purple-500 rounded-full transition-all"
+                      style={{ width: `${c.percentage}%` }}
+                    />
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-sm text-muted-foreground">
+                    {c.itemCount} món ({c.percentage}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-card rounded-xl border border-border p-4 space-y-4 flex-shrink-0">
         <div className="flex flex-col sm:flex-row gap-3">
@@ -412,6 +469,84 @@ export function CategoryManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Category Detail */}
+      <Dialog open={!!viewingId} onOpenChange={(open) => { if (!open) setViewingId(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Chi tiết danh mục</DialogTitle>
+            <DialogDescription>Thông tin đầy đủ và danh sách món ăn thuộc danh mục này</DialogDescription>
+          </DialogHeader>
+
+          {viewingLoading ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">Đang tải...</p>
+          ) : !viewingCategory ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">Không tìm thấy danh mục.</p>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">{viewingCategory.name}</h3>
+                  {viewingCategory.deletedAt ? (
+                    <Badge variant="destructive">Đã xóa</Badge>
+                  ) : viewingCategory.active ? (
+                    <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Hoạt động</Badge>
+                  ) : (
+                    <Badge variant="secondary">Ẩn</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">Slug: {viewingCategory.slug}</p>
+              </div>
+
+              {viewingCategory.description && (
+                <p className="text-sm text-foreground">{viewingCategory.description}</p>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Ngày tạo</p>
+                  <p className="text-foreground">{new Date(viewingCategory.createdAt).toLocaleDateString('vi-VN')}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Cập nhật gần nhất</p>
+                  <p className="text-foreground">{new Date(viewingCategory.updatedAt).toLocaleDateString('vi-VN')}</p>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <UtensilsCrossed className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">
+                    Món ăn thuộc danh mục này ({viewingCategory.menuItems.length})
+                  </p>
+                </div>
+                {viewingCategory.menuItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Chưa có món ăn nào thuộc danh mục này.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                    {viewingCategory.menuItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border text-sm">
+                        <span className="text-foreground">{item.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">{item.price.toLocaleString()} ₫</span>
+                          {!item.available && <Badge variant="secondary" className="text-xs">Ngừng bán</Badge>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setViewingId(null)}>
+                  <X className="w-4 h-4 mr-1" />
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

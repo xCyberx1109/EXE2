@@ -12,6 +12,11 @@ export const getCategory = asyncHandler(async (req, res) => {
   sendSuccess(res, { message: 'Lấy thông tin danh mục thành công', data });
 });
 
+export const getCategoryStats = asyncHandler(async (req, res) => {
+  const data = await categoryService.getStats();
+  sendSuccess(res, { message: 'Lấy thống kê danh mục thành công', data });
+});
+
 export const createCategory = asyncHandler(async (req, res) => {
   const data = await categoryService.create(req.body);
   sendSuccess(res, { message: 'Tạo danh mục thành công', data, statusCode: 201 });
