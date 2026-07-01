@@ -33,6 +33,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   if (testIngredientId) {
+    await prisma.inventoryAdjustmentRequest.deleteMany({ where: { ingredientId: testIngredientId } });
     await prisma.inventoryTransaction.deleteMany({ where: { ingredientId: testIngredientId } });
     await prisma.ingredient.delete({ where: { id: testIngredientId } }).catch(() => {});
     testIngredientId = null;
@@ -41,6 +42,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   if (testAccountId) {
+    await prisma.inventoryAdjustmentRequest.deleteMany({ where: { accountId: testAccountId } });
     await prisma.inventoryTransaction.deleteMany({ where: { accountId: testAccountId } });
     await prisma.account.delete({ where: { id: testAccountId } }).catch(() => {});
   }
@@ -166,6 +168,20 @@ describe('[INTEGRATION - DB thật] inventoryService.updateIngredient', () => {
     expect(tx.note).toBe('Kiem kho phat hien du');
   });
 
+  it('chan 400 khi doi quantity nhung khong nhap note (du co quyen INVENTORY_ADJUST)', async () => {
+    const ingredient = await createTestIngredient({ quantity: 10 });
+
+    await expect(
+      inventoryService.updateIngredient(ingredient.id, { quantity: 30 }, testUser(['INVENTORY_ADJUST']))
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    const unchanged = await prisma.ingredient.findUnique({ where: { id: ingredient.id } });
+    expect(Number(unchanged.quantity)).toBe(10);
+
+    const count = await prisma.inventoryTransaction.count({ where: { ingredientId: ingredient.id } });
+    expect(count).toBe(0);
+  });
+
   it('khong tao transaction neu quantity khong doi, du body van gui kem quantity', async () => {
     const ingredient = await createTestIngredient({ quantity: 10 });
 
@@ -187,5 +203,116 @@ describe('[INTEGRATION - DB thật] inventoryService.updateIngredient', () => {
 
     const count = await prisma.inventoryTransaction.count({ where: { ingredientId: ingredient.id } });
     expect(count).toBe(0);
+  });
+});
+
+describe('[INTEGRATION - DB thật] Luong phe duyet dieu chinh/hao hut lon', () => {
+  it('stockOut WASTE vuot nguong -> tao pending request that, KHONG tru kho ngay', async () => {
+    const ingredient = await createTestIngredient({ quantity: 20, price: 100000 });
+
+    const result = await inventoryService.stockOut(
+      ingredient.id,
+      { quantity: 10, type: 'WASTE', note: 'Hong ca lo lon do chay tu lanh' },
+      testUser(['INVENTORY_EXPORT'])
+    );
+
+    expect(result.pending).toBe(true);
+    expect(result.request.status).toBe('PENDING');
+    expect(Number(result.request.estimatedValue)).toBe(1000000);
+
+    const unchanged = await prisma.ingredient.findUnique({ where: { id: ingredient.id } });
+    expect(Number(unchanged.quantity)).toBe(20);
+
+    const txCount = await prisma.inventoryTransaction.count({ where: { ingredientId: ingredient.id } });
+    expect(txCount).toBe(0);
+
+    const reqInDb = await prisma.inventoryAdjustmentRequest.findFirst({ where: { ingredientId: ingredient.id } });
+    expect(reqInDb).not.toBeNull();
+    expect(reqInDb.status).toBe('PENDING');
+  });
+
+  it('duyet yeu cau -> tru kho that va tao InventoryTransaction lien ket referenceId', async () => {
+    const ingredient = await createTestIngredient({ quantity: 20, price: 100000 });
+
+    const created = await inventoryService.stockOut(
+      ingredient.id,
+      { quantity: 10, type: 'WASTE', note: 'Hong ca lo lon' },
+      testUser(['INVENTORY_EXPORT'])
+    );
+    const requestId = created.request.id;
+
+    const approved = await inventoryService.approveAdjustmentRequest(requestId, testUser(['INVENTORY_APPROVE']));
+
+    expect(approved.ingredient.quantity).toBe(10);
+    expect(approved.request.status).toBe('APPROVED');
+
+    const updatedIngredient = await prisma.ingredient.findUnique({ where: { id: ingredient.id } });
+    expect(Number(updatedIngredient.quantity)).toBe(10);
+
+    const tx = await prisma.inventoryTransaction.findFirst({ where: { ingredientId: ingredient.id } });
+    expect(tx).not.toBeNull();
+    expect(tx.type).toBe('WASTE');
+    expect(tx.referenceType).toBe('ADJUSTMENT_REQUEST');
+    expect(tx.referenceId).toBe(requestId);
+  });
+
+  it('tu choi yeu cau -> khong dong den ton kho, khong tao transaction', async () => {
+    const ingredient = await createTestIngredient({ quantity: 20, price: 100000 });
+
+    const created = await inventoryService.stockOut(
+      ingredient.id,
+      { quantity: 10, type: 'WASTE', note: 'Hong ca lo lon' },
+      testUser(['INVENTORY_EXPORT'])
+    );
+
+    const rejected = await inventoryService.rejectAdjustmentRequest(
+      created.request.id,
+      'Nghi ngo khai bao sai su that',
+      testUser(['INVENTORY_APPROVE'])
+    );
+
+    expect(rejected.status).toBe('REJECTED');
+
+    const unchanged = await prisma.ingredient.findUnique({ where: { id: ingredient.id } });
+    expect(Number(unchanged.quantity)).toBe(20);
+
+    const txCount = await prisma.inventoryTransaction.count({ where: { ingredientId: ingredient.id } });
+    expect(txCount).toBe(0);
+  });
+
+  it('khong the duyet 2 lan cho cung 1 yeu cau', async () => {
+    const ingredient = await createTestIngredient({ quantity: 20, price: 100000 });
+    const created = await inventoryService.stockOut(
+      ingredient.id,
+      { quantity: 10, type: 'WASTE', note: 'Hong ca lo' },
+      testUser(['INVENTORY_EXPORT'])
+    );
+
+    await inventoryService.approveAdjustmentRequest(created.request.id, testUser(['INVENTORY_APPROVE']));
+
+    await expect(
+      inventoryService.approveAdjustmentRequest(created.request.id, testUser(['INVENTORY_APPROVE']))
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
+describe('[INTEGRATION - DB thật] Nguong phe duyet co the cau hinh rieng theo account', () => {
+  it('cap nhat nguong xuong thap hon -> giao dich nho hon cung phai cho duyet', async () => {
+    await inventoryService.updateThresholdSetting(1000, testUser(['INVENTORY_APPROVE']));
+
+    try {
+      const ingredient = await createTestIngredient({ quantity: 20, price: 1000 });
+      // 2 don vi * 1000 = 2000 >= nguong moi 1000
+      const result = await inventoryService.stockOut(
+        ingredient.id,
+        { quantity: 2, type: 'WASTE', note: 'Hong' },
+        testUser(['INVENTORY_EXPORT'])
+      );
+
+      expect(result.pending).toBe(true);
+    } finally {
+      // Tra nguong ve mac dinh de khong anh huong test khac neu chay chung file.
+      await inventoryService.updateThresholdSetting(500000, testUser(['INVENTORY_APPROVE']));
+    }
   });
 });

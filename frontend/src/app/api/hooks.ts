@@ -250,8 +250,13 @@ export function useDeleteInventoryItemMutation() {
 export function useStockInMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, quantity, note }: { id: string; quantity: number; note?: string }) =>
-      inventoryApi.stockIn(id, quantity, note),
+    mutationFn: ({
+      id, quantity, note, type, expiryDate, batchCode, unitCost,
+    }: {
+      id: string; quantity: number; note?: string; type?: string;
+      expiryDate?: string; batchCode?: string; unitCost?: number;
+    }) =>
+      inventoryApi.stockIn(id, quantity, note, type, { expiryDate, batchCode, unitCost }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
@@ -261,11 +266,67 @@ export function useStockInMutation() {
 export function useStockOutMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, quantity, note }: { id: string; quantity: number; note?: string }) =>
-      inventoryApi.stockOut(id, quantity, note),
+    mutationFn: ({ id, quantity, note, type }: { id: string; quantity: number; note?: string; type?: string }) =>
+      inventoryApi.stockOut(id, quantity, note, type),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
+  });
+}
+
+export function useApprovalThreshold() {
+  return useQuery({
+    queryKey: queryKeys.inventory.approvalThreshold,
+    queryFn: () => inventoryApi.getApprovalThreshold(),
+    staleTime: 1000 * 30,
+  });
+}
+
+export function useUpdateApprovalThresholdMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (threshold: number) => inventoryApi.updateApprovalThreshold(threshold),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory.approvalThreshold });
+    },
+  });
+}
+
+export function useAdjustmentRequests(status?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.inventory.adjustmentRequests(status),
+    queryFn: () => inventoryApi.listAdjustmentRequests(status),
+    staleTime: 1000 * 15,
+    enabled,
+  });
+}
+
+export function useApproveAdjustmentRequestMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.approveAdjustmentRequest(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useRejectAdjustmentRequestMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      inventoryApi.rejectAdjustmentRequest(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useExpiringBatches(days = 7) {
+  return useQuery({
+    queryKey: ['inventory', 'expiringBatches', days],
+    queryFn: () => inventoryApi.listExpiringBatches(days),
+    staleTime: 1000 * 30,
   });
 }
 

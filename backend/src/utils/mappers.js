@@ -47,6 +47,42 @@ export const mapInventoryTransaction = (tx) => ({
   user: tx.account ? { id: tx.account.id, fullName: tx.account.fullName } : null,
 });
 
+export const mapAdjustmentRequest = (req) => ({
+  id: req.id,
+  ingredientId: req.ingredientId,
+  ingredientName: req.ingredient?.name,
+  ingredientUnit: req.ingredient?.unit,
+  type: req.type,
+  quantity: Number(req.quantity),
+  beforeQuantity: Number(req.beforeQuantity),
+  afterQuantity: Number(req.afterQuantity),
+  estimatedValue: Number(req.estimatedValue),
+  note: req.note,
+  status: req.status,
+  requestedBy: req.account ? { id: req.account.id, fullName: req.account.fullName } : null,
+  reviewedBy: req.reviewer ? { id: req.reviewer.id, fullName: req.reviewer.fullName } : null,
+  reviewedAt: req.reviewedAt,
+  rejectionReason: req.rejectionReason,
+  createdAt: req.createdAt,
+});
+
+export const mapIngredientBatch = (batch) => ({
+  id: batch.id,
+  ingredientId: batch.ingredientId,
+  ingredientName: batch.ingredient?.name,
+  ingredientUnit: batch.ingredient?.unit,
+  batchCode: batch.batchCode,
+  quantity: Number(batch.quantity),
+  initialQuantity: Number(batch.initialQuantity),
+  unitCost: batch.unitCost !== null && batch.unitCost !== undefined ? Number(batch.unitCost) : null,
+  expiryDate: batch.expiryDate,
+  receivedDate: batch.receivedDate,
+  status: batch.status,
+  note: batch.note,
+  createdBy: batch.creator ? { id: batch.creator.id, fullName: batch.creator.fullName } : null,
+  createdAt: batch.createdAt,
+});
+
 /** Chi tiết đơn hàng cho quản lý */
 export const mapOrderDetail = (order) => {
   const isRestaurant = order.orderNumber?.startsWith('ORD-');

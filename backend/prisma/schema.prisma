@@ -261,31 +261,36 @@ model Reservation {
 }
 
 model Account {
-  id                           String                 @id @default(cuid())
-  email                        String                 @unique
-  password                     String
-  pinCode                      String?
-  fullName                     String
-  phone                        String?
-  avatarUrl                    String?
-  status                       AccountStatus          @default(ACTIVE)
-  mustChangePassword           Boolean                @default(true)
-  active                       Boolean                @default(true)
-  createdAt                    DateTime               @default(now())
-  updatedAt                    DateTime               @updatedAt
-  grantedAt                    DateTime               @default(now())
-  failedLoginAttempts          Int                    @default(0)
-  lockUntil                    DateTime?              @db.Timestamptz(6)
-  resetPasswordToken           String?
-  resetPasswordExpires         DateTime?              @db.Timestamptz(6)
-  accountPermissions           AccountPermission[]
-  activityLogs                 ActivityLog[]
-  inventoryTransactionsCreated InventoryTransaction[] @relation("InventoryTransactionCreatedBy")
-  inviteTokens                 InviteToken[]
-  ordersCreated                Order[]                @relation("OrderCreatedBy")
-  shifts                       Shift[]
-  staffSessions                StaffSession[]
-  employees                    Employee[]
+  id                                  String                       @id @default(cuid())
+  email                               String                       @unique
+  password                            String
+  pinCode                             String?
+  fullName                            String
+  phone                               String?
+  avatarUrl                           String?
+  status                              AccountStatus                @default(ACTIVE)
+  mustChangePassword                  Boolean                      @default(true)
+  active                              Boolean                      @default(true)
+  createdAt                           DateTime                     @default(now())
+  updatedAt                           DateTime                     @updatedAt
+  grantedAt                           DateTime                     @default(now())
+  failedLoginAttempts                 Int                          @default(0)
+  lockUntil                           DateTime?                    @db.Timestamptz(6)
+  resetPasswordToken                  String?
+  resetPasswordExpires                DateTime?                    @db.Timestamptz(6)
+  // Ngưỡng giá trị (VND) mà từ đó giao dịch WASTE/ADJUST phải chờ phê duyệt thay vì áp dụng ngay.
+  inventoryApprovalThreshold          Decimal                      @default(500000) @db.Decimal(12, 2)
+  accountPermissions                  AccountPermission[]
+  activityLogs                        ActivityLog[]
+  inventoryTransactionsCreated        InventoryTransaction[]       @relation("InventoryTransactionCreatedBy")
+  inventoryAdjustmentRequestsMade     InventoryAdjustmentRequest[] @relation("AdjustmentRequestedBy")
+  inventoryAdjustmentRequestsReviewed InventoryAdjustmentRequest[] @relation("AdjustmentReviewedBy")
+  ingredientBatchesCreated            IngredientBatch[]
+  inviteTokens                        InviteToken[]
+  ordersCreated                       Order[]                      @relation("OrderCreatedBy")
+  shifts                              Shift[]
+  staffSessions                       StaffSession[]
+  employees                           Employee[]
 
   @@index([email])
   @@map("accounts")
@@ -434,6 +439,8 @@ model Ingredient {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   inventoryTransactions InventoryTransaction[]
+  adjustmentRequests    InventoryAdjustmentRequest[]
+  batches               IngredientBatch[]
   menuItems             MenuItemIngredient[]
   orderItems            OrderItem[]
   stockAlerts           StockAlert[]
@@ -444,6 +451,37 @@ model Ingredient {
   @@index([name])
   @@index([accountId], map: "ingredients_branchId_idx")
   @@map("ingredients")
+}
+
+// Theo doi ton kho theo tung lo nhap + han su dung, de tieu thu theo FEFO
+// (First Expired First Out) va canh bao truoc khi hang sap het han.
+model IngredientBatch {
+  id              String                @id @default(cuid())
+  accountId       String
+  ingredientId    String
+  batchCode       String
+  quantity        Decimal               @db.Decimal(10, 2)
+  initialQuantity Decimal               @db.Decimal(10, 2)
+  unitCost        Decimal?              @db.Decimal(12, 2)
+  expiryDate      DateTime?
+  receivedDate    DateTime              @default(now())
+  status          IngredientBatchStatus @default(ACTIVE)
+  note            String?
+  createdBy       String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  ingredient      Ingredient            @relation(fields: [ingredientId], references: [id])
+  creator         Account               @relation(fields: [createdBy], references: [id])
+
+  @@index([ingredientId, status, expiryDate])
+  @@index([accountId])
+  @@map("ingredient_batches")
+}
+
+enum IngredientBatchStatus {
+  ACTIVE
+  DEPLETED
+  EXPIRED
 }
 
 model StockAlert {
@@ -500,6 +538,35 @@ model InventoryTransaction {
   ingredient     Ingredient               @relation(fields: [ingredientId], references: [id])
 
   @@map("inventory_transactions")
+}
+
+// Yêu cầu điều chỉnh/hao hụt tồn kho vượt ngưỡng giá trị, cần quản lý duyệt trước khi
+// thực sự trừ/điều chỉnh kho. Khác với InventoryTransaction (chỉ ghi giao dịch ĐÃ xảy ra),
+// bảng này ghi những giao dịch ĐANG được đề xuất — chỉ khi APPROVED mới tạo InventoryTransaction thật.
+model InventoryAdjustmentRequest {
+  id              String                       @id @default(cuid())
+  accountId       String
+  ingredientId    String
+  type            InventoryTransactionType
+  quantity        Decimal                      @db.Decimal(10, 2)
+  beforeQuantity  Decimal                       @db.Decimal(10, 2)
+  afterQuantity   Decimal                       @db.Decimal(10, 2)
+  estimatedValue  Decimal                       @db.Decimal(14, 2)
+  note            String
+  status          InventoryAdjustmentStatus     @default(PENDING)
+  requestedBy     String
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+  account         Account                       @relation("AdjustmentRequestedBy", fields: [requestedBy], references: [id])
+  reviewer        Account?                      @relation("AdjustmentReviewedBy", fields: [reviewedBy], references: [id])
+  ingredient      Ingredient                    @relation(fields: [ingredientId], references: [id])
+
+  @@index([accountId, status])
+  @@index([ingredientId])
+  @@map("inventory_adjustment_requests")
 }
 
 model Shift {
@@ -1049,6 +1116,12 @@ enum InventoryTransactionType {
   WASTE
   AUDIT
   SALE
+}
+
+enum InventoryAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum SubscriptionBillingInterval {

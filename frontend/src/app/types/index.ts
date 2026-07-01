@@ -30,6 +30,42 @@ export interface InventoryItem {
   lastUpdated: string;
 }
 
+export interface AdjustmentRequest {
+  id: string;
+  ingredientId: string;
+  ingredientName?: string;
+  ingredientUnit?: string;
+  type: string;
+  quantity: number;
+  beforeQuantity: number;
+  afterQuantity: number;
+  estimatedValue: number;
+  note: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedBy: { id: string; fullName: string } | null;
+  reviewedBy: { id: string; fullName: string } | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+}
+
+export interface IngredientBatch {
+  id: string;
+  ingredientId: string;
+  ingredientName?: string;
+  ingredientUnit?: string;
+  batchCode: string;
+  quantity: number;
+  initialQuantity: number;
+  unitCost: number | null;
+  expiryDate: string | null;
+  receivedDate: string;
+  status: 'ACTIVE' | 'DEPLETED' | 'EXPIRED';
+  note: string | null;
+  createdBy: { id: string; fullName: string } | null;
+  createdAt: string;
+}
+
 export interface RevenueRecord {
   id: string;
   date: string;

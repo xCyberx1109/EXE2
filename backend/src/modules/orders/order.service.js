@@ -5,6 +5,7 @@ import { mapPosOrder, mapOrderDetail } from '../../utils/mappers.js';
 import { orderRepository } from '../../repositories/order.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { logAction } from '../../utils/auditLogger.js';
+import { consumeIngredientBatchesFEFO } from '../../utils/inventoryBatches.js';
 
 export const orderService = {
   /** Lấy tất cả đơn cho kitchen queue */
@@ -952,6 +953,7 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
           createdBy,
         },
       });
+      await consumeIngredientBatchesFEFO(tx, orderItem.inventoryId, orderItem.quantity);
       continue;
     }
 
@@ -1003,6 +1005,7 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
           createdBy,
         },
       });
+      await consumeIngredientBatchesFEFO(tx, recipe.ingredientId, totalUsage);
     }
   }
 }
