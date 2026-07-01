@@ -40,8 +40,8 @@ export function DataTable<T>({
   const colSpan = columns.length;
 
   return (
-    <>
-      <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card">
+    <div className="flex-1 min-h-0 flex flex-col">
+      <div className="min-h-0 overflow-auto rounded-xl border border-border bg-card">
         <table className="min-w-full divide-y divide-border">
           <thead className="bg-muted sticky top-0 z-10">
             <tr>
@@ -90,7 +90,7 @@ export function DataTable<T>({
         </table>
       </div>
       {pagination && onPageChange && onPageSizeChange && (
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 mt-auto pt-4">
           <DataTablePagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -101,6 +101,6 @@ export function DataTable<T>({
           />
         </div>
       )}
-    </>
+    </div>
   );
 }
