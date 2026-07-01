@@ -6,6 +6,7 @@ import { tableRepository } from '../../repositories/table.repository.js';
 import { playSessionRepository } from '../../repositories/playSession.repository.js';
 import { reservationRepository } from '../../repositories/reservation.repository.js';
 import { rectsOverlap, findAvailablePosition } from '../../utils/tableOverlap.js';
+import { consumeIngredientBatchesFEFO } from '../../utils/inventoryBatches.js';
 
 function computeElapsedMinutes(startTime) {
   if (!startTime) return 0;
@@ -1662,6 +1663,7 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
           createdBy,
         },
       });
+      await consumeIngredientBatchesFEFO(tx, orderItem.inventoryId, orderItem.quantity);
       continue;
     }
 
@@ -1714,6 +1716,7 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
           createdBy,
         },
       });
+      await consumeIngredientBatchesFEFO(tx, recipe.ingredientId, totalUsage);
     }
   }
 }

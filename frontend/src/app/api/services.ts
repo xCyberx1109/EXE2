@@ -13,6 +13,10 @@ import type {
   TableItem,
   DeleteDependencyReport,
   InventoryIssue,
+  AdjustmentRequest,
+  IngredientBatch,
+  WasteReport,
+  FoodCostReport,
   Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse,
   PaginatedResponse,
 } from '../types';
@@ -176,22 +180,80 @@ export const inventoryApi = {
     apiFetch<InventoryItem>('/ingredients', { method: 'POST', body: JSON.stringify(body) }),
 
   update: (id: string, body: Record<string, unknown>) =>
-    apiFetch<InventoryItem>(`/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    apiFetch<InventoryItem | { ingredient: InventoryItem; pending: true; request: AdjustmentRequest }>(
+      `/ingredients/${id}`,
+      { method: 'PUT', body: JSON.stringify(body) }
+    ),
 
   delete: (id: string) =>
     apiFetch<import('../types').DeleteDependencyReport>(`/ingredients/${id}`, { method: 'DELETE' }),
 
-  stockIn: (id: string, quantity: number, note?: string) =>
-    apiFetch<{ ingredient: InventoryItem }>(`/ingredients/${id}/stock-in`, {
-      method: 'POST',
-      body: JSON.stringify({ quantity, note }),
+  stockIn: (
+    id: string,
+    quantity: number,
+    note?: string,
+    type?: string,
+    batchInfo?: { expiryDate?: string; batchCode?: string; unitCost?: number }
+  ) =>
+    apiFetch<{ ingredient: InventoryItem } | { pending: true; request: AdjustmentRequest }>(
+      `/ingredients/${id}/stock-in`,
+      { method: 'POST', body: JSON.stringify({ quantity, note, type, ...batchInfo }) }
+    ),
+
+  stockOut: (id: string, quantity: number, note?: string, type?: string) =>
+    apiFetch<{ ingredient: InventoryItem } | { pending: true; request: AdjustmentRequest }>(
+      `/ingredients/${id}/stock-out`,
+      { method: 'POST', body: JSON.stringify({ quantity, note, type }) }
+    ),
+
+  getApprovalThreshold: () => apiFetch<{ threshold: number }>('/inventory/approval-threshold'),
+
+  updateApprovalThreshold: (threshold: number) =>
+    apiFetch<{ threshold: number }>('/inventory/approval-threshold', {
+      method: 'PATCH',
+      body: JSON.stringify({ threshold }),
     }),
 
-  stockOut: (id: string, quantity: number, note?: string) =>
-    apiFetch<{ ingredient: InventoryItem }>(`/ingredients/${id}/stock-out`, {
+  listAdjustmentRequests: (status?: string) => {
+    const query = status ? `?status=${status}` : '';
+    return apiFetch<AdjustmentRequest[]>(`/inventory/adjustment-requests${query}`);
+  },
+
+  approveAdjustmentRequest: (id: string) =>
+    apiFetch<{ ingredient: InventoryItem; request: AdjustmentRequest }>(
+      `/inventory/adjustment-requests/${id}/approve`,
+      { method: 'POST' }
+    ),
+
+  rejectAdjustmentRequest: (id: string, reason: string) =>
+    apiFetch<AdjustmentRequest>(`/inventory/adjustment-requests/${id}/reject`, {
       method: 'POST',
-      body: JSON.stringify({ quantity, note }),
+      body: JSON.stringify({ reason }),
     }),
+
+  listBatches: (ingredientId: string) =>
+    apiFetch<IngredientBatch[]>(`/ingredients/${ingredientId}/batches`),
+
+  listExpiringBatches: (days?: number) => {
+    const query = days ? `?days=${days}` : '';
+    return apiFetch<IngredientBatch[]>(`/inventory/expiring-batches${query}`);
+  },
+
+  getWasteReport: (from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    const query = q.toString();
+    return apiFetch<WasteReport>(`/inventory/reports/waste${query ? `?${query}` : ''}`);
+  },
+
+  getFoodCostReport: (from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    const query = q.toString();
+    return apiFetch<FoodCostReport>(`/inventory/reports/food-cost${query ? `?${query}` : ''}`);
+  },
 };
 
 // --- Dashboard ---

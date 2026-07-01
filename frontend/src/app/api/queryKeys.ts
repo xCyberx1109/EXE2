@@ -26,6 +26,8 @@ export const queryKeys = {
     detail: (id: string) => ['inventory', 'detail', id] as const,
     stats: ['inventory', 'stats'] as const,
     transactions: ['inventory', 'transactions'] as const,
+    approvalThreshold: ['inventory', 'approvalThreshold'] as const,
+    adjustmentRequests: (status?: string) => ['inventory', 'adjustmentRequests', status] as const,
   },
   dashboard: {
     all: ['dashboard'] as const,

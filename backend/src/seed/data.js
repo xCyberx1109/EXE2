@@ -120,6 +120,7 @@ export const permissions = [
   { code: 'INVENTORY_IMPORT', name: 'Nhập kho', module: 'inventory' },
   { code: 'INVENTORY_EXPORT', name: 'Xuất kho', module: 'inventory' },
   { code: 'INVENTORY_ADJUST', name: 'Điều chỉnh tồn kho', module: 'inventory' },
+  { code: 'INVENTORY_APPROVE', name: 'Phê duyệt điều chỉnh/hao hụt tồn kho lớn', module: 'inventory' },
 
   // ================= MENU =================
   { code: 'MENU_VIEW', name: 'Xem thực đơn', module: 'menu' },
