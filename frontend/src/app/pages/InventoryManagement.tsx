@@ -991,7 +991,7 @@ export function InventoryManagement() {
                         <p className="font-medium text-foreground text-sm">
                           {TRANSACTION_TYPE_LABELS[tx.type] ?? tx.type}
                           {' — '}
-                          {tx.beforeQuantity !== null && tx.afterQuantity !== null
+                          {tx.beforeQuantity != null && tx.afterQuantity != null
                             ? `${tx.beforeQuantity} → ${tx.afterQuantity}`
                             : `${tx.quantity}`}
                           {' '}{tx.ingredientUnit ?? historyItem.unit}
