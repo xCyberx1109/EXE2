@@ -15,6 +15,17 @@ const ADJUSTMENT_REQUEST_INCLUDE = {
   reviewer: { select: { id: true, fullName: true } },
 };
 
+// Mac dinh 30 ngay gan nhat neu khong truyen from/to, dung chung cho cac bao cao.
+function resolveDateRange(from, to) {
+  const end = to ? new Date(to) : new Date();
+  const start = from ? new Date(from) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // Bao gom tron ngay "to" (het ngay 23:59:59) neu chi truyen ngay khong kem gio.
+  if (to && !to.includes('T')) {
+    end.setHours(23, 59, 59, 999);
+  }
+  return { start, end };
+}
+
 function normalizeTransactionType(type, fallback, allowedTypes) {
   const normalized = typeof type === 'string' && type.trim() ? type.trim().toUpperCase() : fallback;
   return allowedTypes.includes(normalized) ? normalized : fallback;
@@ -533,6 +544,118 @@ export const inventoryService = {
       orderBy: { expiryDate: 'asc' },
     });
     return batches.map(mapIngredientBatch);
+  },
+
+  /**
+   * Báo cáo hao hụt (WASTE) theo khoảng thời gian — tổng giá trị, top nguyên liệu hao hụt nhiều
+   * nhất. Giá trị ước tính dùng đơn giá HIỆN TẠI của nguyên liệu (không có lịch sử giá theo lô
+   * cho từng giao dịch cụ thể) — cùng cách tính đã dùng cho ngưỡng phê duyệt, chấp nhận sai số nhỏ.
+   */
+  async getWasteReport({ from, to } = {}, user) {
+    const { start, end } = resolveDateRange(from, to);
+    const where = {
+      type: 'WASTE',
+      createdAt: { gte: start, lte: end },
+    };
+    if (user) {
+      where.ingredient = { accountId: user.accountId || user.id };
+    }
+
+    const transactions = await prisma.inventoryTransaction.findMany({
+      where,
+      include: { ingredient: true },
+    });
+
+    const byIngredientMap = new Map();
+    let totalValue = 0;
+    let totalQuantity = 0;
+
+    for (const tx of transactions) {
+      const qty = Number(tx.quantity);
+      const price = Number(tx.ingredient?.price ?? 0);
+      const value = qty * price;
+      totalValue += value;
+      totalQuantity += qty;
+
+      const key = tx.ingredientId;
+      const existing = byIngredientMap.get(key) || {
+        ingredientId: key,
+        ingredientName: tx.ingredient?.name ?? 'Không rõ',
+        ingredientUnit: tx.ingredient?.unit,
+        totalQuantity: 0,
+        totalValue: 0,
+        transactionCount: 0,
+      };
+      existing.totalQuantity += qty;
+      existing.totalValue += value;
+      existing.transactionCount += 1;
+      byIngredientMap.set(key, existing);
+    }
+
+    const byIngredient = Array.from(byIngredientMap.values()).sort((a, b) => b.totalValue - a.totalValue);
+
+    return {
+      from: start,
+      to: end,
+      totalValue,
+      totalQuantity,
+      transactionCount: transactions.length,
+      byIngredient,
+    };
+  },
+
+  /**
+   * Food cost % thực tế (giá vốn nguyên liệu thực sự tiêu thụ, tính theo đơn giá hiện tại) so với
+   * định mức (giá vốn công thức đã lưu tại thời điểm bán trong Order.cost) trên cùng doanh thu.
+   * Chênh lệch dương -> đang dùng nguyên liệu nhiều hơn công thức quy định (hao hụt/lãng phí ẩn).
+   */
+  async getFoodCostReport({ from, to } = {}, user) {
+    const { start, end } = resolveDateRange(from, to);
+    const accountId = user?.accountId || user?.id;
+
+    const orderWhere = {
+      paymentStatus: 'PAID',
+      createdAt: { gte: start, lte: end },
+    };
+    if (accountId) orderWhere.accountId = accountId;
+
+    const orders = await prisma.order.findMany({
+      where: orderWhere,
+      select: { total: true, cost: true },
+    });
+    const revenue = orders.reduce((sum, o) => sum + Number(o.total), 0);
+    const standardCost = orders.reduce((sum, o) => sum + Number(o.cost), 0);
+
+    const txWhere = {
+      type: { in: ['OUT', 'SALE'] },
+      referenceType: 'ORDER',
+      createdAt: { gte: start, lte: end },
+    };
+    if (accountId) txWhere.ingredient = { accountId };
+
+    const transactions = await prisma.inventoryTransaction.findMany({
+      where: txWhere,
+      include: { ingredient: true },
+    });
+    const actualCost = transactions.reduce(
+      (sum, tx) => sum + Number(tx.quantity) * Number(tx.ingredient?.price ?? 0),
+      0
+    );
+
+    const standardCostPercent = revenue > 0 ? (standardCost / revenue) * 100 : 0;
+    const actualCostPercent = revenue > 0 ? (actualCost / revenue) * 100 : 0;
+
+    return {
+      from: start,
+      to: end,
+      revenue,
+      standardCost,
+      actualCost,
+      standardCostPercent,
+      actualCostPercent,
+      variancePercent: actualCostPercent - standardCostPercent,
+      orderCount: orders.length,
+    };
   },
 };
 

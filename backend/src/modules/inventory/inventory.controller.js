@@ -105,3 +105,15 @@ export const listExpiringBatches = asyncHandler(async (req, res) => {
   const data = await inventoryService.listExpiringBatches(req.query.days, getContext(req));
   sendSuccess(res, { message: 'Lấy danh sách lô sắp hết hạn thành công', data });
 });
+
+export const getWasteReport = asyncHandler(async (req, res) => {
+  const { from, to } = req.query;
+  const data = await inventoryService.getWasteReport({ from, to }, getContext(req));
+  sendSuccess(res, { message: 'Lấy báo cáo hao hụt thành công', data });
+});
+
+export const getFoodCostReport = asyncHandler(async (req, res) => {
+  const { from, to } = req.query;
+  const data = await inventoryService.getFoodCostReport({ from, to }, getContext(req));
+  sendSuccess(res, { message: 'Lấy báo cáo food cost thành công', data });
+});

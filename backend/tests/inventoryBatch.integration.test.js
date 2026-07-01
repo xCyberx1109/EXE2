@@ -208,5 +208,13 @@ describe('[INTEGRATION - DB thật] FEFO ap dung khi ban hang qua order checkout
     expect(tx).not.toBeNull();
     expect(tx.type).toBe('OUT');
     expect(Number(tx.quantity)).toBe(5);
+
+    // getFoodCostReport phai phan anh dung don hang vua thanh toan that:
+    // dinh muc (Order.cost=20000) vs thuc te (5 don vi * gia 20000/don vi = 100000)
+    const foodCostReport = await inventoryService.getFoodCostReport({}, testUser());
+    expect(foodCostReport.revenue).toBeGreaterThanOrEqual(50000);
+    expect(foodCostReport.standardCost).toBeGreaterThanOrEqual(20000);
+    expect(foodCostReport.actualCost).toBeGreaterThanOrEqual(100000);
+    expect(foodCostReport.orderCount).toBeGreaterThanOrEqual(1);
   });
 });

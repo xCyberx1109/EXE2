@@ -6,11 +6,12 @@ import {
   getThreshold, updateThreshold, listAdjustmentRequests,
   approveAdjustmentRequest, rejectAdjustmentRequest,
   listIngredientBatches, listExpiringBatches,
+  getWasteReport, getFoodCostReport,
 } from './inventory.controller.js';
 import {
   ingredientRules, ingredientUpdateRules, ingredientIdParam, stockInRules, stockOutRules, inventoryListQuery,
   adjustmentRequestIdParam, adjustmentRequestListQuery, rejectAdjustmentRequestRules, updateThresholdRules,
-  expiringBatchesQuery,
+  expiringBatchesQuery, reportDateRangeQuery,
 } from '../../validators/inventory.validator.js';
 import { validate } from '../../middlewares/validate.js';
 import { authenticate, optionalAuth, requirePermission } from '../../middlewares/auth.js';
@@ -41,5 +42,9 @@ router.patch('/inventory/approval-threshold', authenticate, requirePermission('I
 router.get('/inventory/adjustment-requests', authenticate, requirePermission('INVENTORY_APPROVE'), adjustmentRequestListQuery, validate, listAdjustmentRequests);
 router.post('/inventory/adjustment-requests/:id/approve', authenticate, requirePermission('INVENTORY_APPROVE'), adjustmentRequestIdParam, validate, approveAdjustmentRequest);
 router.post('/inventory/adjustment-requests/:id/reject', authenticate, requirePermission('INVENTORY_APPROVE'), [...adjustmentRequestIdParam, ...rejectAdjustmentRequestRules], validate, rejectAdjustmentRequest);
+
+// Báo cáo hao hụt / food cost %
+router.get('/inventory/reports/waste', authenticate, requirePermission('REPORT_VIEW'), reportDateRangeQuery, validate, getWasteReport);
+router.get('/inventory/reports/food-cost', authenticate, requirePermission('REPORT_VIEW'), reportDateRangeQuery, validate, getFoodCostReport);
 
 export default router;

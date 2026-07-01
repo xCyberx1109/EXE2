@@ -66,6 +66,34 @@ export interface IngredientBatch {
   createdAt: string;
 }
 
+export interface WasteReport {
+  from: string;
+  to: string;
+  totalValue: number;
+  totalQuantity: number;
+  transactionCount: number;
+  byIngredient: {
+    ingredientId: string;
+    ingredientName: string;
+    ingredientUnit?: string;
+    totalQuantity: number;
+    totalValue: number;
+    transactionCount: number;
+  }[];
+}
+
+export interface FoodCostReport {
+  from: string;
+  to: string;
+  revenue: number;
+  standardCost: number;
+  actualCost: number;
+  standardCostPercent: number;
+  actualCostPercent: number;
+  variancePercent: number;
+  orderCount: number;
+}
+
 export interface RevenueRecord {
   id: string;
   date: string;

@@ -316,3 +316,21 @@ describe('[INTEGRATION - DB thật] Nguong phe duyet co the cau hinh rieng theo 
     }
   });
 });
+
+describe('[INTEGRATION - DB thật] getWasteReport', () => {
+  it('tong hop dung tu InventoryTransaction that trong Postgres', async () => {
+    const ingredient = await createTestIngredient({ quantity: 20, price: 5000 });
+
+    await inventoryService.stockOut(ingredient.id, { quantity: 2, type: 'WASTE', note: 'Hong 1' }, testUser());
+    await inventoryService.stockOut(ingredient.id, { quantity: 1, type: 'WASTE', note: 'Hong 2' }, testUser());
+
+    const report = await inventoryService.getWasteReport({}, testUser());
+
+    expect(report.transactionCount).toBe(2);
+    expect(report.totalQuantity).toBe(3);
+    expect(report.totalValue).toBe(15000); // 3 * 5000
+    expect(report.byIngredient).toHaveLength(1);
+    expect(report.byIngredient[0].ingredientId).toBe(ingredient.id);
+    expect(report.byIngredient[0].totalValue).toBe(15000);
+  });
+});

@@ -62,6 +62,11 @@ export const expiringBatchesQuery = [
   query('days').optional().isInt({ min: 1, max: 365 }).withMessage('Số ngày phải từ 1 đến 365'),
 ];
 
+export const reportDateRangeQuery = [
+  query('from').optional().isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
+  query('to').optional().isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
+];
+
 export const ingredientIdParam = [param('id').isString().notEmpty().withMessage('ID nguyên liệu không hợp lệ')];
 
 export const inventoryListQuery = [

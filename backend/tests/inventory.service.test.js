@@ -23,6 +23,9 @@ const mockPrisma = {
     findMany: jest.fn(),
     update: jest.fn(),
   },
+  order: {
+    findMany: jest.fn(),
+  },
   account: {
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -591,5 +594,88 @@ describe('Batch/han su dung - tieu thu theo FEFO khi xuat kho', () => {
     ).resolves.toBeDefined();
 
     expect(mockPrisma.ingredientBatch.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('inventoryService.getWasteReport', () => {
+  it('tong hop dung tong gia tri, tong so luong va gom nhom theo nguyen lieu', async () => {
+    mockPrisma.inventoryTransaction.findMany.mockResolvedValue([
+      { id: 'tx-1', ingredientId: 'ing-1', quantity: 2, ingredient: { id: 'ing-1', name: 'Thit bo', unit: 'KG', price: 200000 } },
+      { id: 'tx-2', ingredientId: 'ing-1', quantity: 1, ingredient: { id: 'ing-1', name: 'Thit bo', unit: 'KG', price: 200000 } },
+      { id: 'tx-3', ingredientId: 'ing-2', quantity: 5, ingredient: { id: 'ing-2', name: 'Rau', unit: 'KG', price: 10000 } },
+    ]);
+
+    const result = await inventoryService.getWasteReport({}, { id: 'acc-1', accountId: 'acc-1' });
+
+    expect(result.transactionCount).toBe(3);
+    expect(result.totalQuantity).toBe(8);
+    // Thit bo: 3*200,000 = 600,000 ; Rau: 5*10,000 = 50,000 -> tong 650,000
+    expect(result.totalValue).toBe(650000);
+    expect(result.byIngredient).toHaveLength(2);
+    // Sap xep giam dan theo gia tri -> Thit bo dung dau
+    expect(result.byIngredient[0].ingredientId).toBe('ing-1');
+    expect(result.byIngredient[0].totalValue).toBe(600000);
+    expect(result.byIngredient[0].transactionCount).toBe(2);
+    expect(result.byIngredient[1].ingredientId).toBe('ing-2');
+    expect(result.byIngredient[1].totalValue).toBe(50000);
+
+    const queryArgs = mockPrisma.inventoryTransaction.findMany.mock.calls[0][0];
+    expect(queryArgs.where.type).toBe('WASTE');
+    expect(queryArgs.where.ingredient).toEqual({ accountId: 'acc-1' });
+  });
+
+  it('tra ve rong neu khong co giao dich WASTE nao trong khoang thoi gian', async () => {
+    mockPrisma.inventoryTransaction.findMany.mockResolvedValue([]);
+
+    const result = await inventoryService.getWasteReport(
+      { from: '2026-01-01', to: '2026-01-31' },
+      { id: 'acc-1', accountId: 'acc-1' }
+    );
+
+    expect(result.totalValue).toBe(0);
+    expect(result.totalQuantity).toBe(0);
+    expect(result.byIngredient).toHaveLength(0);
+  });
+});
+
+describe('inventoryService.getFoodCostReport', () => {
+  it('tinh dung food cost % thuc te vs dinh muc va chenh lech', async () => {
+    mockPrisma.order.findMany.mockResolvedValue([
+      { total: 1000000, cost: 300000 }, // dinh muc 30%
+      { total: 500000, cost: 150000 },
+    ]);
+    mockPrisma.inventoryTransaction.findMany.mockResolvedValue([
+      { quantity: 3, ingredient: { price: 100000 } }, // 300,000
+      { quantity: 2, ingredient: { price: 50000 } }, // 100,000
+    ]);
+
+    const result = await inventoryService.getFoodCostReport({}, { id: 'acc-1', accountId: 'acc-1' });
+
+    expect(result.revenue).toBe(1500000);
+    expect(result.standardCost).toBe(450000);
+    expect(result.actualCost).toBe(400000);
+    expect(result.standardCostPercent).toBeCloseTo(30, 5);
+    expect(result.actualCostPercent).toBeCloseTo(26.666666, 3);
+    expect(result.variancePercent).toBeCloseTo(-3.333333, 3);
+    expect(result.orderCount).toBe(2);
+
+    const orderQueryArgs = mockPrisma.order.findMany.mock.calls[0][0];
+    expect(orderQueryArgs.where.paymentStatus).toBe('PAID');
+    expect(orderQueryArgs.where.accountId).toBe('acc-1');
+
+    const txQueryArgs = mockPrisma.inventoryTransaction.findMany.mock.calls[0][0];
+    expect(txQueryArgs.where.type).toEqual({ in: ['OUT', 'SALE'] });
+    expect(txQueryArgs.where.referenceType).toBe('ORDER');
+  });
+
+  it('khong chia cho 0 neu khong co doanh thu trong khoang thoi gian', async () => {
+    mockPrisma.order.findMany.mockResolvedValue([]);
+    mockPrisma.inventoryTransaction.findMany.mockResolvedValue([]);
+
+    const result = await inventoryService.getFoodCostReport({}, { id: 'acc-1', accountId: 'acc-1' });
+
+    expect(result.revenue).toBe(0);
+    expect(result.standardCostPercent).toBe(0);
+    expect(result.actualCostPercent).toBe(0);
   });
 });

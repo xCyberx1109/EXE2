@@ -330,6 +330,24 @@ export function useExpiringBatches(days = 7) {
   });
 }
 
+export function useWasteReport(from?: string, to?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['inventory', 'wasteReport', from, to],
+    queryFn: () => inventoryApi.getWasteReport(from, to),
+    staleTime: 1000 * 30,
+    enabled,
+  });
+}
+
+export function useFoodCostReport(from?: string, to?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['inventory', 'foodCostReport', from, to],
+    queryFn: () => inventoryApi.getFoodCostReport(from, to),
+    staleTime: 1000 * 30,
+    enabled,
+  });
+}
+
 /* ========================================================================
    Dashboard Hooks
    ======================================================================== */

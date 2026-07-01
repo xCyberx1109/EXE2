@@ -15,6 +15,8 @@ import type {
   InventoryIssue,
   AdjustmentRequest,
   IngredientBatch,
+  WasteReport,
+  FoodCostReport,
   Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse,
   PaginatedResponse,
 } from '../types';
@@ -235,6 +237,22 @@ export const inventoryApi = {
   listExpiringBatches: (days?: number) => {
     const query = days ? `?days=${days}` : '';
     return apiFetch<IngredientBatch[]>(`/inventory/expiring-batches${query}`);
+  },
+
+  getWasteReport: (from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    const query = q.toString();
+    return apiFetch<WasteReport>(`/inventory/reports/waste${query ? `?${query}` : ''}`);
+  },
+
+  getFoodCostReport: (from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    const query = q.toString();
+    return apiFetch<FoodCostReport>(`/inventory/reports/food-cost${query ? `?${query}` : ''}`);
   },
 };
 
