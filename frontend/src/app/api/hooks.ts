@@ -348,6 +348,15 @@ export function useFoodCostReport(from?: string, to?: string, enabled = true) {
   });
 }
 
+export function useIngredientTransactions(ingredientId: string | null) {
+  return useQuery({
+    queryKey: ['inventory', 'transactions', ingredientId],
+    queryFn: () => inventoryApi.getIngredientTransactions(ingredientId as string),
+    staleTime: 1000 * 15,
+    enabled: !!ingredientId,
+  });
+}
+
 /* ========================================================================
    Dashboard Hooks
    ======================================================================== */

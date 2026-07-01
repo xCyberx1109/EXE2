@@ -27,3 +27,15 @@ export const STOCK_OUT_TYPES = [
 
 // Các loại giao dịch bắt buộc phải nhập lý do — phải khớp REASON_REQUIRED_TYPES ở backend.
 export const REASON_REQUIRED_STOCK_TYPES: string[] = ['WASTE', 'ADJUST'];
+
+// Nhãn hiển thị cho toàn bộ enum InventoryTransactionType (dùng ở màn hình lịch sử giao dịch,
+// bao gồm cả loại tự động sinh ra khi bán hàng: OUT/SALE).
+export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
+  IMPORT: 'Nhập kho',
+  OUT: 'Xuất kho',
+  ADJUST: 'Điều chỉnh',
+  RETURN: 'Trả hàng',
+  WASTE: 'Hao hụt / hủy hàng',
+  AUDIT: 'Kiểm kho',
+  SALE: 'Bán hàng trực tiếp',
+};
