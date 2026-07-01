@@ -131,6 +131,23 @@ export interface CategoryItem {
   deletedAt: string | null;
 }
 
+export interface CategoryDetail extends CategoryItem {
+  menuItems: { id: string; name: string; price: number; available: boolean }[];
+}
+
+export interface CategoryStats {
+  totalCategories: number;
+  totalActiveCategories: number;
+  totalItems: number;
+  byCategory: {
+    id: string;
+    name: string;
+    active: boolean;
+    itemCount: number;
+    percentage: number;
+  }[];
+}
+
 export interface PaginationMeta {
   page: number;
   limit: number;

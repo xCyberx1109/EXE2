@@ -44,9 +44,45 @@ export const categoryService = {
   },
 
   async getById(id) {
-    const category = await categoryRepository.findById(id);
+    const category = await categoryRepository.findByIdWithItems(id);
     if (!category) throw new AppError('Không tìm thấy danh mục', 404);
-    return mapCategory(category);
+    return {
+      ...mapCategory(category),
+      menuItems: category.menuItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: Number(item.price),
+        available: item.available,
+      })),
+    };
+  },
+
+  /** Thống kê phân bổ danh mục: tổng số danh mục/món, % mỗi danh mục chiếm trong tổng số món. */
+  async getStats() {
+    const categories = await categoryRepository.findAllWithCounts();
+    const totalCategories = categories.length;
+    const totalActiveCategories = categories.filter((c) => c.active).length;
+    const totalItems = categories.reduce((sum, c) => sum + (c._count?.menuItems ?? 0), 0);
+
+    const byCategory = categories
+      .map((c) => {
+        const itemCount = c._count?.menuItems ?? 0;
+        return {
+          id: c.id,
+          name: c.name,
+          active: c.active,
+          itemCount,
+          percentage: totalItems > 0 ? Number(((itemCount / totalItems) * 100).toFixed(1)) : 0,
+        };
+      })
+      .sort((a, b) => b.itemCount - a.itemCount);
+
+    return {
+      totalCategories,
+      totalActiveCategories,
+      totalItems,
+      byCategory,
+    };
   },
 
   async create(data) {

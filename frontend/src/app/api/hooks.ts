@@ -69,11 +69,19 @@ export function useCategoryList(filters?: {
   });
 }
 
-export function useCategory(id: string) {
+export function useCategory(id: string | null) {
   return useQuery({
-    queryKey: queryKeys.categories.detail(id),
-    queryFn: () => categoryApi.get(id),
+    queryKey: queryKeys.categories.detail(id ?? ''),
+    queryFn: () => categoryApi.get(id as string),
     enabled: !!id,
+  });
+}
+
+export function useCategoryStats() {
+  return useQuery({
+    queryKey: ['categories', 'stats'],
+    queryFn: () => categoryApi.stats(),
+    staleTime: 1000 * 30,
   });
 }
 

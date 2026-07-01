@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  listCategories, getCategory, createCategory, updateCategory, deleteCategory, restoreCategory,
+  listCategories, getCategory, getCategoryStats, createCategory, updateCategory, deleteCategory, restoreCategory,
 } from './category.controller.js';
 import { categoryRules, categoryUpdateRules, categoryIdParam, categoryQueryParams } from './category.validation.js';
 import { validate } from '../../middlewares/validate.js';
@@ -8,6 +8,8 @@ import { authenticate, optionalAuth, requirePermission } from '../../middlewares
 
 const router = Router();
 
+// Route cố định phải đặt trước /:id
+router.get('/stats', optionalAuth, getCategoryStats);
 router.get('/', optionalAuth, categoryQueryParams, validate, listCategories);
 router.get('/:id', optionalAuth, categoryIdParam, validate, getCategory);
 
