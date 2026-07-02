@@ -53,7 +53,7 @@ export function DataTablePagination({
   };
 
   return (
-    <div className="flex items-center justify-between gap-1 sm:gap-2 p-4 border-t border-border flex-wrap">
+    <div className="flex items-center justify-between gap-1 sm:gap-2 px-4 py-2.5 border-t border-border flex-wrap">
       <div className="flex items-center gap-1 sm:gap-2 text-sm text-muted-foreground whitespace-nowrap">
         <span className="flex-shrink-0">Tổng số: {total}</span>
         {onPageSizeChange && (

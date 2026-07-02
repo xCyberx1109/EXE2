@@ -90,7 +90,7 @@ export function DataTable<T>({
         </table>
       </div>
       {pagination && onPageChange && onPageSizeChange && (
-        <div className="flex-shrink-0 mt-auto pt-4">
+        <div className="flex-shrink-0 mt-auto pt-2">
           <DataTablePagination
             page={pagination.page}
             totalPages={pagination.totalPages}
