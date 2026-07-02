@@ -131,8 +131,10 @@ export async function seedDatabase() {
   // =========================
   // POS DEVICE (pos_machines) — no pinCode, PIN belongs to Employee
   // =========================
-  const cashierPos = await prisma.pos_machines.create({
-    data: {
+  const cashierPos = await prisma.pos_machines.upsert({
+    where: { id: `seed-${accountId}-cashier-01` },
+    update: {},
+    create: {
       id: `seed-${accountId}-cashier-01`,
       accountId,
       name: 'POS Thu ngân',
@@ -141,8 +143,10 @@ export async function seedDatabase() {
     },
   });
 
-  const kitchenPos = await prisma.pos_machines.create({
-    data: {
+  const kitchenPos = await prisma.pos_machines.upsert({
+    where: { id: `seed-${accountId}-kitchen-01` },
+    update: {},
+    create: {
       id: `seed-${accountId}-kitchen-01`,
       accountId,
       name: 'POS Bếp',
@@ -151,8 +155,10 @@ export async function seedDatabase() {
     },
   });
 
-  const hybridPos = await prisma.pos_machines.create({
-    data: {
+  const hybridPos = await prisma.pos_machines.upsert({
+    where: { id: `seed-${accountId}-hybrid-01` },
+    update: {},
+    create: {
       id: `seed-${accountId}-hybrid-01`,
       accountId,
       name: 'POS Hybrid',
@@ -284,7 +290,9 @@ export async function seedDatabase() {
     'RESTAURANT_PAY_VIEW', 'RESTAURANT_PAY_PROCESS',
   ];
 
-  await mapConcurrent(managerPerms, async (permCode) => {
+  // Dedupe: mang co the co ma trung lap (VD BILLIARD_SESSION_START xuat hien 2 lan) -
+  // chay song song 2 upsert cung key se dung do (P2002 unique constraint).
+  await mapConcurrent([...new Set(managerPerms)], async (permCode) => {
     if (permissionMap[permCode]) {
       await prisma.accountPermission.upsert({
         where: { accountId_permissionId: { accountId: manager.id, permissionId: permissionMap[permCode] } },
@@ -585,7 +593,22 @@ export async function runSeedIfEmpty() {
 }
 
 async function getOrCreateDefaultAccount() {
-  return { id: DEFAULT_ACCOUNT_ID };
+  // Bug cu: ham nay chi gia lap { id: DEFAULT_ACCOUNT_ID } ma khong thuc su tao Account
+  // tuong ung -> pos_machines/employee o duoi dung accountId nay bi vi pham FK
+  // (employees_accountId_fkey) moi khi seed chay tren DB da co du lieu tu truoc,
+  // khien seedDatabase() crash giua chung, khong bao gio toi doan gan quyen cho admin.
+  const hashedPassword = await bcrypt.hash('DefaultSeed@123', SALT_ROUNDS);
+  return prisma.account.upsert({
+    where: { id: DEFAULT_ACCOUNT_ID },
+    update: {},
+    create: {
+      id: DEFAULT_ACCOUNT_ID,
+      email: 'default-seed-account@internal.local',
+      password: hashedPassword,
+      fullName: 'Default Seed Account',
+      status: AccountStatus.ACTIVE,
+    },
+  });
 }
 
 /** SAMPLE ORDERS */

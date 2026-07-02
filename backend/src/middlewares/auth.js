@@ -130,6 +130,7 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
   }
 
   let device;
+  let employeeId = null;
 
   try {
     if (isJwtToken(token)) {
@@ -160,6 +161,7 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
       orderBy: { lastUsedAt: 'desc' },
     });
     if (session) {
+      employeeId = session.employeeId;
       device = await prisma.pos_machines.findUnique({
         where: { id: session.deviceId, deletedAt: null },
       });
@@ -180,7 +182,9 @@ export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
   req.branch = null;
   req.authType = 'device';
 
-  const capabilities = await devicePermissionService.getDeviceCapabilities(device);
+  // Quyen hieu luc = giao giua Role cua nhan vien dang dang nhap (neu co) va quyen
+  // theo loai thiet bi - xem devicePermissionService.getEffectivePermissions.
+  const capabilities = await devicePermissionService.getDeviceCapabilities(device, employeeId);
   req.devicePermissions = capabilities.permissions;
   req.deviceFeatures = capabilities.features;
   req.enabledFeatures = capabilities.enabledFeatures;
