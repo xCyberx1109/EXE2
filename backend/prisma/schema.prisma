@@ -65,9 +65,44 @@ model Permission {
   accountPermissions    AccountPermission[]
   deviceTypePermissions DeviceTypePermission[]
   featurePermissions    FeaturePermission[]
+  rolePermissions       RolePermission[]
 
   @@index([module])
   @@map("permissions")
+}
+
+// Vai tro tai su dung duoc, gan cho tung Employee (nhan vien dang nhap PIN tren may POS).
+// Moi Account (tenant/chu cua hang) tu dinh nghia Role rieng cho minh (VD: Thu ngan, Bep,
+// Quan ly ca). Quyen hieu luc cuoi cung cua 1 phien nhan vien tren may POS = GIAO
+// (intersection) giua quyen theo Role nay va quyen theo loai thiet bi (DeviceTypePermission) -
+// thiet bi la ranh gioi cung theo ngu canh vat ly, Role thu hep them theo tung nguoi.
+model Role {
+  id              String           @id @default(cuid())
+  accountId       String
+  name            String
+  description     String?
+  isSystem        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  rolePermissions RolePermission[]
+  employees       Employee[]
+
+  @@unique([accountId, name])
+  @@index([accountId])
+  @@map("roles")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@map("role_permissions")
 }
 
 model DeviceTypePermission {
@@ -299,6 +334,7 @@ model Account {
 model DeviceSession {
   id               String    @id @default(cuid())
   deviceId         String    @map("device_id")
+  employeeId       String?   @map("employee_id")
   tokenHash        String    @map("token_hash")
   refreshTokenHash String?   @map("refresh_token_hash")
   fingerprint      String?   @map("fingerprint")
@@ -311,6 +347,7 @@ model DeviceSession {
   createdAt        DateTime  @default(now()) @map("created_at")
 
   @@index([deviceId])
+  @@index([employeeId])
   @@index([tokenHash])
   @@index([refreshTokenHash])
   @@index([fingerprint])
@@ -981,6 +1018,7 @@ model pos_machines {
 model Employee {
   id           String          @id @default(cuid())
   accountId    String
+  roleId       String?
   employeeCode String
   fullName     String
   phone        String?
@@ -993,6 +1031,7 @@ model Employee {
   deletedAt    DateTime?
 
   account        Account              @relation(fields: [accountId], references: [id])
+  role           Role?                @relation(fields: [roleId], references: [id], onDelete: SetNull)
   sessions       PosMachineSession[]
   posMachines    EmployeePosMachine[]
   activityLogs   ActivityLog[]
@@ -1000,6 +1039,7 @@ model Employee {
   @@unique([accountId, employeeCode])
   @@index([accountId])
   @@index([status])
+  @@index([roleId])
   @@map("employees")
 }
 

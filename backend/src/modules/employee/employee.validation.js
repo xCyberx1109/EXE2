@@ -26,6 +26,9 @@ export const createEmployeeRules = [
     .optional()
     .isIn(['ACTIVE', 'INACTIVE', 'SUSPENDED'])
     .withMessage('Trạng thái không hợp lệ'),
+  body('roleId')
+    .optional({ values: 'falsy' })
+    .isString(),
   body('assignedMachineIds')
     .optional()
     .isArray()
@@ -64,6 +67,9 @@ export const updateEmployeeRules = [
     .optional()
     .isIn(['ACTIVE', 'INACTIVE', 'SUSPENDED'])
     .withMessage('Trạng thái không hợp lệ'),
+  body('roleId')
+    .optional({ values: 'falsy' })
+    .isString(),
   body('assignedMachineIds')
     .optional()
     .isArray()
