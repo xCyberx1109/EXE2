@@ -172,7 +172,7 @@ async function main() {
             skipDuplicates: true,
           });
         }
-      });
+      }, { maxWait: 10000, timeout: 20000 });
 
       roleIdByAccountAndName.set(`${account.id}|${template.name}`, role.id);
     }
