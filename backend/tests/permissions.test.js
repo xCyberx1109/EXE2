@@ -7,7 +7,7 @@ import { AppError } from '../src/utils/AppError.js';
 // Helper to simulate req/res/next
 // ============================================================
 function mockReq(user) {
-  return { user, params: {}, body: {} };
+  return { user, params: {}, body: {}, headers: {} };
 }
 
 function mockRes() {
@@ -24,37 +24,17 @@ function mockNext() {
 describe('Permission Logic', () => {
 
   // ==========================================================
-  // 1. ADMIN_ALL sees ALL accounts in Account Management
+  // 1. requirePermission — direct permission match, no bypass for any code
+  // (ADMIN_ALL đã bị loại bỏ khỏi hệ thống — xem seed data / requirement #4.
+  // "Toàn quyền" hiện nay được cấp bằng cách gán đủ từng permission cụ thể,
+  // không qua một mã bypass đặc biệt nào.)
   // ==========================================================
-  describe('Account Management (RBAC) — ADMIN_ALL bypass', () => {
-    const adminAllUser = {
-      id: 'admin-1',
-      accountId: 'admin-1',
-      permissions: ['ADMIN_ALL'],
-    };
+  describe('Account Management (RBAC) — exact permission match', () => {
     const regularUser = {
       id: 'user-1',
       accountId: 'user-1',
       permissions: ['PERMISSION_VIEW'],
     };
-
-    it('requirePermission allows ADMIN_ALL for any permission code', () => {
-      const req = mockReq(adminAllUser);
-      const res = mockRes();
-      const next = mockNext();
-
-      requirePermission('PERMISSION_VIEW')(req, res, next);
-      expect(next).toHaveBeenCalledWith();
-    });
-
-    it('requirePermission allows ADMIN_ALL even without the specific permission', () => {
-      const req = mockReq(adminAllUser);
-      const res = mockRes();
-      const next = mockNext();
-
-      requirePermission('SOME_RANDOM_PERM')(req, res, next);
-      expect(next).toHaveBeenCalledWith();
-    });
 
     it('requirePermission denies regular user without the required permission', () => {
       const req = mockReq(regularUser);
