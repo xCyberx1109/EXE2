@@ -19,8 +19,8 @@ export function UnifiedDashboard({
   onAutoOpenDrawerConsumed?: () => void;
   onOrderCreated?: () => void;
 }) {
-  const billiardQuery = useBilliardTables();
-  const restaurantQuery = useRestaurantTables();
+  const billiardQuery = useBilliardTables(mode === 'BILLIARD');
+  const restaurantQuery = useRestaurantTables(mode === 'RESTAURANT');
 
   const isLoading = mode === 'BILLIARD' ? billiardQuery.isLoading : restaurantQuery.isLoading;
   const error = mode === 'BILLIARD' ? billiardQuery.error : restaurantQuery.error;
@@ -100,9 +100,9 @@ export function UnifiedDashboard({
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center space-y-2">
-          <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
-          <p className="text-sm text-red-600">Không thể tải danh sách bàn. Vui lòng thử lại.</p>
-          <button onClick={() => refetch()} className="text-sm text-blue-600 hover:underline">Thử lại</button>
+          <AlertCircle className="w-6 h-6 text-red-500 mx-auto" />
+          <p className="text-xs text-red-600">Không thể tải danh sách bàn. Vui lòng thử lại.</p>
+          <button onClick={() => refetch()} className="text-xs text-blue-600 hover:underline">Thử lại</button>
         </div>
       </div>
     );
@@ -110,10 +110,10 @@ export function UnifiedDashboard({
 
   return (
     <div className="flex flex-1 gap-4 min-h-0">
-      <div className="flex-1 min-w-0 bg-card rounded-xl border border-border p-4 overflow-hidden">
+      <div className="flex-1 min-w-0 bg-card rounded-md border border-border p-3 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <TableFloor
@@ -128,7 +128,7 @@ export function UnifiedDashboard({
         )}
       </div>
 
-      <div className="w-[380px] shrink-0 bg-card rounded-xl border border-border h-full min-h-0 flex flex-col overflow-hidden">
+      <div className="w-60 lg:w-72 2xl:w-[380px] shrink-0 bg-card rounded-md border border-border h-full min-h-0 flex flex-col overflow-hidden">
         <RightPanel
           mode={mode}
           table={selectedTable}

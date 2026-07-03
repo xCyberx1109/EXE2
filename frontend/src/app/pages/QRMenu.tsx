@@ -90,27 +90,27 @@ export function MenuQR() {
     }, 0);
 
     return (
-        <div className="p-4 max-w-md mx-auto">
+        <div className="p-3 max-w-md mx-auto">
 
             <h1 className="text-2xl font-bold mb-4 text-center">
                 Menu - Bàn {table}
             </h1>
 
             {/* MENU LIST */}
-            <div className="space-y-3">
+            <div className="space-y-2">
 
                 {menuItems.map(item => {
                     const outOfStock = isItemOutOfStock(item, inventoryMap);
                     return (
 
-                    <div key={item.id} className="border rounded-lg relative">
+                    <div key={item.id} className="border rounded-md relative">
 
                         <div
                             onClick={outOfStock ? undefined : () => {
                                 setOpenItem(openItem === item.id ? null : item.id);
                                 setQuantity(1);
                             }}
-                            className={`flex justify-between items-center p-4 ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'}`}
+                            className={`flex justify-between items-center p-3 ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'}`}
                         >
 
                             <div>
@@ -118,7 +118,7 @@ export function MenuQR() {
                                     {item.name}
                                 </div>
 
-                                <div className="text-gray-500 text-sm">
+                                <div className="text-gray-500 text-xs">
                                     {item.category}
                                 </div>
                             </div>
@@ -141,9 +141,9 @@ export function MenuQR() {
 
                         {openItem === item.id && !outOfStock && (
 
-                            <div className="p-4 border-t bg-gray-50">
+                            <div className="p-3 border-t bg-gray-50">
 
-                                <div className="flex items-center justify-center gap-4 mb-3">
+                                <div className="flex items-center justify-center gap-1.5 mb-3">
 
                                     <button
                                         onClick={() => setQuantity(q => Math.max(1, q - 1))}
@@ -189,7 +189,7 @@ export function MenuQR() {
 
                 <div
                     onClick={() => setShowCart(true)}
-                    className="fixed bottom-0 left-0 right-0 bg-green-600 text-white p-4 flex justify-between items-center cursor-pointer"
+                    className="fixed bottom-0 left-0 right-0 bg-green-600 text-white p-3 flex justify-between items-center cursor-pointer"
                 >
 
                     <div className="font-bold">
@@ -207,7 +207,7 @@ export function MenuQR() {
 
                 <div className="fixed inset-0 bg-black/40 flex items-end">
 
-                    <div className="bg-white w-full p-4 rounded-t-2xl max-h-[70vh] overflow-auto">
+                    <div className="bg-white w-full p-3 rounded-t-lg max-h-[70vh] overflow-auto">
 
                         <div className="flex justify-between items-center mb-4">
 
@@ -259,7 +259,7 @@ export function MenuQR() {
 
                         <button
                             onClick={submitOrder}
-                            className="w-full mt-4 bg-green-600 text-white py-3 rounded-lg font-bold"
+                            className="w-full mt-4 bg-green-600 text-white py-3 rounded-md font-bold"
                         >
                             Đặt Order
                         </button>

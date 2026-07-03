@@ -3,14 +3,13 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
 
 function getContext(req) {
-  return req.user || req.posDevice || null;
+  return req.user || req.employee || null;
 }
 
 function logContext(req) {
   console.log('[ROUTE CONTEXT]', {
     url: req.originalUrl,
     user: req.user,
-    posDevice: req.posDevice
   });
   
   const ctx = getContext(req);
@@ -59,11 +58,6 @@ export const cancelReservation = asyncHandler(async (req, res) => {
 export const getCurrentSession = asyncHandler(async (req, res) => {
   const data = await billiardService.getCurrentSession(req.params.tableId, getContext(req));
   sendSuccess(res, { message: 'Lấy thông tin phiên chơi thành công', data });
-});
-
-export const extendSession = asyncHandler(async (req, res) => {
-  const data = await billiardService.extendSession(req.params.id, req.body.additionalMinutes, getContext(req));
-  sendSuccess(res, { message: 'Gia hạn phiên chơi thành công', data });
 });
 
 export const finishSession = asyncHandler(async (req, res) => {

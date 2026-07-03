@@ -197,14 +197,14 @@ export function TableManagement() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (item) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-1.5">
           {hasPermission('TABLE_UPDATE') && (
             <button
               type="button"
               onClick={() => handleEdit(item)}
-              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+              className="inline-flex items-center gap-1 rounded-md border border-blue-200 px-2 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
             >
-              <Edit3 className="w-4 h-4" />
+              <Edit3 className="size-3.5" />
               Sửa
             </button>
           )}
@@ -213,9 +213,9 @@ export function TableManagement() {
               type="button"
               onClick={() => handleDelete.run(item)}
               disabled={handleDelete.isBusy || deletingId === item.id}
-              className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="size-3.5" />
               {deletingId === item.id ? 'Đang xóa...' : 'Xóa'}
             </button>
           )}
@@ -225,16 +225,16 @@ export function TableManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      <div className="flex-shrink-0 bg-card rounded-xl border border-border p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Grid3X3 className="w-6 h-6 text-blue-600" />
+    <div className="flex flex-col h-full space-y-1">
+      <div className="flex-shrink-0 bg-card rounded-md border border-border p-3">
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-1.5">
+            <div className="w-10 h-10 bg-blue-100 rounded-md flex items-center justify-center">
+              <Grid3X3 className="size-[18px] text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Quản lý bàn</h1>
-              <p className="text-sm text-muted-foreground mt-1">Quản lý danh sách bàn trong chi nhánh.</p>
+              <h1 className="text-lg font-bold text-foreground">Quản lý bàn</h1>
+              <p className="text-xs text-muted-foreground mt-1">Quản lý danh sách bàn trong chi nhánh.</p>
             </div>
           </div>
 
@@ -242,9 +242,9 @@ export function TableManagement() {
             <button
               type="button"
               onClick={handleOpenCreateModal}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2 py-1.5 font-medium text-white hover:bg-blue-700"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="size-3.5" />
               Thêm bàn
             </button>
           )}
@@ -252,76 +252,76 @@ export function TableManagement() {
       </div>
 
       {error && !isCreateModalOpen && !isEditModalOpen && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600">{error}</div>
       )}
 
       <DataTable columns={columns} data={tables} keyExtractor={(item) => item.id} loading={loading} emptyMessage="Chưa có bàn nào." pagination={pagination} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
 
       {(isCreateModalOpen || isEditModalOpen) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl">
-            <form onSubmit={(e) => handleSubmit.run(e)} className="space-y-5 p-6">
-              <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
+          <div className="w-full max-w-lg rounded-md bg-card shadow-2xl">
+            <form onSubmit={(e) => handleSubmit.run(e)} className="space-y-1 p-3">
+              <div className="flex items-center justify-between gap-1.5 border-b border-border pb-2">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">
+                  <h2 className="text-sm font-semibold text-foreground">
                     {isEditing ? 'Cập nhật bàn' : 'Thêm bàn mới'}
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {isEditing ? 'Chỉnh sửa thông tin bàn.' : 'Tạo bàn mới trong chi nhánh.'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-gray-600 hover:bg-muted"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-gray-600 hover:bg-muted"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="size-3.5" />
                   Đóng
                 </button>
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+                <div className="rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-600">{error}</div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Mã bàn *</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-gray-700">Mã bàn *</span>
                   <input
                     value={form.tableCode}
                     onChange={(e) => setForm((cur) => ({ ...cur, tableCode: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-md border border-gray-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="VD: B01"
                   />
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Tên bàn</span>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-gray-700">Tên bàn</span>
                   <input
                     value={form.tableName}
                     onChange={(e) => setForm((cur) => ({ ...cur, tableName: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-md border border-gray-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="VD: Bàn cửa sổ"
                   />
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Sức chứa *</span>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-gray-700">Sức chứa *</span>
                   <input
                     type="number"
                     min="1"
                     value={form.capacity}
                     onChange={(e) => setForm((cur) => ({ ...cur, capacity: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-md border border-gray-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-gray-700">Trạng thái</span>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-gray-700">Trạng thái</span>
                   <select
                     value={form.status}
                     onChange={(e) => setForm((cur) => ({ ...cur, status: e.target.value as TableStatus }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-md border border-gray-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   >
                     {STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -330,24 +330,24 @@ export function TableManagement() {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-1.5 pt-2">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted"
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-muted"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  disabled={handleSubmit.isBusy || saving}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={handleSubmit.isBusy}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2 py-1.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {(handleSubmit.isBusy || saving) ? (
                     'Đang lưu...'
                   ) : (
                     <>
-                      {isEditing ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      {isEditing ? <Save className="size-3.5" /> : <Plus className="size-3.5" />}
                       {isEditing ? 'Lưu thay đổi' : 'Thêm bàn'}
                     </>
                   )}

@@ -43,23 +43,23 @@ export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
   };
 
   return (
-    <div className="bg-card rounded-lg border border-border overflow-hidden">
-      <div className="px-6 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Receipt className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold text-foreground">Đơn hàng trong ngày</h2>
+    <div className="bg-card rounded-md border border-border overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <Receipt className="size-4 text-muted-foreground" />
+          <h2 className="text-xs font-semibold text-foreground">Đơn hàng trong ngày</h2>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border border-input bg-input-background rounded-lg text-sm"
+            className="px-3 py-1.5 border border-input bg-input-background rounded-md text-xs"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-input bg-input-background rounded-lg text-sm"
+            className="px-3 py-1.5 border border-input bg-input-background rounded-md text-xs"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="PENDING">Chờ xử lý</option>
@@ -71,7 +71,7 @@ export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
       </div>
 
       {data && (
-        <div className="px-6 py-3 bg-muted border-b border-border grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+        <div className="px-3 py-1.5 bg-muted border-b border-border grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
           <div>
             <span className="text-muted-foreground">Tổng đơn</span>
             <p className="font-bold text-foreground">{data.summary.totalOrders}</p>
@@ -96,25 +96,25 @@ export function DailyOrdersPanel({ initialDate }: DailyOrdersPanelProps) {
       )}
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+        <div className="flex items-center justify-center py-8 text-muted-foreground">
+          <Loader2 className="size-4 animate-spin mr-2" />
           Đang tải đơn hàng...
         </div>
       ) : !data || !data.orders || data.orders.length === 0 ? (
-        <p className="text-center py-12 text-muted-foreground">Không có đơn hàng trong ngày này</p>
+        <p className="text-center py-8 text-muted-foreground">Không có đơn hàng trong ngày này</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="px-4 py-3 w-8" />
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Mã đơn</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Giờ</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Bàn</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Món</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Trạng thái</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Thanh toán</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Tổng tiền</th>
+                <th className="px-2 py-1.5 w-8" />
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground uppercase">Mã đơn</th>
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground uppercase">Giờ</th>
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground uppercase">Bàn</th>
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground uppercase">Món</th>
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground uppercase">Trạng thái</th>
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground uppercase">Thanh toán</th>
+                <th className="px-2 py-1.5 text-right text-xs font-medium text-muted-foreground uppercase">Tổng tiền</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -152,26 +152,26 @@ function OrderRow({
   return (
     <>
       <tr className="hover:bg-accent cursor-pointer" onClick={onToggle}>
-        <td className="px-4 py-3 text-muted-foreground">
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        <td className="px-2 py-1.5 text-muted-foreground">
+          {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
         </td>
-        <td className="px-4 py-3 text-sm font-medium text-foreground">{order.orderNumber}</td>
-        <td className="px-4 py-3 text-sm text-muted-foreground">{formatTime(order.createdAt)}</td>
-        <td className="px-4 py-3 text-sm text-foreground">{order.tableNumber ? `Bàn ${order.tableNumber}` : '—'}</td>
-        <td className="px-4 py-3 text-sm text-foreground">{order.itemCount} món</td>
-        <td className="px-4 py-3">{renderStatus(order.status)}</td>
-        <td className="px-4 py-3 text-sm text-muted-foreground">
+        <td className="px-2 py-1.5 text-xs font-medium text-foreground">{order.orderNumber}</td>
+        <td className="px-2 py-1.5 text-xs text-muted-foreground">{formatTime(order.createdAt)}</td>
+        <td className="px-2 py-1.5 text-xs text-foreground">{order.tableNumber ? `Bàn ${order.tableNumber}` : '—'}</td>
+        <td className="px-2 py-1.5 text-xs text-foreground">{order.itemCount} món</td>
+        <td className="px-2 py-1.5">{renderStatus(order.status)}</td>
+        <td className="px-2 py-1.5 text-xs text-muted-foreground">
           {order.paymentMethod ? PAYMENT_LABELS[order.paymentMethod] || order.paymentMethod : '—'}
         </td>
-        <td className="px-4 py-3 text-sm font-semibold text-right text-foreground">
+        <td className="px-2 py-1.5 text-xs font-semibold text-right text-foreground">
           {order.total.toLocaleString()} ₫
         </td>
       </tr>
       {expanded && (
         <tr className="bg-muted/50">
-          <td colSpan={8} className="px-6 py-4">
-            <div className="text-sm space-y-2">
-              <div className="flex flex-wrap gap-4 text-muted-foreground">
+          <td colSpan={8} className="px-4 py-3">
+            <div className="text-xs space-y-2">
+              <div className="flex flex-wrap gap-3 text-muted-foreground">
                 <span>Tạm tính: {order.subtotal.toLocaleString()} ₫</span>
 
                 <span>Giá vốn: {order.cost.toLocaleString()} ₫</span>

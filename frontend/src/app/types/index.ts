@@ -30,84 +30,13 @@ export interface InventoryItem {
   lastUpdated: string;
 }
 
-export interface AdjustmentRequest {
+export interface SellableItem {
   id: string;
-  ingredientId: string;
-  ingredientName?: string;
-  ingredientUnit?: string;
-  type: string;
-  quantity: number;
-  beforeQuantity: number;
-  afterQuantity: number;
-  estimatedValue: number;
-  note: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  requestedBy: { id: string; fullName: string } | null;
-  reviewedBy: { id: string; fullName: string } | null;
-  reviewedAt: string | null;
-  rejectionReason: string | null;
-  createdAt: string;
-}
-
-export interface InventoryTransactionRecord {
-  id: string;
-  ingredientId: string;
-  ingredientName?: string;
-  ingredientUnit?: string;
-  type: string;
-  quantity: number;
-  beforeQuantity: number | null;
-  afterQuantity: number | null;
-  note: string | null;
-  referenceType: string | null;
-  referenceId: string | null;
-  createdAt: string;
-  user: { id: string; fullName: string } | null;
-}
-
-export interface IngredientBatch {
-  id: string;
-  ingredientId: string;
-  ingredientName?: string;
-  ingredientUnit?: string;
-  batchCode: string;
-  quantity: number;
-  initialQuantity: number;
-  unitCost: number | null;
-  expiryDate: string | null;
-  receivedDate: string;
-  status: 'ACTIVE' | 'DEPLETED' | 'EXPIRED';
-  note: string | null;
-  createdBy: { id: string; fullName: string } | null;
-  createdAt: string;
-}
-
-export interface WasteReport {
-  from: string;
-  to: string;
-  totalValue: number;
-  totalQuantity: number;
-  transactionCount: number;
-  byIngredient: {
-    ingredientId: string;
-    ingredientName: string;
-    ingredientUnit?: string;
-    totalQuantity: number;
-    totalValue: number;
-    transactionCount: number;
-  }[];
-}
-
-export interface FoodCostReport {
-  from: string;
-  to: string;
-  revenue: number;
-  standardCost: number;
-  actualCost: number;
-  standardCostPercent: number;
-  actualCostPercent: number;
-  variancePercent: number;
-  orderCount: number;
+  name: string;
+  image: string | null;
+  sellingPrice: number;
+  availableQuantity: number;
+  unit: string;
 }
 
 export interface RevenueRecord {
@@ -129,23 +58,6 @@ export interface CategoryItem {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-}
-
-export interface CategoryDetail extends CategoryItem {
-  menuItems: { id: string; name: string; price: number; available: boolean }[];
-}
-
-export interface CategoryStats {
-  totalCategories: number;
-  totalActiveCategories: number;
-  totalItems: number;
-  byCategory: {
-    id: string;
-    name: string;
-    active: boolean;
-    itemCount: number;
-    percentage: number;
-  }[];
 }
 
 export interface PaginationMeta {
@@ -463,6 +375,7 @@ export type DevicePermission =
   | 'MENU_CREATE'
   | 'MENU_UPDATE'
   | 'MENU_DELETE'
+  | 'MENU_MANAGEMENT_VIEW'
 
   | 'INVENTORY_VIEW'
   | 'INVENTORY_CREATE'
@@ -513,7 +426,6 @@ export type DevicePermission =
   | 'BILLIARD_SESSION_VIEW'
   | 'BILLIARD_SESSION_START'
   | 'BILLIARD_SESSION_CHECKIN'
-  | 'BILLIARD_SESSION_EXTEND'
   | 'BILLIARD_SESSION_FINISH'
 
   | 'BILLIARD_RESERVATION_VIEW'
@@ -836,6 +748,12 @@ export interface PosMachineCreateResponse {
   createdAt: string;
 }
 
+export interface EmployeeLoginResponse {
+  employee: Employee;
+  permissions: string[];
+  token: string;
+}
+
 // ====== Activity Log Types ======
 export interface ActivityLogEntry {
   id: string;
@@ -852,6 +770,25 @@ export interface ActivityLogEntry {
 
 export type EmployeeLogsResponse = PaginatedResponse<ActivityLogEntry>;
 
+// ====== Permission Types ======
+export interface Permission {
+  id: string;
+  code: string;
+  name: string;
+  module: string;
+}
+
+export interface PermissionTemplate {
+  key: string;
+  name: string;
+  permissionCodes: string[];
+}
+
+export interface PermissionTemplatesResponse {
+  templates: PermissionTemplate[];
+  allPermissions: Permission[];
+}
+
 // ====== Employee Types ======
 export interface Employee {
   id: string;
@@ -864,7 +801,8 @@ export interface Employee {
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
-  assignedMachineIds: string[];
+  permissions?: string[];
+  permissionIds?: string[];
 }
 
 export interface EmployeeCreateResponse {
@@ -879,5 +817,5 @@ export interface EmployeeFormData {
   email: string;
   pinCode: string;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  assignedMachineIds: string[];
+  permissionIds?: string[];
 }

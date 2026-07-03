@@ -73,7 +73,6 @@ export const permissions = [
   { code: 'BILLIARD_TABLE_LAYOUT_EDIT', name: 'Chỉnh sửa sơ đồ bàn Billiard', module: 'billiard' },
   { code: 'BILLIARD_SESSION_VIEW', name: 'Xem phiên chơi', module: 'billiard' },
   { code: 'BILLIARD_SESSION_START', name: 'Bắt đầu phiên chơi', module: 'billiard' },
-  { code: 'BILLIARD_SESSION_EXTEND', name: 'Gia hạn phiên chơi', module: 'billiard' },
   { code: 'BILLIARD_SESSION_FINISH', name: 'Kết thúc phiên chơi', module: 'billiard' },
   { code: 'BILLIARD_SESSION_CHECKIN', name: 'Check-in bàn Billiard', module: 'billiard' },
   { code: 'BILLIARD_RESERVATION_VIEW', name: 'Xem đặt bàn Billiard', module: 'billiard' },
@@ -127,6 +126,7 @@ export const permissions = [
   { code: 'MENU_CREATE', name: 'Thêm món', module: 'menu' },
   { code: 'MENU_UPDATE', name: 'Cập nhật món', module: 'menu' },
   { code: 'MENU_DELETE', name: 'Xóa món', module: 'menu' },
+  { code: 'MENU_MANAGEMENT_VIEW', name: 'Quản lý thực đơn', module: 'menu', description: 'Cho phép truy cập trang Quản lý Menu và xem danh sách quản lý thực đơn.', isSystem: false },
 
   // ================= ORDER =================
   { code: 'ORDER_VIEW', name: 'Xem đơn hàng', module: 'orders' },
@@ -140,12 +140,6 @@ export const permissions = [
   { code: 'POS_CLOSE', name: 'Đóng ca POS', module: 'pos' },
   { code: 'POS_CREATE_ORDER', name: 'Tạo đơn hàng POS', module: 'pos' },
   { code: 'POS_CANCEL_ORDER', name: 'Hủy đơn hàng POS', module: 'pos' },
-
-  // ================= POS_DEVICE =================
-  { code: 'POS_DEVICE_VIEW', name: 'Xem thiết bị POS', module: 'pos_device' },
-  { code: 'POS_DEVICE_CREATE', name: 'Tạo thiết bị POS', module: 'pos_device' },
-  { code: 'POS_DEVICE_UPDATE', name: 'Cập nhật thiết bị POS', module: 'pos_device' },
-  { code: 'POS_DEVICE_DELETE', name: 'Xóa thiết bị POS', module: 'pos_device' },
 
   // ================= POS_ORDER_QUEUE =================
   { code: 'POS_ORDER_QUEUE_VIEW', name: 'Xem Order Queue POS', module: 'pos_order_queue' },
@@ -206,9 +200,6 @@ export const permissions = [
   { code: 'STAFF_MANAGE_PIN', name: 'Quản lý mã PIN nhân viên', module: 'staff' },
   { code: 'STAFF_RESET_PIN', name: 'Đặt lại mã PIN nhân viên', module: 'staff' },
   { code: 'STAFF_VIEW_PIN', name: 'Xem mã PIN nhân viên (Admin)', module: 'staff' },
-  { code: 'STAFF_ASSIGN_POS_MACHINE', name: 'Gán máy POS cho nhân viên', module: 'staff' },
-  { code: 'STAFF_REMOVE_POS_MACHINE', name: 'Gỡ máy POS khỏi nhân viên', module: 'staff' },
-  { code: 'STAFF_VIEW_POS_MACHINE', name: 'Xem máy POS được gán', module: 'staff' },
   { code: 'STAFF_VIEW_ACTIVITY', name: 'Xem hoạt động nhân viên', module: 'staff' },
   { code: 'STAFF_VIEW_LOGIN_HISTORY', name: 'Xem lịch sử đăng nhập POS', module: 'staff' },
   { code: 'STAFF_VIEW_PERFORMANCE', name: 'Xem hiệu suất nhân viên', module: 'staff' },

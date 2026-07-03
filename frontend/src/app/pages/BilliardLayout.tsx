@@ -118,15 +118,15 @@ export function BilliardLayout() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-card rounded-xl border border-border p-4 sm:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center shrink-0">
-              <Grid3X3 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+    <div className="space-y-2">
+      <div className="bg-white dark:bg-card rounded-md border border-border p-3 sm:p-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/30 rounded-md flex items-center justify-center shrink-0">
+              <Grid3X3 className="size-4 sm:size-5 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Sơ đồ bàn bi-a</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-foreground">Sơ đồ bàn bi-a</h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">Kéo thả để sắp xếp vị trí bàn.</p>
             </div>
           </div>
@@ -135,9 +135,9 @@ export function BilliardLayout() {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 text-sm"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2 py-1.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 text-xs"
             >
-              <Save className="w-4 h-4" />
+              <Save className="size-3.5" />
               {saving ? 'Đang lưu...' : 'Lưu sơ đồ'}
             </button>
           )}
@@ -145,16 +145,16 @@ export function BilliardLayout() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-xs text-red-600">{error}</div>
       )}
 
-      <div className="bg-white dark:bg-card rounded-xl border border-border p-4 sm:p-6">
+      <div className="bg-white dark:bg-card rounded-md border border-border p-3 sm:p-4">
         {loading ? (
-          <div className="p-8 text-center text-muted-foreground">Đang tải sơ đồ...</div>
+          <div className="p-3 text-center text-muted-foreground">Đang tải sơ đồ...</div>
         ) : tables.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">Chưa có bàn nào.</div>
+          <div className="p-3 text-center text-muted-foreground">Chưa có bàn nào.</div>
         ) : (
-          <div ref={containerRef} className="relative w-full overflow-hidden" style={{ minHeight: '50vh' }}>
+          <div ref={containerRef} className="relative w-full overflow-hidden" style={{ minHeight: '40vh' }}>
             {tables.map((table) => {
               const p = positions[table.id] || { xPercent: table.xPercent ?? table.posX, yPercent: table.yPercent ?? table.posY };
               const isDragging = draggingId === table.id;
@@ -169,7 +169,7 @@ export function BilliardLayout() {
                     height: 'clamp(60px, 5vw, 80px)',
                     cursor: hasPermission('BILLIARD_TABLE_LAYOUT_EDIT') ? (isDragging ? 'grabbing' : 'grab') : 'default',
                   }}
-                  className={`absolute rounded-xl border-2 flex flex-col items-center justify-center shadow-sm select-none transition-shadow text-[clamp(9px,0.7vw,12px)] ${
+                  className={`absolute rounded-md border-2 flex flex-col items-center justify-center shadow-sm select-none transition-shadow text-[clamp(9px,0.7vw,12px)] ${
                     STATUS_COLORS[table.status] || 'border-gray-300 bg-gray-50'
                   } ${isDragging ? 'shadow-lg z-10' : 'z-0'}`}
                 >

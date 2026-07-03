@@ -56,7 +56,7 @@ interface TableFloorProps {
 }
 
 export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
-  const { hasPermission, isPosMachineMode } = useAuth();
+  const { hasPermission, isEmployeeMode } = useAuth();
   const tables = Array.isArray(rawTables) ? rawTables : [];
   const [showCreate, setShowCreate] = useState(false);
   const [positions, setPositions] = useState<Record<string, { xPercent: number; yPercent: number }>>({});
@@ -198,33 +198,33 @@ export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRe
     setPositions({});
   };
 
-  const canEditLayout = !isPosMachineMode && hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_LAYOUT_EDIT' : 'RESTAURANT_TABLE_LAYOUT_EDIT');
-  const canCreate = !isPosMachineMode && hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_CREATE' : 'RESTAURANT_TABLE_CREATE');
+  const canEditLayout = !isEmployeeMode && hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_LAYOUT_EDIT' : 'RESTAURANT_TABLE_LAYOUT_EDIT');
+  const canCreate = !isEmployeeMode && hasPermission(mode === 'BILLIARD' ? 'BILLIARD_TABLE_CREATE' : 'RESTAURANT_TABLE_CREATE');
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex flex-wrap items-center gap-3 mb-4 shrink-0">
-        <h2 className="text-lg font-semibold text-foreground shrink-0 whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-1.5 mb-3 shrink-0">
+        <h2 className="text-xs font-semibold text-foreground shrink-0 whitespace-nowrap">
           {layoutMode ? 'Chỉnh sửa bố cục' : 'Sơ đồ bàn'}
         </h2>
-        <div className="flex flex-wrap items-center gap-2 ml-auto">
+        <div className="flex flex-wrap items-center gap-1.5 ml-auto">
           <span className="text-xs text-muted-foreground">{tables.length} bàn</span>
           {!layoutMode && canCreate && (
             <Button size="sm" onClick={() => setShowCreate(true)}>
-              <Plus className="w-4 h-4" />
+              <Plus className="size-3.5" />
               Thêm bàn
             </Button>
           )}
           {!layoutMode && canEditLayout && (
             <Button size="sm" variant="outline" onClick={handleToggleLayout}>
-              <Move className="w-4 h-4" />
+              <Move className="size-3.5" />
               Chỉnh sửa bố cục
             </Button>
           )}
           {layoutMode && (
             <>
               <Button size="sm" variant="outline" onClick={handleCancelLayout}>
-                <X className="w-4 h-4" />
+                <X className="size-3.5" />
                 Hủy
               </Button>
               <Button
@@ -232,7 +232,7 @@ export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRe
                 onClick={handleSaveLayout}
                 disabled={!hasChanges || hasOverlap || updateLayout.isPending}
               >
-                <Save className="w-4 h-4" />
+                <Save className="size-3.5" />
                 {updateLayout.isPending ? 'Đang lưu...' : 'Lưu'}
               </Button>
             </>
@@ -243,12 +243,12 @@ export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRe
       <div
         ref={containerRef}
         className={cn(
-          'flex-1 relative overflow-hidden rounded-xl border',
+          'flex-1 relative overflow-hidden rounded-md border',
           layoutMode ? 'bg-muted/50 border-dashed border-muted-foreground/40' : 'bg-muted/20 border-border',
         )}
       >
         {sortedTables.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">
             Chưa có bàn nào. Nhấn "Thêm bàn" để tạo.
           </div>
         ) : (

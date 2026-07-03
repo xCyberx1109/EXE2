@@ -83,19 +83,19 @@ export function WaiterPOS() {
 
   return (
     <div className="h-full overflow-y-auto">
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
       {/* Left: Menu Browser */}
-      <div className="lg:col-span-2 space-y-4">
+      <div className="lg:col-span-2 space-y-2">
         {/* Table Select */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Table2 className="w-4 h-4" />
+            <CardTitle className="text-base flex items-center gap-1.5">
+              <Table2 className="size-3.5" />
               Nhập số bàn
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Input
                 type="text"
                 placeholder="VD: A1, B2, ..."
@@ -119,7 +119,7 @@ export function WaiterPOS() {
           </CardHeader>
           <CardContent>
             <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
               <Input
                 className="pl-9"
                 placeholder="Tìm món..."
@@ -129,10 +129,10 @@ export function WaiterPOS() {
             </div>
 
             {/* Category filter pills */}
-            <div className="flex gap-2 mb-4 overflow-x-auto">
+            <div className="flex gap-1.5 mb-4 overflow-x-auto">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'all'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -141,15 +141,15 @@ export function WaiterPOS() {
                 Tất cả
               </button>
               {catsLoading ? (
-                <div className="flex items-center gap-2 px-3 text-sm text-gray-400">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                <div className="flex items-center gap-1.5 px-3 text-xs text-gray-400">
+                  <Loader2 className="size-3.5 animate-spin" />
                 </div>
               ) : (
                 categories.map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.name)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                       selectedCategory === cat.name
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -167,29 +167,29 @@ export function WaiterPOS() {
                 Đang tải thực đơn...
               </div>
             ) : filteredItems.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">Không có món nào</p>
+              <p className="text-xs text-gray-400 text-center py-8">Không có món nào</p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {filteredItems.map((item) => {
                   const outOfStock = isItemOutOfStock(item, inventoryMap);
                   return (
                     <div key={item.id} className="relative">
                       <button
                         onClick={outOfStock ? undefined : () => addToCart(item)}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 bg-white transition-all text-center w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed border-gray-200' : 'border-gray-200 hover:border-blue-400 hover:shadow-md active:scale-95'}`}
+                        className={`flex flex-col items-center justify-center p-3 rounded-md border-2 bg-white transition-all text-center w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed border-gray-200' : 'border-gray-200 hover:border-blue-400 hover:shadow-md active:scale-95'}`}
                       >
                         {item.imageUrl ? (
                           <img
                             src={item.imageUrl}
                             alt={item.name}
-                            className="w-12 h-12 object-cover rounded-lg mb-2"
+                            className="w-12 h-9 object-cover rounded-md mb-2"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-gray-300">
-                            <Utensils className="w-5 h-5" />
+                          <div className="w-12 h-9 bg-gray-100 rounded-md mb-2 flex items-center justify-center text-gray-300">
+                            <Utensils className="size-4" />
                           </div>
                         )}
-                        <span className="text-sm font-semibold text-gray-800 line-clamp-2">{item.name}</span>
+                        <span className="text-xs font-semibold text-gray-800 line-clamp-2">{item.name}</span>
                         <span className="text-xs text-blue-600 font-bold mt-1">{item.price.toLocaleString()}đ</span>
                       </button>
                       {outOfStock && (
@@ -209,24 +209,24 @@ export function WaiterPOS() {
       </div>
 
       {/* Right: Cart */}
-      <div className="space-y-4">
+      <div className="space-y-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4" />
+            <CardTitle className="text-base flex items-center gap-1.5">
+              <ShoppingCart className="size-3.5" />
               Đơn hàng
               {tableNumber && <Badge>Bàn {tableNumber}</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {cart.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">Chưa có món nào</p>
+              <p className="text-xs text-gray-400 text-center py-8">Chưa có món nào</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {cart.map((item) => (
                   <div key={item.menuItemId} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      <p className="text-xs font-medium truncate">{item.name}</p>
                       <p className="text-xs text-gray-500">{item.price.toLocaleString()}đ</p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -236,7 +236,7 @@ export function WaiterPOS() {
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                      <span className="w-6 text-center text-xs font-medium">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.menuItemId, 1)}
                         className="p-1 hover:bg-gray-100 rounded"
@@ -258,7 +258,7 @@ export function WaiterPOS() {
               size="lg"
               disabled={!tableNumber || cart.length === 0}
             >
-              <CheckCircle className="w-4 h-4 mr-2" />
+              <CheckCircle className="size-3.5 mr-2" />
               Gọi món
             </Button>
           </CardContent>

@@ -81,8 +81,8 @@ function getEntityInfo(log: ActivityLogEntry) {
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-      <span className="text-gray-500 dark:text-gray-400 text-sm">{label}</span>
-      <span className="text-sm font-medium">{value || '—'}</span>
+      <span className="text-gray-500 dark:text-gray-400 text-xs">{label}</span>
+      <span className="text-xs font-medium">{value || '—'}</span>
     </div>
   );
 }
@@ -149,7 +149,7 @@ export default function EmployeeDetailDialog({ employeeId, open, onOpenChange }:
           </TabsContent>
 
           <TabsContent value="logs" className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex flex-wrap items-center gap-2 mb-4 shrink-0">
+            <div className="flex flex-wrap items-center gap-1.5 mb-4 shrink-0">
               <Select value={actionFilter || 'all'} onValueChange={(v) => { setActionFilter(v === 'all' ? '' : v); setPage(1); }}>
                 <SelectTrigger className="w-[150px] h-9">
                   <SelectValue placeholder="Hành động" />
@@ -185,7 +185,7 @@ export default function EmployeeDetailDialog({ employeeId, open, onOpenChange }:
               ) : filteredLogs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                   <div className="text-4xl mb-3">📋</div>
-                  <p className="text-sm">Chưa có hoạt động nào</p>
+                  <p className="text-xs">Chưa có hoạt động nào</p>
                   <p className="text-xs mt-1">Nhân viên này chưa có nhật ký hoạt động.</p>
                 </div>
               ) : (

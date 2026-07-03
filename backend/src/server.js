@@ -3,7 +3,6 @@ import config from './config/index.js';
 import prisma from './prisma/client.js';
 import { syncPermissions } from './seed/runSeed.js';
 import { permissionService } from './modules/permissions/permission.service.js';
-import { startHeartbeatCheck } from './jobs/heartbeatCheck.js';
 import { mailLogger } from './utils/logger.js';
 
 function validateDatabaseProvider() {
@@ -33,8 +32,6 @@ const startServer = async () => {
     }
 
     // Seed riêng qua CLI: npx prisma db seed
-
-    startHeartbeatCheck();
 
     if (config.email.apiKey) {
       mailLogger.log('SYSTEM', 'Resend API key configured — email sending ready');

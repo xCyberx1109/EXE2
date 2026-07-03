@@ -82,7 +82,7 @@ export function TableCard({ mode, table, selected, onSelect, draggable, onDragSt
         cursor: draggable ? 'grab' : 'pointer',
       }}
       className={cn(
-        'absolute rounded-xl border-2 flex flex-col px-2.5 py-2 shadow-sm select-none transition-all hover:shadow-md overflow-hidden',
+        'absolute rounded-md border-2 flex flex-col px-2.5 py-2 shadow-sm select-none transition-all hover:shadow-md overflow-hidden',
         'w-[clamp(120px,10vw,180px)] h-[clamp(80px,8vw,140px)]',
         'text-[clamp(11px,0.9vw,14px)]',
         overlap ? 'border-red-500 ring-2 ring-red-400' : style.border,

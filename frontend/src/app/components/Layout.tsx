@@ -1,12 +1,18 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router';
-import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock, CircleDot } from 'lucide-react';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock, CircleDot, PanelLeftClose, PanelLeft, Sun, Moon } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig';
-import { APP_NAME } from '../../shared/constants';
+
 import { useTheme } from 'next-themes';
-import { PosMachineHeader } from './PosMachineHeader';
-import { ThemeToggle } from './ui/ThemeToggle';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from './ui/dropdown-menu';
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
@@ -30,25 +36,21 @@ function isAllowedPath(path: string, flatItems: AppMenuItem[]): boolean {
   return flatItems.some((item) => path === item.href || path.startsWith(item.href + '/'));
 }
 
-
-
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isReady, isAuthenticated, isDeviceMode, isPosMachineMode, user, logout, hasPermission } = useAuth();
+  const { isReady, isAuthenticated, isDeviceMode, user, employee, logout, hasPermission } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved === 'true';
+  });
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  const toggleSidebar = useCallback(() => setSidebarCollapsed(prev => !prev), []);
 
   const { visibleGroups, flatMenuItems } = useMemo(() => {
     const flatItems: AppMenuItem[] = [];
@@ -90,159 +92,178 @@ export function Layout() {
     return <Navigate to="/login" replace />;
   }
 
-  if (isPosMachineMode) {
-    return (
-      <div className="h-screen flex flex-col bg-background overflow-hidden">
-        <PosMachineHeader />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <Outlet />
-        </main>
-      </div>
-    );
-  }
-
-  if (user && !isAllowedPath(location.pathname, flatMenuItems)) {
+  if (!isAllowedPath(location.pathname, flatMenuItems)) {
     return <Navigate to={getDefaultRoute(hasPermission)} replace />;
   }
 
+  const displayName = user?.fullName || employee?.fullName || 'Nhân viên';
+  const displayEmail = user?.email || (employee ? 'Nhân viên POS' : '');
+
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
-      {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-card border-b border-border px-4 py-3 z-40">
-        <div className="flex items-center justify-between">
-          <h1 className="font-semibold text-lg text-foreground">{APP_NAME}</h1>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-md hover:bg-accent text-foreground"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="h-screen flex flex-col bg-background">
+      {/* ── Header ────────────────────────────────────────────────────── */}
+      <header className="shrink-0 h-12 z-40 bg-card border-b border-border">
+        <div className="flex items-center h-full px-2 gap-1">
+          {/* Mobile toggle */}
+          <button
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            className="lg:hidden p-2 rounded-md hover:bg-accent text-foreground"
+          >
+            {mobileMenuOpen ? <X className="size-[18px]" /> : <Menu className="size-[18px]" />}
+          </button>
 
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-sidebar-border flex items-center justify-center relative">
-              <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <ThemeToggle />
-              </div>
-              <img
-                src="/Logo.png"
-                alt="POSitive Logo"
-                className="h-14 w-auto object-contain"
-              />
-          </div>
-          
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {visibleGroups.map((group) => {
-              if (!group.children) return null;
-              return (
-                <div key={group.name} className="mb-4">
-                  <p className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {group.name}
-                  </p>
-                  {group.children.map((item) => {
-                    const isActive = location.pathname === item.href;
-                    const Icon = ICON_MAP[item.icon] || LayoutDashboard;
-                    return (
-                      <Link
-                        key={item.name}
-                        to={item.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                        {item.name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </nav>
+          {/* Desktop toggle */}
+          <button
+            onClick={toggleSidebar}
+            className="hidden lg:flex p-2 rounded-md hover:bg-accent text-foreground/80 hover:text-foreground transition-colors"
+            title={sidebarCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+          >
+            {sidebarCollapsed ? <PanelLeft className="size-[18px]" /> : <PanelLeftClose className="size-[18px]" />}
+          </button>
 
-          {/* User info + Dropdown */}
-          <div ref={profileRef} className="p-4 border-t border-sidebar-border relative">
-            {user && (
-              <>
-                <button
-                  onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2 w-full px-2 rounded-lg hover:bg-sidebar-accent transition-colors"
-                >
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-sidebar-foreground truncate">{user.fullName}</p>
-                    <p className="text-xs text-sidebar-foreground/60 truncate">{user.email}</p>
-                  </div>
+          {/* Logo */}
+            <Link to="/app" className="flex-shrink-0">
+            <img
+              src="/Logo.png"
+              alt="POSitive Logo"
+              className="h-7 w-auto object-contain"
+            />
+          </Link>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-2 rounded-md hover:bg-accent text-foreground/80 hover:text-foreground transition-colors"
+            title={theme === 'dark' ? 'Chế độ sáng' : 'Chế độ tối'}
+          >
+            {theme === 'dark' ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
+          </button>
+
+          {/* User avatar with dropdown */}
+          {(user || employee) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors flex-shrink-0">
+                  <User className="size-3 text-primary" />
                 </button>
-
-                {profileOpen && (
-                  <div className="absolute left-full bottom-0 ml-3 w-56 rounded-lg border border-border bg-card shadow-xl overflow-hidden z-50">
-                    <div className="px-3 py-3 border-b border-border">
-                      <p className="text-sm font-medium text-foreground truncate">{user.fullName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    </div>
-                    <Link
-                      to="/app/profile"
-                      onClick={() => { setMobileMenuOpen(false); setProfileOpen(false); }}
-                      className="flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                    >
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      Hồ sơ
-                    </Link>
-                    <button
-                      onClick={() => {
-                        const modes = ["light", "dark", "system"];
-                        const idx = modes.indexOf(theme ?? "light");
-                        setTheme(modes[(idx + 1) % modes.length]);
-                      }}
-                      className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                    >
-                      <span className="text-muted-foreground">Giao diện</span>
-                      <span className="font-medium capitalize">{theme ?? "system"}</span>
-                    </button>
-                    <button
-                      onClick={logout}
-                      className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Đăng xuất
-                    </button>
-                  </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <div className="px-1.5 py-1.5">
+                  <p className="text-xs font-medium text-foreground truncate">{displayName}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{displayEmail}</p>
+                </div>
+                <DropdownMenuSeparator />
+                {user && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link to="/app/profile" className="cursor-pointer">
+                        <User className="size-3.5 mr-1.5" />
+                        Hồ sơ
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
                 )}
-              </>
-            )}
-            <div className="text-xs text-muted-foreground px-2 mt-3">
-              <p>© 2026 {APP_NAME}</p>
-            </div>
-          </div>
+                <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
+                  <LogOut className="size-3.5 mr-1.5" />
+                  Đăng xuất
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
-      </div>
+      </header>
 
-      {/* Mobile menu overlay */}
+      {/* ── Mobile overlay ────────────────────────────────────────────── */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Main content - scrollable */}
-      <div className="flex-1 lg:pl-64 pt-14 lg:pt-0 h-full overflow-hidden">
-        <main className="p-6 h-full min-h-0 overflow-y-auto flex flex-col">
-          <Outlet />
+      {/* ── Body: Sidebar + Main ──────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* Sidebar */}
+        <aside className={`flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden shrink-0 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'w-20' : 'w-72'
+          } fixed left-0 top-14 bottom-0 z-30 lg:static lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}>
+          <div className="flex flex-col h-full">
+            <TooltipProvider delayDuration={0}>
+              <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
+                {visibleGroups.map((group) => {
+                  if (!group.children) return null;
+                  return (
+                    <div key={group.name} className="mb-2">
+                      {!sidebarCollapsed && (
+                        <p className="px-2 mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {group.name}
+                        </p>
+                      )}
+                      {group.children.map((item) => {
+                        const isActive = location.pathname === item.href;
+                        const Icon = ICON_MAP[item.icon] || LayoutDashboard;
+                        const link = (
+                          <Link
+                            key={item.name}
+                            to={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${isActive
+                              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                              : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                              } ${sidebarCollapsed ? 'justify-center' : ''}`}
+                          >
+                            <Icon className="size-[18px] flex-shrink-0" />
+                            {!sidebarCollapsed && <span className="truncate">{item.name}</span>}
+                          </Link>
+                        );
+                        if (sidebarCollapsed) {
+                          return (
+                            <Tooltip key={item.name}>
+                              <TooltipTrigger asChild>
+                                {link}
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="z-50">
+                                {item.name}
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        }
+                        return link;
+                      })}
+                    </div>
+                  );
+                })}
+              </nav>
+            </TooltipProvider>
+
+            {/* Sidebar spacer */}
+            <div className="p-2 border-t border-sidebar-border" />
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main
+          className="
+flex-1
+min-h-0
+overflow-hidden
+"
+        >
+          <div
+            className="
+h-full
+px-3
+pt-1.5
+pb-3
+overflow-hidden
+"
+          >
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

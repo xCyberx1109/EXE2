@@ -2,11 +2,11 @@ import { API_PREFIX, API_BASE } from './config';
 import type { ApiResponse } from '../types';
 
 const TOKEN_KEY = 'fnb_auth_token';
-const POS_MACHINE_TOKEN_KEY = 'fnb_pos_machine_token';
+const EMPLOYEE_TOKEN_KEY = 'fnb_employee_token';
 
-/** Ưu tiên POS Machine token khi đã đăng nhập máy POS */
+/** Ưu tiên Employee token khi đã đăng nhập bằng PIN */
 export const getToken = () =>
-  localStorage.getItem(POS_MACHINE_TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
+  localStorage.getItem(EMPLOYEE_TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
 export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
 const clearLegacyTokenCookie = () => {
   document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
@@ -14,6 +14,7 @@ const clearLegacyTokenCookie = () => {
 
 export const clearToken = () => {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(EMPLOYEE_TOKEN_KEY);
   clearLegacyTokenCookie();
 };
 

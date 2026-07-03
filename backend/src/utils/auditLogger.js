@@ -1,11 +1,10 @@
 import prisma from '../prisma/client.js';
 
-export function logAction({ accountId, employeeId, posDeviceId, action, module, details, ipAddress, userAgent }) {
+export function logAction({ accountId, employeeId, action, module, details, ipAddress, userAgent }) {
   prisma.activityLog.create({
     data: {
       accountId: accountId || null,
       employeeId: employeeId || null,
-      posDeviceId: posDeviceId || null,
       action,
       module,
       details: details || undefined,

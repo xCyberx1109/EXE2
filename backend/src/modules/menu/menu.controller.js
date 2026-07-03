@@ -3,9 +3,9 @@ import { menuService } from './menu.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
 
-// Helper: lấy unified context từ user auth hoặc device auth
+// Helper: lấy unified context từ user auth
 function getContext(req) {
-  return req.user || req.posDevice || null;
+  return req.user || req.employee || null;
 }
 
 // Menu items

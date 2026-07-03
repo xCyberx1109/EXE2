@@ -356,6 +356,7 @@ export const billiardService = {
   async playNow(tableId, { durationMinutes, customerName, phone }, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
     assertBranchAccess(table, user, 'bàn');
 
     if (table.status !== 'AVAILABLE') {
@@ -426,6 +427,7 @@ export const billiardService = {
   async reserveTable(tableId, { customerName, phone, reservationDate, note }, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
     assertBranchAccess(table, user, 'bàn');
 
     if (table.status !== 'AVAILABLE') {
@@ -461,6 +463,7 @@ export const billiardService = {
   async checkInReservation(tableId, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
     assertBranchAccess(table, user, 'bàn');
 
     if (table.status !== 'RESERVED') {
@@ -535,6 +538,7 @@ export const billiardService = {
   async cancelReservation(tableId, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
     assertBranchAccess(table, user, 'bàn');
 
     const reservation = await reservationRepository.findPendingByTableId(tableId);
@@ -562,7 +566,10 @@ export const billiardService = {
     if (!session) return null;
 
     const table = await tableRepository.findById(tableId);
-    if (table) assertBranchAccess(table, user, 'bàn');
+    if (table) {
+      if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
+      assertBranchAccess(table, user, 'bàn');
+    }
 
     const now = new Date();
     let remainingMinutes = 0;
@@ -591,36 +598,10 @@ export const billiardService = {
     };
   },
 
-  async extendSession(sessionId, additionalMinutes, user) {
-    const session = await playSessionRepository.findById(sessionId);
-    if (!session) throw new AppError('Không tìm thấy phiên chơi', 404);
-
-    const table = await tableRepository.findById(session.tableId);
-    if (table) assertBranchAccess(table, user, 'bàn');
-
-    if (session.status !== PlaySessionStatus.PLAYING) {
-      throw new AppError('Phiên chơi không ở trạng thái đang chơi', 400);
-    }
-
-    const hourlyRate = table ? Number(table.hourlyRate) : 0;
-    const now = new Date();
-    const elapsedMinutes = session.startTime
-      ? Math.floor((now.getTime() - new Date(session.startTime).getTime()) / 60000)
-      : 0;
-    const totalDuration = elapsedMinutes + additionalMinutes;
-    const newTableFee = computePlayCost(hourlyRate, totalDuration);
-    const newExpectedEnd = new Date(now.getTime() + additionalMinutes * 60000);
-
-    return playSessionRepository.update(sessionId, {
-      expectedEndTime: newExpectedEnd,
-      durationMinutes: totalDuration,
-      tableFee: newTableFee,
-    });
-  },
-
   async finishSession(tableId, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
     assertBranchAccess(table, user, 'bàn');
 
     const session = await playSessionRepository.findActiveByTableId(tableId);
@@ -628,7 +609,7 @@ export const billiardService = {
 
     const now = new Date();
     const accountId = user.accountId || user.id;
-    const userId = user.id || accountId;
+    const userId = user.accountId || user.id;
 
     const startedAt = session.startTime ? new Date(session.startTime).getTime() : now.getTime();
     const elapsedMinutes = Math.ceil((now.getTime() - startedAt) / 60000);
@@ -705,7 +686,10 @@ export const billiardService = {
     if (!session) throw new AppError('Không tìm thấy phiên chơi', 404);
 
     const table = await tableRepository.findById(session.tableId);
-    if (table) assertBranchAccess(table, user, 'bàn');
+    if (table) {
+      if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
+      assertBranchAccess(table, user, 'bàn');
+    }
 
     if (!session.order) return null;
     return session.order;
@@ -1052,6 +1036,7 @@ export const billiardService = {
   async getTableOrderSummary(tableId, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
     assertBranchAccess(table, user, 'bàn');
 
     const session = await playSessionRepository.findActiveByTableId(tableId);
@@ -1108,7 +1093,7 @@ export const billiardService = {
       throw new AppError('Đơn hàng đã được thanh toán', 400);
     }
 
-    const userId = user?.id || user?.accountId || order.createdBy;
+    const userId = user?.accountId || user?.id || order.createdBy;
     const now = new Date();
     const method = paymentMethod || 'CASH';
 
@@ -1271,6 +1256,7 @@ export const billiardService = {
   async openOrderForTable(tableId, { guestCount, note }, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'RESTAURANT') throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(table, user, 'bàn');
 
     const accountId = getAccountId(user);
@@ -1336,11 +1322,8 @@ export const billiardService = {
   async getTableOrder(tableId, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'RESTAURANT') throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(table, user, 'bàn');
-
-    if (table.mode === 'BILLIARD') {
-      return this.getTableOrderSummary(tableId, user);
-    }
 
     const accountId = getAccountId(user);
     const order = await prisma.order.findFirst({
@@ -1356,10 +1339,12 @@ export const billiardService = {
   async transferOrder(tableId, { targetTableId }, user) {
     const sourceTable = await tableRepository.findById(tableId);
     if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
+    if (sourceTable.mode !== 'RESTAURANT') throw new AppError('Bàn nguồn không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(sourceTable, user, 'bàn');
 
     const targetTable = await tableRepository.findById(targetTableId);
     if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
+    if (targetTable.mode !== 'RESTAURANT') throw new AppError('Bàn đích không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(targetTable, user, 'bàn');
 
     if (targetTable.status === 'OCCUPIED') {
@@ -1402,10 +1387,12 @@ export const billiardService = {
   async mergeTables(tableId, { targetTableId }, user) {
     const sourceTable = await tableRepository.findById(tableId);
     if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
+    if (sourceTable.mode !== 'RESTAURANT') throw new AppError('Bàn nguồn không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(sourceTable, user, 'bàn');
 
     const targetTable = await tableRepository.findById(targetTableId);
     if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
+    if (targetTable.mode !== 'RESTAURANT') throw new AppError('Bàn đích không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(targetTable, user, 'bàn');
 
     const sourceOrder = await prisma.order.findFirst({
@@ -1462,10 +1449,12 @@ export const billiardService = {
   async splitOrder(tableId, { targetTableId, items }, user) {
     const sourceTable = await tableRepository.findById(tableId);
     if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
+    if (sourceTable.mode !== 'RESTAURANT') throw new AppError('Bàn nguồn không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(sourceTable, user, 'bàn');
 
     const targetTable = await tableRepository.findById(targetTableId);
     if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
+    if (targetTable.mode !== 'RESTAURANT') throw new AppError('Bàn đích không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(targetTable, user, 'bàn');
 
     if (targetTable.status === 'OCCUPIED') throw new AppError('Bàn đích đang có khách', 400);
@@ -1549,6 +1538,7 @@ export const billiardService = {
   async updateGuestCount(tableId, guestCount, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
+    if (table.mode !== 'RESTAURANT') throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(table, user, 'bàn');
 
     const activeOrder = await prisma.order.findFirst({
@@ -1568,7 +1558,10 @@ export const billiardService = {
       const accountId = getAccountId(user);
       if (accountId && order.accountId !== accountId) throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
     }
-    if (order.table) assertBranchAccess(order.table, user, 'bàn');
+    if (order.table) {
+      if (order.table.mode !== 'RESTAURANT') throw new AppError('Đơn hàng này không thuộc hệ thống nhà hàng', 400);
+      assertBranchAccess(order.table, user, 'bàn');
+    }
 
     return prisma.order.update({ where: { id: orderId }, data: { note } });
   },
@@ -1576,6 +1569,7 @@ export const billiardService = {
   async updateRestaurantTable(tableId, data, user) {
     const existing = await tableRepository.findById(tableId);
     if (!existing) throw new AppError('Không tìm thấy bàn', 404);
+    if (existing.mode !== 'RESTAURANT') throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(existing, user, 'bàn');
 
     if (data.tableCode && data.tableCode !== existing.tableCode) {
@@ -1607,6 +1601,7 @@ export const billiardService = {
   async deleteRestaurantTable(tableId, user) {
     const existing = await tableRepository.findById(tableId);
     if (!existing) throw new AppError('Không tìm thấy bàn', 404);
+    if (existing.mode !== 'RESTAURANT') throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(existing, user, 'bàn');
 
     const activeOrder = await prisma.order.findFirst({

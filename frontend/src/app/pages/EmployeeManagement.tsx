@@ -17,14 +17,15 @@ import {
 } from '../components/ui/alert-dialog';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '../components/ui/accordion';
 import { Button } from '../components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../components/ui/select';
 import { DataTable, type Column } from '../components/DataTable';
-import { posMachineApi } from '../api/posServices';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
-import type { Employee, EmployeeFormData, EmployeeCreateResponse, PosMachine } from '../types';
+import type { Employee, EmployeeFormData, EmployeeCreateResponse, Permission } from '../types';
+import { employeeApi } from '../api/services';
 
 const emptyForm = (): EmployeeFormData => ({
   employeeCode: '',
@@ -33,7 +34,6 @@ const emptyForm = (): EmployeeFormData => ({
   email: '',
   pinCode: '',
   status: 'ACTIVE',
-  assignedMachineIds: [],
 });
 
 const STATUS_OPTIONS = [
@@ -48,8 +48,15 @@ const STATUS_COLORS: Record<string, string> = {
   SUSPENDED: 'bg-red-100 text-red-800 border-red-300',
 };
 
+const TEMPLATE_META: Record<string, { icon: string; label: string }> = {
+  CASHIER: { icon: '🛒', label: 'POS tại quầy' },
+  KITCHEN: { icon: '🍳', label: 'Bếp' },
+  RESTAURANT: { icon: '🍽️', label: 'Quản lý bàn nhà hàng' },
+  BILLIARD: { icon: '🎱', label: 'Bida' },
+};
+
 export function EmployeeManagement() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const canCreate = hasPermission('STAFF_CREATE');
   const canUpdate = hasPermission('STAFF_UPDATE');
   const canDelete = hasPermission('STAFF_DELETE');
@@ -94,9 +101,6 @@ export function EmployeeManagement() {
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [machines, setMachines] = useState<PosMachine[]>([]);
-  const [loadingMachines, setLoadingMachines] = useState(false);
-
   const [pinModalData, setPinModalData] = useState<{ employeeName: string; employeeCode: string; pin: string } | null>(null);
   const [pinCopied, setPinCopied] = useState(false);
   const [resetPinResult, setResetPinResult] = useState<{ employeeId: string; generatedPin: string } | null>(null);
@@ -106,10 +110,17 @@ export function EmployeeManagement() {
 
   const isEditing = !!editing;
 
+  // Permission grid state
+  const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(false);
+  const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
+  const [templates, setTemplates] = useState<{ key: string; name: string; permissionCodes: string[] }[]>([]);
+
   const resetForm = () => {
     setForm(emptyForm());
     setFormError(null);
     setEditing(null);
+    setSelectedPermissionIds([]);
   };
 
   const copyPin = async (pin: string) => {
@@ -118,7 +129,6 @@ export function EmployeeManagement() {
       setPinCopied(true);
       setTimeout(() => setPinCopied(false), 2000);
     } catch {
-      // fallback
       const ta = document.createElement('textarea');
       ta.value = pin;
       document.body.appendChild(ta);
@@ -151,15 +161,17 @@ export function EmployeeManagement() {
 
   const openCreate = async () => {
     resetForm();
-    setLoadingMachines(true);
     setDialogOpen(true);
+    setLoadingPermissions(true);
     try {
-      const data = await posMachineApi.list();
-      setMachines(data);
+      const res = await employeeApi.getPermissionTemplates();
+      setTemplates(res.templates);
+      setAllPermissions(res.allPermissions);
     } catch {
-      setMachines([]);
+      setTemplates([]);
+      setAllPermissions([]);
     } finally {
-      setLoadingMachines(false);
+      setLoadingPermissions(false);
     }
   };
 
@@ -172,32 +184,33 @@ export function EmployeeManagement() {
       email: emp.email || '',
       pinCode: '',
       status: emp.status,
-      assignedMachineIds: [...emp.assignedMachineIds],
     });
     setFormError(null);
-
-    setLoadingMachines(true);
     setDialogOpen(true);
+    setLoadingPermissions(true);
     try {
-      const data = await posMachineApi.list();
-      setMachines(data);
+      const [permRes, templatesRes] = await Promise.all([
+        employeeApi.getPermissions(emp.id),
+        employeeApi.getPermissionTemplates(),
+      ]);
+      setSelectedPermissionIds(permRes.permissionIds);
+      setTemplates(templatesRes.templates);
+      setAllPermissions(templatesRes.allPermissions);
     } catch {
-      setMachines([]);
+      setSelectedPermissionIds([]);
+      setTemplates([]);
+      setAllPermissions([]);
     } finally {
-      setLoadingMachines(false);
+      setLoadingPermissions(false);
     }
   };
 
-  const handleToggleMachine = (machineId: string) => {
-    setForm((prev) => {
-      const exists = prev.assignedMachineIds.includes(machineId);
-      return {
-        ...prev,
-        assignedMachineIds: exists
-          ? prev.assignedMachineIds.filter((id) => id !== machineId)
-          : [...prev.assignedMachineIds, machineId],
-      };
-    });
+  const handleTogglePermission = (permissionId: string) => {
+    setSelectedPermissionIds((prev) =>
+      prev.includes(permissionId)
+        ? prev.filter((id) => id !== permissionId)
+        : [...prev, permissionId],
+    );
   };
 
   const handleSave = async () => {
@@ -215,13 +228,14 @@ export function EmployeeManagement() {
       if (isEditing) {
         const body: Record<string, unknown> = { ...form };
         if (!body.pinCode) delete body.pinCode;
+        body.permissionIds = selectedPermissionIds;
         await updateMutation.mutateAsync({ id: editing.id, ...body } as any);
         setDialogOpen(false);
         resetForm();
       } else {
-        const createPayload = { ...form };
+        const createPayload = { ...form, permissionIds: selectedPermissionIds };
         delete createPayload.pinCode;
-        const result = await createMutation.mutateAsync(createPayload) as EmployeeCreateResponse;
+        const result = await createMutation.mutateAsync(createPayload as any) as unknown as EmployeeCreateResponse;
         setDialogOpen(false);
         resetForm();
         if (result.generatedPin) {
@@ -290,23 +304,14 @@ export function EmployeeManagement() {
       ),
     },
     {
-      key: 'machines',
-      header: 'Máy POS',
-      headerClassName: 'hidden lg:table-cell',
-      className: 'hidden lg:table-cell',
-      render: (item) => (
-        <span className="text-muted-foreground text-xs">{item.assignedMachineIds.length} máy</span>
-      ),
-    },
-    {
       key: 'actions',
       header: 'Thao tác',
       headerClassName: 'text-right',
       className: 'text-right',
       render: (item) => (
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-0.5">
           <Button variant="ghost" size="sm" onClick={() => setDetailEmployeeId(item.id)} title="Xem chi tiết">
-            <Eye className="w-4 h-4" />
+            <Eye className="size-3" />
           </Button>
           {canResetPin && (
             <Button
@@ -326,17 +331,17 @@ export function EmployeeManagement() {
               }}
               title="Đặt lại mã PIN"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="size-3" />
             </Button>
           )}
           {canUpdate && (
             <Button variant="ghost" size="sm" onClick={() => openEdit(item)}>
-              <Edit3 className="w-4 h-4" />
+              <Edit3 className="size-3" />
             </Button>
           )}
           {canDelete && (
             <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(item)}>
-              <Trash2 className="w-4 h-4 text-destructive" />
+              <Trash2 className="size-3 text-destructive" />
             </Button>
           )}
         </div>
@@ -345,22 +350,22 @@ export function EmployeeManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
+    <div className="flex flex-col h-full space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 flex-shrink-0">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Quản lý nhân viên</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Quản lý nhân viên và phân quyền sử dụng máy POS
+          <h1 className="text-lg md:text-lg font-bold tracking-tight">Quản lý nhân viên</h1>
+          <p className="text-muted-foreground text-xs mt-0.5">
+            Quản lý thông tin nhân viên
           </p>
         </div>
         {canCreate && (
           <Button onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> Thêm nhân viên
+            <Plus className="size-3 mr-1" /> Thêm nhân viên
           </Button>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -387,16 +392,16 @@ export function EmployeeManagement() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) { setDialogOpen(false); resetForm(); } }}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEditing ? 'Sửa nhân viên' : 'Thêm nhân viên'}</DialogTitle>
             <DialogDescription>
-              {isEditing ? 'Cập nhật thông tin và phân quyền máy POS' : 'Nhập thông tin và phân quyền máy POS'}
+              {isEditing ? 'Cập nhật thông tin và phân quyền nhân viên' : 'Nhập thông tin và phân quyền nhân viên'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Mã nhân viên</label>
                 <Input
@@ -415,7 +420,7 @@ export function EmployeeManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Email</label>
                 <Input
@@ -468,55 +473,109 @@ export function EmployeeManagement() {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Máy POS được phép sử dụng</label>
-              <p className="text-xs text-muted-foreground">Chọn máy POS nhân viên được phép đăng nhập</p>
-              {loadingMachines ? (
+            {/* Template Presets — Accordion */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Gán nhanh theo mẫu</label>
+               {loadingPermissions ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách máy POS...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Đang tải quyền...
                 </div>
-              ) : machines.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">Chưa có máy POS nào</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                  {machines.map((machine) => (
-                    <label
-                      key={machine.id}
-                      className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                        form.assignedMachineIds.includes(machine.id)
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-muted-foreground/30'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.assignedMachineIds.includes(machine.id)}
-                        onChange={() => handleToggleMachine(machine.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{machine.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{machine.template}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
+              ) : templates.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">Không có mẫu quyền nào</p>
+              ) : (() => {
+                const accountPermissions = user?.permissions ?? [];
+                const visibleTemplates = templates.filter((tpl) =>
+                  tpl.permissionCodes.some((code) => accountPermissions.includes(code)),
+                );
+                return visibleTemplates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">Không có mẫu phân quyền khả dụng.</p>
+                ) : (
+                <Accordion type="multiple" className="border rounded-lg">
+                  {visibleTemplates.map((tpl) => {
+                    const tplPermissions = allPermissions.filter((p) =>
+                      tpl.permissionCodes.includes(p.code),
+                    );
+                    const selectedCount = tplPermissions.filter((p) =>
+                      selectedPermissionIds.includes(p.id),
+                    ).length;
+                    const allSelected = selectedCount === tplPermissions.length;
+                    const meta = TEMPLATE_META[tpl.key] ?? { icon: '📋', label: tpl.name };
+                    return (
+                      <AccordionItem key={tpl.key} value={tpl.key} className="px-3">
+                        <AccordionTrigger className="hover:no-underline gap-2 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{meta.icon}</span>
+                            <span className="text-sm font-medium">{meta.label}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({tplPermissions.length} quyền)
+                            </span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <label className="flex items-center gap-2 px-1 py-2 rounded cursor-pointer text-sm border-b border-border mb-2">
+                            <input
+                              type="checkbox"
+                              checked={allSelected}
+                              onChange={() => {
+                                if (allSelected) {
+                                  setSelectedPermissionIds((prev) =>
+                                    prev.filter(
+                                      (id) => !tplPermissions.some((p) => p.id === id),
+                                    ),
+                                  );
+                                } else {
+                                  const missing = tplPermissions
+                                    .filter((p) => !selectedPermissionIds.includes(p.id))
+                                    .map((p) => p.id);
+                                  setSelectedPermissionIds((prev) => [...prev, ...missing]);
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <span>Chọn toàn bộ quyền của mẫu</span>
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pb-2">
+                            {tplPermissions.map((perm) => (
+                              <label
+                                key={perm.id}
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors text-sm ${
+                                  selectedPermissionIds.includes(perm.id)
+                                    ? 'bg-primary/5 text-foreground'
+                                    : 'hover:bg-accent text-muted-foreground'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPermissionIds.includes(perm.id)}
+                                  onChange={() => handleTogglePermission(perm.id)}
+                                  className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span className="truncate">{perm.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              );
+            })()}
             </div>
 
             {formError && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 text-sm text-destructive">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2 text-xs text-destructive">
                 {formError}
               </div>
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>
               Hủy
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Đang lưu...</> : (isEditing ? 'Cập nhật' : 'Thêm nhân viên')}
+              {saving ? <><Loader2 className="size-3.5 animate-spin mr-1" /> Đang lưu...</> : (isEditing ? 'Cập nhật' : 'Thêm nhân viên')}
             </Button>
           </div>
         </DialogContent>
@@ -553,13 +612,13 @@ export function EmployeeManagement() {
             </div>
           </div>
 
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-2">
             <Button variant="outline" onClick={() => copyPin(pinModalData?.pin || '')}>
-              {pinCopied ? <Check className="w-4 h-4 mr-1 text-green-500" /> : <Copy className="w-4 h-4 mr-1" />}
+              {pinCopied ? <Check className="size-3.5 mr-1 text-green-500" /> : <Copy className="size-3.5 mr-1" />}
               {pinCopied ? 'Đã sao chép' : 'Sao chép PIN'}
             </Button>
             <Button variant="outline" onClick={printPin}>
-              <Printer className="w-4 h-4 mr-1" /> In phiếu
+              <Printer className="size-3.5 mr-1" /> In phiếu
             </Button>
             <Button onClick={() => { setPinModalData(null); setResetPinResult(null); setPinCopied(false); }}>
               Đóng
@@ -586,7 +645,7 @@ export function EmployeeManagement() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Hủy</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-              {deleting ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Đang xóa...</> : 'Xóa'}
+              {deleting ? <><Loader2 className="size-3.5 animate-spin mr-1" /> Đang xóa...</> : 'Xóa'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

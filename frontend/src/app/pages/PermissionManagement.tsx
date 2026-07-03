@@ -296,7 +296,7 @@ export function PermissionManagement() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
+      <div className="p-4 text-center text-muted-foreground">
         Đang tải dữ liệu phân quyền...
       </div>
     );
@@ -304,8 +304,8 @@ export function PermissionManagement() {
 
   if (loadError) {
     return (
-      <div className="p-8 text-center">
-        <div className="max-w-md mx-auto bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-6">
+      <div className="p-4 text-center">
+        <div className="max-w-md mx-auto bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md p-3">
           <p className="text-red-600 dark:text-red-400 font-medium">{loadError}</p>
         </div>
       </div>
@@ -313,11 +313,11 @@ export function PermissionManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Shield className="w-8 h-8 text-primary" />
+          <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
             Quản lý Phân quyền Tài khoản
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -329,41 +329,41 @@ export function PermissionManagement() {
       <div className="flex items-center gap-1 border-b border-border">
         <button
           onClick={() => setTab('plan')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-2 py-1.5 text-xs font-medium border-b-2 transition-colors ${
             tab === 'plan'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Layers className="w-4 h-4 inline mr-1.5" />
+          <Layers className="size-3.5 inline mr-1.5" />
           Gói dịch vụ
         </button>
         <button
           onClick={() => setTab('all')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-2 py-1.5 text-xs font-medium border-b-2 transition-colors ${
             tab === 'all'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <List className="w-4 h-4 inline mr-1.5" />
+          <List className="size-3.5 inline mr-1.5" />
           Toàn bộ quyền
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Sidebar */}
         <div className="md:col-span-1 space-y-4">
-          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+          <div className="bg-card rounded-md border border-border overflow-hidden shadow-sm">
             <div className="p-4 bg-muted border-b border-border">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Tìm tài khoản..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-input rounded-lg text-sm bg-input-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full pl-9 pr-4 py-2 border border-input rounded-md text-xs bg-input-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
@@ -396,10 +396,10 @@ export function PermissionManagement() {
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >
-                        <User className="w-4 h-4" />
+                        <User className="size-3.5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-medium text-sm truncate ${
+                        <p className={`font-medium text-xs truncate ${
                           selectedAccount?.id === account.id ? 'text-primary' : 'text-foreground'
                         }`}>
                           {account.fullName}
@@ -424,17 +424,17 @@ export function PermissionManagement() {
           {selectedAccount ? (
             <>
               {/* Account Info */}
-              <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mb-4">
+              <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden mb-4">
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center">
-                      <User className="w-6 h-6" />
+                    <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+                      <User className="size-4" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-foreground">
+                      <h2 className="text-base font-bold text-foreground">
                         {selectedAccount.fullName}
                       </h2>
-                      <p className="text-muted-foreground text-sm">
+                      <p className="text-xs text-muted-foreground">
                         {selectedAccount.email}
                       </p>
                     </div>
@@ -475,9 +475,9 @@ export function PermissionManagement() {
               )}
             </>
           ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-muted border-2 border-dashed border-border rounded-xl p-12 text-center">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                <Lock className="w-8 h-8 text-muted-foreground" />
+            <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-muted border-2 border-dashed border-border rounded-md p-6 text-center">
+              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+                <Lock className="w-6 h-6 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-medium text-foreground">Chưa chọn tài khoản</h3>
               <p className="text-muted-foreground mt-2 max-w-xs">
@@ -534,7 +534,7 @@ function PlanTabView({
               key={cfg.key}
               type="button"
               onClick={() => handleCardClick(cfg.key)}
-              className={`relative rounded-xl border-2 p-4 text-left transition-all ${
+              className={`relative rounded-md border-2 p-3 text-left transition-all ${
                 isActive
                   ? `${c.border} ${c.bg} ring-2 ${c.ring} ring-offset-2 shadow-md`
                   : 'border-border bg-card hover:border-muted-foreground/30 hover:shadow-sm'
@@ -545,11 +545,11 @@ function PlanTabView({
                   Đang sử dụng
                 </span>
               )}
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${c.iconBg} mb-2`}>
-                {cfg.key === 'BASIC' && <LayoutDashboard className={`w-4 h-4 ${c.text}`} />}
-                {cfg.key === 'STANDARD' && <Building2 className={`w-4 h-4 ${c.text}`} />}
-                {cfg.key === 'PREMIUM' && <BadgeCheck className={`w-4 h-4 ${c.text}`} />}
-                {cfg.key === 'ADVANCED' && <ShieldAlert className={`w-4 h-4 ${c.text}`} />}
+              <div className={`w-8 h-8 rounded-md flex items-center justify-center ${c.iconBg} mb-2`}>
+                {cfg.key === 'BASIC' && <LayoutDashboard className={`size-3.5 ${c.text}`} />}
+                {cfg.key === 'STANDARD' && <Building2 className={`size-3.5 ${c.text}`} />}
+                {cfg.key === 'PREMIUM' && <BadgeCheck className={`size-3.5 ${c.text}`} />}
+                {cfg.key === 'ADVANCED' && <ShieldAlert className={`size-3.5 ${c.text}`} />}
               </div>
               <h3 className={`font-bold text-base ${isActive ? c.text : 'text-foreground'}`}>
                 {cfg.label}
@@ -566,10 +566,10 @@ function PlanTabView({
       </div>
 
       {/* Detail Accordion */}
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+          className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
         >
           <div className="flex items-center gap-2">
             {isPlan ? (
@@ -585,9 +585,9 @@ function PlanTabView({
             </span>
           </div>
           {expanded ? (
-            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            <ChevronUp className="size-3.5 text-muted-foreground" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            <ChevronDown className="size-3.5 text-muted-foreground" />
           )}
         </button>
 
@@ -606,9 +606,9 @@ function PlanTabView({
       <div className="flex justify-end">
         <button
           onClick={onSave}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm"
+          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium shadow-sm"
         >
-          <Save className="w-4 h-4" />
+          <Save className="size-3" />
           Lưu thay đổi
         </button>
       </div>
@@ -798,51 +798,51 @@ function AllPermissionsTab({
   const allCount = permissions.length;
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 bg-card sticky top-0 z-10">
+    <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden">
+      <div className="p-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-2 bg-card sticky top-0 z-10">
         <div className="flex items-center gap-2 flex-1">
           <List className="w-5 h-5 text-muted-foreground" />
-          <span className="font-semibold text-foreground text-sm">Toàn bộ quyền</span>
+          <span className="font-semibold text-foreground text-xs">Toàn bộ quyền</span>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
             {totalCount}/{allCount} quyền
           </span>
         </div>
         <div className="relative flex-1 max-w-xs">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Tìm permission..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-input rounded-lg text-sm bg-input-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-4 py-2 border border-input rounded-md text-xs bg-input-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
         <button
           onClick={onSave}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium shadow-sm"
         >
-          <Save className="w-4 h-4" />
+          <Save className="size-3" />
           Lưu
         </button>
       </div>
 
-      <div className="p-4 overflow-y-auto max-h-[650px] space-y-3">
+      <div className="p-3 overflow-y-auto max-h-[650px] space-y-2">
         {filteredGroups.map((group) => {
           const isExpanded = expandedModules.has(group.module);
           const checkedCount = group.perms.filter((p) => accountPermIdSet.has(p.id)).length;
           return (
-            <div key={group.module} className="rounded-xl border border-border overflow-hidden">
+            <div key={group.module} className="rounded-md border border-border overflow-hidden">
               <button
                 onClick={() => toggleModule(group.module)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    <ChevronDown className="size-3.5 text-muted-foreground" />
                   ) : (
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    <ChevronUp className="size-3.5 text-muted-foreground" />
                   )}
-                  <span className="text-sm font-semibold text-foreground">{group.label}</span>
+                  <span className="text-xs font-semibold text-foreground">{group.label}</span>
                   <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
                     {checkedCount}/{group.perms.length}
                   </span>
@@ -858,7 +858,7 @@ function AllPermissionsTab({
                     return (
                       <label
                         key={p.id}
-                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${
+                        className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
                           isPlanPerm && isChecked
                             ? 'bg-primary/[0.03]'
                             : 'hover:bg-muted/30'
@@ -869,7 +869,7 @@ function AllPermissionsTab({
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => onToggle(p.id)}
-                            className="w-4 h-4 text-primary rounded border-border bg-input-background focus:ring-primary transition-all"
+                            className="size-3.5 text-primary rounded border-border bg-input-background focus:ring-primary transition-all"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -877,7 +877,7 @@ function AllPermissionsTab({
                             {isPlanPerm && isChecked && (
                               <Unlock className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                             )}
-                            <span className={`text-sm font-medium ${
+                            <span className={`text-xs font-medium ${
                               isChecked ? 'text-foreground' : 'text-muted-foreground'
                             }`}>
                               {p.code}

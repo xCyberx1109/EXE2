@@ -162,7 +162,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   {
     module: 'menu',
     label: 'Menu',
-    permissions: ['MENU_VIEW', 'MENU_CREATE', 'MENU_UPDATE', 'MENU_DELETE', 'CATEGORY_VIEW', 'CATEGORY_CREATE', 'CATEGORY_UPDATE', 'CATEGORY_DELETE'],
+    permissions: ['MENU_VIEW', 'MENU_CREATE', 'MENU_UPDATE', 'MENU_DELETE', 'MENU_MANAGEMENT_VIEW', 'CATEGORY_VIEW', 'CATEGORY_CREATE', 'CATEGORY_UPDATE', 'CATEGORY_DELETE'],
   },
   {
     module: 'orders',

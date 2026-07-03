@@ -47,12 +47,12 @@ export function RightPanel({
   if (!table) {
     return (
       <div className={cn('flex flex-col flex-1 min-h-0 overflow-hidden', className)}>
-        <div className="p-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-semibold text-foreground">
+        <div className="p-2 border-b border-border shrink-0">
+          <h2 className="text-xs font-semibold text-foreground">
             {layoutMode ? 'Chỉnh sửa bàn' : 'Chi tiết bàn'}
           </h2>
         </div>
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm p-6 text-center">
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs p-6 text-center">
           {layoutMode
             ? 'Nhấp vào bàn trên sơ đồ để chỉnh sửa.'
             : 'Chọn bàn để xem chi tiết và thao tác.'}
@@ -63,9 +63,9 @@ export function RightPanel({
 
   return (
     <div ref={panelRef} className={cn('flex flex-col flex-1 min-h-0 overflow-hidden', className)}>
-      <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
+      <div className="p-2 border-b border-border flex items-center justify-between shrink-0">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="text-xs font-semibold text-foreground">
             {layoutMode ? 'Chỉnh sửa bàn' : (table.tableName || table.tableCode)}
           </h2>
           <p className="text-xs text-muted-foreground">
@@ -83,7 +83,7 @@ export function RightPanel({
           )}
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="w-4 h-4" />
+          <X className="size-3.5" />
         </Button>
       </div>
 
@@ -101,7 +101,7 @@ export function RightPanel({
           />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-2">
           {layoutMode ? (
             <EditTablePanel mode={mode} table={table} onSuccess={onSuccess} onDirtyChange={onDirtyChange} />
           ) : (
@@ -111,26 +111,26 @@ export function RightPanel({
               )}
               {table.status === 'RESERVED' && (
                 isRestaurant ? (
-                  <div className="space-y-4 p-4">
+                  <div className="space-y-1.5 p-3">
                     <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">Đã đặt</span>
-                    <p className="text-sm text-muted-foreground">Bàn này đã được đặt trước.</p>
+                    <p className="text-xs text-muted-foreground">Bàn này đã được đặt trước.</p>
                   </div>
                 ) : (
                   <ReservedPanel table={table} onSuccess={onSuccess} />
                 )
               )}
               {table.status === 'AVAILABLE' && (table as any).isMerged && (
-                <div className="space-y-4">
+                <div className="space-y-1.5">
                   <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">Đã gộp</span>
-                  <p className="text-sm text-muted-foreground">Bàn này đã được gộp vào bàn khác.</p>
+                  <p className="text-xs text-muted-foreground">Bàn này đã được gộp vào bàn khác.</p>
                 </div>
               )}
               {table.status === 'CLEANING' && (
-                <div className="space-y-4">
+                <div className="space-y-1.5">
                   <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
                     Đang vệ sinh
                   </span>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Bàn đang được vệ sinh và sẽ sẵn sàng sau.
                   </p>
                 </div>
@@ -150,11 +150,11 @@ function EnableButton({ tableId, onSuccess }: { tableId: string; onSuccess: () =
   const enableTable = useEnableTable();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1.5">
       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500">
         Đã khóa
       </span>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Bàn này hiện đang bị khóa.
       </p>
       <Button

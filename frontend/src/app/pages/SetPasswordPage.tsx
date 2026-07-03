@@ -71,8 +71,8 @@ export function SetPasswordPage() {
   if (verifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
+        <div className="bg-white rounded-md shadow-lg p-4 max-w-md w-full text-center">
+          <div className="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-gray-600">Đang xác thực link...</p>
         </div>
       </div>
@@ -82,15 +82,15 @@ export function SetPasswordPage() {
   if (verifyError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">!</span>
+        <div className="bg-white rounded-md shadow-lg p-4 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-xl">!</span>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Link không hợp lệ</h1>
-          <p className="text-gray-600 mb-6">{verifyError}</p>
+          <h1 className="text-lg font-bold text-gray-900 mb-2">Link không hợp lệ</h1>
+          <p className="text-gray-600 mb-4">{verifyError}</p>
           <button
             onClick={() => navigate('/login')}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700"
           >
             Về trang đăng nhập
           </button>
@@ -102,17 +102,17 @@ export function SetPasswordPage() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl text-green-600">&#10003;</span>
+        <div className="bg-white rounded-md shadow-lg p-4 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl text-green-600">&#10003;</span>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Đặt mật khẩu thành công</h1>
+          <h1 className="text-lg font-bold text-gray-900 mb-2">Đặt mật khẩu thành công</h1>
           <p className="text-gray-600 mb-2">
             Bạn có thể đăng nhập ngay bây giờ với email <b>{email}</b> và mật khẩu vừa tạo.
           </p>
           <button
             onClick={() => navigate('/login')}
-            className="rounded-lg bg-blue-600 px-6 py-2.5 text-white font-medium hover:bg-blue-700"
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-white font-medium hover:bg-blue-700"
           >
             Đăng nhập
           </button>
@@ -124,12 +124,12 @@ export function SetPasswordPage() {
   if (!valid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Link không hợp lệ</h1>
-          <p className="text-gray-600 mb-6">Link đã được sử dụng hoặc không tồn tại.</p>
+        <div className="bg-white rounded-md shadow-lg p-4 max-w-md w-full text-center">
+          <h1 className="text-lg font-bold text-gray-900 mb-2">Link không hợp lệ</h1>
+          <p className="text-gray-600 mb-4">Link đã được sử dụng hoặc không tồn tại.</p>
           <button
             onClick={() => navigate('/login')}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700"
           >
             Về trang đăng nhập
           </button>
@@ -140,43 +140,43 @@ export function SetPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
-        <div className="text-center mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Thiết lập mật khẩu</h1>
-          <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white rounded-md shadow-lg p-4 max-w-md w-full">
+        <div className="text-center mb-4">
+          <h1 className="text-lg font-bold text-gray-900">Thiết lập mật khẩu</h1>
+          <p className="text-xs text-gray-500 mt-1">
             Tài khoản: <b>{email}</b>
           </p>
-          {fullName && <p className="text-sm text-gray-500">{fullName}</p>}
+          {fullName && <p className="text-xs text-gray-500">{fullName}</p>}
         </div>
 
         {submitError && (
-          <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-600 mb-4">
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 text-xs text-red-600 mb-3">
             {submitError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-1.5">
           <label className="space-y-1.5">
-            <span className="text-sm font-medium text-gray-700">Mật khẩu mới</span>
+            <span className="text-xs font-medium text-gray-700">Mật khẩu mới</span>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={submitting}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+              className="w-full rounded-md border border-gray-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
               placeholder="Ít nhất 6 ký tự"
               autoFocus
             />
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-sm font-medium text-gray-700">Xác nhận mật khẩu</span>
+            <span className="text-xs font-medium text-gray-700">Xác nhận mật khẩu</span>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={submitting}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+              className="w-full rounded-md border border-gray-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
               placeholder="Nhập lại mật khẩu"
             />
           </label>
@@ -184,7 +184,7 @@ export function SetPasswordPage() {
           <button
             type="submit"
             disabled={submitting || !password || !confirmPassword}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full rounded-md bg-blue-600 px-2 py-1.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? 'Đang xử lý...' : 'Đặt mật khẩu'}
           </button>

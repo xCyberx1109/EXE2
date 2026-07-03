@@ -5,7 +5,7 @@ import { sendSuccess } from '../utils/apiResponse.js';
 import { menuItemRepository } from '../repositories/menuItem.repository.js';
 
 function getContext(req) {
-  return req.user || req.posDevice;
+  return req.user || req.employee;
 }
 
 // Timezone offset for Vietnam (UTC+7) - used for date boundary calculations

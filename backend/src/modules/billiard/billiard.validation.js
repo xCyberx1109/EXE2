@@ -26,10 +26,6 @@ export const reserveRules = [
   body('note').optional().trim(),
 ];
 
-export const extendSessionRules = [
-  body('additionalMinutes').isInt({ min: 1 }).withMessage('Thời gian gia hạn phải lớn hơn 0'),
-];
-
 export const addOrderItemRules = [
   body('menuItemId').optional({ values: 'null' }).trim().notEmpty().withMessage('ID món ăn không được rỗng'),
   body('inventoryId').optional({ values: 'null' }).trim().notEmpty().withMessage('ID inventory không được rỗng'),

@@ -4,11 +4,12 @@ import type { BilliardTableWithSession, CreateTableBody, RestaurantTable } from 
 
 // ==================== BILLIARD HOOKS ====================
 
-export function useBilliardTables() {
+export function useBilliardTables(enabled = true) {
   return useQuery<BilliardTableWithSession[]>({
     queryKey: ['billiard', 'tables'],
     queryFn: () => billiardApi.listTables(),
     refetchInterval: 30_000,
+    enabled,
   });
 }
 
@@ -44,15 +45,6 @@ export function useCancelReservation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (tableId: string) => billiardApi.cancelReservation(tableId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['billiard', 'tables'] }); },
-  });
-}
-
-export function useExtendSession() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ sessionId, additionalMinutes }: { sessionId: string; additionalMinutes: number }) =>
-      billiardApi.extendSession(sessionId, additionalMinutes),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['billiard', 'tables'] }); },
   });
 }
@@ -95,8 +87,7 @@ export function useUpdateLayout(mode: 'BILLIARD' | 'RESTAURANT') {
     mutationFn: (tables: { id: string; posX: number; posY: number }[]) =>
       mode === 'BILLIARD' ? billiardApi.updateLayout(tables) : restaurantApi.updateLayout(tables),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['billiard', 'tables'] });
-      qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] });
+      qc.invalidateQueries({ queryKey: mode === 'BILLIARD' ? ['billiard', 'tables'] : ['restaurant', 'tables'] });
     },
   });
 }
@@ -111,11 +102,12 @@ export function useTableOrderSummary(tableId: string) {
 
 // ==================== RESTAURANT HOOKS ====================
 
-export function useRestaurantTables() {
+export function useRestaurantTables(enabled = true) {
   return useQuery<RestaurantTable[]>({
     queryKey: ['restaurant', 'tables'],
     queryFn: () => restaurantApi.listTables(),
     refetchInterval: 15_000,
+    enabled,
   });
 }
 

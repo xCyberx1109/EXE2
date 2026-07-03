@@ -14,13 +14,13 @@ const formatNumber = (n: number) => n.toLocaleString('vi-VN');
 export function TopSellingItems({ items }: { items: DashboardTopItem[] }) {
   const safeItems = Array.isArray(items) ? items : [];
   return (
-    <div className="bg-card rounded-xl border border-border p-5">
+    <div className="bg-card rounded-md border border-border p-3">
       <SectionHeader title="Món bán chạy" actionLabel="Xem tất cả" actionHref="/app/menu" />
       {safeItems.length > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {safeItems.map((item, idx) => (
-            <div key={item.menuItemId} className="flex items-center gap-4 py-2.5 border-b border-border last:border-0">
-              <span className={`flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${
+            <div key={item.menuItemId} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
+              <span className={`flex items-center justify-center w-6 h-6 rounded-md text-[10px] font-bold ${
                 idx === 0 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
                 idx === 1 ? 'bg-muted text-muted-foreground' :
                 idx === 2 ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' :
@@ -29,12 +29,12 @@ export function TopSellingItems({ items }: { items: DashboardTopItem[] }) {
                 {idx + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground">{item.category}</p>
+                <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
+                <p className="text-[10px] text-muted-foreground">{item.category}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-semibold text-foreground">{formatVND(item.revenue)}</p>
-                <p className="text-xs text-muted-foreground">{formatNumber(item.soldQuantity)} đã bán</p>
+                <p className="text-xs font-semibold text-foreground">{formatVND(item.revenue)}</p>
+                <p className="text-[10px] text-muted-foreground">{formatNumber(item.soldQuantity)} đã bán</p>
               </div>
             </div>
           ))}

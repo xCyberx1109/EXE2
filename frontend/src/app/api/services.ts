@@ -2,6 +2,7 @@ import { apiFetch, ordersFetch } from './client';
 import type {
   MenuItem,
   InventoryItem,
+  SellableItem,
   DashboardData,
   TopSellingItem,
   InventoryStats,
@@ -10,17 +11,10 @@ import type {
   User,
   Branch,
   CategoryItem,
-  CategoryDetail,
-  CategoryStats,
   TableItem,
   DeleteDependencyReport,
   InventoryIssue,
-  AdjustmentRequest,
-  IngredientBatch,
-  WasteReport,
-  FoodCostReport,
-  InventoryTransactionRecord,
-  Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse,
+  Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse, EmployeeLoginResponse,
   PaginatedResponse,
 } from '../types';
 
@@ -55,12 +49,12 @@ export const authApi = {
 const POS_TOKEN_KEY = 'fnb_pos_token';
 function getPosToken() { return localStorage.getItem(POS_TOKEN_KEY); }
 
-/** Lấy auth headers từ user token hoặc POS device token hoặc POS machine token */
+/** Lấy auth headers từ user token hoặc POS device token hoặc employee token */
 function getAuthHeaders(): Record<string, string> {
   const userToken = localStorage.getItem('fnb_auth_token');
   const posToken = getPosToken();
-  const posMachineToken = localStorage.getItem('fnb_pos_machine_token');
-  const token = posMachineToken || userToken || posToken;
+  const empToken = localStorage.getItem('fnb_employee_token');
+  const token = empToken || userToken || posToken;
   if (!token) return {};
   return { 'Authorization': `Bearer ${token}` };
 }
@@ -115,9 +109,7 @@ export const categoryApi = {
   },
 
   get: (id: string) =>
-    apiFetch<CategoryDetail>(`/categories/${id}`),
-
-  stats: () => apiFetch<CategoryStats>('/categories/stats'),
+    apiFetch<CategoryItem>(`/categories/${id}`),
 
   create: (body: { name: string; description?: string; active?: boolean; slug?: string }) =>
     apiFetch<CategoryItem>('/categories', { method: 'POST', body: JSON.stringify(body) }),
@@ -185,83 +177,25 @@ export const inventoryApi = {
     apiFetch<InventoryItem>('/ingredients', { method: 'POST', body: JSON.stringify(body) }),
 
   update: (id: string, body: Record<string, unknown>) =>
-    apiFetch<InventoryItem | { ingredient: InventoryItem; pending: true; request: AdjustmentRequest }>(
-      `/ingredients/${id}`,
-      { method: 'PUT', body: JSON.stringify(body) }
-    ),
+    apiFetch<InventoryItem>(`/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   delete: (id: string) =>
     apiFetch<import('../types').DeleteDependencyReport>(`/ingredients/${id}`, { method: 'DELETE' }),
 
-  stockIn: (
-    id: string,
-    quantity: number,
-    note?: string,
-    type?: string,
-    batchInfo?: { expiryDate?: string; batchCode?: string; unitCost?: number }
-  ) =>
-    apiFetch<{ ingredient: InventoryItem } | { pending: true; request: AdjustmentRequest }>(
-      `/ingredients/${id}/stock-in`,
-      { method: 'POST', body: JSON.stringify({ quantity, note, type, ...batchInfo }) }
-    ),
-
-  stockOut: (id: string, quantity: number, note?: string, type?: string) =>
-    apiFetch<{ ingredient: InventoryItem } | { pending: true; request: AdjustmentRequest }>(
-      `/ingredients/${id}/stock-out`,
-      { method: 'POST', body: JSON.stringify({ quantity, note, type }) }
-    ),
-
-  getApprovalThreshold: () => apiFetch<{ threshold: number }>('/inventory/approval-threshold'),
-
-  updateApprovalThreshold: (threshold: number) =>
-    apiFetch<{ threshold: number }>('/inventory/approval-threshold', {
-      method: 'PATCH',
-      body: JSON.stringify({ threshold }),
-    }),
-
-  listAdjustmentRequests: (status?: string) => {
-    const query = status ? `?status=${status}` : '';
-    return apiFetch<AdjustmentRequest[]>(`/inventory/adjustment-requests${query}`);
-  },
-
-  approveAdjustmentRequest: (id: string) =>
-    apiFetch<{ ingredient: InventoryItem; request: AdjustmentRequest }>(
-      `/inventory/adjustment-requests/${id}/approve`,
-      { method: 'POST' }
-    ),
-
-  rejectAdjustmentRequest: (id: string, reason: string) =>
-    apiFetch<AdjustmentRequest>(`/inventory/adjustment-requests/${id}/reject`, {
+  stockIn: (id: string, quantity: number, note?: string) =>
+    apiFetch<{ ingredient: InventoryItem }>(`/ingredients/${id}/stock-in`, {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ quantity, note }),
     }),
 
-  listBatches: (ingredientId: string) =>
-    apiFetch<IngredientBatch[]>(`/ingredients/${ingredientId}/batches`),
+  stockOut: (id: string, quantity: number, note?: string) =>
+    apiFetch<{ ingredient: InventoryItem }>(`/ingredients/${id}/stock-out`, {
+      method: 'POST',
+      body: JSON.stringify({ quantity, note }),
+    }),
 
-  listExpiringBatches: (days?: number) => {
-    const query = days ? `?days=${days}` : '';
-    return apiFetch<IngredientBatch[]>(`/inventory/expiring-batches${query}`);
-  },
-
-  getWasteReport: (from?: string, to?: string) => {
-    const q = new URLSearchParams();
-    if (from) q.set('from', from);
-    if (to) q.set('to', to);
-    const query = q.toString();
-    return apiFetch<WasteReport>(`/inventory/reports/waste${query ? `?${query}` : ''}`);
-  },
-
-  getFoodCostReport: (from?: string, to?: string) => {
-    const q = new URLSearchParams();
-    if (from) q.set('from', from);
-    if (to) q.set('to', to);
-    const query = q.toString();
-    return apiFetch<FoodCostReport>(`/inventory/reports/food-cost${query ? `?${query}` : ''}`);
-  },
-
-  getIngredientTransactions: (ingredientId: string) =>
-    apiFetch<InventoryTransactionRecord[]>(`/ingredients/${ingredientId}/transactions`),
+  listSellable: () =>
+    apiFetch<SellableItem[]>('/inventory/sellable'),
 };
 
 // --- Dashboard ---
@@ -583,12 +517,6 @@ export const billiardApi = {
   getCurrentSession: (tableId: string) =>
     apiFetch<BilliardPlaySession | null>(`/billiard/tables/${tableId}/current-session`, { auth: false, headers: getAuthHeaders() }),
 
-  extendSession: (sessionId: string, additionalMinutes: number) =>
-    apiFetch<BilliardPlaySession>(
-      `/billiard/sessions/${sessionId}/extend`,
-      { method: 'POST', body: JSON.stringify({ additionalMinutes }) }
-    ),
-
   finishSession: (tableId: string) =>
     apiFetch<{ id: string; status: string }>(
       `/billiard/tables/${tableId}/finish-session`,
@@ -824,4 +752,23 @@ export const employeeApi = {
     ).toString() : '';
     return apiFetch<EmployeeLogsResponse>(`/employees/${id}/logs${query}`);
   },
+
+  getPermissionTemplates: () =>
+    apiFetch<PermissionTemplatesResponse>('/employees/templates/list'),
+
+  getPermissions: (id: string) =>
+    apiFetch<{ permissions: string[]; permissionIds: string[] }>(`/employees/${id}/permissions`),
+
+  updatePermissions: (id: string, permissionIds: string[]) =>
+    apiFetch<null>(`/employees/${id}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify({ permissionIds }),
+    }),
+
+  loginByPin: (pinCode: string) =>
+    apiFetch<EmployeeLoginResponse>('/employees/login-by-pin', {
+      method: 'POST',
+      body: JSON.stringify({ pinCode }),
+      auth: false,
+    }),
 };

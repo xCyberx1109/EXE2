@@ -27,9 +27,9 @@ const FEATURE_PERMISSIONS = [
   // POS_KITCHEN
   { featureCode: 'pos_kitchen', permissionCodes: ['ORDER_VIEW', 'DASHBOARD_VIEW'] },
   // INVENTORY
-  { featureCode: 'inventory', permissionCodes: ['INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_DELETE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST', 'INVENTORY_APPROVE'] },
+  { featureCode: 'inventory', permissionCodes: ['INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_DELETE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST'] },
   // MENU_MANAGEMENT
-  { featureCode: 'menu_management', permissionCodes: ['MENU_VIEW', 'MENU_CREATE', 'MENU_UPDATE', 'MENU_DELETE'] },
+  { featureCode: 'menu_management', permissionCodes: ['MENU_VIEW', 'MENU_CREATE', 'MENU_UPDATE', 'MENU_DELETE', 'MENU_MANAGEMENT_VIEW'] },
   // CUSTOMER_LOYALTY
   { featureCode: 'customer_loyalty', permissionCodes: ['CUSTOMER_VIEW', 'CUSTOMER_CREATE', 'CUSTOMER_UPDATE', 'CUSTOMER_DELETE'] },
   // ONLINE_ORDERING
@@ -45,7 +45,7 @@ const FEATURE_PERMISSIONS = [
   // BILLIARD_TABLE
   { featureCode: 'billiard_table', permissionCodes: ['BILLIARD_TABLE_VIEW', 'BILLIARD_TABLE_CREATE', 'BILLIARD_TABLE_UPDATE', 'BILLIARD_TABLE_DELETE', 'BILLIARD_TABLE_LAYOUT_EDIT'] },
   // BILLIARD_SESSION
-  { featureCode: 'billiard_session', permissionCodes: ['BILLIARD_SESSION_VIEW', 'BILLIARD_SESSION_START', 'BILLIARD_SESSION_CHECKIN', 'BILLIARD_SESSION_EXTEND', 'BILLIARD_SESSION_FINISH'] },
+  { featureCode: 'billiard_session', permissionCodes: ['BILLIARD_SESSION_VIEW', 'BILLIARD_SESSION_START', 'BILLIARD_SESSION_CHECKIN', 'BILLIARD_SESSION_FINISH'] },
   // BILLIARD_RESERVATION
   { featureCode: 'billiard_reservation', permissionCodes: ['BILLIARD_RESERVATION_VIEW', 'BILLIARD_RESERVATION_CREATE', 'BILLIARD_RESERVATION_CANCEL'] },
   // BILLIARD_LAYOUT
@@ -60,7 +60,6 @@ const FEATURE_PERMISSIONS = [
   { featureCode: 'staff_management', permissionCodes: [
     'STAFF_VIEW', 'STAFF_CREATE', 'STAFF_UPDATE', 'STAFF_DELETE', 'STAFF_MANAGE',
     'STAFF_MANAGE_PIN', 'STAFF_RESET_PIN', 'STAFF_VIEW_PIN',
-    'STAFF_ASSIGN_POS_MACHINE', 'STAFF_REMOVE_POS_MACHINE', 'STAFF_VIEW_POS_MACHINE',
     'STAFF_VIEW_ACTIVITY', 'STAFF_VIEW_LOGIN_HISTORY', 'STAFF_VIEW_PERFORMANCE',
     'STAFF_SESSION_VIEW', 'STAFF_SESSION_FORCE_LOGOUT',
   ] },
@@ -129,41 +128,6 @@ export async function seedDatabase() {
   console.log(`  ✓ Subscription created`);
 
   // =========================
-  // POS DEVICE (pos_machines) — no pinCode, PIN belongs to Employee
-  // =========================
-  const cashierPos = await prisma.pos_machines.create({
-    data: {
-      id: `seed-${accountId}-cashier-01`,
-      accountId,
-      name: 'POS Thu ngân',
-      template: 'CASHIER',
-      status: 'ACTIVE',
-    },
-  });
-
-  const kitchenPos = await prisma.pos_machines.create({
-    data: {
-      id: `seed-${accountId}-kitchen-01`,
-      accountId,
-      name: 'POS Bếp',
-      template: 'KITCHEN',
-      status: 'ACTIVE',
-    },
-  });
-
-  const hybridPos = await prisma.pos_machines.create({
-    data: {
-      id: `seed-${accountId}-hybrid-01`,
-      accountId,
-      name: 'POS Hybrid',
-      template: 'CASHIER_KITCHEN',
-      status: 'ACTIVE',
-    },
-  });
-
-  const posDeviceId = cashierPos.id;
-
-  // =========================
   // EMPLOYEES — PIN đăng nhập POS thuộc về Employee
   // =========================
   const emp1 = await prisma.employee.upsert({
@@ -209,19 +173,6 @@ export async function seedDatabase() {
   });
 
   // =========================
-  // EMPLOYEE ↔ POS MACHINE (quyền sử dụng máy POS)
-  // =========================
-  await prisma.employeePosMachine.createMany({
-    data: [
-      { employeeId: emp1.id, posMachineId: cashierPos.id },
-      { employeeId: emp2.id, posMachineId: kitchenPos.id },
-      { employeeId: emp3.id, posMachineId: cashierPos.id },
-      { employeeId: emp3.id, posMachineId: hybridPos.id },
-    ],
-    skipDuplicates: true,
-  });
-
-  // =========================
   // ADMIN (ACCOUNT)
   // =========================
   const hashedPassword = await bcrypt.hash(config.seed.adminPassword, SALT_ROUNDS);
@@ -264,8 +215,8 @@ export async function seedDatabase() {
     'DASHBOARD_VIEW',
     'ORDER_VIEW', 'ORDER_CREATE', 'ORDER_UPDATE',
     'ORDER_HISTORY_VIEW',
-    'MENU_VIEW', 'MENU_CREATE', 'MENU_UPDATE',
-    'INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST', 'INVENTORY_APPROVE',
+    'MENU_VIEW', 'MENU_CREATE', 'MENU_UPDATE', 'MENU_MANAGEMENT_VIEW',
+    'INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST',
     'CUSTOMER_VIEW', 'CUSTOMER_CREATE',
     'TABLE_VIEW', 'TABLE_CREATE', 'TABLE_UPDATE',
     'CATEGORY_VIEW', 'CATEGORY_CREATE', 'CATEGORY_UPDATE',
@@ -273,7 +224,7 @@ export async function seedDatabase() {
     'SHIFT_VIEW', 'SHIFT_CREATE', 'SHIFT_CLOSE',
     'POS_ORDER_QUEUE_VIEW', 'POS_ORDER_QUEUE_CREATE', 'POS_ORDER_QUEUE_UPDATE', 'POS_ORDER_QUEUE_PAY',
     'BILLIARD_TABLE_VIEW', 'BILLIARD_SESSION_START', 'BILLIARD_RESERVATION_CREATE', 'BILLIARD_SESSION_CHECKIN',
-    'BILLIARD_SESSION_VIEW', 'BILLIARD_SESSION_START', 'BILLIARD_SESSION_EXTEND', 'BILLIARD_SESSION_FINISH',
+    'BILLIARD_SESSION_VIEW', 'BILLIARD_SESSION_START', 'BILLIARD_SESSION_FINISH',
     'BILLIARD_RESERVATION_VIEW', 'BILLIARD_RESERVATION_CREATE', 'BILLIARD_RESERVATION_CANCEL',
     'BILLIARD_ORDER_VIEW', 'BILLIARD_ORDER_CREATE', 'BILLIARD_ORDER_UPDATE', 'BILLIARD_ORDER_ADD_ITEM',
     'BILLIARD_PAY_VIEW', 'BILLIARD_PAY_PROCESS',
@@ -412,7 +363,7 @@ export async function seedDatabase() {
   // =========================
   // SAMPLE ORDERS
   // =========================
-  await seedSampleOrders(admin.id, accountId, posDeviceId);
+  await seedSampleOrders(admin.id, accountId);
 
   // =========================
   // INVENTORY TRANSACTIONS
@@ -589,7 +540,7 @@ async function getOrCreateDefaultAccount() {
 }
 
 /** SAMPLE ORDERS */
-async function seedSampleOrders(createdBy, accountId, posDeviceId) {
+async function seedSampleOrders(createdBy, accountId) {
   const existingOrders = await prisma.order.count({
     where: { status: OrderStatus.COMPLETED, accountId: accountId },
   });
@@ -608,7 +559,6 @@ async function seedSampleOrders(createdBy, accountId, posDeviceId) {
       await prisma.order.create({
         data: {
           accountId: accountId,
-          posDeviceId,
           orderNumber: `SEED-${item.name}-${b}-${Date.now()}`,
           tableNumber: `Bàn ${(b % 5) + 1}`,
           status: OrderStatus.COMPLETED,

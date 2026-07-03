@@ -6,7 +6,6 @@ import {
 import { tableRules, tableUpdateRules, tableIdParam, tablePosStatusRules, tableLayoutRules } from './table.validation.js';
 import { validate } from '../../middlewares/validate.js';
 import { authenticate, requirePermission, optionalAuth } from '../../middlewares/auth.js';
-import { requireDevicePermission } from '../../middlewares/devicePermission.js';
 
 const router = Router();
 

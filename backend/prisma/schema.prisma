@@ -65,6 +65,7 @@ model Permission {
   accountPermissions    AccountPermission[]
   deviceTypePermissions DeviceTypePermission[]
   featurePermissions    FeaturePermission[]
+  employeePermissions   EmployeePermission[]
 
   @@index([module])
   @@map("permissions")
@@ -978,24 +979,39 @@ model pos_machines {
   @@index([accountId])
 }
 
+model EmployeePermission {
+  id           String     @id @default(cuid())
+  employeeId   String
+  permissionId String
+  allowed      Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, permissionId])
+  @@index([employeeId])
+  @@map("employee_permissions")
+}
+
 model Employee {
-  id           String          @id @default(cuid())
+  id           String                @id @default(cuid())
   accountId    String
   employeeCode String
   fullName     String
   phone        String?
   email        String?
   pinCode      String
-  status       EmployeeStatus  @default(ACTIVE)
+  status       EmployeeStatus        @default(ACTIVE)
   lastLoginAt  DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
   deletedAt    DateTime?
 
   account        Account              @relation(fields: [accountId], references: [id])
   sessions       PosMachineSession[]
   posMachines    EmployeePosMachine[]
   activityLogs   ActivityLog[]
+  permissions    EmployeePermission[]
 
   @@unique([accountId, employeeCode])
   @@index([accountId])

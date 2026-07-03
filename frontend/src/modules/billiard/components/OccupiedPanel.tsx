@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Clock, Users, ShoppingCart, Plus, LogOut,
+  Users, ShoppingCart, Plus, LogOut,
   Loader2, ArrowRightLeft, Merge, Split,
   Printer, Ban, Timer,
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import {
 } from '@/app/components/ui/select';
 import { toast } from 'sonner';
 import {
-  useExtendSession, useFinishSession, useTableOrderSummary,
+  useFinishSession, useTableOrderSummary,
   useRestaurantTableOrder, usePayRestaurantOrder, useUpdateGuestCount, useUpdateOrderNote,
   useTransferTable, useMergeTables, useSplitOrder, useRestaurantTables,
 } from '../hooks';
@@ -87,9 +87,6 @@ export function OccupiedPanel({ mode, table, onSuccess, onRefresh, autoOpenDrawe
 
 function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: BilliardTableWithSession; onSuccess: () => void; onRefresh?: () => void }) {
   const session = table.currentSession;
-  const [showExtend, setShowExtend] = useState(false);
-  const [extendMins, setExtendMins] = useState(30);
-  const [customExtend, setCustomExtend] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [checkoutSnapshot, setCheckoutSnapshot] = useState<{
@@ -102,7 +99,6 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
     grandTotal: number;
   } | null>(null);
 
-  const extendSession = useExtendSession();
   const finishSession = useFinishSession();
 
   const { data: orderSummary, isLoading: summaryLoading } = useTableOrderSummary(table.id);
@@ -131,15 +127,6 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
   const playAmount = isPlaying && hourlyRate > 0 ? Math.round((hourlyRate / 3600) * elapsedSeconds) : 0;
 
   const grandTotal = playAmount + foodTotal + serviceCharge + tax;
-
-  const handleExtend = useAsyncActionGuard(async () => {
-    if (!session) return;
-    const mins = extendMins === 0 ? parseInt(customExtend, 10) : extendMins;
-    if (!mins || mins < 1) return;
-    await extendSession.mutateAsync({ sessionId: session.id, additionalMinutes: mins });
-    setShowExtend(false);
-    onSuccess();
-  }, { delay: 500 });
 
   const handleFinish = useConcurrentGuard(async () => {
     const snap = checkoutSnapshot;
@@ -187,9 +174,9 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
 
   if (!session) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-1.5">
         <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">Đang chơi</span>
-        <p className="text-sm text-muted-foreground">Không có phiên chơi nào đang hoạt động.</p>
+        <p className="text-xs text-muted-foreground">Không có phiên chơi nào đang hoạt động.</p>
       </div>
     );
   }
@@ -198,20 +185,20 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
             Đang chơi
           </span>
           {isPlaying && (
             <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Timer className="w-3 h-3" />
+              <Timer className="size-2.5" />
               {remainingDisplay}
             </div>
           )}
         </div>
 
-        <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm">
+        <div className="rounded-md bg-muted/30 p-2 space-y-1.5 text-xs">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Bắt đầu</span>
             <span className="font-medium">{formatTime(session.startTime) || '--:--'}</span>
@@ -226,21 +213,21 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
           </div>
         </div>
 
-        <div className="rounded-lg border border-border overflow-hidden">
-          <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
-            <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground" />
+        <div className="rounded-md border border-border overflow-hidden">
+          <div className="bg-muted/50 px-2 py-1.5 border-b border-border flex items-center gap-1.5">
+            <ShoppingCart className="size-3 text-muted-foreground" />
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết đơn hàng</span>
-            {summaryLoading && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}
+            {summaryLoading && <Loader2 className="size-2.5 animate-spin ml-auto" />}
           </div>
-          <div className="p-3">
+          <div className="p-2">
             {summaryLoading ? (
-              <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+              <div className="flex items-center justify-center py-4"><Loader2 className="size-3.5 animate-spin text-muted-foreground" /></div>
             ) : !hasItems ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Chưa gọi đồ ăn/thức uống</p>
+              <p className="text-xs text-muted-foreground text-center py-4">Chưa gọi đồ ăn/thức uống</p>
             ) : (
               <div className="space-y-1.5">
                 {orderItems.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
+                  <div key={item.id} className="flex justify-between text-xs">
                     <span className="text-foreground">
                       <span className="text-muted-foreground mr-1">{item.quantity}x</span>
                       {item.name}
@@ -253,7 +240,7 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
           </div>
         </div>
 
-        <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
+          <div className="rounded-md bg-muted/30 p-2 space-y-1.5 text-xs">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Tiền chơi</span>
             <span className="font-medium tabular-nums">{fmt(playAmount)}</span>
@@ -274,51 +261,21 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
               <span className="font-medium tabular-nums">{fmt(tax)}</span>
             </div>
           )}
-          <div className="flex justify-between text-base font-bold border-t border-border pt-2">
+          <div className="flex justify-between text-xs font-bold border-t border-border pt-2">
             <span>Tổng cộng</span>
             <span className="text-primary tabular-nums">{fmt(grandTotal)}</span>
           </div>
         </div>
 
-        {!showExtend ? (
-          <div className="space-y-2">
+        <div className="space-y-1.5">
             <Button variant="outline" className="w-full justify-start" onClick={() => setDrawerOpen(true)}>
-              <Plus className="w-4 h-4" /> Thêm đồ ăn / Thức uống
+              <Plus className="size-3.5" /> Thêm đồ ăn / Thức uống
             </Button>
-            {isPlaying && (
-              <Button variant="outline" className="w-full justify-start" onClick={() => setShowExtend(true)}>
-                <Clock className="w-4 h-4" /> Gia hạn phiên
-              </Button>
-            )}
             <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => { setCheckoutSnapshot({ endTime: new Date(), elapsedSeconds, playAmount, foodTotal, serviceCharge, tax, grandTotal }); setShowFinishConfirm(true); }} disabled={!session || !!checkoutSnapshot || handleFinish.isBusy || finishSession.isPending}>
-              {(handleFinish.isBusy || finishSession.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+              {(handleFinish.isBusy || finishSession.isPending) ? <Loader2 className="size-3.5 animate-spin" /> : <LogOut className="size-3.5" />}
               Thanh toán &mdash; {fmt(grandTotal)}
             </Button>
           </div>
-        ) : (
-          <div className="space-y-3 rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">Gia hạn phiên</h4>
-              <Button variant="ghost" size="sm" onClick={() => setShowExtend(false)}>Quay lại</Button>
-            </div>
-            <div className="flex gap-2">
-              {[15, 30, 60].map((m) => (
-                <Button key={m} variant={extendMins === m ? 'default' : 'outline'} size="sm" onClick={() => { setExtendMins(m); setCustomExtend(''); }}>+{m}m</Button>
-              ))}
-              <Button variant={extendMins === 0 ? 'default' : 'outline'} size="sm" onClick={() => setExtendMins(0)}>Tùy chỉnh</Button>
-            </div>
-            {extendMins === 0 && (
-              <div className="space-y-1">
-                <Label htmlFor="extendCustom">Số phút thêm</Label>
-                <Input id="extendCustom" type="number" min={1} placeholder="Nhập số phút" value={customExtend} onChange={(e) => setCustomExtend(e.target.value)} />
-              </div>
-            )}
-            <Button className="w-full" onClick={handleExtend.run} disabled={handleExtend.isBusy || extendSession.isPending || (extendMins === 0 && (!customExtend || parseInt(customExtend) < 1))}>
-              {(handleExtend.isBusy || extendSession.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
-              Xác nhận gia hạn
-            </Button>
-          </div>
-        )}
       </div>
 
       <OrderDrawer
@@ -357,8 +314,8 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
             const durMinutes = Math.floor(snap.elapsedSeconds / 60);
             const durSeconds = snap.elapsedSeconds % 60;
             return (
-              <div className="space-y-3 text-sm">
-                <div className="grid grid-cols-2 gap-2 bg-muted/30 rounded-lg p-3">
+              <div className="space-y-1.5 text-xs">
+                <div className="grid grid-cols-2 gap-1.5 bg-muted/30 rounded-md p-2">
                   <div>
                     <span className="text-xs text-muted-foreground">Bắt đầu</span>
                     <p className="font-medium tabular-nums">{formatTime(startDate)}</p>
@@ -369,7 +326,7 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center bg-muted/30 rounded-lg px-3 py-2">
+                <div className="flex justify-between items-center bg-muted/30 rounded-md px-2 py-1.5">
                   <span className="text-muted-foreground">Thời lượng</span>
                   <span className="font-semibold tabular-nums">{durMinutes} phút {durSeconds} giây</span>
                 </div>
@@ -397,7 +354,7 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
                   )}
                 </div>
 
-                <div className="border-t-2 border-dashed border-border pt-2 flex justify-between text-base font-bold">
+                <div className="flex justify-between text-xs font-bold border-t-2 border-dashed border-border pt-2">
                   <span>Tổng cộng</span>
                   <span className="text-blue-600 dark:text-blue-400 tabular-nums">{fmt(snap.grandTotal)}</span>
                 </div>
@@ -408,7 +365,7 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowFinishConfirm(false); setCheckoutSnapshot(null); }}>Hủy</Button>
             <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleFinish.run} disabled={handleFinish.isBusy}>
-              {handleFinish.isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+              {handleFinish.isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <LogOut className="size-3.5" />}
               Xác nhận thanh toán
             </Button>
           </DialogFooter>
@@ -578,11 +535,11 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
       {/* ── Layout: flex column, fill height của wrapper ── */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* ── STICKY TOP: trạng thái + thông tin nhanh ── */}
-        <div className="shrink-0 px-4 pt-3 pb-2 border-b border-border bg-card">
+        <div className="shrink-0 px-3 pt-3 pb-2 border-b border-border bg-card">
           <div className="flex items-center justify-between">
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">Có khách</span>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Users className="w-3.5 h-3.5" />
+              <Users className="size-3" />
               <span>{(table as any).currentOrder?.guestCount || 1} khách</span>
             </div>
           </div>
@@ -590,37 +547,37 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
 
         {/* ── SCROLLABLE BODY: chi tiết đơn + thao tác ── */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3"
+          className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1.5"
           style={{ overscrollBehavior: 'contain' }}
         >
           {/* Số khách */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="flex-1">
               <Label className="text-xs">Số khách</Label>
               <div className="flex gap-1 mt-1">
-                <Input type="number" min={1} value={guestCount} onChange={(e) => setGuestCount(e.target.value)} className="h-8" />
+                <Input type="number" min={1} value={guestCount} onChange={(e) => setGuestCount(e.target.value)} className="h-7" />
                 <Button size="sm" variant="outline" onClick={handleUpdateGuestCount.run} disabled={handleUpdateGuestCount.isBusy || updateGuestCount.isPending}>Cập nhật</Button>
               </div>
             </div>
           </div>
 
           {/* Chi tiết đơn hàng */}
-          <div className="rounded-lg border border-border overflow-hidden">
-            <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
-              <ShoppingCart className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="rounded-md border border-border overflow-hidden">
+            <div className="bg-muted/50 px-2 py-1.5 border-b border-border flex items-center gap-1.5">
+              <ShoppingCart className="size-3 text-muted-foreground" />
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết đơn hàng</span>
-              {isLoading && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}
+              {isLoading && <Loader2 className="size-2.5 animate-spin ml-auto" />}
             </div>
-            <div className="p-3">
+            <div className="p-2">
               {isLoading ? (
-                <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin" /></div>
+                <div className="flex items-center justify-center py-4"><Loader2 className="size-3.5 animate-spin" /></div>
               ) : !hasItems ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Chưa gọi món</p>
+                <p className="text-xs text-muted-foreground text-center py-4">Chưa gọi món</p>
               ) : (
                 <div className="max-h-[40vh] overflow-y-auto -mr-1 pr-1">
                   <div className="space-y-1.5">
                     {items.map((item: any) => (
-                      <div key={item.id} className="flex justify-between text-sm">
+                      <div key={item.id} className="flex justify-between text-xs">
                         <span className="text-foreground">
                           <span className="text-muted-foreground mr-1">{item.quantity}x</span>
                           {item.name}
@@ -635,7 +592,7 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
           </div>
 
           {/* Tóm tắt giá */}
-          <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-sm">
+        <div className="rounded-md bg-muted/30 p-2 space-y-1.5 text-xs">
             <div className="flex justify-between"><span className="text-muted-foreground">Món</span><span className="font-medium tabular-nums">{fmt(foodTotal)}</span></div>
             {serviceCharge > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Phí dịch vụ</span><span className="font-medium tabular-nums">{fmt(serviceCharge)}</span></div>}
             {tax > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Thuế</span><span className="font-medium tabular-nums">{fmt(tax)}</span></div>}
@@ -644,7 +601,7 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
 
           {/* Thêm món */}
           <Button variant="outline" className="w-full justify-start" onClick={() => setDrawerOpen(true)}>
-            <Plus className="w-4 h-4" /> Thêm món
+            <Plus className="size-3.5" /> Thêm món
           </Button>
 
       
@@ -653,15 +610,15 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
           <div className="space-y-1">
             <Label className="text-xs">Ghi chú</Label>
             <div className="flex gap-1">
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú..." className="h-8 text-sm" />
+              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú..." className="h-7 text-xs" />
               <Button size="sm" variant="outline" onClick={handleUpdateNote.run} disabled={handleUpdateNote.isBusy || updateOrderNote.isPending}>Lưu</Button>
             </div>
           </div>
 
           {/* Phương thức thanh toán — chỉ hiện khi mở panel */}
           {showPayment && (
-            <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4">
-              <Label className="text-sm font-semibold">Phương thức thanh toán</Label>
+            <div className="space-y-1.5 rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3">
+              <Label className="text-xs font-semibold">Phương thức thanh toán</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger><SelectValue placeholder="Chọn phương thức" /></SelectTrigger>
                 <SelectContent>
@@ -670,13 +627,13 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
                   <SelectItem value="QR">QR Code</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-1.5 pt-1">
                 <Button className="flex-1 gap-1.5" onClick={() => handlePay.run(true)} disabled={handlePay.isBusy || !hasItems}>
-                  {handlePay.isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  {handlePay.isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Printer className="size-3.5" />}
                   In hóa đơn
                 </Button>
                 <Button variant="outline" className="flex-1 gap-1.5" onClick={() => handlePay.run(false)} disabled={handlePay.isBusy || !hasItems}>
-                  {handlePay.isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                  {handlePay.isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
                   Không in
                 </Button>
               </div>
@@ -688,8 +645,8 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
         </div>
 
         {/* ── STICKY FOOTER: tổng tiền + nút thanh toán ── */}
-        <div className="shrink-0 border-t border-border bg-card px-4 py-3 space-y-2">
-          <div className="flex justify-between items-center text-base font-bold">
+        <div className="shrink-0 border-t border-border bg-card px-3 py-3 space-y-1.5">
+          <div className="flex justify-between items-center text-xs font-bold">
             <span>Tổng cộng</span>
             <span className="text-primary tabular-nums">{fmt(total)}</span>
           </div>
@@ -697,7 +654,7 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
             className="w-full bg-blue-600 hover:bg-blue-700"
             onClick={() => { setShowPayment(!showPayment); setShowTransfer(false); setShowMerge(false); setShowSplit(false); }}
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="size-3.5" />
             {showPayment ? 'Đóng thanh toán' : `Thanh toán — ${fmt(total)}`}
           </Button>
         </div>

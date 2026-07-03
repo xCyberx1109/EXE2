@@ -54,11 +54,11 @@ export function TaxManagement() {
   const getStatusIcon = (status: TaxRecord['status']) => {
     switch (status) {
       case 'paid':
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
+        return <CheckCircle className="size-4 text-green-600" />;
       case 'pending':
-        return <Clock className="w-5 h-5 text-orange-600" />;
+        return <Clock className="size-4 text-orange-600" />;
       case 'overdue':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
+        return <AlertCircle className="size-4 text-red-600" />;
     }
   };
 
@@ -124,7 +124,7 @@ export function TaxManagement() {
       const monthDate = new Date(record.month + '-01');
       const monthName = monthDate.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {getStatusIcon(record.status)}
           <span className="font-medium text-foreground">{monthName}</span>
         </div>
@@ -137,46 +137,46 @@ export function TaxManagement() {
     { key: 'actions', header: 'Thao tác', className: 'text-right', render: (record) => (
       <div className="text-right">
         {record.status === 'pending' && (
-          <button onClick={() => handleUpdateStatus(record.id, 'paid')} className="text-sm font-medium text-green-600 hover:text-green-900 mr-3">Đánh dấu đã thanh toán</button>
+          <button onClick={() => handleUpdateStatus(record.id, 'paid')} className="text-xs font-medium text-green-600 hover:text-green-900 mr-3">Đánh dấu đã thanh toán</button>
         )}
         {record.status === 'paid' && (
-          <button onClick={() => handleUpdateStatus(record.id, 'pending')} className="text-sm font-medium text-orange-600 hover:text-orange-900">Hoàn tác</button>
+          <button onClick={() => handleUpdateStatus(record.id, 'pending')} className="text-xs font-medium text-orange-600 hover:text-orange-900">Hoàn tác</button>
         )}
       </div>
     )},
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full space-y-1">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Quản lý Thuế</h1>
+          <h1 className="text-lg font-bold text-foreground">Quản lý Thuế</h1>
           <p className="text-muted-foreground mt-1">Theo dõi và quản lý nghĩa vụ thuế</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
         >
-          <FileText className="w-5 h-5" />
+          <FileText className="size-3.5" />
           Khai báo thuế mới
         </button>
       </div>
 
       {/* Stats Grid */}
-      <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1.5">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div
               key={stat.name}
-              className="bg-card rounded-lg border border-border p-6"
+              className="bg-card rounded-md border border-border p-3"
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">{stat.name}</p>
-                  <p className="text-2xl font-bold text-foreground mt-2">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.name}</p>
+                  <p className="text-lg font-bold text-foreground mt-1">{stat.value}</p>
                 </div>
-                <div className={`p-3 rounded-lg ${stat.color}`}>
+                <div className={`p-3 rounded-md ${stat.color}`}>
                   <Icon className="w-6 h-6" />
                 </div>
               </div>
@@ -196,10 +196,10 @@ export function TaxManagement() {
       />
 
       {/* Tax Information */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card rounded-lg border border-border p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Thông tin thuế GTGT</h2>
-          <div className="space-y-3 text-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5">
+        <div className="bg-card rounded-md border border-border p-3">
+          <h2 className="text-sm font-semibold text-foreground mb-3">Thông tin thuế GTGT</h2>
+          <div className="space-y-1 text-xs">
             <div className="flex justify-between py-2 border-b border-border">
               <span className="text-muted-foreground">Thuế suất áp dụng:</span>
               <span className="font-medium text-foreground">10%</span>
@@ -219,22 +219,22 @@ export function TaxManagement() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-6">
-          <h2 className="text-lg font-semibold text-blue-900 mb-4">Lưu ý quan trọng</h2>
-          <ul className="space-y-2 text-sm text-blue-800">
-            <li className="flex items-start gap-2">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-md border border-blue-200 p-3">
+          <h2 className="text-sm font-semibold text-blue-900 mb-3">Lưu ý quan trọng</h2>
+          <ul className="space-y-1 text-xs text-blue-800">
+            <li className="flex items-start gap-1.5">
               <span className="text-blue-600 mt-0.5">•</span>
               <span>Khai báo thuế đúng hạn để tránh bị phạt chậm nộp</span>
             </li>
-            <li className="flex items-start gap-2">
+            <li className="flex items-start gap-1.5">
               <span className="text-blue-600 mt-0.5">•</span>
               <span>Lưu trữ đầy đủ hóa đơn chứng từ liên quan</span>
             </li>
-            <li className="flex items-start gap-2">
+            <li className="flex items-start gap-1.5">
               <span className="text-blue-600 mt-0.5">•</span>
               <span>Kiểm tra kỹ số liệu trước khi nộp hồ sơ</span>
             </li>
-            <li className="flex items-start gap-2">
+            <li className="flex items-start gap-1.5">
               <span className="text-blue-600 mt-0.5">•</span>
               <span>Tham khảo chuyên gia thuế khi có thay đổi chính sách</span>
             </li>
@@ -244,61 +244,61 @@ export function TaxManagement() {
 
       {/* Add Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-foreground mb-4">Khai báo thuế mới</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-3 z-50">
+          <div className="bg-card rounded-md max-w-md w-full p-3">
+            <h2 className="text-lg font-bold text-foreground mb-3">Khai báo thuế mới</h2>
+            <form onSubmit={handleSubmit} className="space-y-1">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Kỳ tính thuế</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Kỳ tính thuế</label>
                 <input
                   type="month"
                   required
                   value={formData.month}
                   onChange={(e) => setFormData({ ...formData, month: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full px-2 py-1.5 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Doanh thu (₫)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Doanh thu (₫)</label>
                 <input
                   type="number"
                   required
                   value={formData.revenue}
                   onChange={(e) => setFormData({ ...formData, revenue: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full px-2 py-1.5 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Nhập doanh thu"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Thuế suất (%)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Thuế suất (%)</label>
                 <select
                   value={formData.taxRate}
                   onChange={(e) => setFormData({ ...formData, taxRate: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full px-2 py-1.5 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value={5}>5%</option>
                   <option value={10}>10%</option>
                 </select>
               </div>
-              <div className="bg-muted rounded-lg p-4">
+              <div className="bg-muted rounded-md p-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Số tiền thuế phải nộp:</span>
-                  <span className="text-lg font-bold text-blue-600">
+                  <span className="text-xs text-muted-foreground">Số tiền thuế phải nộp:</span>
+                  <span className="text-base font-bold text-blue-600">
                     {((Number(formData.revenue) * formData.taxRate) / 100).toLocaleString()} ₫
                   </span>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-1.5 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-2 border border-input text-foreground rounded-lg hover:bg-accent"
+                  className="flex-1 px-3 py-1.5 border border-input text-foreground rounded-md hover:bg-accent"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  className="flex-1 px-3 py-1.5 bg-primary text-white rounded-md hover:bg-primary/90"
                 >
                   Tạo khai báo
                 </button>

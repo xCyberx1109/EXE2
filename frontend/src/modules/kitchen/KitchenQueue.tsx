@@ -21,14 +21,14 @@ type SortMode = 'time' | 'priority' | 'status';
 type FilterStatus = 'all' | 'PENDING' | 'RECEIVED' | 'PREPARING' | 'READY';
 
 export function KitchenQueue() {
-  const { hasDevicePermission } = useAuth();
+  const { hasPermission } = useAuth();
   const { data: orders = [], isLoading, error: queryError } = useKitchenQueue();
   const updateStatusMutation = useUpdateKitchenStatusMutation();
   const [sortMode, setSortMode] = useState<SortMode>('priority');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const canUpdateStatus = hasDevicePermission('kitchen:update_status');
+  const canUpdateStatus = hasPermission('POS_ORDER_QUEUE_UPDATE');
 
   const handleUpdateStatus = (orderId: string, newStatus: string) => {
     updateStatusMutation.mutate({ orderId, status: newStatus });
@@ -57,7 +57,7 @@ export function KitchenQueue() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
-        <Clock className="w-6 h-6 animate-spin mr-2" />
+        <Clock className="size-4 animate-spin mr-2" />
         Đang tải {APP_NAME} hàng chờ bếp...
       </div>
     );
@@ -65,15 +65,15 @@ export function KitchenQueue() {
 
   return (
     <div className="h-full overflow-y-auto">
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Controls bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 bg-white rounded-lg border p-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 bg-white rounded-md border p-1">
           {(['all', 'PENDING', 'RECEIVED', 'PREPARING', 'READY'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+              className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
                 filterStatus === s ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
@@ -83,46 +83,46 @@ export function KitchenQueue() {
         </div>
 
         <div className="flex items-center gap-1 ml-auto">
-          <span className="text-sm text-gray-500 mr-1">Sắp xếp:</span>
+          <span className="text-xs text-gray-500 mr-1">Sắp xếp:</span>
           {(['time', 'priority', 'status'] as SortMode[]).map((s) => (
             <button
               key={s}
               onClick={() => setSortMode(s)}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+              className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
                 sortMode === s ? 'bg-gray-800 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <ArrowUpDown className="w-3 h-3" />
+              <ArrowUpDown className="size-2.5" />
               {s === 'time' ? 'Thời gian' : s === 'priority' ? 'Ưu tiên' : 'Trạng thái'}
             </button>
           ))}
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ml-2 ${
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-md font-medium transition-colors ml-2 ${
               autoRefresh ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
             }`}
             title={autoRefresh ? 'Tự động cập nhật' : 'Dừng tự động cập nhật'}
           >
-            <Timer className="w-3 h-3" />
+            <Timer className="size-2.5" />
             {autoRefresh ? 'Live' : 'Dừng'}
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-1.5 rounded-md text-xs">
           {error}
         </div>
       )}
 
       {filteredOrders.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <ChefHat className="w-16 h-16 mx-auto mb-4 opacity-30" />
-          <p className="text-lg font-medium">Không có món nào trong hàng chờ</p>
-          <p className="text-sm">Hàng chờ bếp đang trống</p>
+        <div className="text-center py-12 text-gray-400">
+          <ChefHat className="w-12 h-12 mx-auto mb-4 opacity-30" />
+          <p className="text-base font-medium">Không có món nào trong hàng chờ</p>
+          <p className="text-xs">Hàng chờ bếp đang trống</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filteredOrders.map((order) => {
             const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING;
             const StatusIcon = statusCfg.icon;
@@ -131,7 +131,7 @@ export function KitchenQueue() {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-base flex items-center gap-2">
+                      <CardTitle className="text-xs flex items-center gap-1.5">
                         #{order.kotNumber}
                         {order.tableNumber && (
                           <Badge variant="outline">Bàn {order.tableNumber}</Badge>
@@ -141,9 +141,9 @@ export function KitchenQueue() {
                         Đơn #{order.orderNumber}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <Badge className={statusCfg.color}>
-                        <StatusIcon className="w-3 h-3 mr-1 inline" />
+                        <StatusIcon className="size-2.5 mr-1 inline" />
                         {statusCfg.label}
                       </Badge>
                     </div>
@@ -151,7 +151,7 @@ export function KitchenQueue() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center text-xs text-gray-400 mb-2">
-                    <Timer className="w-3 h-3 mr-1" />
+                    <Timer className="size-2.5 mr-1" />
                     <span className={order.elapsed > 30 * 60 * 1000 ? 'text-red-500 font-bold' : ''}>
                       {formatElapsed(order.elapsed)}
                     </span>
@@ -159,7 +159,7 @@ export function KitchenQueue() {
 
                   <div className="space-y-1">
                     {order.items.map((item: any) => (
-                      <div key={item.id} className="flex justify-between text-sm py-0.5">
+                      <div key={item.id} className="flex justify-between text-xs py-0.5">
                         <span>
                           <span className="font-medium text-gray-800">x{item.quantity || 1}</span>{' '}
                           {item.name || item.menuItem?.name}

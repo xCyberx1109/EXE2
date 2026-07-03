@@ -8,8 +8,7 @@ import {
 } from './order.controller.js';
 import { createOrderRules, createOrderQueueRules, orderIdParam, ordersByDateQuery } from '../../validators/order.validator.js';
 import { validate } from '../../middlewares/validate.js';
-import { optionalAuth, requireDeviceAuth, requirePermission } from '../../middlewares/auth.js';
-import { requireDevicePermission } from '../../middlewares/devicePermission.js';
+import { optionalAuth, authenticate, requirePermission } from '../../middlewares/auth.js';
 
 const router = Router();
 
@@ -48,7 +47,7 @@ router.get('/orders/by-table/:tableId', optionalAuth, getActiveTableOrder);
 
 // Kitchen endpoints
 router.get('/orders/kitchen-queue', optionalAuth, listKitchenQueue);
-router.patch('/orders/:id/kitchen-status', requireDeviceAuth, requireDevicePermission('kitchen:update_status'), updateKitchenStatus);
+router.patch('/orders/:id/kitchen-status', authenticate, requirePermission('ORDER_UPDATE'), updateKitchenStatus);
 
 // Order detail
 router.get('/orders/:orderId', optionalAuth, requirePermission('ORDER_HISTORY_VIEW'), getOrderDetail);

@@ -18,7 +18,7 @@ export const APP_MENU: AppMenuItem[] = [
   {
     name: 'Thực đơn',
     children: [
-      { name: 'Thực đơn', href: '/app/menu', icon: 'UtensilsCrossed', requiredPermission: 'MENU_VIEW' },
+      { name: 'Thực đơn', href: '/app/menu', icon: 'UtensilsCrossed', requiredPermission: 'MENU_MANAGEMENT_VIEW' },
       { name: 'Danh mục', href: '/app/categories', icon: 'Grid3X3', requiredPermission: 'CATEGORY_VIEW' },
     ],
   },
@@ -40,12 +40,6 @@ export const APP_MENU: AppMenuItem[] = [
     name: 'Nhân viên',
     children: [
       { name: 'Nhân viên', href: '/app/staff', icon: 'Users', requiredPermission: 'STAFF_VIEW' },
-    ],
-  },
-  {
-    name: 'Thiết bị',
-    children: [
-      { name: 'Thiết bị POS', href: '/app/pos-devices-v2', icon: 'Smartphone', requiredPermission: 'POS_DEVICE_VIEW' },
     ],
   },
   {

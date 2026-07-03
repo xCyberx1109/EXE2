@@ -3,7 +3,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
 
 function getContext(req) {
-  return req.user || req.posDevice || null;
+  return req.user || req.employee || null;
 }
 
 export const listTables = asyncHandler(async (req, res) => {

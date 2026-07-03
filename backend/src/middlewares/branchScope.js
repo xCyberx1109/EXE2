@@ -3,9 +3,9 @@ import { AppError } from '../utils/AppError.js';
 /**
  * Middleware: tự động inject accountId vào req.branchScope.
  * 
- * Hỗ trợ cả user auth (req.user) và device auth (req.posDevice).
+ * Hỗ trợ user auth (req.user) và employee auth (req.employee).
  * Với user auth, accountId = user.id (mỗi account là một tenant riêng).
- * Với device auth, accountId = posDevice.accountId.
+ * Với employee auth, accountId = employee.accountId.
  * 
  * Sử dụng ở route:
  *   router.use(enforceBranchScope);
@@ -15,7 +15,7 @@ import { AppError } from '../utils/AppError.js';
  *   const data = { ...branchDataForCreate(req.user) };
  */
 export function enforceBranchScope(req, _res, next) {
-  const ctx = req.user || req.posDevice;
+  const ctx = req.user || req.employee;
   if (!ctx) {
     return next(new AppError('Authentication required', 401));
   }

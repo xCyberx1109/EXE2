@@ -4,7 +4,6 @@ export const employeeRepository = {
   findById: (id) =>
     prisma.employee.findUnique({
       where: { id },
-      include: { posMachines: true },
     }),
 
   findByIdWithAccount: (id) =>
@@ -33,12 +32,6 @@ export const employeeRepository = {
     return prisma.employee.findMany({ where, orderBy: { createdAt: 'desc' } });
   },
 
-  findAssignedMachineIds: (employeeId) =>
-    prisma.employeePosMachine.findMany({
-      where: { employeeId },
-      select: { posMachineId: true },
-    }),
-
   create: (data) =>
     prisma.employee.create({ data }),
 
@@ -49,15 +42,5 @@ export const employeeRepository = {
     prisma.employee.update({
       where: { id },
       data: { deletedAt: new Date() },
-    }),
-
-  assignMachines: (employeeId, machineIds) =>
-    prisma.$transaction(async (tx) => {
-      await tx.employeePosMachine.deleteMany({ where: { employeeId } });
-      if (machineIds.length > 0) {
-        await tx.employeePosMachine.createMany({
-          data: machineIds.map((posMachineId) => ({ employeeId, posMachineId })),
-        });
-      }
     }),
 };

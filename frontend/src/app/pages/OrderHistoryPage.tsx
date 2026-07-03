@@ -123,24 +123,24 @@ export function OrderHistoryPage() {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full space-y-4">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Lịch sử đơn hàng</h1>
-          <p className="text-muted-foreground text-sm">Tra cứu đơn hàng đã hoàn tất</p>
+          <h1 className="text-lg font-bold text-foreground">Lịch sử đơn hàng</h1>
+          <p className="text-xs text-muted-foreground">Tra cứu đơn hàng đã hoàn tất</p>
         </div>
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="flex items-center gap-2 rounded-lg border border-input bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-md border border-input bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-60"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
           Làm mới
         </button>
       </div>
 
-      <form onSubmit={handleFilter} className="rounded-xl border border-border bg-card p-4 flex-shrink-0">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <form onSubmit={handleFilter} className="rounded-md border border-border bg-card p-3 flex-shrink-0">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
               <Calendar className="inline h-3 w-3 mr-1" />
@@ -150,7 +150,7 @@ export function OrderHistoryPage() {
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              className="h-9 w-full rounded-md border border-input bg-input-background px-3 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
           <div>
@@ -162,7 +162,7 @@ export function OrderHistoryPage() {
               type="date"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              className="h-9 w-full rounded-md border border-input bg-input-background px-3 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
           <div>
@@ -173,7 +173,7 @@ export function OrderHistoryPage() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              className="h-9 w-full rounded-md border border-input bg-input-background px-3 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             >
               {ORDER_STATUS_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -188,7 +188,7 @@ export function OrderHistoryPage() {
             <select
               value={sourceFilter}
               onChange={e => setSourceFilter(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-input-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              className="h-9 w-full rounded-md border border-input bg-input-background px-3 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             >
               {SOURCE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -198,7 +198,7 @@ export function OrderHistoryPage() {
           <div className="flex items-end">
             <button
               type="submit"
-              className="h-10 w-full rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+              className="h-9 w-full rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition"
             >
               Tra cứu
             </button>
@@ -207,22 +207,22 @@ export function OrderHistoryPage() {
       </form>
 
       <div className="relative flex-shrink-0">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Tìm theo mã đơn hàng..."
-          className="h-10 w-full rounded-lg border border-input bg-input-background pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+          className="h-9 w-full rounded-md border border-input bg-input-background pl-9 pr-3 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
         />
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive flex-shrink-0">
+        <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive flex-shrink-0">
           {error}
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card">
+      <div className="flex-1 min-h-0 overflow-auto rounded-md border border-border bg-card">
         <table className="min-w-full divide-y divide-border">
           <thead className="bg-muted sticky top-0 z-10">
             <tr>
@@ -237,27 +237,27 @@ export function OrderHistoryPage() {
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                  <Loader2 className="inline h-6 w-6 animate-spin" />
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  <Loader2 className="inline size-4 animate-spin" />
                   <span className="ml-2">Đang tải...</span>
                 </td>
               </tr>
             ) : filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   Không có đơn hàng nào.
                 </td>
               </tr>
             ) : (
               filteredOrders.map(order => (
                 <tr key={order.id} className="hover:bg-accent transition">
-                  <td className="px-4 py-3 text-sm font-medium text-foreground">
+                  <td className="px-4 py-3 text-xs font-medium text-foreground">
                     {order.orderNumber}
                   </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
                     {formatDate(order.createdAt)}
                   </td>
-                  <td className="px-4 py-3 text-sm font-semibold text-foreground text-right">
+                  <td className="px-4 py-3 text-xs font-semibold text-foreground text-right">
                     {formatMoney(order.total)}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -265,15 +265,15 @@ export function OrderHistoryPage() {
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center text-sm text-muted-foreground">
+                  <td className="px-4 py-3 text-center text-xs text-muted-foreground">
                     {order.source || '-'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() => navigate(`/app/orders/${order.id}`)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition"
+                      className="inline-flex items-center gap-1 rounded-md border border-input bg-card px-2 py-1 text-[10px] font-medium text-foreground hover:bg-accent transition"
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="size-3" />
                       Xem chi tiết
                     </button>
                   </td>

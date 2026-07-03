@@ -28,7 +28,7 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
   }, { delay: 500 });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1.5">
       <div>
         <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400">
           Đã đặt
@@ -36,39 +36,39 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
       </div>
 
       {reservation ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <User className="w-4 h-4 text-muted-foreground" />
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5 text-xs">
+            <User className="size-3.5 text-muted-foreground" />
             <span className="font-medium">{reservation.customerName}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <Phone className="w-4 h-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 text-xs">
+            <Phone className="size-3.5 text-muted-foreground" />
             <span>{reservation.phone || 'Chưa có số điện thoại'}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <CalendarDays className="w-4 h-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 text-xs">
+            <CalendarDays className="size-3.5 text-muted-foreground" />
             <span>{reservation.reservationTime ? formatDate(reservation.reservationTime) : 'Chưa có ngày đặt'}</span>
           </div>
 
           {reservation.note && (
-            <div className="flex items-start gap-2 text-sm">
-              <FileText className="w-4 h-4 text-muted-foreground mt-0.5" />
+            <div className="flex items-start gap-1.5 text-xs">
+              <FileText className="size-3.5 text-muted-foreground mt-0.5" />
               <span className="text-muted-foreground">{reservation.note}</span>
             </div>
           )}
 
-          <div className="pt-3 space-y-2">
+          <div className="pt-3 space-y-1.5">
             <Button
               className="w-full"
               onClick={handleCheckIn.run}
               disabled={handleCheckIn.isBusy || checkIn.isPending}
             >
               {(handleCheckIn.isBusy || checkIn.isPending) ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="size-3.5 animate-spin" />
               ) : (
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="size-3.5" />
               )}
               Nhận bàn
             </Button>
@@ -79,16 +79,16 @@ export function ReservedPanel({ table, onSuccess }: ReservedPanelProps) {
               disabled={handleCancel.isBusy || cancelReservation.isPending}
             >
               {(handleCancel.isBusy || cancelReservation.isPending) ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="size-3.5 animate-spin" />
               ) : (
-                <XCircle className="w-4 h-4" />
+                <XCircle className="size-3.5" />
               )}
               Hủy đặt trước
             </Button>
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">Không có thông tin đặt trước.</p>
+        <p className="text-xs text-muted-foreground">Không có thông tin đặt trước.</p>
       )}
     </div>
   );

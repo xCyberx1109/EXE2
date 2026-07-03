@@ -1,19 +1,9 @@
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import config from '../config/index.js';
 import prisma from '../prisma/client.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { permissionService } from '../modules/permissions/permission.service.js';
-import { devicePermissionService } from '../modules/permissions/devicePermission.service.js';
-
-async function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
-
-function isJwtToken(token) {
-  return token.split('.').length === 3;
-}
 
 function extractToken(req) {
   const authHeader = req.headers.authorization;
@@ -21,18 +11,17 @@ function extractToken(req) {
   return authHeader.split(' ')[1];
 }
 
-/** Xác thực JWT user hoặc POS Machine */
+/** Xác thực JWT user hoặc Employee */
 export const authenticate = asyncHandler(async (req, _res, next) => {
   console.log('=== AUTH START ===');
   console.log('URL:', req.method, req.originalUrl);
   console.log('Authorization:', req.headers.authorization);
-  
+
   const token = extractToken(req);
   if (!token) {
     console.error('[AUTH FAILED] Missing auth context', {
       url: req.originalUrl,
       user: req.user,
-      posDevice: req.posDevice,
       authHeader: req.headers.authorization
     });
     throw new AppError('Vui lòng đăng nhập', 401);
@@ -46,76 +35,35 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
     console.error('[AUTH FAILED] Invalid token', {
       url: req.originalUrl,
       user: req.user,
-      posDevice: req.posDevice,
       authHeader: req.headers.authorization,
       error: jwtErr.message
     });
     throw new AppError('Phiên đăng nhập không hợp lệ hoặc đã hết hạn', 401);
   }
 
-  // POS Machine JWT: { machineId, accountId, type: 'pos_machine', permissions, template, ... }
-  if (decoded.type === 'pos_machine') {
-    const { machineId, accountId, template, permissions } = decoded;
+  // Employee JWT
+  if (decoded.type === 'employee') {
+    const { employeeId, accountId, permissions } = decoded;
+    console.log('[AUTH] Employee JWT decoded — permissions from token:', JSON.stringify(permissions));
 
-    req.posDevice = {
-      id: machineId,
-      accountId,
-      template,
-      permissions,
-      type: 'pos_machine'
-    };
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, accountId, deletedAt: null, status: 'ACTIVE' },
+    });
 
-    // Backward compatibility: also set req.user
-    req.user = {
-      id: accountId,
-      accountId,
-      machineId,
-      source: 'POS_MACHINE',
-      permissions
-    };
+    if (!employee) {
+      throw new AppError('Nhân viên không hợp lệ hoặc đã bị khóa', 401);
+    }
 
-    req.authType = 'pos_machine';
-    console.log('[AUTH] req.user:', req.user);
-    console.log('[AUTH] req.posDevice:', req.posDevice);
+    req.employee = employee;
+    req.employee.permissions = permissions || [];
+    req.accountId = accountId;
+    req.permissions = permissions || [];
+    req.authType = 'employee';
+    console.log('[AUTH] req.employee:', { id: employee.id, accountId, permissions: req.employee.permissions });
     return next();
   }
 
-  // POS Device JWT: { machineId, accountId, type: 'device', template, permissions, ... }
-  if (decoded.type === 'device') {
-    console.log('[AUTH TYPE]', decoded.type);
-    const { machineId, accountId, template, permissions } = decoded;
-
-    req.device = {
-      id: machineId,
-      accountId,
-      template,
-      permissions: permissions || [],
-    };
-
-    // Backward compatibility for requirePermission / requireAnyPermission
-    req.posDevice = {
-      id: machineId,
-      accountId,
-      template,
-      permissions: permissions || [],
-      type: 'device',
-    };
-
-    req.user = {
-      id: accountId,
-      accountId,
-      machineId,
-      source: 'POS_DEVICE',
-      permissions: permissions || [],
-    };
-
-    req.authType = 'device';
-    console.log('[AUTH] req.user:', req.user);
-    console.log('[AUTH] req.posDevice:', req.posDevice);
-    return next();
-  }
-
-  // User JWT: unified { sub, type: 'user' } or legacy { userId, accountId }
+  // User JWT
   const userId = decoded.sub || decoded.userId;
   if (!userId) {
     throw new AppError('Token không hợp lệ', 401);
@@ -140,89 +88,8 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
   req.user = user;
   req.authType = 'user';
   console.log('[AUTH] req.user:', req.user);
-  console.log('[AUTH] req.posDevice:', req.posDevice);
   next();
 });
-
-/** Xác thực POS Device token (hỗ trợ JWT device token và raw token) */
-export const requireDeviceAuth = asyncHandler(async (req, _res, next) => {
-  const token = extractToken(req);
-  if (!token) {
-    console.warn('[DeviceAuth] No token provided - endpoint requires POS device auth');
-    throw new AppError('Vui lòng đăng nhập thiết bị POS', 401);
-  }
-
-  let device;
-
-  try {
-    if (isJwtToken(token)) {
-      let decoded;
-      try {
-        decoded = jwt.verify(token, config.jwt.secret);
-        console.log(`[DeviceAuth] JWT decoded: type=${decoded.type}, sub=${decoded.sub}`);
-      } catch {
-        throw new AppError('Phiên đăng nhập thiết bị không hợp lệ hoặc đã hết hạn', 401);
-      }
-      if (decoded.type === 'device' || decoded.type === 'pos_machine') {
-        const id = decoded.sub || decoded.machineId;
-        device = await prisma.pos_machines.findUnique({
-          where: { id, deletedAt: null },
-        });
-      } else {
-        console.warn(`[DeviceAuth] Token type is "${decoded.type}", expected "device" or "pos_machine". User tokens are not accepted here.`);
-      }
-    }
-  } catch {
-    // fall through to raw token lookup
-  }
-
-  if (!device) {
-    // Try raw token lookup via DeviceSession
-    const tokenHash = await hashToken(token);
-    const session = await prisma.deviceSession.findFirst({
-      where: { tokenHash, revokedAt: null },
-      orderBy: { lastUsedAt: 'desc' },
-    });
-    if (session) {
-      device = await prisma.pos_machines.findUnique({
-        where: { id: session.deviceId, deletedAt: null },
-      });
-    }
-  }
-
-  if (!device) {
-    console.warn(`[DeviceAuth] No device found for token`);
-    throw new AppError('Phiên đăng nhập thiết bị không hợp lệ', 401);
-  }
-
-  if (device.status === 'LOCKED') {
-    console.error('[DEVICE BLOCKED]', {
-      machineId: device.id,
-      machine: device,
-      status: device?.status
-    });
-    throw new AppError('Thiết bị đã bị vô hiệu hóa', 403);
-  }
-
-  req.posDevice = device;
-  req.branch = null;
-  req.authType = 'device';
-
-  const capabilities = await devicePermissionService.getDeviceCapabilities(device);
-  req.devicePermissions = capabilities.permissions;
-  req.deviceFeatures = capabilities.features;
-  req.enabledFeatures = capabilities.enabledFeatures;
-
-  next();
-});
-
-/** Chặn POS Machine */
-export const requireNotPosMachine = (req, _res, next) => {
-  if (req.authType === 'pos_machine' || req.authType === 'device') {
-    return next(new AppError('Máy POS không được phép quản lý bàn.', 403));
-  }
-  next();
-};
 
 /** Phân quyền theo permission */
 export const requirePermission = (permissionCode) => (req, _res, next) => {
@@ -230,38 +97,24 @@ export const requirePermission = (permissionCode) => (req, _res, next) => {
     url: req.originalUrl,
     requiredPermission: permissionCode
   });
-  
-  console.log('[PERMISSION CHECK]', {
-    requiredPermission: permissionCode,
-    userPermissions: req.user?.permissions,
-    devicePermissions: req.posDevice?.permissions
-  });
-  
-  const context = req.user || req.posDevice;
+
+  const context = req.user || req.employee;
+  console.log('[RBAC DEBUG] authType:', req.authType, 'req.permissions:', req.permissions, 'context.permissions:', context?.permissions);
+
   if (!context) {
     console.error('[AUTH FAILED] Missing auth context', {
       url: req.originalUrl,
       user: req.user,
-      posDevice: req.posDevice,
+      employee: req.employee,
       authHeader: req.headers.authorization
     });
     return next(new AppError('Vui lòng đăng nhập', 401));
   }
 
-  const permissions = context.permissions || req.devicePermissions || [];
+  const permissions = context.permissions || [];
 
   console.log(`[RBAC] Checking permission "${permissionCode}" for id ${context.id}`);
   console.log("[RBAC] PERMISSIONS:", JSON.stringify(permissions));
-
-  console.log('[RBAC DEBUG]', {
-    requiredPermission: permissionCode,
-    availablePermissions: permissions,
-    exactMatch: permissions.includes(permissionCode),
-    possibleMatches: permissions.filter(p =>
-      p.includes('ORDER') ||
-      permissionCode.includes('ORDER')
-    )
-  });
 
   if (!permissions.includes(permissionCode)) {
     console.warn(`[RBAC] DENIED: id ${context.id} missing "${permissionCode}"`);
@@ -274,24 +127,18 @@ export const requirePermission = (permissionCode) => (req, _res, next) => {
 
 /** Yêu cầu ít nhất MỘT trong các permission được liệt kê */
 export const requireAnyPermission = (permissionCodes) => (req, _res, next) => {
-  console.log('[PERMISSION CHECK]', {
-    requiredPermission: permissionCodes,
-    userPermissions: req.user?.permissions,
-    devicePermissions: req.posDevice?.permissions
-  });
-  
-  const context = req.user || req.posDevice;
+  const context = req.user || req.employee;
   if (!context) {
     console.error('[AUTH FAILED] Missing auth context', {
       url: req.originalUrl,
       user: req.user,
-      posDevice: req.posDevice,
+      employee: req.employee,
       authHeader: req.headers.authorization
     });
     return next(new AppError('Vui lòng đăng nhập', 401));
   }
-  
-  const permissions = context.permissions || req.devicePermissions || [];
+
+  const permissions = context.permissions || [];
 
   console.log(`[RBAC] Checking ANY permission [${permissionCodes.join(', ')}] for id ${context.id}`);
 
@@ -305,14 +152,14 @@ export const requireAnyPermission = (permissionCodes) => (req, _res, next) => {
   next();
 };
 
-/** Kiểm tra quyền truy cập account - không có ADMIN_ALL bypass (requirement #4) */
+/** Kiểm tra quyền truy cập account */
 export const requireBranchAccess = (req, _res, next) => {
-  const context = req.user || req.posDevice;
+  const context = req.user || req.employee;
   if (!context) {
     console.error('[AUTH FAILED] Missing auth context', {
       url: req.originalUrl,
       user: req.user,
-      posDevice: req.posDevice,
+      employee: req.employee,
       authHeader: req.headers.authorization
     });
     return next(new AppError('Vui lòng đăng nhập', 401));
@@ -343,7 +190,7 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
     console.log('[OPTIONAL AUTH] Decoded token:', decoded);
-    
+
     if (decoded.type === 'user') {
       const user = await prisma.account.findUnique({
         where: { id: decoded.sub },
@@ -355,48 +202,11 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
         req.user = user;
         req.authType = 'user';
       }
-    } else if (decoded.type === 'pos_machine') {
-      const { machineId, accountId, template, permissions } = decoded;
-      req.posDevice = {
-        id: machineId,
-        accountId,
-        template,
-        permissions,
-        type: 'pos_machine'
-      };
-      req.user = {
-        id: accountId,
-        accountId,
-        machineId,
-        source: 'POS_MACHINE',
-        permissions
-      };
-      req.authType = 'pos_machine';
-    } else if (decoded.type === 'device') {
-      const { machineId, accountId, template, permissions } = decoded;
-      req.device = {
-        id: machineId,
-        accountId,
-        template,
-        permissions: permissions || [],
-      };
-      req.posDevice = {
-        id: machineId,
-        accountId,
-        template,
-        permissions: permissions || [],
-        type: 'device',
-      };
-      req.user = {
-        id: accountId,
-        accountId,
-        machineId,
-        source: 'POS_DEVICE',
-        permissions: permissions || [],
-      };
-      req.authType = 'device';
+    } else if (decoded.type === 'employee') {
+      req.employee = { id: decoded.employeeId, accountId: decoded.accountId, permissions: decoded.permissions || [] };
+      req.authType = 'employee';
     }
-    console.log('[OPTIONAL AUTH RESULT]', { user: req.user, posDevice: req.posDevice });
+    console.log('[OPTIONAL AUTH RESULT]', { user: req.user });
   } catch {
     // bỏ qua token không hợp lệ
   }

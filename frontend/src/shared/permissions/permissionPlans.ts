@@ -226,7 +226,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, PlanConfig> = {
         name: 'Phiên chơi Billiard',
         description: 'Bắt đầu, gia hạn, kết thúc phiên chơi và check-in',
         icon: 'Play',
-        permissions: ['BILLIARD_SESSION_VIEW', 'BILLIARD_SESSION_START', 'BILLIARD_SESSION_CHECKIN', 'BILLIARD_SESSION_EXTEND', 'BILLIARD_SESSION_FINISH'],
+        permissions: ['BILLIARD_SESSION_VIEW', 'BILLIARD_SESSION_START', 'BILLIARD_SESSION_CHECKIN', 'BILLIARD_SESSION_FINISH'],
       },
       {
         id: 'billiard_reservation',

@@ -40,15 +40,15 @@ export function DataTable<T>({
   const colSpan = columns.length;
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
-      <div className="min-h-0 overflow-auto rounded-xl border border-border bg-card">
+    <>
+      <div className="flex-1 min-h-0 overflow-auto rounded-md border border-border bg-card">
         <table className="min-w-full divide-y divide-border">
           <thead className="bg-muted sticky top-0 z-10">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground ${col.headerClassName || ''}`}
+                  className={`px-1.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${col.headerClassName || ''}`}
                 >
                   {col.header}
                 </th>
@@ -58,20 +58,20 @@ export function DataTable<T>({
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">
-                  <Loader2 className="inline h-6 w-6 animate-spin" />
-                  <span className="ml-2">Đang tải...</span>
+                <td colSpan={colSpan} className="px-3 py-4 text-center text-muted-foreground">
+                  <Loader2 className="inline h-4 w-4 animate-spin" />
+                  <span className="ml-2 text-xs">Đang tải...</span>
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={colSpan} className="px-4 py-12 text-center text-destructive">
+                <td colSpan={colSpan} className="px-3 py-4 text-center text-destructive">
                   {error}
                 </td>
               </tr>
             ) : !Array.isArray(data) || data.length === 0 ? (
               <tr>
-                <td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={colSpan} className="px-3 py-4 text-center text-muted-foreground">
                   {emptyMessage}
                 </td>
               </tr>
@@ -79,7 +79,7 @@ export function DataTable<T>({
               data.map((item) => (
                 <tr key={keyExtractor(item)} className="hover:bg-accent transition">
                   {columns.map((col) => (
-                    <td key={col.key} className={`px-4 py-3 text-sm ${col.className || 'text-foreground'}`}>
+                    <td key={col.key} className={`px-1.5 py-1.5 text-xs ${col.className || 'text-foreground'}`}>
                       {col.render(item)}
                     </td>
                   ))}
@@ -90,7 +90,7 @@ export function DataTable<T>({
         </table>
       </div>
       {pagination && onPageChange && onPageSizeChange && (
-        <div className="flex-shrink-0 mt-auto pt-4">
+        <div className="flex-shrink-0">
           <DataTablePagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -101,6 +101,6 @@ export function DataTable<T>({
           />
         </div>
       )}
-    </div>
+    </>
   );
 }

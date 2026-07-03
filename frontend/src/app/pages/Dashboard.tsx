@@ -10,11 +10,11 @@ export function Dashboard() {
 
   if (!data && loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Tổng quan</h1>
-            <p className="text-muted-foreground text-sm mt-1">Tổng quan hoạt động kinh doanh</p>
+            <h1 className="text-lg font-bold text-foreground">Tổng quan</h1>
+            <p className="text-muted-foreground text-xs mt-0.5">Tổng quan hoạt động kinh doanh</p>
           </div>
         </div>
         <BusinessOverview data={null} loading />
@@ -26,13 +26,13 @@ export function Dashboard() {
   if (error && !data) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-red-600">
-        <AlertTriangle className="w-10 h-10 mb-3" />
+        <AlertTriangle className="w-8 h-8 mb-3" />
         <p className="font-medium">{error}</p>
         <button
           onClick={retry}
-          className="mt-4 px-4 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors inline-flex items-center gap-2"
+          className="mt-3 px-2 py-1 bg-red-50 text-red-700 rounded-md text-xs font-medium hover:bg-red-100 transition-colors inline-flex items-center gap-1.5"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="size-3" />
           Thử lại
         </button>
       </div>
@@ -42,11 +42,10 @@ export function Dashboard() {
   if (!data) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Tổng quan</h1>
-          <p className="text-muted-foreground text-sm mt-1">Tổng quan hoạt động kinh doanh</p>
+          <h1 className="text-lg font-bold text-foreground">Tổng quan</h1>
         </div>
       </div>
 

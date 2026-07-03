@@ -67,7 +67,6 @@ export const POS_TEMPLATE_PERMISSIONS: Record<PosMachineTemplate, string[]> = {
     'BILLIARD_SESSION_VIEW',
     'BILLIARD_SESSION_START',
     'BILLIARD_SESSION_CHECKIN',
-    'BILLIARD_SESSION_EXTEND',
     'BILLIARD_SESSION_FINISH',
     'BILLIARD_ORDER_VIEW',
     'BILLIARD_ORDER_CREATE',
@@ -78,7 +77,6 @@ export const POS_TEMPLATE_PERMISSIONS: Record<PosMachineTemplate, string[]> = {
     'MENU_VIEW',
     'CUSTOMER_VIEW',
     'CUSTOMER_CREATE',
-    'INVENTORY_VIEW',
   ],
 
   // ── RESTAURANT ───────────────────────────────────────────────────────────

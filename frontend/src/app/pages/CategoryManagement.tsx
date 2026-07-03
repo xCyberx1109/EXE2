@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import {
-  Plus, Search, FolderTree, RotateCcw, Trash2, Edit3, Eye, X, UtensilsCrossed, ChevronDown, ChevronUp,
+  Plus, Search, FolderTree, RotateCcw, Trash2, Edit3,
 } from 'lucide-react';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { useAuth } from '../context/AuthContext';
 import {
   useCategoryList, useCreateCategoryMutation,
   useUpdateCategoryMutation, useDeleteCategoryMutation, useRestoreCategoryMutation,
-  useCategoryStats, useCategory,
 } from '../api/hooks';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -91,11 +90,6 @@ export function CategoryManagement() {
 
   const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  const { data: stats } = useCategoryStats();
-  const [statsExpanded, setStatsExpanded] = useState(false);
-  const [viewingId, setViewingId] = useState<string | null>(null);
-  const { data: viewingCategory, isLoading: viewingLoading } = useCategory(viewingId);
 
   const isEditing = !!editing;
 
@@ -228,50 +222,42 @@ export function CategoryManagement() {
       render: (cat) => {
         const isDeleted = !!cat.deletedAt;
         return (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewingId(cat.id)}
-              title="Xem chi tiết"
-            >
-              <Eye className="w-4 h-4" />
-            </Button>
+          <div className="flex justify-end gap-1.5">
             {isDeleted ? (
               canDelete && (
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => handleRestore(cat.id)}
+                  className="inline-flex items-center gap-0.5 rounded-md border border-border px-2 py-1 text-[10px] font-medium text-green-600 hover:bg-accent"
                   title="Khôi phục"
-                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
                 >
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
+                  <RotateCcw className="size-3" />
+                  Khôi phục
+                </button>
               )
             ) : (
               <>
                 {canUpdate && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
+                    type="button"
                     onClick={() => openEdit(cat)}
-                    title="Sửa"
+                    className="inline-flex items-center gap-0.5 rounded-md border border-input px-2 py-1 text-[10px] font-medium text-primary hover:bg-accent"
                   >
-                    <Edit3 className="w-4 h-4" />
-                  </Button>
+                    <Edit3 className="size-3" />
+                    Sửa
+                  </button>
                 )}
                 {canDelete && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
+                    type="button"
                     onClick={() => setDeleteTarget(cat)}
                     disabled={cat.itemCount > 0}
                     title={cat.itemCount > 0 ? 'Không thể xóa danh mục đang có món ăn' : 'Xóa'}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    className="inline-flex items-center gap-0.5 rounded-md border border-destructive/30 px-2 py-1 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                    <Trash2 className="size-3" />
+                    {cat.itemCount > 0 ? 'Không thể xóa' : 'Xóa'}
+                  </button>
                 )}
               </>
             )}
@@ -282,83 +268,33 @@ export function CategoryManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between flex-shrink-0">
+    <div className="flex flex-col h-full space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-            <FolderTree className="w-6 h-6 text-purple-600" />
+          <div className="w-8 h-8 bg-accent rounded-md flex items-center justify-center">
+            <FolderTree className="size-4 text-purple-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Quản lý danh mục</h1>
-            <p className="text-sm text-muted-foreground mt-1">Quản lý danh mục món ăn toàn hệ thống</p>
+            <h1 className="text-lg font-bold text-foreground">Quản lý danh mục</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Quản lý danh mục món ăn toàn hệ thống</p>
           </div>
         </div>
         {canCreate && (
-          <Button variant="default" size="sm" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" />
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="size-3" />
             Thêm danh mục
-          </Button>
+          </button>
         )}
       </div>
 
-      {stats && (
-        <div className="bg-card rounded-xl border border-border p-4 flex-shrink-0">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-6">
-              <div>
-                <p className="text-xs text-muted-foreground">Tổng danh mục</p>
-                <p className="text-lg font-bold text-foreground">
-                  {stats.totalCategories}
-                  <span className="text-xs font-normal text-muted-foreground ml-1">
-                    ({stats.totalActiveCategories} đang hoạt động)
-                  </span>
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Tổng số món trong menu</p>
-                <p className="text-lg font-bold text-foreground">{stats.totalItems}</p>
-              </div>
-            </div>
-            {stats.byCategory.length > 0 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setStatsExpanded((v) => !v)}
-              >
-                Phân bổ theo danh mục
-                {statsExpanded ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
-              </Button>
-            )}
-          </div>
-
-          {statsExpanded && stats.byCategory.length > 0 && (
-            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 mt-3 pt-3 border-t border-border">
-              {stats.byCategory.map((c) => (
-                <div key={c.id} className="flex items-center gap-3">
-                  <span className="w-32 shrink-0 truncate text-sm text-foreground" title={c.name}>
-                    {c.name}
-                  </span>
-                  <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-purple-500 rounded-full transition-all"
-                      style={{ width: `${c.percentage}%` }}
-                    />
-                  </div>
-                  <span className="w-24 shrink-0 text-right text-sm text-muted-foreground">
-                    {c.itemCount} món ({c.percentage}%)
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="bg-card rounded-xl border border-border p-4 space-y-4 flex-shrink-0">
+      <div className="bg-card rounded-md border border-border p-3 space-y-4 flex-shrink-0">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
               placeholder="Tìm kiếm theo tên hoặc slug..."
               value={search}
@@ -407,33 +343,33 @@ export function CategoryManagement() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {formError}
               </div>
             )}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tên danh mục *</label>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Tên danh mục *</label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="VD: Đồ uống"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Slug</label>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Slug</label>
               <Input
                 value={form.slug}
                 onChange={(e) => setForm({ ...form, slug: e.target.value })}
                 placeholder="Để trống để tự động sinh từ tên"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Mô tả</label>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Mô tả</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={3}
-                className="w-full rounded-lg border border-input bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="Mô tả (không bắt buộc)"
               />
             </div>
@@ -445,14 +381,14 @@ export function CategoryManagement() {
                   onChange={(e) => setForm({ ...form, active: e.target.checked })}
                   className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm font-medium">Hoạt động</span>
+                <span className="text-xs font-medium">Hoạt động</span>
               </label>
             </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={resetForm}>Hủy</Button>
-              <Button type="submit" disabled={saving}>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={resetForm} className="rounded-md border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent">Hủy</button>
+              <button type="submit" disabled={saving} className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
                 {saving ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Thêm danh mục'}
-              </Button>
+              </button>
             </div>
           </form>
         </DialogContent>
@@ -480,84 +416,6 @@ export function CategoryManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Category Detail */}
-      <Dialog open={!!viewingId} onOpenChange={(open) => { if (!open) setViewingId(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Chi tiết danh mục</DialogTitle>
-            <DialogDescription>Thông tin đầy đủ và danh sách món ăn thuộc danh mục này</DialogDescription>
-          </DialogHeader>
-
-          {viewingLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Đang tải...</p>
-          ) : !viewingCategory ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Không tìm thấy danh mục.</p>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold text-foreground">{viewingCategory.name}</h3>
-                  {viewingCategory.deletedAt ? (
-                    <Badge variant="destructive">Đã xóa</Badge>
-                  ) : viewingCategory.active ? (
-                    <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Hoạt động</Badge>
-                  ) : (
-                    <Badge variant="secondary">Ẩn</Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">Slug: {viewingCategory.slug}</p>
-              </div>
-
-              {viewingCategory.description && (
-                <p className="text-sm text-foreground">{viewingCategory.description}</p>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Ngày tạo</p>
-                  <p className="text-foreground">{new Date(viewingCategory.createdAt).toLocaleDateString('vi-VN')}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Cập nhật gần nhất</p>
-                  <p className="text-foreground">{new Date(viewingCategory.updatedAt).toLocaleDateString('vi-VN')}</p>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <UtensilsCrossed className="w-4 h-4 text-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">
-                    Món ăn thuộc danh mục này ({viewingCategory.menuItems.length})
-                  </p>
-                </div>
-                {viewingCategory.menuItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Chưa có món ăn nào thuộc danh mục này.</p>
-                ) : (
-                  <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                    {viewingCategory.menuItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border text-sm">
-                        <span className="text-foreground">{item.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{item.price.toLocaleString()} ₫</span>
-                          {!item.available && <Badge variant="secondary" className="text-xs">Ngừng bán</Badge>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button type="button" variant="outline" onClick={() => setViewingId(null)}>
-                  <X className="w-4 h-4 mr-1" />
-                  Đóng
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

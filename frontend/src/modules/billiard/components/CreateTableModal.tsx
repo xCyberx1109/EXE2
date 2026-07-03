@@ -107,19 +107,19 @@ export function CreateTableModal({ mode, open, onOpenChange, onSuccess, tables }
           <DialogDescription>Tạo bàn mới trên sơ đồ.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className="space-y-1.5">
+          <div className="space-y-1.5">
             <Label htmlFor="tableCode">Mã bàn *</Label>
             <Input id="tableCode" placeholder="VD: B01" value={tableCode} onChange={(e) => setTableCode(e.target.value)} />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="tableName">Tên bàn</Label>
             <Input id="tableName" placeholder="VD: Bàn Pool 1" value={tableName} onChange={(e) => setTableName(e.target.value)} />
           </div>
 
           {mode === 'BILLIARD' && (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="tableType">Loại bàn</Label>
             <Select value={tableType} onValueChange={(v: string) => setTableType(v)}>
               <SelectTrigger id="tableType"><SelectValue /></SelectTrigger>
@@ -132,12 +132,12 @@ export function CreateTableModal({ mode, open, onOpenChange, onSuccess, tables }
           </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
               <Label htmlFor="xPercent">Vị trí X (%)</Label>
               <Input id="xPercent" type="number" step="0.5" min="0" max="100" placeholder={`Auto: ${autoPos.posX}%`} value={xPercent} onChange={(e) => setXPercent(e.target.value)} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="yPercent">Vị trí Y (%)</Label>
               <Input id="yPercent" type="number" step="0.5" min="0" max="100" placeholder={`Auto: ${autoPos.posY}%`} value={yPercent} onChange={(e) => setYPercent(e.target.value)} />
             </div>
@@ -146,13 +146,13 @@ export function CreateTableModal({ mode, open, onOpenChange, onSuccess, tables }
           {hasOverlap && <p className="text-xs text-red-500">Vị trí này bị chồng lên với bàn khác.</p>}
 
           {!isRestaurantMode && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="hourlyRate">Giá giờ</Label>
               <Input id="hourlyRate" type="number" placeholder="80000" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="capacity">Sức chứa</Label>
             <Input id="capacity" type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} />
           </div>
@@ -161,7 +161,7 @@ export function CreateTableModal({ mode, open, onOpenChange, onSuccess, tables }
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
           <Button onClick={handleSubmit.run} disabled={handleSubmit.isBusy || !tableCode.trim() || hasOverlap || createTable.isPending || createRestaurantTable.isPending}>
-            {(handleSubmit.isBusy || createTable.isPending || createRestaurantTable.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+            {(handleSubmit.isBusy || createTable.isPending || createRestaurantTable.isPending) && <Loader2 className="size-3.5 animate-spin" />}
             Tạo bàn
           </Button>
         </DialogFooter>

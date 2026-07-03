@@ -139,9 +139,9 @@ export function PosDeviceManagerPage() {
                 Mã thiết bị và mã PIN sẽ được tạo để kích hoạt lần đầu.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-1.5 py-4">
               <div>
-                <label className="text-sm font-medium">Tên thiết bị</label>
+                <label className="text-xs font-medium">Tên thiết bị</label>
                 <Input
                   value={newDevice.name}
                   onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
@@ -149,7 +149,7 @@ export function PosDeviceManagerPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Loại</label>
+                <label className="text-xs font-medium">Loại</label>
                 <Select
                   value={newDevice.template}
                   onValueChange={(v) => setNewDevice({ ...newDevice, template: v as PosMachineTemplate })}
@@ -172,7 +172,7 @@ export function PosDeviceManagerPage() {
               <Alert className="bg-green-50 border-green-200">
                 <AlertDescription>
                   <div className="font-bold mb-2">Đã tạo thiết bị! Chia sẻ PIN với người thiết lập:</div>
-                  <div className="space-y-1 font-mono text-sm">
+                  <div className="space-y-1 font-mono text-xs">
                     <div>PIN: <strong className="text-lg">{newDeviceResult.setupPin}</strong></div>
                   </div>
                 </AlertDescription>
@@ -217,7 +217,7 @@ export function PosDeviceManagerPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5">
           {devices.map((device) => (
             <Card key={device.id} className={!device.active ? 'opacity-60' : ''}>
               <CardHeader className="pb-2">
@@ -231,7 +231,7 @@ export function PosDeviceManagerPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Template</span>
                     <span>{device.template}</span>
@@ -256,7 +256,7 @@ export function PosDeviceManagerPage() {
                     className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
                     title={device.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
                   >
-                    <Lock className="w-4 h-4" />
+                    <Lock className="size-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -265,7 +265,7 @@ export function PosDeviceManagerPage() {
                     className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
                     title="Xóa"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="size-3.5" />
                   </Button>
                 </div>
               </CardContent>
@@ -286,9 +286,9 @@ export function PosDeviceManagerPage() {
           {deviceLogs.length === 0 ? (
             <p className="text-gray-500 text-center py-4">Không tìm thấy nhật ký</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {deviceLogs.map((log) => (
-                <div key={log.id} className="p-3 bg-gray-50 rounded-lg text-sm">
+                <div key={log.id} className="p-3 bg-gray-50 rounded-md text-xs">
                   <div className="flex justify-between">
                     <span className="font-medium">{log.action}</span>
                     <span className="text-gray-400 text-xs">

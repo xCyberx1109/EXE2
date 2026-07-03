@@ -13,6 +13,7 @@ import type {
   TableItem, OrderDetail, DailyOrdersResponse, InventoryStats,
   PosDeviceV2,
   DeleteDependencyReport, InventoryIssue, PaginatedResponse, EmployeeFormData,
+  PermissionTemplatesResponse,
 } from '../types';
 import type { MenuItemPayload } from './services';
 
@@ -213,6 +214,14 @@ export function useInventoryItems(filters?: { page?: number; limit?: number; sea
       if (Array.isArray(data)) return { data, pagination: undefined as any };
       return data;
     },
+  });
+}
+
+export function useSellableItems() {
+  return useQuery({
+    queryKey: ['inventory', 'sellable'],
+    queryFn: () => inventoryApi.listSellable(),
+    staleTime: 1000 * 30,
   });
 }
 
@@ -920,6 +929,32 @@ export function useDeleteEmployeeMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => employeeApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
+    },
+  });
+}
+
+export function usePermissionTemplates() {
+  return useQuery({
+    queryKey: ['permission-templates'],
+    queryFn: () => employeeApi.getPermissionTemplates(),
+  });
+}
+
+export function useEmployeePermissions(id: string) {
+  return useQuery({
+    queryKey: ['employee-permissions', id],
+    queryFn: () => employeeApi.getPermissions(id),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateEmployeePermissions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, permissionIds }: { id: string; permissionIds: string[] }) =>
+      employeeApi.updatePermissions(id, permissionIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
     },

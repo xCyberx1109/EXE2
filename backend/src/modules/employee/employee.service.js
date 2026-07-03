@@ -26,40 +26,77 @@ function mapEmployee(emp) {
   };
 }
 
+async function setEmployeePermissions(employeeId, permissionIds) {
+  await prisma.employeePermission.deleteMany({ where: { employeeId } });
+  if (permissionIds && permissionIds.length > 0) {
+    await prisma.employeePermission.createMany({
+      data: permissionIds.map(permissionId => ({
+        employeeId,
+        permissionId,
+      })),
+    });
+  }
+}
+
 export const employeeService = {
+  async loginByPin(pinCode) {
+    const employees = await prisma.employee.findMany({
+      where: { status: 'ACTIVE', deletedAt: null },
+      include: {
+        permissions: { include: { permission: true } },
+      },
+    });
+
+    let matchedEmp = null;
+    for (const emp of employees) {
+      const valid = await bcrypt.compare(pinCode, emp.pinCode);
+      if (valid) {
+        matchedEmp = emp;
+        break;
+      }
+    }
+
+    if (!matchedEmp) throw new AppError('Mã PIN không đúng', 401);
+
+    const permissions = matchedEmp.permissions.map(ep => ep.permission.code);
+    return {
+      employee: mapEmployee(matchedEmp),
+      permissions,
+    };
+  },
+
+  async updateLastLogin(id) {
+    return prisma.employee.update({ where: { id }, data: { lastLoginAt: new Date() } });
+  },
+
   async list(accountId, { search, status, page, limit } = {}) {
     if (page && limit) {
       const { page: p, limit: l } = parsePagination({ page, limit });
       const [employees, total] = await employeeRepository.findByAccountId(accountId, { search, status, page: p, limit: l });
-      const result = [];
-      for (const emp of employees) {
-        const assigned = await employeeRepository.findAssignedMachineIds(emp.id);
-        result.push({ ...mapEmployee(emp), assignedMachineIds: assigned.map((a) => a.posMachineId) });
-      }
-      return paginatedResponse(result, total, { page: p, limit: l });
+      return paginatedResponse(employees.map(mapEmployee), total, { page: p, limit: l });
     }
     const employees = await employeeRepository.findByAccountId(accountId, { search, status });
-    const result = [];
-    for (const emp of employees) {
-      const assigned = await employeeRepository.findAssignedMachineIds(emp.id);
-      result.push({ ...mapEmployee(emp), assignedMachineIds: assigned.map((a) => a.posMachineId) });
-    }
-    return result;
+    return employees.map(mapEmployee);
   },
 
   async getById(id, accountId) {
     const emp = await prisma.employee.findFirst({
       where: { id, accountId, deletedAt: null },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
+      },
     });
     if (!emp) throw new AppError('Không tìm thấy nhân viên', 404);
-    const assigned = await employeeRepository.findAssignedMachineIds(emp.id);
     return {
       ...mapEmployee(emp),
-      assignedMachineIds: assigned.map((a) => a.posMachineId),
+      permissions: emp.permissions.map(ep => ep.permission.code),
+      permissionIds: emp.permissions.map(ep => ep.permission.id),
     };
   },
 
-  async create(accountId, { employeeCode, fullName, phone, email, pinCode: inputPin, status, assignedMachineIds }, req) {
+  async create(accountId, { employeeCode, fullName, phone, email, pinCode: inputPin, status, permissionIds }, req) {
     const existing = await prisma.employee.findFirst({
       where: { accountId, employeeCode, deletedAt: null },
     });
@@ -72,31 +109,29 @@ export const employeeService = {
 
     const hashedPin = await bcrypt.hash(rawPin, SALT_ROUNDS);
 
-    const emp = await employeeRepository.create({
-      accountId,
-      employeeCode,
-      fullName: fullName.trim(),
-      phone: phone?.trim() || null,
-      email: email?.trim() || null,
-      pinCode: hashedPin,
-      status: status || 'ACTIVE',
+    const emp = await prisma.employee.create({
+      data: {
+        accountId,
+        employeeCode,
+        fullName: fullName.trim(),
+        phone: phone?.trim() || null,
+        email: email?.trim() || null,
+        pinCode: hashedPin,
+        status: status || 'ACTIVE',
+      },
     });
 
-    if (assignedMachineIds && assignedMachineIds.length > 0) {
-      await employeeRepository.assignMachines(emp.id, assignedMachineIds);
+    if (permissionIds && permissionIds.length > 0) {
+      await setEmployeePermissions(emp.id, permissionIds);
     }
 
-    const assigned = await employeeRepository.findAssignedMachineIds(emp.id);
     return {
-      employee: {
-        ...mapEmployee(emp),
-        assignedMachineIds: assigned.map((a) => a.posMachineId),
-      },
+      employee: mapEmployee(emp),
       generatedPin: inputPin ? undefined : rawPin,
     };
   },
 
-  async update(id, accountId, { employeeCode, fullName, phone, email, pinCode, status, assignedMachineIds }, req) {
+  async update(id, accountId, { employeeCode, fullName, phone, email, pinCode, status, permissionIds }, req) {
     const emp = await prisma.employee.findFirst({
       where: { id, accountId, deletedAt: null },
     });
@@ -122,15 +157,11 @@ export const employeeService = {
 
     const updated = await employeeRepository.update(id, data);
 
-    if (assignedMachineIds !== undefined) {
-      await employeeRepository.assignMachines(id, assignedMachineIds);
+    if (permissionIds !== undefined) {
+      await setEmployeePermissions(id, permissionIds);
     }
 
-    const assigned = await employeeRepository.findAssignedMachineIds(id);
-    return {
-      ...mapEmployee(updated),
-      assignedMachineIds: assigned.map((a) => a.posMachineId),
-    };
+    return mapEmployee(updated);
   },
 
   async resetPin(id, accountId) {

@@ -67,10 +67,10 @@ export function KioskPOS() {
               </CardHeader>
               <CardContent>
                 <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
                   <Input className="pl-9" placeholder="Tìm món..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
-                <p className="text-sm text-gray-400 text-center py-8">
+                <p className="text-xs text-gray-400 text-center py-8">
                   Chọn món từ thực đơn để thêm vào giỏ
                 </p>
               </CardContent>
@@ -81,19 +81,19 @@ export function KioskPOS() {
           <div>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4" />
+                <CardTitle className="text-base flex items-center gap-1.5">
+                  <ShoppingCart className="size-3.5" />
                   Giỏ hàng
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {cart.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-6">Giỏ hàng trống</p>
+                  <p className="text-xs text-gray-400 text-center py-6">Giỏ hàng trống</p>
                 ) : (
                   <div className="space-y-2">
                     {cart.map((item) => (
                       <div key={item.menuItemId} className="flex items-center justify-between py-1 border-b last:border-0">
-                        <div className="flex-1 text-sm min-w-0">
+                        <div className="flex-1 text-xs min-w-0">
                           <p className="font-medium truncate">{item.name}</p>
                           <p className="text-xs text-gray-500">{item.price.toLocaleString()}đ</p>
                         </div>
@@ -101,7 +101,7 @@ export function KioskPOS() {
                           <button onClick={() => updateQuantity(item.menuItemId, -1)} className="p-1 hover:bg-gray-100 rounded">
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="w-6 text-center text-sm">{item.quantity}</span>
+                          <span className="w-6 text-center text-xs">{item.quantity}</span>
                           <button onClick={() => updateQuantity(item.menuItemId, 1)} className="p-1 hover:bg-gray-100 rounded">
                             <Plus className="w-3 h-3" />
                           </button>
@@ -129,22 +129,22 @@ export function KioskPOS() {
             <CardTitle className="flex items-center justify-between">
               <span>Xác nhận đơn hàng</span>
               <Button variant="ghost" size="sm" onClick={() => setStep('menu')}>
-                <ArrowLeft className="w-4 h-4 mr-1" /> Quay lại
+                <ArrowLeft className="size-3.5 mr-1" /> Quay lại
               </Button>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-2">
             <div>
-              <label className="text-sm font-medium">Họ tên (không bắt buộc)</label>
+              <label className="text-xs font-medium">Họ tên (không bắt buộc)</label>
               <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nhập tên của bạn" />
             </div>
             <div>
-              <label className="text-sm font-medium">Số điện thoại (không bắt buộc)</label>
+              <label className="text-xs font-medium">Số điện thoại (không bắt buộc)</label>
               <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Nhập số điện thoại" />
             </div>
                 <div className="border-t pt-4">
                   {cart.map((item) => (
-                    <div key={item.menuItemId} className="flex justify-between text-sm py-1">
+                    <div key={item.menuItemId} className="flex justify-between text-xs py-1">
                       <span className="truncate">x{item.quantity} {item.name}</span>
                   <span>{(item.price * item.quantity).toLocaleString()}đ</span>
                 </div>
@@ -163,13 +163,13 @@ export function KioskPOS() {
 
       {step === 'payment' && (
         <div className="text-center py-12">
-          <div className="max-w-sm mx-auto space-y-4">
+          <div className="max-w-sm mx-auto space-y-2">
             <QrCode className="w-32 h-32 mx-auto text-blue-600" />
-            <h2 className="text-xl font-bold">Quét mã QR để thanh toán</h2>
+            <h2 className="text-lg font-bold">Quét mã QR để thanh toán</h2>
             <p className="text-gray-500">
               Số tiền: <span className="font-bold text-lg">{subtotal.toLocaleString()}đ</span>
             </p>
-            <Badge variant="secondary" className="text-sm py-1 px-3">
+            <Badge variant="secondary" className="text-xs py-1 px-3">
               Chờ thanh toán...
             </Badge>
           </div>

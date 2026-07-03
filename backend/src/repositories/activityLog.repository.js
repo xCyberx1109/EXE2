@@ -11,14 +11,6 @@ export const activityLogRepository = {
       include: { account: { select: { id: true, fullName: true } } },
     }),
 
-  findByDevice: (posDeviceId, limit = 50) =>
-    prisma.activityLog.findMany({
-      where: { posDeviceId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      include: { account: { select: { id: true, fullName: true } } },
-    }),
-
   findByEmployee: (employeeId, { page = 1, limit = 20, action, module, startDate, endDate } = {}) => {
     const where = { employeeId };
     if (action) where.action = action;

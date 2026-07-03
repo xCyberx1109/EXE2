@@ -177,7 +177,7 @@ export const orderService = {
   },
 
   /** Order Queue POS - lấy danh sách order queue */
-  async listQueueOrders(user, posDevice, { search, status, paymentStatus } = {}) {
+  async listQueueOrders(user, { search, status, paymentStatus } = {}) {
     const validStatuses = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
     const statusFilter = status ? String(status).toUpperCase() : null;
     if (statusFilter && !validStatuses.includes(statusFilter)) {
@@ -202,33 +202,6 @@ export const orderService = {
     const accountId = user.accountId || user.id;
     where.accountId = accountId;
 
-    // ── Filter theo posDeviceId cho CASHIER / CASHIER_KITCHEN ─────────────────
-    // machineId lấy từ posDevice (auth middleware) hoặc user.machineId (compat)
-    const machineId = posDevice?.id || user?.machineId || null;
-    const template = posDevice?.template || null;
-
-    // KITCHEN không filter posDeviceId — thấy toàn bộ đơn cần chế biến
-    // CASHIER / CASHIER_KITCHEN chỉ thấy đơn của chính máy đó
-    // paymentStatus=PAID là request từ OrdersToMakePanel (kitchen view) → không filter
-    const isKitchenView = paymentStatus === 'PAID';
-    const shouldFilterByDevice =
-      machineId &&
-      !isKitchenView &&
-      template !== 'KITCHEN';
-
-    if (shouldFilterByDevice) {
-      where.posDeviceId = machineId;
-    }
-
-    console.log('[ORDER QUEUE FILTER]', {
-      template: template ?? 'unknown (account user)',
-      machineId: machineId ?? 'none',
-      appliedFilter: shouldFilterByDevice ? `posDeviceId = ${machineId}` : 'none (kitchen or account view)',
-      isKitchenView,
-      paymentStatus,
-      accountId,
-    });
-
     if (search) {
       where.OR = [
         { orderNumber: { contains: search } },
@@ -240,7 +213,7 @@ export const orderService = {
   },
 
   /** Tạo Order Queue POS (không gắn bàn) */
-  async createQueueOrder(body, user = null, posDevice = null) {
+  async createQueueOrder(body, user = null) {
     console.log("[REQUEST BODY]", JSON.stringify(body, null, 2));
 
     const normalizedItems = await normalizeOrderItems(body.items);
@@ -290,20 +263,6 @@ export const orderService = {
       items: orderItemsData.length > 0 ? { create: orderItemsData } : undefined,
     };
 
-    // Tự động inject posDeviceId từ POS Machine auth context
-    // Ưu tiên: posDevice.id (auth middleware) > user.machineId (compat) > body.posDeviceId (legacy)
-    const resolvedPosDeviceId = posDevice?.id || user?.machineId || body.posDeviceId || null;
-    if (resolvedPosDeviceId) {
-      orderData.posDeviceId = resolvedPosDeviceId;
-    }
-
-    console.log('[ORDER QUEUE FILTER]', {
-      template: posDevice?.template ?? 'unknown (account user)',
-      machineId: resolvedPosDeviceId ?? 'none',
-      appliedFilter: resolvedPosDeviceId ? `posDeviceId = ${resolvedPosDeviceId}` : 'none',
-      action: 'CREATE',
-    });
-
     console.log("[ORDER PAYLOAD]", JSON.stringify(orderData, null, 2));
 
     // Tao don + giu cho ton kho trong cung 1 transaction: neu khong du hang kha dung
@@ -330,7 +289,6 @@ export const orderService = {
     logAction({
       accountId: order.accountId,
       employeeId: user?.employeeId,
-      posDeviceId: order.posDeviceId,
       action: 'ORDER_CREATED',
       module: 'POS_ORDER',
       details: { orderId: order.id, orderNumber: order.orderNumber, itemCount: orderItemsData.length, total: order.total, source: 'ORDER_QUEUE_POS' },
@@ -410,7 +368,6 @@ export const orderService = {
     logAction({
       accountId: order.accountId,
       employeeId: user?.employeeId,
-      posDeviceId: order.posDeviceId,
       action: 'ORDER_UPDATED',
       module: 'POS_ORDER',
       details: { orderId: order.id, orderNumber: order.orderNumber, changes: Object.keys(updateData), itemsReplaced: needsItems },
@@ -436,7 +393,7 @@ export const orderService = {
 
       const method = paymentMethod.toUpperCase();
       const paymentMethodFinal = ['CASH', 'CARD', 'BANKING', 'E_WALLET', 'OTHER'].includes(method) ? method : 'CASH';
-      const userId = user ? user.id : null;
+      const userId = user ? (user.accountId || user.id) : null;
 
       console.log(`[CHECKOUT] Start queue payment order=${id} method=${paymentMethodFinal}`);
       console.log("[ORDER DATA]", JSON.stringify({
@@ -544,11 +501,10 @@ export const orderService = {
 
       logAction({
         accountId: order.accountId,
-        employeeId: user?.employeeId,
-        posDeviceId: order.posDeviceId,
-        action: 'ORDER_PAID',
-        module: 'POS_ORDER',
-        details: { orderId: order.id, orderNumber: order.orderNumber, total: Number(order.total), paymentMethod: paymentMethodFinal, itemCount: beforeItems.length },
+      employeeId: user?.employeeId,
+      action: 'ORDER_PAID',
+      module: 'POS_ORDER',
+      details: { orderId: order.id, orderNumber: order.orderNumber, total: Number(order.total), paymentMethod: paymentMethodFinal, itemCount: beforeItems.length },
       });
 
       return mapPosOrder(updated);
@@ -600,7 +556,6 @@ export const orderService = {
     logAction({
       accountId: order.accountId,
       employeeId: user?.employeeId,
-      posDeviceId: order.posDeviceId,
       action: 'ORDER_CANCELLED',
       module: 'POS_ORDER',
       details: { orderId: order.id, orderNumber: order.orderNumber },
@@ -767,17 +722,12 @@ export const orderService = {
       items: { create: orderItemsData },
     };
 
-    if (body.posDeviceId) {
-      orderData.posDeviceId = body.posDeviceId;
-    }
-
     console.log("[ORDER CREATE DATA]", JSON.stringify(orderData, null, 2));
     const order = await orderRepository.create(orderData);
 
     logAction({
       accountId: order.accountId,
       employeeId: user?.employeeId,
-      posDeviceId: order.posDeviceId,
       action: 'ORDER_CREATED',
       module: 'POS_ORDER',
       details: { orderId: order.id, orderNumber: order.orderNumber, tableNumber, itemCount: orderItemsData.length, total: order.total, source: order.source },
@@ -799,7 +749,6 @@ export const orderService = {
     logAction({
       accountId: order.accountId,
       employeeId: user?.employeeId,
-      posDeviceId: order.posDeviceId,
       action: 'ORDER_DELETED',
       module: 'POS_ORDER',
       details: { orderId: order.id, orderNumber: order.orderNumber },
@@ -822,7 +771,7 @@ export const orderService = {
       const method = paymentMethod.toUpperCase();
       const paymentMethodFinal = ['CASH', 'CARD', 'BANKING', 'E_WALLET', 'OTHER'].includes(method) ? method : 'CASH';
       const completed = [];
-     const userId = user ? user.id : null;
+     const userId = user ? (user.accountId || user.id) : null;
 
       for (const order of orders) {
         console.log(`[CHECKOUT] Start table payment order=${order.id} table=${tableNumber}`);
@@ -865,9 +814,8 @@ export const orderService = {
 
         logAction({
           accountId: order.accountId,
-          employeeId: user?.employeeId,
-          posDeviceId: order.posDeviceId,
-          action: 'ORDER_PAID',
+        employeeId: user?.employeeId,
+        action: 'ORDER_PAID',
           module: 'POS_ORDER',
           details: { orderId: order.id, orderNumber: order.orderNumber, total: Number(order.total), paymentMethod: paymentMethodFinal, tableNumber },
         });

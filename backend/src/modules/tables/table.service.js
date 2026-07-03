@@ -6,8 +6,9 @@ import { tableRepository } from '../../repositories/table.repository.js';
 import { rectsOverlap, findAvailablePosition } from '../../utils/tableOverlap.js';
 
 export const tableService = {
-  async list(user, { page, limit } = {}) {
-    const where = buildBranchWhere(user, { isActive: true }, 'accountId');
+  async list(user, { page, limit, mode } = {}) {
+    const additionalWhere = mode ? { isActive: true, mode } : { isActive: true };
+    const where = buildBranchWhere(user, additionalWhere, 'accountId');
     if (page && limit) {
       const { page: p, limit: l } = parsePagination({ page, limit });
       const [tables, total] = await tableRepository.findMany(where, { page: p, limit: l });
@@ -130,11 +131,12 @@ export const tableService = {
     await tableRepository.softDelete(id);
   },
 
-  async getPosTables(user) {
+  async getPosTables(user, mode) {
     const accountId = user?.accountId || user?.id || user?.branch?.id;
     console.log('[getPosTables] accountId:', accountId, 'user:', user?.id || 'device:' + user?.id);
 
-    const where = buildBranchWhere(user, { isActive: true }, 'accountId');
+    const additionalWhere = mode ? { isActive: true, mode } : { isActive: true };
+    const where = buildBranchWhere(user, additionalWhere, 'accountId');
     console.log('[getPosTables] query where:', JSON.stringify(where));
 
     let tables;

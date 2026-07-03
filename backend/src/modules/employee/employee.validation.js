@@ -26,14 +26,10 @@ export const createEmployeeRules = [
     .optional()
     .isIn(['ACTIVE', 'INACTIVE', 'SUSPENDED'])
     .withMessage('Trạng thái không hợp lệ'),
-  body('assignedMachineIds')
+  body('permissionIds')
     .optional()
     .isArray()
-    .withMessage('Danh sách máy POS không hợp lệ'),
-  body('assignedMachineIds.*')
-    .optional()
-    .isString()
-    .notEmpty(),
+    .withMessage('Danh sách quyền không hợp lệ'),
 ];
 
 export const updateEmployeeRules = [
@@ -64,14 +60,10 @@ export const updateEmployeeRules = [
     .optional()
     .isIn(['ACTIVE', 'INACTIVE', 'SUSPENDED'])
     .withMessage('Trạng thái không hợp lệ'),
-  body('assignedMachineIds')
+  body('permissionIds')
     .optional()
     .isArray()
-    .withMessage('Danh sách máy POS không hợp lệ'),
-  body('assignedMachineIds.*')
-    .optional()
-    .isString()
-    .notEmpty(),
+    .withMessage('Danh sách quyền không hợp lệ'),
 ];
 
 export const employeeIdParam = [

@@ -58,8 +58,8 @@ export function EditTablePanel({ mode, table, onSuccess, onDirtyChange }: EditTa
   const [saving, setSaving] = useState(false);
   const dirtyRef = useRef(false);
 
-  const { data: billiardTables } = useBilliardTables();
-  const { data: restaurantTables } = useRestaurantTables();
+  const { data: billiardTables } = useBilliardTables(mode === 'BILLIARD');
+  const { data: restaurantTables } = useRestaurantTables(mode === 'RESTAURANT');
   const updateRestaurantTable = useUpdateRestaurantTable();
   const allTables = mode === 'RESTAURANT' ? restaurantTables : billiardTables;
 
@@ -142,8 +142,8 @@ export function EditTablePanel({ mode, table, onSuccess, onDirtyChange }: EditTa
   }, { delay: 500 });
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-1.5">
+      <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
           <Label htmlFor="et-tableCode">Mã bàn</Label>
           <Input id="et-tableCode" value={tableCode} onChange={(e) => setTableCode(e.target.value)} />
@@ -205,7 +205,7 @@ export function EditTablePanel({ mode, table, onSuccess, onDirtyChange }: EditTa
       )}
 
       <Button className="w-full" onClick={handleSave.run} disabled={handleSave.isBusy || !computeDirty() || hasOverlap || saving}>
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
         {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
       </Button>
     </div>

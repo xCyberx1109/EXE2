@@ -31,7 +31,7 @@ const INITIAL_TABLES: TabInfo[] = [
 ];
 
 export function CashierPOS() {
-  const { hasDevicePermission, branchInfo } = useAuth();
+  const { hasPermission } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tableIdParam = searchParams.get('tableId');
@@ -64,25 +64,25 @@ export function CashierPOS() {
     }
   }, [tableIdParam, tableCodeParam]);
 
-  const canProcessPayment = hasDevicePermission('payment:process');
-  const canSplitBill = hasDevicePermission('bill:split');
-  const canPrintReceipt = hasDevicePermission('receipt:print');
+  const canProcessPayment = hasPermission('ORDER_PAYMENT_PROCESS');
+  const canSplitBill = hasPermission('ORDER_SPLIT');
+  const canPrintReceipt = hasPermission('ORDER_PRINT_RECEIPT');
 
   const currentTab = tables.find((t) => t.id === selectedTable);
 
   return (
     <div className="h-full overflow-y-auto">
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-2 space-y-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className="lg:col-span-2 space-y-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4" />
+            <CardTitle className="text-xs flex items-center gap-1.5">
+              <ShoppingCart className="size-3.5" />
               Chọn bàn
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
               {tables.map((table) => (
                 <button
                   key={table.id}
@@ -90,7 +90,7 @@ export function CashierPOS() {
                     setSelectedTable(table.id);
                     setSelectedTableId(table.tableId || null);
                   }}
-                  className={`p-3 rounded-lg text-center font-medium text-sm transition-colors ${
+                  className={`p-3 rounded-md text-center font-medium text-xs transition-colors ${
                     selectedTable === table.id
                       ? 'bg-blue-600 text-white'
                       : table.items.length > 0
@@ -112,11 +112,11 @@ export function CashierPOS() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Tìm món</CardTitle>
+            <CardTitle className="text-xs">Tìm món</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
               <Input
                 className="pl-9"
                 placeholder="Nhập tên món..."
@@ -128,35 +128,35 @@ export function CashierPOS() {
         </Card>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center justify-between">
+            <CardTitle className="text-xs flex items-center justify-between">
               <span>Giỏ hàng</span>
               {currentTab && <Badge>Bàn {currentTab.tableNumber}</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {!currentTab ? (
-              <p className="text-sm text-gray-400 text-center py-8">Chọn bàn để bắt đầu</p>
+              <p className="text-xs text-gray-400 text-center py-6">Chọn bàn để bắt đầu</p>
             ) : currentTab.items.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">Giỏ hàng trống</p>
+              <p className="text-xs text-gray-400 text-center py-6">Giỏ hàng trống</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {currentTab.items.map((item, idx) => (
                   <div key={idx} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      <p className="text-xs font-medium truncate">{item.name}</p>
                       <p className="text-xs text-gray-500">
                         {item.price.toLocaleString()}đ x {item.quantity}
                       </p>
                     </div>
-                    <div className="text-sm font-bold">
+                    <div className="text-xs font-bold">
                       {(item.price * item.quantity).toLocaleString()}đ
                     </div>
                   </div>
                 ))}
-                <div className="flex justify-between pt-2 font-bold text-base border-t">
+                <div className="flex justify-between pt-2 font-bold text-xs border-t">
                   <span>Tổng</span>
                   <span>{currentTab.subtotal.toLocaleString()}đ</span>
                 </div>
@@ -165,27 +165,27 @@ export function CashierPOS() {
           </CardContent>
         </Card>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {canProcessPayment && (
             <Button className="w-full" size="lg" disabled={!currentTab || currentTab.items.length === 0}>
-              <DollarSign className="w-4 h-4 mr-2" />
+              <DollarSign className="size-3.5 mr-2" />
               Thanh toán
             </Button>
           )}
           {canSplitBill && (
             <Button variant="outline" className="w-full" disabled={!currentTab || currentTab.items.length === 0}>
-              <Split className="w-4 h-4 mr-2" />
+              <Split className="size-3.5 mr-2" />
               Chia hóa đơn
             </Button>
           )}
           {canPrintReceipt && (
             <Button variant="outline" className="w-full">
-              <Printer className="w-4 h-4 mr-2" />
+              <Printer className="size-3.5 mr-2" />
               In hóa đơn
             </Button>
           )}
           <Button variant="outline" className="w-full">
-            <QrCode className="w-4 h-4 mr-2" />
+            <QrCode className="size-3.5 mr-2" />
             QR Payment
           </Button>
         </div>

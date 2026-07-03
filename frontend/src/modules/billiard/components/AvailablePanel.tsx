@@ -57,17 +57,17 @@ export function AvailablePanel({ mode, table, onSuccess }: AvailablePanelProps) 
 
   if (actionMode === 'none') {
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+      <div className="space-y-1.5">
+        <p className="text-xs text-muted-foreground">
           <span className="font-medium text-green-600 dark:text-green-400">Trống</span> — Bắt đầu chơi hoặc đặt trước bàn này.
         </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <Button className="w-full" onClick={handlePlay.run} disabled={handlePlay.isBusy || playNow.isPending}>
-            {(handlePlay.isBusy || playNow.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {(handlePlay.isBusy || playNow.isPending) ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
             Bắt đầu chơi
           </Button>
           <Button variant="outline" className="w-full" onClick={() => setActionMode('reserve')}>
-            <CalendarClock className="w-4 h-4" />
+            <CalendarClock className="size-3.5" />
             Đặt trước
           </Button>
         </div>
@@ -78,7 +78,7 @@ export function AvailablePanel({ mode, table, onSuccess }: AvailablePanelProps) 
             onClick={disableTableAction.run}
             disabled={disableTableAction.isBusy || disableTable.isPending}
           >
-            {(disableTableAction.isBusy || disableTable.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+            {(disableTableAction.isBusy || disableTable.isPending) ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
             Khóa bàn
           </Button>
         </div>
@@ -87,13 +87,13 @@ export function AvailablePanel({ mode, table, onSuccess }: AvailablePanelProps) 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-sm">Đặt trước bàn</h3>
+        <h3 className="font-medium text-xs">Đặt trước bàn</h3>
         <Button variant="ghost" size="sm" onClick={() => setActionMode('none')}>Quay lại</Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         <div className="space-y-1">
           <Label htmlFor="custName">Tên khách hàng *</Label>
           <Input id="custName" value={custName} onChange={(e) => setCustName(e.target.value)} />
@@ -120,7 +120,7 @@ export function AvailablePanel({ mode, table, onSuccess }: AvailablePanelProps) 
         onClick={handleReserve.run}
         disabled={handleReserve.isBusy || reserve.isPending || !custName.trim() || !reservationDate}
       >
-        {(handleReserve.isBusy || reserve.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+        {(handleReserve.isBusy || reserve.isPending) && <Loader2 className="size-3.5 animate-spin" />}
         Xác nhận đặt trước
       </Button>
     </div>
@@ -150,11 +150,11 @@ function RestaurantAvailablePanel({ table, onSuccess }: { table: BilliardTableWi
 
   if (hasError) {
     return (
-      <div className="text-center space-y-3 py-8">
-        <AlertTriangle className="w-6 h-6 text-red-500 mx-auto" />
-        <p className="text-sm text-red-600">Không thể mở bàn. Vui lòng thử lại.</p>
+      <div className="text-center space-y-1.5 py-8">
+        <AlertTriangle className="size-4 text-red-500 mx-auto" />
+        <p className="text-xs text-red-600">Không thể mở bàn. Vui lòng thử lại.</p>
         <Button variant="outline" size="sm" onClick={handleOpen.run} disabled={handleOpen.isBusy}>
-          {handleOpen.isBusy && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+          {handleOpen.isBusy && <Loader2 className="size-3.5 animate-spin mr-1" />}
           Thử lại
         </Button>
       </div>
@@ -165,9 +165,9 @@ function RestaurantAvailablePanel({ table, onSuccess }: { table: BilliardTableWi
 
   return (
     <div className="flex items-center justify-center py-8">
-      <div className="text-center space-y-3">
-        {isLoading && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />}
-        <p className="text-sm text-muted-foreground">Đang mở bàn...</p>
+      <div className="text-center space-y-1.5">
+        {isLoading && <Loader2 className="size-4 animate-spin text-muted-foreground mx-auto" />}
+        <p className="text-xs text-muted-foreground">Đang mở bàn...</p>
       </div>
     </div>
   );
