@@ -320,9 +320,7 @@ export function PermissionManagement() {
             <Shield className="w-5 h-5 text-primary" />
             Quản lý Phân quyền Tài khoản
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Quản lý gói dịch vụ và quyền truy cập cho từng tài khoản
-          </p>
+       
         </div>
       </div>
 
@@ -798,7 +796,7 @@ function AllPermissionsTab({
   const allCount = permissions.length;
 
   return (
-    <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden">
+    <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden h-151">
       <div className="p-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-2 bg-card sticky top-0 z-10">
         <div className="flex items-center gap-2 flex-1">
           <List className="w-5 h-5 text-muted-foreground" />

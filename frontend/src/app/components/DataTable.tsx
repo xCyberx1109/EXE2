@@ -41,45 +41,83 @@ export function DataTable<T>({
 
   return (
     <>
-      <div className="flex-1 min-h-0 overflow-auto rounded-md border border-border bg-card">
-        <table className="min-w-full divide-y divide-border">
-          <thead className="bg-muted sticky top-0 z-10">
-            <tr>
+      <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-background shadow-sm">
+        <table className="w-full border-collapse">
+          <thead className="sticky top-0 z-20">
+            <tr className="bg-slate-100 dark:bg-zinc-800 border-b border-border">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-1.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${col.headerClassName || ''}`}
+                  className={`
+                    px-6 py-4
+                    text-left
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-wide
+                    text-slate-700
+                    dark:text-slate-300
+                    whitespace-nowrap
+                    ${col.headerClassName || ''}
+                  `}
                 >
                   {col.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+
+          <tbody className="divide-y divide-border bg-white dark:bg-card">
             {loading ? (
               <tr>
-                <td colSpan={colSpan} className="px-3 py-4 text-center text-muted-foreground">
-                  <Loader2 className="inline h-4 w-4 animate-spin" />
-                  <span className="ml-2 text-xs">Đang tải...</span>
+                <td colSpan={colSpan} className="py-12 text-center">
+                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Đang tải...
+                  </p>
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={colSpan} className="px-3 py-4 text-center text-destructive">
+                <td
+                  colSpan={colSpan}
+                  className="py-12 text-center text-sm text-destructive"
+                >
                   {error}
                 </td>
               </tr>
-            ) : !Array.isArray(data) || data.length === 0 ? (
+            ) : data.length === 0 ? (
               <tr>
-                <td colSpan={colSpan} className="px-3 py-4 text-center text-muted-foreground">
+                <td
+                  colSpan={colSpan}
+                  className="py-12 text-center text-sm text-muted-foreground"
+                >
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
               data.map((item) => (
-                <tr key={keyExtractor(item)} className="hover:bg-accent transition">
+                <tr
+                  key={keyExtractor(item)}
+                  className="
+                    transition-colors
+                    hover:bg-slate-50
+                    dark:hover:bg-zinc-800/60
+                  "
+                >
                   {columns.map((col) => (
-                    <td key={col.key} className={`px-1.5 py-1.5 text-xs ${col.className || 'text-foreground'}`}>
+                    <td
+                      key={col.key}
+                      className={`
+                        px-6
+                        py-4
+                        text-sm
+                        text-slate-700
+                        dark:text-slate-200
+                        whitespace-nowrap
+                        ${col.className || ''}
+                      `}
+                    >
                       {col.render(item)}
                     </td>
                   ))}
@@ -89,8 +127,9 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
+
       {pagination && onPageChange && onPageSizeChange && (
-        <div className="flex-shrink-0">
+        <div className="mt-3 flex-shrink-0">
           <DataTablePagination
             page={pagination.page}
             totalPages={pagination.totalPages}

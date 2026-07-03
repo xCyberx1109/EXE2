@@ -61,7 +61,7 @@ export function OrdersToMakePanel({ refreshKey, variant = 'compact' }: { refresh
 
   if (variant === 'full') {
     return (
-      <section className="flex flex-col h-full min-w-0 rounded-lg border border-border bg-card shadow-sm overflow-hidden">
+      <section className="flex flex-col  min-w-0 rounded-lg border border-border bg-card shadow-sm overflow-hidden">
         <div className="shrink-0 border-b border-border p-2 lg:p-3">
           <div className="flex items-center justify-between gap-1.5">
             <div className="min-w-0">
