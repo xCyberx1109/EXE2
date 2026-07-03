@@ -18,7 +18,6 @@ interface CartItem {
 }
 
 export function WaiterPOS() {
-  const { branchInfo } = useAuth();
   const { categories, loading: catsLoading } = useCategories();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);

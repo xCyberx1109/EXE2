@@ -36,7 +36,7 @@ function isAllowedPath(path: string, flatItems: AppMenuItem[]): boolean {
   return flatItems.some((item) => path === item.href || path.startsWith(item.href + '/'));
 }
 
-export function Layout() {
+export function WorkspaceLayout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isReady, isAuthenticated, authMode, user, employee, logout, hasPermission } = useAuth();
@@ -188,9 +188,11 @@ export function Layout() {
       {/* ── Body: Sidebar + Main ──────────────────────────────────────── */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* Sidebar */}
-        <aside className={`flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden shrink-0 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'w-20' : 'w-72'
-          } fixed left-0 top-14 bottom-0 z-30 lg:static lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}>
+        <aside className={`flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden shrink-0 transition-all duration-300 ease-in-out ${
+          sidebarCollapsed ? 'w-20' : 'w-72'
+        } fixed left-0 top-14 bottom-0 z-30 lg:static lg:translate-x-0 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
           <div className="flex flex-col h-full">
             <TooltipProvider delayDuration={0}>
               <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
@@ -211,10 +213,11 @@ export function Layout() {
                             key={item.name}
                             to={item.href}
                             onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${isActive
-                              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                              : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                              } ${sidebarCollapsed ? 'justify-center' : ''}`}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+  isActive
+    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+} ${sidebarCollapsed ? 'justify-center' : ''}`}
                           >
                             <Icon className="size-[18px] flex-shrink-0" />
                             {!sidebarCollapsed && <span className="truncate">{item.name}</span>}
@@ -246,22 +249,8 @@ export function Layout() {
         </aside>
 
         {/* Main content */}
-        <main
-          className="
-flex-1
-min-h-0
-overflow-hidden
-"
-        >
-          <div
-            className="
-h-full
-px-3
-pt-1.5
-pb-3
-overflow-hidden
-"
-          >
+        <main className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+          <div className="px-3 pb-3 pt-1.5 flex-1 min-h-0 flex flex-col">
             <Outlet />
           </div>
         </main>

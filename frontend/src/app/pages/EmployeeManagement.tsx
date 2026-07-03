@@ -281,6 +281,29 @@ export function EmployeeManagement() {
       render: (item) => <span className="font-medium">{item.fullName}</span>,
     },
     {
+      key: 'roles',
+      header: 'Vai trò',
+      headerClassName: 'hidden md:table-cell',
+      className: 'hidden md:table-cell',
+      render: (item) => {
+        const roles = (item.roles || []).filter(r => TEMPLATE_META[r]);
+        if (roles.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+        const badges = roles.slice(0, 2).map(r => (
+          <Badge key={r} variant="secondary" className="text-xs font-normal mr-1">
+            {TEMPLATE_META[r].label}
+          </Badge>
+        ));
+        if (roles.length > 2) {
+          badges.push(
+            <Badge key="+N" variant="outline" className="text-xs font-normal text-muted-foreground">
+              +{roles.length - 2}
+            </Badge>
+          );
+        }
+        return <div className="flex flex-wrap gap-1">{badges}</div>;
+      },
+    },
+    {
       key: 'email',
       header: 'Email',
       headerClassName: 'hidden md:table-cell',
@@ -482,16 +505,9 @@ export function EmployeeManagement() {
                 </div>
               ) : templates.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">Không có mẫu quyền nào</p>
-              ) : (() => {
-                const accountPermissions = user?.permissions ?? [];
-                const visibleTemplates = templates.filter((tpl) =>
-                  tpl.permissionCodes.some((code) => accountPermissions.includes(code)),
-                );
-                return visibleTemplates.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">Không có mẫu phân quyền khả dụng.</p>
-                ) : (
+              ) : (
                 <Accordion type="multiple" className="border rounded-lg">
-                  {visibleTemplates.map((tpl) => {
+                  {templates.map((tpl) => {
                     const tplPermissions = allPermissions.filter((p) =>
                       tpl.permissionCodes.includes(p.code),
                     );
@@ -559,8 +575,7 @@ export function EmployeeManagement() {
                     );
                   })}
                 </Accordion>
-              );
-            })()}
+              )}
             </div>
 
             {formError && (

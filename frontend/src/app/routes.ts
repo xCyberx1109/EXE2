@@ -28,7 +28,6 @@ import { RestaurantManagement } from './pages/RestaurantManagement';
 
 import { useAuth } from './context/AuthContext';
 import { APP_MENU } from '../shared/permissions/menuConfig';
-import type { PosDeviceTypeV2, DevicePermission } from '../shared/types/pos';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RootRedirect: điều hướng từ "/" theo auth state
@@ -61,17 +60,11 @@ function RootRedirect() {
 function withGuard(
   Component: React.ComponentType,
   config: {
-    types?: PosDeviceTypeV2[];
-    perms?: DevicePermission[];
-    moduleName?: string;
     rbacPerms?: string[];
   }
 ) {
   return createElement(ProtectedRoute, {
-    allowedTypes: config.types,
-    requiredPermissions: config.perms,
     requiredRBACPermissions: config.rbacPerms,
-    moduleName: config.moduleName,
     children: createElement(Component),
   });
 }

@@ -803,6 +803,7 @@ export interface Employee {
   updatedAt: string;
   permissions?: string[];
   permissionIds?: string[];
+  roles?: string[];
 }
 
 export interface EmployeeCreateResponse {

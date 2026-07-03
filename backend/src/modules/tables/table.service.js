@@ -58,18 +58,16 @@ export const tableService = {
     const tableType = VALID_TABLE_TYPES.includes(data.tableType) ? data.tableType : 'POOL';
 
     return tableRepository.create({
-      data: {
-        tableCode: data.tableCode,
-        tableName: data.tableName || null,
-        capacity: data.capacity,
-        mode: data.mode || 'BILLIARD',
-        tableType,
-        posX,
-        posY,
-        status: data.status || 'AVAILABLE',
-        hourlyRate: data.hourlyRate ?? 0,
-        accountId,
-      },
+      tableCode: data.tableCode,
+      tableName: data.tableName || null,
+      capacity: data.capacity,
+      mode: data.mode || 'BILLIARD',
+      tableType,
+      posX,
+      posY,
+      status: data.status || 'AVAILABLE',
+      hourlyRate: data.hourlyRate ?? 0,
+      accountId,
     });
   },
 

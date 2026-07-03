@@ -5,9 +5,9 @@ import { toast } from 'sonner';
 import { POS_MACHINE_TEMPLATES, PosMachineTemplate } from '../types';
 
 export function PosMachineHeader() {
-  const { posMachineInfo, posMachineTemplate, logoutPosMachine } = useAuth();
+  const { employee, isEmployeeMode, logoutEmployee } = useAuth();
 
-  if (!posMachineInfo) {
+  if (!employee) {
     return (
       <div className="h-9 bg-card border-b border-border flex items-center px-4 justify-between">
         <div className="flex items-center gap-2">
@@ -25,12 +25,8 @@ export function PosMachineHeader() {
   }
 
   const handleRefresh = () => {
-    // Invalidate any React Query cache
     queryClient.invalidateQueries();
-    
-    // Dispatch a custom event for components using standard useEffect fetching
     window.dispatchEvent(new Event('pos-refresh'));
-    
     toast.success('Đã làm mới dữ liệu máy POS');
   };
 
@@ -42,24 +38,11 @@ export function PosMachineHeader() {
         </div>
         <div className="min-w-0">
           <h2 className="font-semibold text-xs sm:text-sm truncate">
-            {posMachineInfo.name}
+            {employee.fullName}
           </h2>
           <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap overflow-x-auto no-scrollbar">
             <span className="font-medium text-foreground">
-              {posMachineTemplate ? POS_MACHINE_TEMPLATES[posMachineTemplate as PosMachineTemplate] || posMachineTemplate : 'Không xác định'}
-            </span>
-            <span>•</span>
-            <span className="flex items-center gap-1.5">
-              <span
-                className={`w-2 h-2 rounded-full shrink-0 ${
-                  posMachineInfo.status === 'ACTIVE'
-                    ? 'bg-green-500'
-                    : posMachineInfo.status === 'LOCKED'
-                    ? 'bg-red-500'
-                    : 'bg-yellow-500'
-                }`}
-              />
-              {posMachineInfo.status}
+              {employee.employeeCode}
             </span>
           </div>
         </div>
@@ -76,17 +59,7 @@ export function PosMachineHeader() {
         </button>
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-2 text-xs font-medium transition-colors gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          onClick={() => {
-            alert("Lock machine feature coming soon");
-          }}
-        >
-          <Lock className="size-3.5" />
-          <span className="hidden sm:inline">Khóa máy</span>
-        </button>
-        <button
-          type="button"
-          onClick={logoutPosMachine}
+          onClick={logoutEmployee}
           className="inline-flex items-center justify-center rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 px-2 text-xs font-medium transition-colors gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <LogOut className="size-3.5" />

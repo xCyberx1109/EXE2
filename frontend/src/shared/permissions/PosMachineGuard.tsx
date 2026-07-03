@@ -8,7 +8,7 @@ interface PosMachineGuardProps {
 }
 
 export function PosMachineGuard({ children }: PosMachineGuardProps) {
-  const { isReady, isAuthenticated, isPosMachineMode } = useAuth();
+  const { isReady, isAuthenticated, isEmployeeMode } = useAuth();
 
   if (!isReady) {
     return (
@@ -19,7 +19,7 @@ export function PosMachineGuard({ children }: PosMachineGuardProps) {
     );
   }
 
-  if (!isAuthenticated || !isPosMachineMode) {
+  if (!isAuthenticated || !isEmployeeMode) {
     return <Navigate to="/pos-machine/login" replace />;
   }
 

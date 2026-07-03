@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 import { parsePagination, paginatedResponse } from '../../utils/pagination.js';
 import { employeeRepository } from '../../repositories/employee.repository.js';
 import { activityLogRepository } from '../../repositories/activityLog.repository.js';
+import { PERMISSION_TEMPLATES } from '../../utils/permissionTemplates.js';
 
 const SALT_ROUNDS = 10;
 
@@ -11,7 +12,19 @@ function generatePin() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+function resolveRoles(permissionCodes) {
+  const codeSet = new Set(permissionCodes || []);
+  const roles = [];
+  for (const [key, tpl] of Object.entries(PERMISSION_TEMPLATES)) {
+    const hasAll = tpl.permissionCodes.every((code) => codeSet.has(code));
+    if (hasAll) roles.push(key);
+  }
+  return roles;
+}
+
 function mapEmployee(emp) {
+  const permissionCodes = (emp.permissions || []).map((ep) => ep.permission.code);
+  const permissionIds = (emp.permissions || []).map((ep) => ep.permission.id);
   return {
     id: emp.id,
     accountId: emp.accountId,
@@ -23,6 +36,9 @@ function mapEmployee(emp) {
     lastLoginAt: emp.lastLoginAt,
     createdAt: emp.createdAt,
     updatedAt: emp.updatedAt,
+    permissions: permissionCodes,
+    permissionIds,
+    roles: resolveRoles(permissionCodes),
   };
 }
 
@@ -58,10 +74,10 @@ export const employeeService = {
 
     if (!matchedEmp) throw new AppError('Mã PIN không đúng', 401);
 
-    const permissions = matchedEmp.permissions.map(ep => ep.permission.code);
+    const permissionCodes = (matchedEmp.permissions || []).map(ep => ep.permission.code);
     return {
       employee: mapEmployee(matchedEmp),
-      permissions,
+      permissions: permissionCodes,
     };
   },
 
@@ -89,11 +105,7 @@ export const employeeService = {
       },
     });
     if (!emp) throw new AppError('Không tìm thấy nhân viên', 404);
-    return {
-      ...mapEmployee(emp),
-      permissions: emp.permissions.map(ep => ep.permission.code),
-      permissionIds: emp.permissions.map(ep => ep.permission.id),
-    };
+    return mapEmployee(emp);
   },
 
   async create(accountId, { employeeCode, fullName, phone, email, pinCode: inputPin, status, permissionIds }, req) {
@@ -125,8 +137,15 @@ export const employeeService = {
       await setEmployeePermissions(emp.id, permissionIds);
     }
 
+    const created = await prisma.employee.findUnique({
+      where: { id: emp.id },
+      include: {
+        permissions: { include: { permission: true } },
+      },
+    });
+
     return {
-      employee: mapEmployee(emp),
+      employee: mapEmployee(created),
       generatedPin: inputPin ? undefined : rawPin,
     };
   },
@@ -161,7 +180,14 @@ export const employeeService = {
       await setEmployeePermissions(id, permissionIds);
     }
 
-    return mapEmployee(updated);
+    const reloaded = await prisma.employee.findUnique({
+      where: { id },
+      include: {
+        permissions: { include: { permission: true } },
+      },
+    });
+
+    return mapEmployee(reloaded);
   },
 
   async resetPin(id, accountId) {

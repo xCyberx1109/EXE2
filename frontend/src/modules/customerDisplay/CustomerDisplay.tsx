@@ -14,7 +14,6 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export function CustomerDisplay() {
-  const { branchInfo } = useAuth();
   const { data: orders = [] } = useCustomerDisplayOrders();
 
   return (
@@ -22,7 +21,7 @@ export function CustomerDisplay() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">{branchInfo?.name || APP_NAME}</h1>
+          <h1 className="text-3xl font-bold text-gray-800">{APP_NAME}</h1>
           <p className="text-gray-500 mt-1">Trạng thái đơn hàng</p>
         </div>
 

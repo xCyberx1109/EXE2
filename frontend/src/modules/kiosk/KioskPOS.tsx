@@ -15,7 +15,6 @@ interface CartItem {
 }
 
 export function KioskPOS() {
-  const { branchInfo } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -54,7 +53,7 @@ export function KioskPOS() {
     <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold">{branchInfo?.name || APP_NAME}</h1>
+        <h1 className="text-2xl font-bold">{APP_NAME}</h1>
         <p className="text-gray-500">Vui lòng chọn món và tiến hành thanh toán</p>
       </div>
 

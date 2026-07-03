@@ -1,5 +1,11 @@
 import prisma from '../prisma/client.js';
 
+const employeeInclude = {
+  permissions: {
+    include: { permission: true },
+  },
+};
+
 export const employeeRepository = {
   findById: (id) =>
     prisma.employee.findUnique({
@@ -9,6 +15,7 @@ export const employeeRepository = {
   findByIdWithAccount: (id) =>
     prisma.employee.findFirst({
       where: { id, deletedAt: null },
+      include: employeeInclude,
     }),
 
   findByAccountId: (accountId, { search, status, page, limit } = {}) => {
@@ -25,11 +32,11 @@ export const employeeRepository = {
     if (page && limit) {
       const skip = (page - 1) * limit;
       return Promise.all([
-        prisma.employee.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+        prisma.employee.findMany({ where, include: employeeInclude, orderBy: { createdAt: 'desc' }, skip, take: limit }),
         prisma.employee.count({ where }),
       ]);
     }
-    return prisma.employee.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return prisma.employee.findMany({ where, include: employeeInclude, orderBy: { createdAt: 'desc' } });
   },
 
   create: (data) =>
