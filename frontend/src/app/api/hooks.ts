@@ -3,7 +3,6 @@ import { queryKeys } from './queryKeys';
 import {
   authApi, categoryApi, menuApi, inventoryApi,
   dashboardApi, branchApi, inviteApi, tableApi, ordersApi, ordersQueueApi, employeeApi,
-  roleApi,
 } from './services';
 import {
   posDevicesV2Api,
@@ -923,68 +922,6 @@ export function useDeleteEmployeeMutation() {
     mutationFn: (id: string) => employeeApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
-    },
-  });
-}
-
-/* ========================================================================
-   Role Hooks
-   ======================================================================== */
-
-export function useRoleList() {
-  return useQuery({
-    queryKey: queryKeys.roles.all,
-    queryFn: () => roleApi.list(),
-  });
-}
-
-export function useRole(id: string | null) {
-  return useQuery({
-    queryKey: queryKeys.roles.detail(id ?? ''),
-    queryFn: () => roleApi.get(id as string),
-    enabled: !!id,
-  });
-}
-
-export function useCreateRoleMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: { name: string; description?: string }) => roleApi.create(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
-    },
-  });
-}
-
-export function useUpdateRoleMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string }) =>
-      roleApi.update(id, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
-    },
-  });
-}
-
-export function useDeleteRoleMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => roleApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
-    },
-  });
-}
-
-export function useSetRolePermissionsMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, permissionIds }: { id: string; permissionIds: string[] }) =>
-      roleApi.setPermissions(id, permissionIds),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.roles.detail(variables.id) });
     },
   });
 }

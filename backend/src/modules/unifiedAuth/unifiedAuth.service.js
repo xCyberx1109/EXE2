@@ -9,8 +9,7 @@ import { deviceSessionRepository } from '../../repositories/deviceSession.reposi
 import { activityLogRepository } from '../../repositories/activityLog.repository.js';
 import prisma from '../../prisma/client.js';
 import { permissionService } from '../permissions/permission.service.js';
-import { devicePermissionService } from '../permissions/devicePermission.service.js';
-import { getFeaturesForDeviceType, getEnabledFeaturesForDeviceType } from '../permissions/devicePermissions.js';
+import { getPermissionsForDeviceType, getFeaturesForDeviceType, getEnabledFeaturesForDeviceType } from '../permissions/devicePermissions.js';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../../services/email.service.js';
 
 const SALT_ROUNDS = 10;
@@ -256,7 +255,6 @@ export const unifiedAuthService = {
 
     await deviceSessionRepository.create({
       deviceId: device.id,
-      employeeId: matchedEmployee.id,
       tokenHash: deviceTokenHash,
       refreshTokenHash,
       fingerprint: fingerprint || null,
@@ -313,9 +311,7 @@ export const unifiedAuthService = {
 
     const branch = null;
 
-    // Quyen hieu luc = giao giua Role cua nhan vien va quyen theo loai thiet bi -
-    // khop voi cach requireDeviceAuth (auth.js) se tinh lai o moi request sau nay.
-    const permissions = await devicePermissionService.getEffectivePermissions(device, matchedEmployee.id);
+    const permissions = getPermissionsForDeviceType(device.template);
     const features = getFeaturesForDeviceType(device.template);
     const enabledFeatures = getEnabledFeaturesForDeviceType(device.template);
 

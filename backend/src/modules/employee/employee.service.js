@@ -20,20 +20,10 @@ function mapEmployee(emp) {
     phone: emp.phone,
     email: emp.email,
     status: emp.status,
-    roleId: emp.roleId ?? null,
-    roleName: emp.role?.name ?? null,
     lastLoginAt: emp.lastLoginAt,
     createdAt: emp.createdAt,
     updatedAt: emp.updatedAt,
   };
-}
-
-async function assertRoleOwnedByAccount(roleId, accountId) {
-  if (!roleId) return;
-  const role = await prisma.role.findUnique({ where: { id: roleId } });
-  if (!role || role.deletedAt || role.accountId !== accountId) {
-    throw new AppError('Vai trò không hợp lệ', 400);
-  }
 }
 
 export const employeeService = {
@@ -60,7 +50,6 @@ export const employeeService = {
   async getById(id, accountId) {
     const emp = await prisma.employee.findFirst({
       where: { id, accountId, deletedAt: null },
-      include: { role: { select: { id: true, name: true } } },
     });
     if (!emp) throw new AppError('Không tìm thấy nhân viên', 404);
     const assigned = await employeeRepository.findAssignedMachineIds(emp.id);
@@ -70,13 +59,11 @@ export const employeeService = {
     };
   },
 
-  async create(accountId, { employeeCode, fullName, phone, email, pinCode: inputPin, status, roleId, assignedMachineIds }, req) {
+  async create(accountId, { employeeCode, fullName, phone, email, pinCode: inputPin, status, assignedMachineIds }, req) {
     const existing = await prisma.employee.findFirst({
       where: { accountId, employeeCode, deletedAt: null },
     });
     if (existing) throw new AppError(`Mã nhân viên "${employeeCode}" đã tồn tại`, 409);
-
-    await assertRoleOwnedByAccount(roleId, accountId);
 
     const rawPin = inputPin || generatePin();
     if (!/^\d{6}$/.test(rawPin)) {
@@ -93,7 +80,6 @@ export const employeeService = {
       email: email?.trim() || null,
       pinCode: hashedPin,
       status: status || 'ACTIVE',
-      roleId: roleId || null,
     });
 
     if (assignedMachineIds && assignedMachineIds.length > 0) {
@@ -110,7 +96,7 @@ export const employeeService = {
     };
   },
 
-  async update(id, accountId, { employeeCode, fullName, phone, email, pinCode, status, roleId, assignedMachineIds }, req) {
+  async update(id, accountId, { employeeCode, fullName, phone, email, pinCode, status, assignedMachineIds }, req) {
     const emp = await prisma.employee.findFirst({
       where: { id, accountId, deletedAt: null },
     });
@@ -123,15 +109,12 @@ export const employeeService = {
       if (duplicate) throw new AppError(`Mã nhân viên "${employeeCode}" đã tồn tại`, 409);
     }
 
-    if (roleId !== undefined) await assertRoleOwnedByAccount(roleId, accountId);
-
     const data = {};
     if (employeeCode !== undefined) data.employeeCode = employeeCode;
     if (fullName !== undefined) data.fullName = fullName.trim();
     if (phone !== undefined) data.phone = phone?.trim() || null;
     if (email !== undefined) data.email = email?.trim() || null;
     if (status !== undefined) data.status = status;
-    if (roleId !== undefined) data.roleId = roleId || null;
     if (pinCode) {
       if (!/^\d{6}$/.test(pinCode)) throw new AppError('Mã PIN phải có 6 chữ số', 400);
       data.pinCode = await bcrypt.hash(pinCode, SALT_ROUNDS);

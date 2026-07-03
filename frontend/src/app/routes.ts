@@ -20,7 +20,6 @@ import { ProtectedRoute } from '../shared/permissions/ProtectedRoute';
 import { OrderQueuePOS } from './pages/OrderQueuePOS';
 import { CategoryManagement } from './pages/CategoryManagement';
 import { EmployeeManagement } from './pages/EmployeeManagement';
-import { RoleManagement } from './pages/RoleManagement';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { BilliardManagement } from './pages/BilliardManagement';
@@ -161,7 +160,6 @@ export const router = createBrowserRouter([
           { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_VIEW'] }) },
           { path: 'inventory', element: withGuard(InventoryManagement, { rbacPerms: ['INVENTORY_VIEW'] }) },
           { path: 'staff', element: withGuard(EmployeeManagement, { rbacPerms: ['STAFF_VIEW'] }) },
-          { path: 'roles', element: withGuard(RoleManagement, { rbacPerms: ['ROLE_MANAGE'] }) },
           { path: 'settings', element: withGuard(() => createElement('div', null, 'Cài đặt hệ thống - Sắp ra mắt'), { rbacPerms: ['SETTINGS_VIEW'] }) },
           { path: 'permissions', element: withGuard(PermissionManagement, { rbacPerms: ['PERMISSION_VIEW'] }) },
           { path: 'order-queue', element: withPosGuard(OrderQueuePOS, { rbacPerms: ['POS_ORDER_QUEUE_VIEW'] }) },

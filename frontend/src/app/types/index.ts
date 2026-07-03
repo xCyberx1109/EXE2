@@ -861,8 +861,6 @@ export interface Employee {
   phone: string | null;
   email: string | null;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  roleId: string | null;
-  roleName: string | null;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -881,21 +879,5 @@ export interface EmployeeFormData {
   email: string;
   pinCode: string;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  roleId: string;
   assignedMachineIds: string[];
-}
-
-export interface Role {
-  id: string;
-  name: string;
-  description: string | null;
-  isSystem: boolean;
-  employeeCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoleDetail extends Role {
-  permissionIds: string[];
-  permissions: { id: string; code: string; name: string; module: string }[];
 }

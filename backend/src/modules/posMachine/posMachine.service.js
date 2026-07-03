@@ -4,7 +4,6 @@ import prisma from '../../prisma/client.js';
 import config from '../../config/index.js';
 import { AppError } from '../../utils/AppError.js';
 import { logAction, getClientIp } from '../../utils/auditLogger.js';
-import { permissionService } from '../permissions/permission.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -118,19 +117,7 @@ function getPermissionsByMachine(machine) {
 
 export const posMachineService = {
   async _finalizeLogin(employee, machine, req) {
-    const devicePermissions = getPermissionsByMachine(machine);
-
-    // Quyen hieu luc = giao giua Role cua nhan vien va quyen theo loai may -
-    // giong chinh sach da ap dung o devicePermissionService.getEffectivePermissions.
-    // Nhan vien chua duoc gan Role -> giu nguyen quyen thuan theo may (backward compat).
-    let permissions = devicePermissions;
-    if (employee.roleId) {
-      const rolePermissions = await permissionService.getRolePermissions(employee.roleId);
-      permissions = devicePermissions.length > 0
-        ? devicePermissions.filter((code) => rolePermissions.includes(code))
-        : rolePermissions;
-    }
-
+    const permissions = getPermissionsByMachine(machine);
     const module = getModuleByTemplate(machine.template);
     if (!module) throw new AppError('Template không hợp lệ', 403);
 

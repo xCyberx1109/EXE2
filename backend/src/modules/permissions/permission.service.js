@@ -32,26 +32,6 @@ export const permissionService = {
   },
 
   /**
-   * Lấy danh sách permission codes của 1 Role (dùng cho Employee đăng nhập PIN).
-   */
-  async getRolePermissions(roleId) {
-    if (!roleId) return [];
-
-    const role = await prisma.role.findUnique({
-      where: { id: roleId },
-      include: {
-        rolePermissions: {
-          include: { permission: true },
-        },
-      },
-    });
-
-    if (!role || role.deletedAt) return [];
-
-    return role.rolePermissions.map((rp) => rp.permission.code);
-  },
-
-  /**
    * Trả về version hash dựa trên danh sách permissions hiệu dụng
    * Dùng để client cache-busting: nếu permissions thay đổi → version khác
    */

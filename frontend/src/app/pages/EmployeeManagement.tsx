@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import {
   useEmployeeList, useCreateEmployeeMutation,
   useUpdateEmployeeMutation, useDeleteEmployeeMutation, useResetPinMutation,
-  useRoleList,
 } from '../api/hooks';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -34,7 +33,6 @@ const emptyForm = (): EmployeeFormData => ({
   email: '',
   pinCode: '',
   status: 'ACTIVE',
-  roleId: '',
   assignedMachineIds: [],
 });
 
@@ -69,7 +67,6 @@ export function EmployeeManagement() {
     search: debouncedSearch || undefined,
     status: statusFilter || undefined,
   });
-  const { data: roles = [] } = useRoleList();
 
   const employees = employeesData?.data ?? [];
   const pagination = employeesData?.pagination;
@@ -175,7 +172,6 @@ export function EmployeeManagement() {
       email: emp.email || '',
       pinCode: '',
       status: emp.status,
-      roleId: emp.roleId || '',
       assignedMachineIds: [...emp.assignedMachineIds],
     });
     setFormError(null);
@@ -292,15 +288,6 @@ export function EmployeeManagement() {
           {STATUS_OPTIONS.find((o) => o.value === item.status)?.label || item.status}
         </Badge>
       ),
-    },
-    {
-      key: 'role',
-      header: 'Vai trò',
-      headerClassName: 'hidden md:table-cell',
-      className: 'hidden md:table-cell',
-      render: (item) => item.roleName
-        ? <Badge variant="secondary">{item.roleName}</Badge>
-        : <span className="text-muted-foreground text-xs">Chưa gán</span>,
     },
     {
       key: 'machines',
@@ -464,40 +451,21 @@ export function EmployeeManagement() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Trạng thái</label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') => setForm((p) => ({ ...p, status: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Vai trò</label>
-                <Select
-                  value={form.roleId || 'none'}
-                  onValueChange={(v) => setForm((p) => ({ ...p, roleId: v === 'none' ? '' : v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chưa gán vai trò" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Chưa gán</SelectItem>
-                    {roles.map((role) => (
-                      <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Trạng thái</label>
+              <Select
+                value={form.status}
+                onValueChange={(v: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') => setForm((p) => ({ ...p, status: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">

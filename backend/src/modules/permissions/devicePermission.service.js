@@ -1,5 +1,4 @@
 import prisma from '../../prisma/client.js';
-import { permissionService } from './permission.service.js';
 import {
   getPermissionsForDeviceType,
   getFeaturesForDeviceType,
@@ -8,7 +7,7 @@ import {
 } from './devicePermissions.js';
 
 export const devicePermissionService = {
-  async getEffectivePermissions(device, employeeId) {
+  async getEffectivePermissions(device) {
     const template = device.template || device.type;
     const hardcodedPerms = getPermissionsForDeviceType(template);
     const dbPerms = await prisma.deviceTypePermission.findMany({
@@ -16,29 +15,7 @@ export const devicePermissionService = {
       include: { permission: true },
     });
     const dbCodes = dbPerms.map((dtp) => dtp.permission.code);
-    const deviceCodes = [...new Set([...hardcodedPerms, ...dbCodes])];
-
-    if (!employeeId) return deviceCodes;
-
-    const employee = await prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: { roleId: true },
-    });
-
-    // Nhan vien chua duoc gan Role -> giu hanh vi cu (quyen thuan theo thiet bi),
-    // tranh regression cho du lieu chua migrate.
-    if (!employee?.roleId) return deviceCodes;
-
-    const rolePermissions = await permissionService.getRolePermissions(employee.roleId);
-
-    // Quyen hieu luc = GIAO (Role ∩ Thiet bi). Chi so voi dbCodes (cung vung ma
-    // Permission.code voi Role) - danh sach hardcode dung vung khac (order:create...)
-    // nen khong tham gia phep giao co y nghia.
-    // Neu tai khoan chua cau hinh DeviceTypePermission nao cho loai may nay (dbCodes rong),
-    // coi nhu thiet bi khong gioi han them - tranh khoa het quyen ngoai y muon khi chua setup.
-    if (dbCodes.length === 0) return rolePermissions;
-
-    return dbCodes.filter((code) => rolePermissions.includes(code));
+    return [...new Set([...hardcodedPerms, ...dbCodes])];
   },
 
   async getEffectiveFeatures(device) {
@@ -70,8 +47,8 @@ export const devicePermissionService = {
     };
   },
 
-  async getDeviceCapabilities(device, employeeId) {
-    const permissions = await this.getEffectivePermissions(device, employeeId);
+  async getDeviceCapabilities(device) {
+    const permissions = await this.getEffectivePermissions(device);
     const features = await this.getEffectiveFeatures(device);
     return { permissions, features, enabledFeatures: features.enabledFeatures };
   },

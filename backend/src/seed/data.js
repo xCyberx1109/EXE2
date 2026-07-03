@@ -166,7 +166,6 @@ export const permissions = [
   { code: 'PERMISSION_VIEW', name: 'Xem quyền', module: 'settings' },
   { code: 'PERMISSION_ASSIGN', name: 'Phân quyền', module: 'settings' },
   { code: 'PERMISSION_MANAGE', name: 'Quản lý quyền hệ thống', module: 'settings' },
-  { code: 'ROLE_MANAGE', name: 'Quản lý vai trò nhân viên', module: 'settings' },
 
   // ================= SHIFT =================
   { code: 'SHIFT_VIEW', name: 'Xem ca làm việc', module: 'shift' },

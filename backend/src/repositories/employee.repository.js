@@ -23,15 +23,14 @@ export const employeeRepository = {
       ];
     }
     if (status) where.status = status;
-    const roleInclude = { role: { select: { id: true, name: true } } };
     if (page && limit) {
       const skip = (page - 1) * limit;
       return Promise.all([
-        prisma.employee.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit, include: roleInclude }),
+        prisma.employee.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit }),
         prisma.employee.count({ where }),
       ]);
     }
-    return prisma.employee.findMany({ where, orderBy: { createdAt: 'desc' }, include: roleInclude });
+    return prisma.employee.findMany({ where, orderBy: { createdAt: 'desc' } });
   },
 
   findAssignedMachineIds: (employeeId) =>
@@ -41,10 +40,10 @@ export const employeeRepository = {
     }),
 
   create: (data) =>
-    prisma.employee.create({ data, include: { role: { select: { id: true, name: true } } } }),
+    prisma.employee.create({ data }),
 
   update: (id, data) =>
-    prisma.employee.update({ where: { id }, data, include: { role: { select: { id: true, name: true } } } }),
+    prisma.employee.update({ where: { id }, data }),
 
   softDelete: (id) =>
     prisma.employee.update({

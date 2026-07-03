@@ -76,8 +76,4 @@ export const queryKeys = {
     logs: (id: string, params?: Record<string, string | undefined>) =>
       ['employees', 'logs', id, params] as const,
   },
-  roles: {
-    all: ['roles'] as const,
-    detail: (id: string) => ['roles', 'detail', id] as const,
-  },
 };

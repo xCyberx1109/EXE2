@@ -21,7 +21,6 @@ import type {
   FoodCostReport,
   InventoryTransactionRecord,
   Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse,
-  Role, RoleDetail,
   PaginatedResponse,
 } from '../types';
 
@@ -825,25 +824,4 @@ export const employeeApi = {
     ).toString() : '';
     return apiFetch<EmployeeLogsResponse>(`/employees/${id}/logs${query}`);
   },
-};
-
-export const roleApi = {
-  list: () => apiFetch<Role[]>('/roles'),
-
-  get: (id: string) => apiFetch<RoleDetail>(`/roles/${id}`),
-
-  create: (body: { name: string; description?: string }) =>
-    apiFetch<Role>('/roles', { method: 'POST', body: JSON.stringify(body) }),
-
-  update: (id: string, body: { name?: string; description?: string }) =>
-    apiFetch<Role>(`/roles/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-
-  delete: (id: string) =>
-    apiFetch<null>(`/roles/${id}`, { method: 'DELETE' }),
-
-  setPermissions: (id: string, permissionIds: string[]) =>
-    apiFetch<RoleDetail>(`/roles/${id}/permissions`, {
-      method: 'PUT',
-      body: JSON.stringify({ permissionIds }),
-    }),
 };
