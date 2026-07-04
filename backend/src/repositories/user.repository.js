@@ -22,7 +22,6 @@ export const userRepository = {
     }),
 
   create: async (data) => {
-    console.log("[ACCOUNT_CREATE_HIT]", data.email, Date.now());
     try {
       return await prisma.account.create({ data });
     } catch (err) {

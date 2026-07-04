@@ -56,10 +56,6 @@ export async function apiFetch<T>(
     if (authHeader) {
       (reqHeaders as Record<string, string>)['Authorization'] = authHeader;
     }
-    console.log(
-      `[API] ${rest.method ?? 'GET'} ${path} Authorization:`,
-      authHeader ?? '(none)',
-    );
   }
 
   let lastError: Error | null = null;

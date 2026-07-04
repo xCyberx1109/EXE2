@@ -261,8 +261,6 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
     note,
     createdBy: user?.accountId || user?.id || 'system',
   };
-  console.log("[INVENTORY TRANSACTION CREATE]", JSON.stringify(txData, null, 2));
-
   const [updated, transaction] = await prisma.$transaction([
     prisma.ingredient.update({
       where: { id: ingredientId },

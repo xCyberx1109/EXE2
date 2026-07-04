@@ -8,11 +8,8 @@ export const register = asyncHandler(async (req, res) => {
 });
 
 export const login = asyncHandler(async (req, res) => {
-  console.log('[LOGIN] Controller start');
   const result = await unifiedAuthService.loginWithEmail(req.body, req);
-  console.log('[LOGIN] Controller calling sendSuccess');
   sendSuccess(res, { message: 'Đăng nhập thành công', data: result });
-  console.log('[LOGIN] Controller done');
 });
 
 export const getMe = asyncHandler(async (req, res) => {

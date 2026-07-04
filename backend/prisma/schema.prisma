@@ -627,6 +627,7 @@ model Order {
   accountId              String
   posDeviceId            String?
   createdBy              String
+  createdByUserId        String?
   shiftId                String?
   customerId             String?
   orderNumber            String            @unique
@@ -682,6 +683,7 @@ model Order {
   @@index([accountId, createdAt], map: "orders_branchId_createdAt_idx")
   @@index([accountId, paymentStatus], map: "orders_branchId_paymentStatus_idx")
   @@index([accountId, status], map: "orders_branchId_status_idx")
+  @@index([createdByUserId], map: "orders_created_by_user_id_idx")
   @@map("orders")
 }
 

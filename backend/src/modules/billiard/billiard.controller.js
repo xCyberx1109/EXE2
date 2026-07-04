@@ -6,21 +6,7 @@ function getContext(req) {
   return req.user || req.employee || null;
 }
 
-function logContext(req) {
-  console.log('[ROUTE CONTEXT]', {
-    url: req.originalUrl,
-    user: req.user,
-  });
-  
-  const ctx = getContext(req);
-  console.log('[CONTROLLER]', {
-    url: req.originalUrl,
-    ctx
-  });
-}
-
 export const listBilliardTables = asyncHandler(async (req, res) => {
-  logContext(req);
   const data = await billiardService.listTables(getContext(req));
   sendSuccess(res, { message: 'Lấy danh sách bàn billiard thành công', data: Array.isArray(data) ? data : [] });
 });

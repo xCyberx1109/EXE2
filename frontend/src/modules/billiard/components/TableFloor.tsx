@@ -172,17 +172,6 @@ export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRe
       posX: positions[t.id]?.xPercent ?? t.xPercent ?? t.posX,
       posY: positions[t.id]?.yPercent ?? t.yPercent ?? t.posY,
     }));
-    console.log('Current Mode:', mode);
-    console.log('Saving Layout To:', mode === 'BILLIARD'
-      ? '/api/billiard/tables/layout'
-      : '/api/restaurant/tables/layout');
-    console.table(
-      tables.map(t => ({
-        id: t.id,
-        tableCode: t.tableCode,
-        mode: t.mode,
-      }))
-    );
     try {
       await updateLayout.mutateAsync(payload);
       toast.success('Đã lưu bố cục bàn thành công');

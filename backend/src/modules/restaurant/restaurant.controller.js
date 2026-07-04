@@ -33,8 +33,6 @@ export const openOrderForTable = asyncHandler(async (req, res) => {
     getContext(req)
   );
 
-  console.log('OPEN ORDER RESULT:', data);
-
   if (!data) {
     throw new Error('openOrderForTable returned null');
   }

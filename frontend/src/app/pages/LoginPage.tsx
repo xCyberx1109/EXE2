@@ -37,6 +37,10 @@ export function LoginPage() {
     if (authMode === 'account' && user) {
       navigate(getAccountRedirectPath(), { replace: true });
     }
+
+    if (authMode === 'pos_machine') {
+      navigate('/app', { replace: true });
+    }
   }, [isReady, isAuthenticated, authMode, user, navigate]);
 
   const handleAccountLogin = async (e: React.FormEvent) => {

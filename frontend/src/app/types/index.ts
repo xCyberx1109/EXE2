@@ -678,12 +678,11 @@ export interface InventoryIssue {
 }
 
 // ====== POS Machine Types ======
-export type PosMachineTemplate = 'CASHIER' | 'KITCHEN' | 'CASHIER_KITCHEN' | 'BILLIARD' | 'RESTAURANT' | 'CUSTOM';
+export type PosMachineTemplate = 'CASHIER' | 'KITCHEN' | 'BILLIARD' | 'RESTAURANT' | 'CUSTOM';
 
 export const POS_MACHINE_TEMPLATES: Record<PosMachineTemplate, string> = {
   CASHIER: 'Thu ngân',
   KITCHEN: 'Bếp',
-  CASHIER_KITCHEN: 'Thu ngân & Bếp',
   BILLIARD: 'Bi-a',
   RESTAURANT: 'Nhà hàng',
   CUSTOM: 'Tùy chỉnh',

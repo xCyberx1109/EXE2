@@ -1,4 +1,5 @@
 import prisma from '../prisma/client.js';
+import { permissionService } from '../modules/permissions/permission.service.js';
 
 const PLAN_CODE_MAP = {
   BASIC: 'basic',
@@ -50,13 +51,16 @@ export async function assignPlanPermissions(accountId, plan, tx) {
     return;
   }
 
-  for (const permissionId of permissionIds) {
-    await orm.accountPermission.upsert({
-      where: { accountId_permissionId: { accountId, permissionId } },
-      update: { allowed: true },
-      create: { accountId, permissionId, allowed: true },
-    });
-  }
+  await orm.accountPermission.createMany({
+    data: permissionIds.map(permissionId => ({
+      accountId,
+      permissionId,
+      allowed: true,
+    })),
+    skipDuplicates: true,
+  });
+
+  permissionService.invalidateCache(accountId);
 
   console.log(`[PlanPermission] Granted ${permissionIds.length} permissions for plan ${planCode} to account ${accountId}`, permissionIds);
 }
@@ -94,13 +98,16 @@ export async function syncPlanPermissions(accountId, plan, tx) {
     return;
   }
 
-  for (const permissionId of planPermissionIds) {
-    await orm.accountPermission.upsert({
-      where: { accountId_permissionId: { accountId, permissionId } },
-      update: { allowed: true },
-      create: { accountId, permissionId, allowed: true },
-    });
-  }
+  await orm.accountPermission.createMany({
+    data: Array.from(planPermissionIds).map(permissionId => ({
+      accountId,
+      permissionId,
+      allowed: true,
+    })),
+    skipDuplicates: true,
+  });
+
+  permissionService.invalidateCache(accountId);
 
   console.log(`[PlanPermission] Granted ${planPermissionIds.size} permissions for plan ${planCode} on account ${accountId}`);
 }

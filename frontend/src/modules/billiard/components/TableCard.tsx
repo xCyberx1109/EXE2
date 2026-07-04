@@ -19,7 +19,6 @@ function useCountUpTimer(startTime: string | null): string {
     if (!startTime) { setDisplay('00:00:00'); return; }
 
     const start = new Date(startTime).getTime();
-    console.log('[TABLECARD TIMER] startTime:', startTime, 'parsed:', start, 'now:', Date.now());
 
     if (isNaN(start)) { setDisplay('00:00:00'); return; }
 
@@ -30,13 +29,12 @@ function useCountUpTimer(startTime: string | null): string {
       const m = Math.floor((totalSec % 3600) / 60);
       const s = totalSec % 60;
       const next = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-      console.log('[TABLECARD TIMER] tick:', next, 'elapsedMs:', elapsedMs);
       setDisplay(next);
     }
 
     tick();
     const interval = setInterval(tick, 1000);
-    return () => { console.log('[TABLECARD TIMER] cleanup'); clearInterval(interval); };
+    return () => { clearInterval(interval); };
   }, [startTime]);
 
   return display;
@@ -63,7 +61,6 @@ export function TableCard({ mode, table, selected, onSelect, draggable, onDragSt
   const isPlaying = session?.status === 'PLAYING';
 
   const remaining = useCountUpTimer(session?.startTime ?? null);
-  console.log('[TABLECARD] table.status:', table.status, 'session:', session, 'session.status:', session?.status, 'isPlaying:', isPlaying, 'remaining:', remaining);
 
   const xPercent = position?.xPercent ?? table.xPercent ?? table.posX;
   const yPercent = position?.yPercent ?? table.yPercent ?? table.posY;
