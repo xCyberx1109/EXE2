@@ -39,7 +39,7 @@ function isAllowedPath(path: string, flatItems: AppMenuItem[]): boolean {
 export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isReady, isAuthenticated, authMode, user, employee, logout, hasPermission } = useAuth();
+  const { isReady, isAuthenticated, user, employee, logout, hasPermission } = useAuth();
   const { theme, setTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
@@ -85,10 +85,6 @@ export function Layout() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (authMode === 'pos_machine') {
     return <Navigate to="/login" replace />;
   }
 

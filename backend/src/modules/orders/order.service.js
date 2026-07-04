@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { parsePagination, paginatedResponse } from '../../utils/pagination.js';
@@ -177,7 +178,7 @@ export const orderService = {
   },
 
   /** Order Queue POS - lấy danh sách order queue */
-  async listQueueOrders(user, { search, status, paymentStatus } = {}) {
+  async listQueueOrders(user, { search, status, paymentStatus } = {}, authType) {
     const validStatuses = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
     const statusFilter = status ? String(status).toUpperCase() : null;
     if (statusFilter && !validStatuses.includes(statusFilter)) {
@@ -202,6 +203,13 @@ export const orderService = {
     const accountId = user.accountId || user.id;
     where.accountId = accountId;
 
+    // POS employee: chỉ xem đơn của chính mình
+    // Admin: xem tất cả
+    // Kitchen (PAID case): xem tất cả (không thêm filter)
+    if (paymentStatus !== 'PAID' && authType === 'employee') {
+      where.createdByUserId = user.id;
+    }
+
     if (search) {
       where.OR = [
         { orderNumber: { contains: search } },
@@ -214,10 +222,7 @@ export const orderService = {
 
   /** Tạo Order Queue POS (không gắn bàn) */
   async createQueueOrder(body, user = null) {
-    console.log("[REQUEST BODY]", JSON.stringify(body, null, 2));
-
     const normalizedItems = await normalizeOrderItems(body.items);
-    console.log("[NORMALIZED ITEMS]", JSON.stringify(normalizedItems, null, 2));
 
     let subtotal = 0;
     let cost = 0;
@@ -237,21 +242,17 @@ export const orderService = {
       };
     }));
 
-    console.log("[ORDER ITEMS DATA - chưa lưu]", JSON.stringify(orderItemsData, null, 2));
-    console.log("[CALC] subtotal =", subtotal, ", cost =", cost);
-
     const tax = 0;
     const total = subtotal;
     const profit = subtotal - cost;
     const orderNumber = `ORD-${Date.now()}`;
 
-    console.log("[CALC] tax =", tax, ", total =", total, ", profit =", profit);
-
     const accountId = resolveAccountId(body, user);
     const orderData = {
       orderNumber,
       accountId,
-      createdBy: user ? user.id : body.createdBy,
+      createdBy: user?.accountId || user?.id || body.createdBy,
+      createdByUserId: user?.id || null,
       status: 'PENDING',
       subtotal,
       tax,
@@ -262,8 +263,6 @@ export const orderService = {
       orderType: body.orderType || 'DINE_IN',
       items: orderItemsData.length > 0 ? { create: orderItemsData } : undefined,
     };
-
-    console.log("[ORDER PAYLOAD]", JSON.stringify(orderData, null, 2));
 
     // Tao don + giu cho ton kho trong cung 1 transaction: neu khong du hang kha dung
     // (co the da bi don khac giu cho), toan bo viec tao don se bi rollback.
@@ -277,14 +276,6 @@ export const orderService = {
 
     // Kiểm tra OrderItems sau khi tạo
     const createdItems = order.items;
-    console.log("[ORDER ITEMS - sau khi tạo]", JSON.stringify(createdItems.map(i => ({
-      id: i.id,
-      name: i.name,
-      price: Number(i.price),
-      cost: Number(i.cost),
-      quantity: i.quantity,
-      total: Number(i.total),
-    })), null, 2));
 
     logAction({
       accountId: order.accountId,
@@ -298,7 +289,7 @@ export const orderService = {
   },
 
   /** Cập nhật Order Queue */
-  async updateQueueOrder(id, body, user = null) {
+  async updateQueueOrder(id, body, user = null, authType) {
     // Use lightweight permission check when not updating items
     const needsItems = !!body.items;
     const order = needsItems
@@ -308,6 +299,10 @@ export const orderService = {
     if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && order.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền cập nhật đơn hàng này', 403);
+      }
+      // Employee: chỉ được cập nhật đơn của chính mình
+      if (authType === 'employee' && order.createdByUserId !== user.id) {
         throw new AppError('Bạn không có quyền cập nhật đơn hàng này', 403);
       }
     }
@@ -377,16 +372,17 @@ export const orderService = {
   },
 
   /** Thanh toán Order Queue (atomic: update + deduct inventory) */
-  async completeQueuePayment(id, paymentMethod = 'CASH', user = null) {
+  async completeQueuePayment(id, paymentMethod = 'CASH', user = null, authType) {
     try {
-      console.log("[STEP 1] Find order by ID:", id);
-
       const order = await orderRepository.findById(id);
-      console.log("[STEP 1 RESULT] order found:", order ? `YES - ${order.orderNumber}` : "NO - NULL");
       if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
       if (user) {
         const accountId = user.accountId || user.id;
         if (accountId && order.accountId !== accountId) {
+          throw new AppError('Bạn không có quyền thanh toán đơn hàng này', 403);
+        }
+        // Employee: chỉ được thanh toán đơn của chính mình
+        if (authType === 'employee' && order.createdByUserId !== user.id) {
           throw new AppError('Bạn không có quyền thanh toán đơn hàng này', 403);
         }
       }
@@ -395,66 +391,27 @@ export const orderService = {
       const paymentMethodFinal = ['CASH', 'CARD', 'BANKING', 'E_WALLET', 'OTHER'].includes(method) ? method : 'CASH';
       const userId = user ? (user.accountId || user.id) : null;
 
-      console.log(`[CHECKOUT] Start queue payment order=${id} method=${paymentMethodFinal}`);
-      console.log("[ORDER DATA]", JSON.stringify({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        status: order.status,
-        paymentStatus: order.paymentStatus,
-        total: Number(order.total),
-        subtotal: Number(order.subtotal),
-        itemCount: order.items?.length || 0,
-      }, null, 2));
-
-      console.log("[STEP 2] Load order items from DB for order ID:", id);
       const beforeItems = await prisma.orderItem.findMany({ where: { orderId: id } });
-      console.log("[STEP 2 RESULT] order items count:", beforeItems.length);
-      console.log("[ORDER ITEMS DB]", JSON.stringify(beforeItems.map(i => ({
-        id: i.id,
-        name: i.name,
-        menuItemId: i.menuItemId,
-        quantity: i.quantity,
-        price: Number(i.price),
-        total: Number(i.total),
-      })), null, 2));
       if (beforeItems.length === 0) {
         console.warn("[CHECKOUT] WARNING: Order has NO items in database! Payment will process an empty order.");
       }
 
-      console.log("[STEP 3] Calculate totals - using DB values");
-      console.log("[TOTALS]", JSON.stringify({
-        subtotal: Number(order.subtotal),
-        tax: Number(order.tax),
-        discount: Number(order.discount || 0),
-        serviceCharge: Number(order.serviceCharge || 0),
-        total: Number(order.total),
-      }, null, 2));
-
       // PRE-VALIDATION: Check inventory sufficiency before payment
-      console.log("[STEP 3.5] Pre-validate inventory for order");
       const inventoryIssues = await validateInventoryForOrder(order);
       if (inventoryIssues.length > 0) {
-        console.log("[STEP 3.5 RESULT] Inventory issues found, returning without processing payment");
         return { inventoryIssues, orderId: id };
       }
-      console.log("[STEP 3.5 RESULT] Inventory validation passed");
 
       const updated = await prisma.$transaction(async (tx) => {
-        console.log("[TRANSACTION START] Payment transaction for order:", id);
-
         const lockedOrder = await tx.order.findUnique({
           where: { id },
           include: { items: true },
         });
-        console.log("[TRANSACTION] Locked order:", lockedOrder ? lockedOrder.orderNumber : "NOT FOUND");
         if (!lockedOrder) throw new AppError('Không tìm thấy đơn hàng', 404);
 
         if (lockedOrder.inventoryDeducted) {
-          console.log(`[CHECKOUT] Order ${lockedOrder.orderNumber} already deducted, skip`);
           return lockedOrder;
         }
-
-        console.log(`[CHECKOUT] Set paymentStatus PAID for order ${lockedOrder.orderNumber}`);
 
         const updateData = {
           paymentStatus: 'PAID',
@@ -466,9 +423,8 @@ export const orderService = {
           data: updateData,
           include: { items: { include: { menuItem: true } } },
         });
-        console.log("[TRANSACTION] Order updated - paymentStatus=PAID, paymentMethod=" + paymentMethodFinal);
 
-        const payment = await tx.payment.create({
+        await tx.payment.create({
           data: {
             orderId: id,
             amount: Number(lockedOrder.total),
@@ -476,28 +432,19 @@ export const orderService = {
             status: 'PAID',
           },
         });
-        console.log("[STEP 4 RESULT] Payment created:", payment.id);
 
-        console.log(`[CHECKOUT] Calculate ingredients for order ${lockedOrder.orderNumber}`);
         await deductInventoryForOrderTx(tx, updatedOrder, userId || lockedOrder.createdBy);
-
-        // Da tru kho that su -> khong can giu cho tam thoi nua.
         await releaseReservationsForOrder(tx, id);
 
-        console.log("[STEP 5] Update order - mark inventoryDeducted=true");
         await tx.order.update({
           where: { id },
           data: { inventoryDeducted: true },
         });
-        console.log("[TRANSACTION] inventoryDeducted set to true");
 
-        console.log(`[CHECKOUT] Success for order ${lockedOrder.orderNumber}`);
         return updatedOrder;
       }, {
-        timeout: 30000,
+        timeout: 10000,
       });
-
-      console.log(`[TRANSACTION END] Payment transaction committed for order: ${id}`);
 
       logAction({
         accountId: order.accountId,
@@ -535,12 +482,16 @@ export const orderService = {
   },
 
   /** Hủy Order Queue */
-  async cancelQueueOrder(id, user = null) {
+  async cancelQueueOrder(id, user = null, authType) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
     if (user) {
       const accountId = user.accountId || user.id;
       if (accountId && order.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền hủy đơn hàng này', 403);
+      }
+      // Employee: chỉ được hủy đơn của chính mình
+      if (authType === 'employee' && order.createdByUserId !== user.id) {
         throw new AppError('Bạn không có quyền hủy đơn hàng này', 403);
       }
     }
@@ -722,7 +673,6 @@ export const orderService = {
       items: { create: orderItemsData },
     };
 
-    console.log("[ORDER CREATE DATA]", JSON.stringify(orderData, null, 2));
     const order = await orderRepository.create(orderData);
 
     logAction({
@@ -774,8 +724,6 @@ export const orderService = {
      const userId = user ? (user.accountId || user.id) : null;
 
       for (const order of orders) {
-        console.log(`[CHECKOUT] Start table payment order=${order.id} table=${tableNumber}`);
-
         const updated = await prisma.$transaction(async (tx) => {
           const lockedOrder = await tx.order.findUnique({
             where: { id: order.id },
@@ -784,7 +732,6 @@ export const orderService = {
           if (!lockedOrder) throw new AppError('Không tìm thấy đơn hàng', 404);
 
           if (lockedOrder.inventoryDeducted) {
-            console.log(`[CHECKOUT] Order ${lockedOrder.orderNumber} already deducted, skip`);
             return lockedOrder;
           }
 
@@ -828,7 +775,6 @@ export const orderService = {
           where: { id: { in: tableIds } },
           data: { status: 'AVAILABLE' },
         });
-        console.log(`[CHECKOUT] Released ${tableIds.length} table(s) to AVAILABLE`);
       } else {
         const accountId = user?.accountId || user?.id;
         if (accountId) {
@@ -836,7 +782,6 @@ export const orderService = {
             where: { tableCode: String(tableNumber), accountId },
             data: { status: 'AVAILABLE' },
           });
-          console.log(`[CHECKOUT] Released table by code ${tableNumber}`);
         }
       }
 
@@ -849,8 +794,6 @@ export const orderService = {
  * Returns array of inventory issues (empty if all sufficient).
  */
 async function validateInventoryForOrder(order) {
-  console.log(`[INVENTORY VALIDATE] Validating inventory for order ${order.orderNumber} (${order.id})`);
-
   const orderItems = order.items || [];
   const issues = [];
 
@@ -882,7 +825,6 @@ async function validateInventoryForOrder(order) {
     }
 
     if (!orderItem.menuItemId) {
-      console.log(`[INVENTORY VALIDATE] Skip item "${orderItem.name}" - no menuItemId`);
       continue;
     }
 
@@ -902,8 +844,6 @@ async function validateInventoryForOrder(order) {
       const ingredient = recipe.ingredient;
       const available = Number(ingredient.quantity);
 
-      console.log(`[INVENTORY VALIDATE] ${orderItem.name} x${orderItem.quantity}: ${ingredient.name} need=${totalUsage}, available=${available}`);
-
       if (available < totalUsage) {
         missingIngredients.push({
           ingredientName: ingredient.name,
@@ -922,7 +862,6 @@ async function validateInventoryForOrder(order) {
     }
   }
 
-  console.log(`[INVENTORY VALIDATE] Result: ${issues.length} issue(s) found`);
   return issues;
 }
 
@@ -965,17 +904,34 @@ async function reserveInventoryForOrderTx(tx, order) {
     return;
   }
 
-  for (const [ingredientId, amount] of required.entries()) {
-    const locked = await tx.$queryRaw`SELECT "id", "name", "quantity" FROM "ingredients" WHERE "id" = ${ingredientId} FOR UPDATE`;
-    const ingredient = locked[0];
-    if (!ingredient) continue; // nguyen lieu khong con ton tai — se duoc phat hien o buoc validate/deduct khac
+  // Batch: khóa tất cả ingredient cần kiểm tra trong 1 query, tránh N round trips
+  const ingredientIds = Array.from(required.keys());
+  const locked = await tx.$queryRaw`
+    SELECT "id", "name", "quantity" FROM "ingredients"
+    WHERE "id" IN (${Prisma.join(ingredientIds)}) FOR UPDATE
+  `;
+  const ingredientMap = {};
+  for (const row of locked) {
+    ingredientMap[row.id] = { name: row.name, quantity: Number(row.quantity) };
+  }
 
-    const reservedElsewhere = await tx.inventoryReservation.aggregate({
-      _sum: { quantity: true },
-      where: { ingredientId, orderId: { not: order.id } },
-    });
-    const reserved = Number(reservedElsewhere._sum.quantity || 0);
-    const available = Number(ingredient.quantity) - reserved;
+  // Batch: lấy tổng reservation của tất cả ingredient trong 1 query
+  const reservationSums = await tx.inventoryReservation.groupBy({
+    by: ['ingredientId'],
+    _sum: { quantity: true },
+    where: { ingredientId: { in: ingredientIds }, orderId: { not: order.id } },
+  });
+  const reservedMap = {};
+  for (const r of reservationSums) {
+    reservedMap[r.ingredientId] = Number(r._sum.quantity || 0);
+  }
+
+  for (const [ingredientId, amount] of required.entries()) {
+    const ingredient = ingredientMap[ingredientId];
+    if (!ingredient) continue;
+
+    const reserved = reservedMap[ingredientId] || 0;
+    const available = ingredient.quantity - reserved;
 
     if (available < amount) {
       throw new AppError(
@@ -1003,9 +959,11 @@ async function releaseReservationsForOrder(tx, orderId) {
 
 /**
  * Deduct inventory inside an existing Prisma transaction.
+ * Batch ingredient queries + transaction creates để giảm round trips.
  */
 async function deductInventoryForOrderTx(tx, order, createdBy) {
   const orderItems = order.items || [];
+  const txRecords = [];
 
   for (const orderItem of orderItems) {
     // Direct inventory sale: deduct stock directly
@@ -1031,19 +989,17 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
         },
       });
 
-      await tx.inventoryTransaction.create({
-        data: {
-          ingredientId: orderItem.inventoryId,
-          accountId: order.accountId,
-          type: 'SALE',
-          quantity: orderItem.quantity,
-          beforeQuantity: Number(updatedIngredient.quantity) + orderItem.quantity,
-          afterQuantity: Number(updatedIngredient.quantity),
-          note: `Direct sale from order ${order.orderNumber}`,
-          referenceType: 'ORDER',
-          referenceId: order.id,
-          createdBy,
-        },
+      txRecords.push({
+        ingredientId: orderItem.inventoryId,
+        accountId: order.accountId,
+        type: 'SALE',
+        quantity: orderItem.quantity,
+        beforeQuantity: Number(updatedIngredient.quantity) + orderItem.quantity,
+        afterQuantity: Number(updatedIngredient.quantity),
+        note: `Direct sale from order ${order.orderNumber}`,
+        referenceType: 'ORDER',
+        referenceId: order.id,
+        createdBy,
       });
       await consumeIngredientBatchesFEFO(tx, orderItem.inventoryId, orderItem.quantity);
       continue;
@@ -1087,22 +1043,25 @@ async function deductInventoryForOrderTx(tx, order, createdBy) {
         },
       });
 
-      await tx.inventoryTransaction.create({
-        data: {
-          ingredientId: recipe.ingredientId,
-          accountId: order.accountId,
-          type: 'OUT',
-          quantity: totalUsage,
-          beforeQuantity: Number(updatedIngredient.quantity) + totalUsage,
-          afterQuantity: Number(updatedIngredient.quantity),
-          note: `Deduction from order ${order.orderNumber}`,
-          referenceType: 'ORDER',
-          referenceId: order.id,
-          createdBy,
-        },
+      txRecords.push({
+        ingredientId: recipe.ingredientId,
+        accountId: order.accountId,
+        type: 'OUT',
+        quantity: totalUsage,
+        beforeQuantity: Number(updatedIngredient.quantity) + totalUsage,
+        afterQuantity: Number(updatedIngredient.quantity),
+        note: `Deduction from order ${order.orderNumber}`,
+        referenceType: 'ORDER',
+        referenceId: order.id,
+        createdBy,
       });
       await consumeIngredientBatchesFEFO(tx, recipe.ingredientId, totalUsage);
     }
+  }
+
+  // Batch create tất cả inventory transaction records trong 1 query
+  if (txRecords.length > 0) {
+    await tx.inventoryTransaction.createMany({ data: txRecords });
   }
 }
 
@@ -1114,21 +1073,14 @@ async function normalizeOrderItems(items = []) {
     let menuItem = null;
 
     const id = raw.id || raw.itemId || raw.menuItemId;
-    console.log("[NORMALIZE] raw item:", JSON.stringify(raw));
     if (id) {
-      console.log("[NORMALIZE] looking up menuItemId:", id);
       menuItem = await menuItemRepository.findById(String(id));
-      console.log("[MENU ITEMS] found:", menuItem ? JSON.stringify({ id: menuItem.id, name: menuItem.name, price: Number(menuItem.price), cost: Number(menuItem.cost) }) : "NULL - not found");
-    } else {
-      console.log("[NORMALIZE] No ID found in raw item!");
     }
 
     const quantity = parseInt(raw.quantity || 1, 10);
     const name = raw.name || menuItem?.name || 'Món không xác định';
     const price = Number(raw.price ?? menuItem?.price ?? 0);
     const itemCost = Number(raw.cost ?? menuItem?.cost ?? 0);
-
-    console.log("[NORMALIZE] resolved: name=%s, price=%d, cost=%d, quantity=%d", name, price, itemCost, quantity);
 
     result.push({
       menuItemId: menuItem?.id || id || null,
@@ -1139,7 +1091,6 @@ async function normalizeOrderItems(items = []) {
     });
   }
 
-  console.log("[NORMALIZE] final result:", JSON.stringify(result));
   return result;
 }
 
@@ -1149,8 +1100,8 @@ async function normalizeOrderItems(items = []) {
  * Handles both user auth and POS device auth.
  */
 function resolveAccountId(body, user) {
-  if (!user) return undefined;
-  return user.accountId || user.id;
+  if (user) return user.accountId || user.id;
+  return body.accountId;
 }
 
 function formatFullDateTime(date) {

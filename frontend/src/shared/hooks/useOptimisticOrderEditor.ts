@@ -92,8 +92,6 @@ export function useOptimisticOrderEditor({
   const serverOrder = queryClient.getQueryData<OrderLike>(queryKeyRef.current);
   const serverItems = serverOrder?.items ?? [];
 
-  console.log('[OptimisticEditor] QueryKey:', queryKeyRef.current, '| serverItems:', serverItems?.length, '| pending:', pendingRef.current.size, '| additions:', additionsRef.current.size);
-
   const items = useMemo(() => {
     const merged = serverItems
       .map((item) => {
@@ -183,8 +181,6 @@ export function useOptimisticOrderEditor({
       return;
     }
 
-    console.log('[OptimisticEditor] doFlushSync | additions:', additionsSnapshot.length, 'deltas:', deltasSnapshot.size, '→ updates:', updates.length, 'removes:', removes.length);
-
     await queryClient.cancelQueries({ queryKey: queryKeyRef.current });
 
     try {
@@ -199,12 +195,9 @@ export function useOptimisticOrderEditor({
         (r) => r && typeof r === 'object' && 'order' in (r as Record<string, unknown>),
       );
 
-      console.log('[OptimisticEditor] Add responses — hasOrderResponse:', hasOrderResponse);
-
       if (hasOrderResponse) {
         for (const resp of addResponses) {
           if (resp && typeof resp === 'object' && 'order' in (resp as Record<string, unknown>)) {
-            console.log('[OptimisticEditor] setQueryData with order response');
             queryClient.setQueryData(queryKeyRef.current, (resp as { order: OrderLike }).order);
           }
         }
@@ -218,7 +211,6 @@ export function useOptimisticOrderEditor({
       // Update cache with all mutations
       const needsCacheUpdate = (additionsSnapshot.length > 0 && !hasOrderResponse)
         || updates.length > 0 || removes.length > 0;
-      console.log('[OptimisticEditor] needsCacheUpdate:', needsCacheUpdate, '| additionsManual:', additionsSnapshot.length > 0 && !hasOrderResponse, '| updates:', updates.length, '| removes:', removes.length);
       if (needsCacheUpdate) {
         queryClient.setQueryData(queryKeyRef.current, (old: unknown) => {
           if (!old || typeof old !== 'object') return old;
@@ -272,9 +264,7 @@ export function useOptimisticOrderEditor({
         additionsRef.current.delete(tempId);
       }
       updatePendingKeys();
-      console.log('[OptimisticEditor] Sync complete — pending cleared, cache updated');
     } catch {
-      console.log('[OptimisticEditor] Sync FAILED — will retry, keeping pending refs');
       // Keep pending refs alive — they will be retried on next debounce
       scheduleSync();
     }

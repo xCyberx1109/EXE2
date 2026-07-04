@@ -14,8 +14,6 @@ export const authService = {
   hashPassword: (password) => bcrypt.hash(password, SALT_ROUNDS),
 
   async register({ email, password, fullName }) {
-    console.log("[ACCOUNT_CREATE_HIT]", email, Date.now());
-
     const existing = await userRepository.findByEmail(email);
     if (existing) {
       throw new AppError('Email đã được sử dụng', 409);

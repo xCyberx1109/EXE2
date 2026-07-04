@@ -376,7 +376,6 @@ export async function seedDatabase() {
   await seedDemoCustomers(accountId);
 
   console.log('✓ Seed database hoàn tất');
-  console.log(`  Admin: ${config.seed.adminEmail} / ${config.seed.adminPassword}`);
 }
 
 /**

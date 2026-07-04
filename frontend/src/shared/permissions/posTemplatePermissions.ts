@@ -9,54 +9,25 @@ import type { PosMachineTemplate } from '../../app/types';
  */
 export const POS_TEMPLATE_PERMISSIONS: Record<PosMachineTemplate, string[]> = {
   // ── CASHIER ─────────────────────────────────────────────────────────────
-  // Mục tiêu: Tạo/cập nhật/hủy đơn, thanh toán, xem menu, xem khách hàng, xem bàn
+  // Mục tiêu: Tạo/cập nhật/hủy đơn, mở/đóng ca, order queue, xem bàn
   CASHIER: [
-    'ORDER_VIEW',
     'ORDER_CREATE',
     'ORDER_UPDATE',
-    'POS_CREATE_ORDER',
     'POS_CANCEL_ORDER',
-    'TABLE_VIEW',
-    'TABLE_UPDATE',
-    'MENU_VIEW',
-    'CUSTOMER_VIEW',
-    'CUSTOMER_CREATE',
-    'INVENTORY_VIEW',
+    'POS_OPEN',
+    'POS_CLOSE',
     'POS_ORDER_QUEUE_VIEW',
     'POS_ORDER_QUEUE_CREATE',
     'POS_ORDER_QUEUE_UPDATE',
     'POS_ORDER_QUEUE_DELETE',
     'POS_ORDER_QUEUE_PAY',
+    'TABLE_VIEW',
   ],
 
   // ── KITCHEN ─────────────────────────────────────────────────────────────
-  // Mục tiêu: Xem đơn cần làm, cập nhật trạng thái chế biến, xem menu
+  // Mục tiêu: Xem đơn hàng
   KITCHEN: [
     'ORDER_VIEW',
-    'MENU_VIEW',
-    'POS_ORDER_QUEUE_VIEW',
-    'POS_ORDER_QUEUE_UPDATE',
-  ],
-
-  // ── CASHIER_KITCHEN ──────────────────────────────────────────────────────
-  // Kết hợp toàn bộ quyền CASHIER + KITCHEN (union, deduped)
-  CASHIER_KITCHEN: [
-    'ORDER_VIEW',
-    'ORDER_CREATE',
-    'ORDER_UPDATE',
-    'POS_CREATE_ORDER',
-    'POS_CANCEL_ORDER',
-    'TABLE_VIEW',
-    'TABLE_UPDATE',
-    'MENU_VIEW',
-    'CUSTOMER_VIEW',
-    'CUSTOMER_CREATE',
-    'INVENTORY_VIEW',
-    'POS_ORDER_QUEUE_VIEW',
-    'POS_ORDER_QUEUE_CREATE',
-    'POS_ORDER_QUEUE_UPDATE',
-    'POS_ORDER_QUEUE_DELETE',
-    'POS_ORDER_QUEUE_PAY',
   ],
 
   // ── BILLIARD ─────────────────────────────────────────────────────────────

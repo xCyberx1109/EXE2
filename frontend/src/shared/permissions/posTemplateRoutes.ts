@@ -3,20 +3,18 @@ import type { PosMachineTemplate } from '../../app/types';
 /**
  * Single source of truth: POS Machine Template → target route.
  *
- * CASHIER        → /app/order-queue  (Menu + Orders)
- * KITCHEN        → /app/order-queue  (Kitchen only)
- * CASHIER_KITCHEN→ /app/order-queue  (Full 3-column)
- * BILLIARD       → /app/billiard
- * RESTAURANT     → /app/restaurant
- * CUSTOM         → /app/order-queue  (fallback)
+ * CASHIER    → /app/order-queue  (Menu + Orders)
+ * KITCHEN    → /app/order-queue  (Kitchen only)
+ * BILLIARD   → /app/billiard
+ * RESTAURANT → /app/restaurant
+ * CUSTOM     → /app/order-queue  (fallback)
  */
 export const POS_TEMPLATE_ROUTE: Record<PosMachineTemplate, string> = {
-  CASHIER:         '/app/order-queue',
-  KITCHEN:         '/app/order-queue',
-  CASHIER_KITCHEN: '/app/order-queue',
-  BILLIARD:        '/app/billiard',
-  RESTAURANT:      '/app/restaurant',
-  CUSTOM:          '/app/order-queue',
+  CASHIER:    '/app/order-queue',
+  KITCHEN:    '/app/order-queue',
+  BILLIARD:   '/app/billiard',
+  RESTAURANT: '/app/restaurant',
+  CUSTOM:     '/app/order-queue',
 };
 
 /** Trả về route đích dựa trên template. Fallback về /app/order-queue. */
@@ -46,7 +44,7 @@ export function getRedirectIfWrongRoute(
 
   // Các template ORDER_QUEUE được phép ở /app/order-queue
   if (
-    (template === 'CASHIER' || template === 'KITCHEN' || template === 'CASHIER_KITCHEN' || template === 'CUSTOM') &&
+    (template === 'CASHIER' || template === 'KITCHEN' || template === 'CUSTOM') &&
     pathname.startsWith('/app/order-queue')
   ) {
     return null;

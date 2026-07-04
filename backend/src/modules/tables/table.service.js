@@ -131,11 +131,8 @@ export const tableService = {
 
   async getPosTables(user, mode) {
     const accountId = user?.accountId || user?.id || user?.branch?.id;
-    console.log('[getPosTables] accountId:', accountId, 'user:', user?.id || 'device:' + user?.id);
-
     const additionalWhere = mode ? { isActive: true, mode } : { isActive: true };
     const where = buildBranchWhere(user, additionalWhere, 'accountId');
-    console.log('[getPosTables] query where:', JSON.stringify(where));
 
     let tables;
     try {

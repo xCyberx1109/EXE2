@@ -248,16 +248,6 @@ export const billiardService = {
       const newRect = { posX: pos.posX, posY: pos.posY, width: pos.width, height: pos.height };
       const overlap = Object.values(positionsMap).find(other => {
         const isOverlap = rectsOverlap(newRect, other);
-        console.log({
-          currentTable: table.tableCode,
-          currentId: pos.id,
-          compareTable: other?.tableCode,
-          compareId: other?.id,
-          isSameTable: pos.id === other?.id,
-          isOverlap,
-          newRect,
-          otherRect: { posX: other.posX, posY: other.posY, width: other.width, height: other.height },
-        });
         return isOverlap;
       });
       if (overlap) {
@@ -280,22 +270,10 @@ export const billiardService = {
     const accountId = user.accountId || user.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
 
-    console.log('=== DEBUG: updateRestaurantTableLayout ===');
-    console.table(
-      tablePositions.map(p => ({
-        id: p.id,
-        posX: p.posX,
-        posY: p.posY,
-      }))
-    );
-
     const allTables = await prisma.table.findMany({
       where: { accountId, isActive: true, mode: 'RESTAURANT' },
       select: { id: true, tableCode: true, posX: true, posY: true },
     });
-
-    console.log('=== DEBUG: All RESTAURANT tables from DB ===');
-    console.table(allTables);
 
     const results = [];
     const positionsMap = {};
@@ -305,11 +283,6 @@ export const billiardService = {
 
     for (const pos of tablePositions) {
       const table = await tableRepository.findById(pos.id);
-      console.log({
-        tableId: table?.id,
-        tableCode: table?.tableCode,
-        mode: table?.mode,
-      });
       if (!table) throw new AppError(`Không tìm thấy bàn ${pos.id}`, 404);
       if (table.mode !== 'RESTAURANT') {
         console.error('INVALID TABLE MODE', {
@@ -326,16 +299,6 @@ export const billiardService = {
       const newRect = { posX: pos.posX, posY: pos.posY, width: pos.width, height: pos.height };
       const overlap = Object.values(positionsMap).find(other => {
         const isOverlap = rectsOverlap(newRect, other);
-        console.log({
-          currentTable: table.tableCode,
-          currentId: pos.id,
-          compareTable: other?.tableCode,
-          compareId: other?.id,
-          isSameTable: pos.id === other?.id,
-          isOverlap,
-          newRect,
-          otherRect: { posX: other.posX, posY: other.posY, width: other.width, height: other.height },
-        });
         return isOverlap;
       });
       if (overlap) {
@@ -380,8 +343,6 @@ export const billiardService = {
       tableFee,
       status,
     };
-    console.log('[PLAY SESSION CREATE]', data);
-
     const result = await prisma.$transaction(async (tx) => {
       const orderNumber = `BLL-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
@@ -850,14 +811,21 @@ export const billiardService = {
     }
     if (order.table) assertBranchAccess(order.table, user, 'bàn');
 
-    return prisma.$transaction(async (tx) => {
+    const ingredientMap = {};
+    for (const { inventoryId } of items) {
+      if (!ingredientMap[inventoryId]) {
+        ingredientMap[inventoryId] = await prisma.ingredient.findUnique({ where: { id: inventoryId } });
+        if (!ingredientMap[inventoryId]) throw new AppError(`Không tìm thấy inventory item ${inventoryId}`, 404);
+        if (!ingredientMap[inventoryId].available) throw new AppError(`Inventory item ${inventoryId} không khả dụng`, 400);
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
       let subtotalDiff = 0;
       let totalDiff = 0;
 
       for (const { inventoryId, quantity } of items) {
-        const ingredient = await tx.ingredient.findUnique({ where: { id: inventoryId } });
-        if (!ingredient) throw new AppError(`Không tìm thấy inventory item ${inventoryId}`, 404);
-        if (!ingredient.available) throw new AppError(`Inventory item ${inventoryId} không khả dụng`, 400);
+        const ingredient = ingredientMap[inventoryId];
 
         const existingItem = order.items.find(i => i.inventoryId === inventoryId);
 
@@ -905,52 +873,52 @@ export const billiardService = {
           },
         });
       }
-
-      // Return updated order summary
-      const updatedOrder = await tx.order.findUnique({
-        where: { id: orderId },
-        include: { items: true },
-      });
-
-      const session = await tx.playSession.findFirst({
-        where: {
-          status: PlaySessionStatus.PLAYING,
-          order: { id: orderId },
-        },
-      });
-
-      const mappedItems = (updatedOrder?.items || []).map(item => ({
-        id: item.id,
-        menuItemId: item.menuItemId,
-        inventoryId: item.inventoryId,
-        name: item.name,
-        price: Number(item.price),
-        quantity: item.quantity,
-        lineTotal: Number(item.total || item.price * item.quantity),
-      }));
-
-      const foodTotal = mappedItems.reduce((s, i) => s + i.lineTotal, 0);
-
-      const tableRec = order.table;
-      const storedTableFee = session ? Number(session.tableFee) : 0;
-      const hourlyRate = tableRec ? Number(tableRec.hourlyRate) : 0;
-
-      return {
-        sessionId: session?.id || null,
-        orderId: updatedOrder?.id || null,
-        orderNumber: updatedOrder?.orderNumber || null,
-        items: mappedItems,
-        foodTotal,
-        playingCost: storedTableFee,
-        hourlyRate,
-        tableFee: storedTableFee,
-        serviceCharge: updatedOrder ? Number(updatedOrder.serviceCharge || 0) : 0,
-        tax: updatedOrder ? Number(updatedOrder.tax || 0) : 0,
-        grandTotal: foodTotal + storedTableFee,
-        startTime: session?.startTime || null,
-        tableStatus: tableRec?.status || 'OCCUPIED',
-      };
     });
+
+    // Build response outside transaction
+    const updatedOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    });
+
+    const session = await prisma.playSession.findFirst({
+      where: {
+        status: PlaySessionStatus.PLAYING,
+        order: { id: orderId },
+      },
+    });
+
+    const mappedItems = (updatedOrder?.items || []).map(item => ({
+      id: item.id,
+      menuItemId: item.menuItemId,
+      inventoryId: item.inventoryId,
+      name: item.name,
+      price: Number(item.price),
+      quantity: item.quantity,
+      lineTotal: Number(item.total || item.price * item.quantity),
+    }));
+
+    const foodTotal = mappedItems.reduce((s, i) => s + i.lineTotal, 0);
+
+    const tableRec = order.table;
+    const storedTableFee = session ? Number(session.tableFee) : 0;
+    const hourlyRate = tableRec ? Number(tableRec.hourlyRate) : 0;
+
+    return {
+      sessionId: session?.id || null,
+      orderId: updatedOrder?.id || null,
+      orderNumber: updatedOrder?.orderNumber || null,
+      items: mappedItems,
+      foodTotal,
+      playingCost: storedTableFee,
+      hourlyRate,
+      tableFee: storedTableFee,
+      serviceCharge: updatedOrder ? Number(updatedOrder.serviceCharge || 0) : 0,
+      tax: updatedOrder ? Number(updatedOrder.tax || 0) : 0,
+      grandTotal: foodTotal + storedTableFee,
+      startTime: session?.startTime || null,
+      tableStatus: tableRec?.status || 'OCCUPIED',
+    };
   },
 
   async updateOrderItem(orderId, itemId, { quantity, note }, user) {
@@ -1273,14 +1241,14 @@ export const billiardService = {
       throw new AppError('Bàn này đã có đơn hàng đang mở', 400);
     }
 
-    return prisma.$transaction(async (tx) => {
+    const orderId = await prisma.$transaction(async (tx) => {
       const existingInTx = await tx.order.findFirst({
         where: buildOpenOrderWhere(tableId, accountId),
         include: { items: { orderBy: { id: 'asc' } } },
         orderBy: { id: 'desc' },
       });
 
-      if (existingInTx) return existingInTx;
+      if (existingInTx) return existingInTx.id;
 
       const orderNumber = `TBL-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
@@ -1310,13 +1278,15 @@ export const billiardService = {
         data: { status: 'OCCUPIED' },
       });
 
-      const fullOrder = await tx.order.findUnique({
-        where: { id: order.id },
-        include: { items: { orderBy: { id: 'asc' } } },
-      });
-
-      return mapOrderSummary(fullOrder);
+      return order.id;
     });
+
+    const fullOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: { orderBy: { id: 'asc' } } },
+    });
+
+    return mapOrderSummary(fullOrder);
   },
 
   async getTableOrder(tableId, user) {

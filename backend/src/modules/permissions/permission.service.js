@@ -1,12 +1,28 @@
 import crypto from 'crypto';
 import prisma from '../../prisma/client.js';
 
+const CACHE_TTL = 60_000;
+const permissionCache = new Map();
+
+function getCached(accountId) {
+  const entry = permissionCache.get(accountId);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    permissionCache.delete(accountId);
+    return null;
+  }
+  return entry.permissions;
+}
+
+function setCached(accountId, permissions) {
+  permissionCache.set(accountId, { permissions, timestamp: Date.now() });
+}
+
 export const permissionService = {
-  /**
-   * Lấy danh sách permission codes hiệu dụng của account.
-   * Nguồn: AccountPermission (direct grants).
-   */
   async getEffectivePermissions(accountId) {
+    const cached = getCached(accountId);
+    if (cached) return cached;
+
     const account = await prisma.account.findUnique({
       where: { id: accountId },
       include: {
@@ -18,23 +34,19 @@ export const permissionService = {
 
     if (!account) return [];
 
-    return account.accountPermissions
+    const permissions = account.accountPermissions
       .filter(ap => ap.allowed)
       .map(ap => ap.permission.code);
+
+    setCached(accountId, permissions);
+    return permissions;
   },
 
-  /**
-   * Kiểm tra user có permission cụ thể không
-   */
   async hasPermission(accountId, permissionCode) {
     const permissions = await this.getEffectivePermissions(accountId);
     return permissions.includes(permissionCode);
   },
 
-  /**
-   * Trả về version hash dựa trên danh sách permissions hiệu dụng
-   * Dùng để client cache-busting: nếu permissions thay đổi → version khác
-   */
   async getPermissionsVersion(accountId) {
     const permissions = await this.getEffectivePermissions(accountId);
     if (!permissions || permissions.length === 0) return 0;
@@ -46,10 +58,11 @@ export const permissionService = {
     return version;
   },
 
-  /**
-   * Xóa cache permissions (Placeholder cho hệ thống cache sau này)
-   */
-  invalidateCache() {
-    // console.log('→ Permission cache invalidated');
+  invalidateCache(accountId) {
+    if (accountId) {
+      permissionCache.delete(accountId);
+    } else {
+      permissionCache.clear();
+    }
   }
 };

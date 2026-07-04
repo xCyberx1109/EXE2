@@ -111,7 +111,7 @@ export function OrderQueuePOS() {
 
   const showMenuColumn = hasPermission('POS_ORDER_QUEUE_CREATE');
   const showOrdersColumn = hasPermission('POS_ORDER_QUEUE_VIEW');
-  const showKitchenColumn = hasPermission('POS_ORDER_QUEUE_UPDATE');
+  const showKitchenColumn = hasPermission('ORDER_VIEW');
   const isKitchenMode = showKitchenColumn && !showMenuColumn;
   const [orders, setOrders] = useState<OrderDetail[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -176,7 +176,10 @@ export function OrderQueuePOS() {
       const nextDiscount = latestDiscountRef.current;
       const nextNote = latestNoteRef.current;
 
-      if (!canUpdate) return;
+      if (!canUpdate) {
+        setError('Bạn không có quyền thêm món vào đơn hàng');
+        return;
+      }
 
       if (persistLoadingRef.current) return;
       persistLoadingRef.current = true;
@@ -186,15 +189,12 @@ export function OrderQueuePOS() {
         discount: nextDiscount,
         note: nextNote,
       };
-      console.log("[schedulePersist] SAVING", scheduledOrderId, `items=${lines.length}`, lines.map(l => `${l.name} x${l.quantity}`).join(', '));
       ordersQueueApi
         .update(scheduledOrderId, payload as any)
         .then(updated => {
-          console.log("[schedulePersist] API SUCCESS → setOrders", updated.orderNumber, `items=${updated.items.length}`);
           setOrders(current => current.map(order => (order.id === scheduledOrderId ? updated : order)));
         })
         .catch((e: any) => {
-          console.log("[schedulePersist] API ERROR", e.message, "→ loadOrders()");
           setError(e.message || 'Không thể lưu order.');
           loadOrders();
         })
@@ -215,7 +215,6 @@ export function OrderQueuePOS() {
   }, [menuItems]);
 
   const filteredMenuItems = useMemo(() => {
-    console.log('[MENU ITEMS STATE]', menuItems);
     const keyword = productSearch.trim().toLowerCase();
     const result = menuItems.filter(item => {
       const matchCategory = selectedCategory === 'all' || item.category === selectedCategory;
@@ -226,7 +225,6 @@ export function OrderQueuePOS() {
         item.description?.toLowerCase().includes(keyword);
       return matchCategory && matchKeyword;
     });
-    console.log('[FILTERED MENU ITEMS]', result);
     return result;
   }, [menuItems, productSearch, selectedCategory]);
 
@@ -263,7 +261,6 @@ export function OrderQueuePOS() {
   }
 
   const loadOrders = () => {
-    console.log("[loadOrders] fetching unpaid orders...");
     setLoading(true);
     setError(null);
     ordersQueueApi
@@ -274,11 +271,9 @@ export function OrderQueuePOS() {
           (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
 
-        console.log("[loadOrders] got", sorted.length, "orders, IDs:", sorted.map(o => o.id.slice(0, 8)).join(', '));
         setOrders(sorted);
         setActiveOrderId(current => {
           if (current && sorted.some(order => order.id === current)) return current;
-          console.log("[loadOrders] activeOrderId changed:", current, "→", sorted[0]?.id || null);
           return sorted[0]?.id || null;
         });
       })
@@ -292,11 +287,9 @@ export function OrderQueuePOS() {
       menuApi
         .list({ available: 'true' })
         .then((data) => {
-          console.log('[MENU API RESPONSE]', data);
           setMenuItems(Array.isArray(data) ? data : []);
         })
         .catch((e) => {
-          console.log('[MENU API ERROR]', e);
           setMenuItems([]);
         });
       inventoryApi
@@ -325,7 +318,6 @@ export function OrderQueuePOS() {
   // where server responses overwrite the user's in-progress edits.
   useEffect(() => {
     if (prevActiveOrderIdRef.current !== activeOrderId) {
-      console.log("[ORDER SWITCH]", prevActiveOrderIdRef.current, "→", activeOrderId);
       prevActiveOrderIdRef.current = activeOrderId;
       setOrderLines(toQueueLines(activeOrder));
       setDiscount(Number(activeOrder?.discount || 0));
@@ -360,8 +352,6 @@ export function OrderQueuePOS() {
     const nextTax = 0;
     const total = Math.max(0, subtotal - nextDiscount);
 
-    console.log("[updateLocalOrderFromCart] orderId=", orderId, "lines=", lines.map(l => `${l.name} x${l.quantity}`).join(', '), "total=", total);
-
     setOrders(current =>
       current.map(order =>
         order.id === orderId
@@ -390,18 +380,11 @@ export function OrderQueuePOS() {
   const createNewOrder = async () => {
     if (!canCreate) return;
 
-    console.log("=== CREATE NEW ORDER ===");
-    console.log("Cart state (orderLines):", JSON.stringify(orderLines));
-    console.log("Active order ID:", activeOrderId);
-
     setCreateLoading(true);
     setError(null);
     try {
       const payload = { items: [] };
-      console.log("QUEUE ORDER PAYLOAD:", JSON.stringify(payload));
-      console.log("API endpoint: POST /api/orders/queue");
       const created = await ordersQueueApi.create(payload);
-      console.log("ORDER CREATED SUCCESSFULLY:", JSON.stringify(created, null, 2));
       setOrders(current => [created, ...current]);
       setLabels(current => ({ ...current, [created.id]: '' }));
       setActiveOrderId(created.id);
@@ -422,7 +405,10 @@ export function OrderQueuePOS() {
       setError('Vui lòng tạo hoặc chọn một order OPEN trước khi thêm món.');
       return;
     }
-    if (!canUpdate) return;
+    if (!canUpdate) {
+      setError('Bạn không có quyền thêm món vào đơn hàng');
+      return;
+    }
 
     const nextLines = (() => {
       const existing = orderLines.find(line => line.menuItemId === product.id);
@@ -443,8 +429,6 @@ export function OrderQueuePOS() {
       ];
     })();
 
-    console.log("[addProduct]", product.name, `x${1}`, `→ cart:`, nextLines.map(l => `${l.name} x${l.quantity}`).join(', '));
-
     setOrderLines(nextLines);
     updateLocalOrderFromCart(activeOrderId, nextLines);
     setInventoryStatus('NEEDS_REVALIDATION');
@@ -461,10 +445,6 @@ export function OrderQueuePOS() {
           : line
       )
       .filter(line => line.quantity > 0);
-
-    const removed = orderLines.find(l => l.menuItemId === menuItemId && l.quantity + delta <= 0);
-    console.log("[changeQuantity]", menuItemId, delta, removed ? `→ REMOVED` : `→ qty changed`);
-    console.log("[orderLines]", nextLines.map(l => `${l.name} x${l.quantity}`).join(', '));
 
     setOrderLines(nextLines);
     updateLocalOrderFromCart(activeOrderId, nextLines);
@@ -511,7 +491,6 @@ export function OrderQueuePOS() {
       const nextDiscount = latestDiscountRef.current;
       const nextNote = latestNoteRef.current;
       if (id && canUpdate) {
-        console.log("[FLUSH PERSIST] Saving via debounce flush, order:", id);
         return ordersQueueApi
           .update(id, {
             items: lines.map(line => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
@@ -519,18 +498,12 @@ export function OrderQueuePOS() {
             note: nextNote,
           } as any)
           .then(updated => {
-            console.log("[FLUSH PERSIST] Save successful");
             setOrders(current => current.map(order => (order.id === id ? updated : order)));
           })
           .catch((e: any) => {
-            console.log("[FLUSH PERSIST] Save failed:", e.message);
             setError(e.message || 'Không thể lưu order.');
           });
-      } else {
-        console.log("[FLUSH PERSIST] Skipped — no id or no update permission");
       }
-    } else {
-      console.log("[FLUSH PERSIST] No pending debounce timer, skipping");
     }
     return Promise.resolve();
   };
@@ -556,38 +529,26 @@ export function OrderQueuePOS() {
     const discountValue = discount;
     const noteValue = orderNote;
 
-    console.log("=== PROCESS PAYMENT (1st click) ===");
-    console.log("Order ID:", orderId);
-    console.log("Order lines:", JSON.stringify(lines));
-    console.log("Payment method:", method);
-    console.log("Payable total:", payableTotal);
-
     setCheckoutLoading(true);
     setError(null);
     try {
       // ALWAYS save cart to backend before payment — do NOT rely on flushPersist debounce timer
-      console.log("[STEP 1] Flush persist: saving cart to backend...");
       try {
         const savedOrder = await ordersQueueApi.update(orderId, {
           items: lines.map(line => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
           discount: discountValue,
           note: noteValue,
         } as any);
-        console.log("[STEP 1] Flush persist: save completed");
         setOrders(current => current.map(order => (order.id === orderId ? savedOrder : order)));
       } catch (saveErr: any) {
-        console.log("[STEP 1] Flush persist: save FAILED — aborting payment", saveErr.message);
         setError(saveErr.message || 'Không thể lưu order trước khi thanh toán.');
         setCheckoutLoading(false);
         return;
       }
 
-      console.log("[STEP 2] Calling pay API...");
       const result = await ordersQueueApi.pay(orderId, method);
-      console.log("[STEP 2] Pay API response:", JSON.stringify(result));
 
       if (result && 'inventoryIssues' in result) {
-        console.log("[INVENTORY ISSUES] Blocking payment, issues:", result.inventoryIssues?.length);
         setInventoryStatus('INVALID');
         setInventoryIssues(result.inventoryIssues || []);
         toast.error('Kiểm tra tồn kho thất bại', {
@@ -598,7 +559,6 @@ export function OrderQueuePOS() {
       }
 
       const paidOrder = result as OrderDetail;
-      console.log("[PAYMENT SUCCESS] Order completed:", paidOrder.orderNumber);
       setInventoryStatus('VALID');
       setInventoryIssues([]);
       toast.success(`Thanh toán thành công • ${paidOrder.orderNumber}`, {
@@ -626,12 +586,10 @@ export function OrderQueuePOS() {
         grandTotal: paidOrder.total,
       });
     } catch (e: any) {
-      console.log("[PAYMENT ERROR]", e);
       toast.error('Thanh toán thất bại', { description: e.message || 'Không thể thanh toán order.' });
       setError(e.message || 'Không thể thanh toán order.');
     } finally {
       setCheckoutLoading(false);
-      console.log("=== PROCESS PAYMENT COMPLETE ===");
     }
   };
 
@@ -678,7 +636,7 @@ export function OrderQueuePOS() {
 
       {/* Main content: dynamic column layout based on permissions */}
       <div className="flex-1 min-h-0 flex gap-2 lg:gap-3 overflow-hidden px-3 lg:px-4 pb-3 lg:pb-4">
-        {/* Left: Product Menu — CASHIER / CASHIER_KITCHEN only */}
+        {/* Left: Product Menu — CASHIER only */}
         {showMenuColumn && (
           <section
             className="flex flex-col min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden"
@@ -778,7 +736,7 @@ export function OrderQueuePOS() {
           </section>
         )}
 
-        {/* Center: Open Orders — CASHIER / CASHIER_KITCHEN only */}
+        {/* Center: Open Orders — CASHIER only */}
         {showOrdersColumn && (
           <aside
             className="flex flex-col min-w-0 rounded-3xl border border-border bg-card shadow-sm overflow-hidden"
@@ -1085,7 +1043,7 @@ export function OrderQueuePOS() {
           </aside>
         )}
 
-        {/* Right: Orders To Make — KITCHEN / CASHIER_KITCHEN only */}
+        {/* Right: Orders To Make — KITCHEN only */}
         {showKitchenColumn && (
           <div
             className="flex flex-col"

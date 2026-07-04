@@ -156,23 +156,19 @@ export const restaurantService = {
     const accountId = user.accountId || user.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 400);
 
-    console.log('[createTable] restaurantId:', accountId);
-    console.log('[createTable] tableCode:', data.tableCode);
-    console.log('[createTable] input data:', JSON.stringify(data));
+
 
     const existing = await tableRepository.findByAccountTableCode(accountId, data.tableCode);
     if (existing) throw new AppError(`Mã bàn "${data.tableCode}" đã tồn tại`, 409);
 
     const mode = 'RESTAURANT';
-    console.log('[createTable] Creating table mode:', mode);
 
     const allTables = await prisma.table.findMany({
       where: { accountId, isActive: true, mode },
       select: { id: true, tableCode: true, posX: true, posY: true },
     });
 
-    console.log('[createTable] tables count:', allTables.length);
-    console.log('[createTable] Tables used for overlap check:', JSON.stringify(allTables));
+
 
     const reqWidth = data.width ? Number(data.width) : DEFAULT_TABLE_WIDTH_PERCENT;
     const reqHeight = data.height ? Number(data.height) : DEFAULT_TABLE_HEIGHT_PERCENT;
@@ -189,7 +185,6 @@ export const restaurantService = {
       const position = findAvailablePosition(allTables, reqWidth, reqHeight);
       posX = position.x;
       posY = position.y;
-      console.log('[createTable] Auto-assigned table position:', position);
     }
 
     return tableRepository.create({
@@ -232,16 +227,6 @@ export const restaurantService = {
       const newRect = { posX: pos.posX, posY: pos.posY, width: pos.width, height: pos.height };
       const overlap = Object.values(positionsMap).find(other => {
         const isOverlap = rectsOverlap(newRect, other);
-        console.log({
-          currentTable: table.tableCode,
-          currentId: pos.id,
-          compareTable: other?.tableCode,
-          compareId: other?.id,
-          isSameTable: pos.id === other?.id,
-          isOverlap,
-          newRect,
-          otherRect: { posX: other.posX, posY: other.posY, width: other.width, height: other.height },
-        });
         return isOverlap;
       });
       if (overlap) {
@@ -363,8 +348,6 @@ export const restaurantService = {
           guestCount: guestCount || 1,
         },
       });
-
-      console.log('Created order:', order);
 
       if (!order) {
         throw new Error('Failed to create order');

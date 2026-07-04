@@ -21,6 +21,12 @@ export function PosMachineLoginPage() {
   }, [success, navigate]);
 
   useEffect(() => {
+    if (isReady && isAuthenticated && isEmployeeMode && !success) {
+      navigate('/app', { replace: true });
+    }
+  }, [isReady, isAuthenticated, isEmployeeMode, success, navigate]);
+
+  useEffect(() => {
     if (pinInputRef.current) pinInputRef.current.focus();
   }, []);
 
@@ -44,14 +50,6 @@ export function PosMachineLoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="w-8 h-8 animate-spin mr-2" /> Đang tải...
-      </div>
-    );
-  }
-
-  if (isAuthenticated && isEmployeeMode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
-        <Loader2 className="w-8 h-8 animate-spin mr-2" /> Đang chuyển hướng...
       </div>
     );
   }

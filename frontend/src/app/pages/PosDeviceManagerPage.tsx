@@ -160,7 +160,6 @@ export function PosDeviceManagerPage() {
                   <SelectContent>
                     <SelectItem value="CASHIER">Thu ngân</SelectItem>
                     <SelectItem value="KITCHEN">Bếp</SelectItem>
-                    <SelectItem value="CASHIER_KITCHEN">Thu Ngân & Bếp</SelectItem>
                     <SelectItem value="BILLIARD">Bi-a</SelectItem>
                     <SelectItem value="RESTAURANT">Nhà hàng</SelectItem>
                   </SelectContent>

@@ -4,17 +4,15 @@ export const PERMISSION_TEMPLATES = {
     permissionCodes: [
       'POS_OPEN', 'POS_CLOSE',
       'POS_CANCEL_ORDER',
-      'POS_ORDER_QUEUE_VIEW', 'POS_ORDER_QUEUE_CREATE', 'POS_ORDER_QUEUE_PAY',
+      'POS_ORDER_QUEUE_VIEW', 'POS_ORDER_QUEUE_CREATE', 'POS_ORDER_QUEUE_UPDATE', 'POS_ORDER_QUEUE_DELETE', 'POS_ORDER_QUEUE_PAY',
       'TABLE_VIEW',
-      'ORDER_VIEW', 'ORDER_CREATE', 'ORDER_UPDATE',
+      'ORDER_CREATE', 'ORDER_UPDATE',
     ],
   },
   KITCHEN: {
     name: 'Bếp',
     permissionCodes: [
       'ORDER_VIEW',
-      'POS_ORDER_QUEUE_VIEW', 'POS_ORDER_QUEUE_UPDATE',
-      'MENU_VIEW',
     ],
   },
   RESTAURANT: {

@@ -156,8 +156,6 @@ export const unifiedAuthService = {
   },
 
   async register({ email, password, fullName }) {
-    console.log("[ACCOUNT_CREATE_HIT]", email, Date.now());
-
     const existing = await userRepository.findByEmail(email);
     if (existing) {
       throw new AppError('Email đã được sử dụng', 409);

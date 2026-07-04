@@ -3,6 +3,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess, sendError } from '../../utils/apiResponse.js';
 import { AppError } from '../../utils/AppError.js';
 import { syncPlanPermissions } from '../../services/planPermission.service.js';
+import { permissionService } from '../permissions/permission.service.js';
 
 const PLAN_CODE_MAP = {
   BASIC: 'basic',
@@ -158,7 +159,6 @@ export const rbacController = {
           permissionId: p.permissionId,
           allowed: p.allowed,
         }));
-        console.log('[RBAC PERMISSION CREATE]', JSON.stringify(createData, null, 2));
         await tx.accountPermission.createMany({ data: createData });
       }
 
@@ -205,6 +205,7 @@ export const rbacController = {
       });
     }
 
+    permissionService.invalidateCache(targetAccountId);
     sendSuccess(res, { message: 'Cập nhật quyền tài khoản thành công' });
   }),
 };

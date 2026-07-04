@@ -49,8 +49,6 @@ export const menuService = {
 
   // --- Menu Items ---
   async listMenuItems({ search, category, categoryId, available, accountId: queryAccountId, page, limit }, user) {
-    console.log('[MENU SERVICE] listMenuItems called with params:', { search, category, categoryId, available, queryAccountId, page, limit });
-    
     if (!user && !queryAccountId) {
       return [];
     }
@@ -262,8 +260,6 @@ export const menuService = {
     const accountId = user.accountId || user.id;
     const grouped = await orderRepository.aggregateTopItems(limit, accountId);
 
-    console.log("[TOP SELLING ITEMS grouped]", JSON.stringify(grouped, null, 2));
-
     if (grouped.length === 0) return [];
 
     const ids = grouped.map(g => g.menuItemId);
@@ -292,7 +288,6 @@ export const menuService = {
       revenue: revenueMap[g.menuItemId] || 0,
     }));
 
-    console.log("[TOP SELLING RESULT]", JSON.stringify(result, null, 2));
     return result;
   },
 };

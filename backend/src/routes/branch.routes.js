@@ -8,6 +8,7 @@ import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { lockService } from '../utils/lockService.js';
 import { requestLogger } from '../utils/logger.js';
 import { authenticate, requirePermission } from '../middlewares/auth.js';
+import { permissionService } from '../modules/permissions/permission.service.js';
 import { enforceBranchScope } from '../middlewares/branchScope.js';
 import { sendInviteEmail, sendCredentialsEmail } from '../services/email.service.js';
 import { assignPlanPermissions, syncPlanPermissions } from '../services/planPermission.service.js';
@@ -168,16 +169,17 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
 
       const perms = await tx.permission.findMany({
         where: { code: { in: ['BRANCH_VIEW', 'BRANCH_UPDATE', 'DASHBOARD_VIEW'] } },
-        select: { id: true, code: true },
+        select: { id: true },
       });
 
-      for (const p of perms) {
-        await tx.accountPermission.upsert({
-          where: { accountId_permissionId: { accountId: newAccount.id, permissionId: p.id } },
-          update: { allowed: true },
-          create: { accountId: newAccount.id, permissionId: p.id, allowed: true },
-        });
-      }
+      await tx.accountPermission.createMany({
+        data: perms.map(p => ({
+          accountId: newAccount.id,
+          permissionId: p.id,
+          allowed: true,
+        })),
+        skipDuplicates: true,
+      });
 
       const planId = await getPlanId(plan);
       if (planId) {
@@ -211,20 +213,23 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
       try {
         const permRecords = await prisma.permission.findMany({
           where: { code: { in: permissions } },
-          select: { id: true, code: true },
+          select: { id: true },
         });
 
-        for (const p of permRecords) {
-          await prisma.accountPermission.upsert({
-            where: { accountId_permissionId: { accountId: account.id, permissionId: p.id } },
-            update: { allowed: true },
-            create: { accountId: account.id, permissionId: p.id, allowed: true },
-          });
-        }
+        await prisma.accountPermission.createMany({
+          data: permRecords.map(p => ({
+            accountId: account.id,
+            permissionId: p.id,
+            allowed: true,
+          })),
+          skipDuplicates: true,
+        });
       } catch (err) {
         console.error('[POST /api/branches] Error saving custom permissions:', err.message);
       }
     }
+
+    permissionService.invalidateCache(account.id);
 
     sendCredentialsEmail({
       email: account.email,
@@ -347,8 +352,6 @@ router.put('/:id/reset-password', requirePermission('BRANCH_UPDATE'), asyncHandl
         },
       });
     });
-
-    console.log(`[PUT /api/branches/reset-password] invite token generated for ${account.id}`);
 
     const inviteLink = `${req.protocol}://${req.get('host')}/set-password?token=${rawToken}`;
 
@@ -521,6 +524,7 @@ router.put('/:id/plan', requirePermission('BRANCH_UPDATE'), asyncHandler(async (
     });
 
     await syncPlanPermissions(id, plan);
+    permissionService.invalidateCache(id);
 
     sendSuccess(res, {
       message: 'Đã cập nhật gói dịch vụ thành công',
