@@ -225,7 +225,7 @@ export function TableManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-1">
+    <div className="flex flex-col space-y-1">
       <div className="flex-shrink-0 bg-card rounded-md border border-border p-3">
         <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-1.5">

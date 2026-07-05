@@ -93,7 +93,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, PlanConfig> = {
         name: 'Xem tồn kho',
         description: 'Xem thông tin tồn kho',
         icon: 'Package',
-        permissions: ['INVENTORY_VIEW'],
+        permissions: ['INVENTORY_VIEW', 'INVENTORY_TRANSACTION_VIEW'],
       },
       {
         id: 'report_view',
@@ -287,7 +287,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, PlanConfig> = {
         name: 'Quản lý kho',
         description: 'Nhập, xuất, điều chỉnh tồn kho và quản lý nguyên liệu',
         icon: 'Package',
-        permissions: ['INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_DELETE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST'],
+        permissions: ['INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_DELETE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT'],
       },
       {
         id: 'menu_full',

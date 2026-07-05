@@ -85,7 +85,7 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col gap-1.5">
+    <div className="w-full flex flex-col gap-1.5">
       {/* Header */}
       <div className="flex items-center gap-1.5 shrink-0">
         <div className="p-2 bg-accent rounded-md text-primary">

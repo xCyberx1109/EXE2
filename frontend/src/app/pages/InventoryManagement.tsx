@@ -250,7 +250,7 @@ export function InventoryManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col space-y-4">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-lg font-bold text-foreground">Quản lý Tồn kho</h1>

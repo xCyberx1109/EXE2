@@ -14,6 +14,18 @@ export const inventoryTransactionRepository = {
       take,
     }),
 
+  findManyPaginated: (where = {}, skip = 0, take = 20) =>
+    prisma.$transaction([
+      prisma.inventoryTransaction.count({ where }),
+      prisma.inventoryTransaction.findMany({
+        where,
+        include: txInclude,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+    ]),
+
   findByIngredient: (ingredientId, take = 50) =>
     prisma.inventoryTransaction.findMany({
       where: { ingredientId },

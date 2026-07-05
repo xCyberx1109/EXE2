@@ -22,7 +22,7 @@ router.get('/ingredients/low-stock', optionalAuth, requirePermission('INVENTORY_
 router.get('/ingredients', optionalAuth, requirePermission('INVENTORY_VIEW'), inventoryListQuery, validate, listIngredients);
 router.get('/ingredients/:id/transactions', optionalAuth, requirePermission('INVENTORY_VIEW'), ingredientIdParam, validate, getIngredientTransactions);
 router.get('/ingredients/:id', optionalAuth, requirePermission('INVENTORY_VIEW'), ingredientIdParam, validate, getIngredient);
-router.get('/inventory/transactions', authenticate, requirePermission('INVENTORY_VIEW'), listTransactions);
+router.get('/inventory/transactions', authenticate, requirePermission('INVENTORY_TRANSACTION_VIEW'), listTransactions);
 
 router.post('/ingredients', authenticate, requirePermission('INVENTORY_CREATE'), ingredientRules, validate, createIngredient);
 router.put('/ingredients/:id', authenticate, requirePermission('INVENTORY_UPDATE'), [...ingredientIdParam, ...ingredientUpdateRules], validate, updateIngredient);

@@ -322,7 +322,7 @@ export function MenuManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-foreground">Quản lý Menu</h1>

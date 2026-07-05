@@ -51,7 +51,6 @@ export const PLAN_PERMISSIONS: Record<PlanKey, string[]> = {
     'INVENTORY_UPDATE',
     'INVENTORY_IMPORT',
     'INVENTORY_EXPORT',
-    'INVENTORY_ADJUST',
     'CUSTOMER_CREATE',
     'CUSTOMER_UPDATE',
     'SHIFT_VIEW',
@@ -87,7 +86,6 @@ export const PLAN_PERMISSIONS: Record<PlanKey, string[]> = {
     'INVENTORY_UPDATE',
     'INVENTORY_IMPORT',
     'INVENTORY_EXPORT',
-    'INVENTORY_ADJUST',
     'CUSTOMER_CREATE',
     'CUSTOMER_UPDATE',
     'SHIFT_VIEW',
@@ -172,7 +170,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   {
     module: 'inventory',
     label: 'Inventory',
-    permissions: ['INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_DELETE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_ADJUST'],
+    permissions: ['INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_DELETE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_TRANSACTION_VIEW'],
   },
   {
     module: 'customers',
