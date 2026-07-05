@@ -19,7 +19,8 @@ type RecipeRow = {
 const emptyRecipeRow: RecipeRow = { ingredientId: '', amount: '' };
 
 export function MenuManagement() {
-  const { isReady } = useAuth();
+  const { isReady, hasPermission } = useAuth();
+  const canViewRecipe = hasPermission('INVENTORY_VIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [page, setPage] = useState(1);
@@ -138,10 +139,12 @@ export function MenuManagement() {
       if (priceVal < 0) throw new Error('Giá bán không được âm');
       if (costVal < 0) throw new Error('Giá vốn không được âm');
 
-      const recipeIngredients = validateRecipeRows().map((row) => ({
-        ingredientId: row.ingredientId,
-        amount: Number(row.amount),
-      }));
+      const recipeIngredients = canViewRecipe
+        ? validateRecipeRows().map((row) => ({
+          ingredientId: row.ingredientId,
+          amount: Number(row.amount),
+        }))
+        : [];
       const payload = {
         name: formData.name.trim(),
         categoryId: formData.categoryId.trim(),
@@ -149,7 +152,7 @@ export function MenuManagement() {
         cost: costVal,
         description: formData.description,
         available: formData.available,
-        ingredients: recipeIngredients,
+        ...(canViewRecipe ? { ingredients: recipeIngredients } : {}),
       };
 
       if (editingItem) {
@@ -199,7 +202,7 @@ export function MenuManagement() {
       available: item.available,
     });
     setRecipeRows(
-      item.ingredients?.length
+      canViewRecipe && item.ingredients?.length
         ? item.ingredients.map((row) => ({
           ingredientId: row.ingredient?.id ?? row.ingredientId ?? '',
           amount: String(row.amount ?? 0),
@@ -459,8 +462,9 @@ export function MenuManagement() {
                 </div>
               </div>
 
-              <div className="border border-border rounded-md p-3 space-y-2">
-      <div className="flex items-center justify-between flex-shrink-0">
+              {canViewRecipe && (
+                <div className="border border-border rounded-md p-3 space-y-2">
+        <div className="flex items-center justify-between flex-shrink-0">
                   <div>
                     <label className="block text-xs font-medium">Công thức nguyên liệu</label>
                     <p className="text-xs text-muted-foreground mt-0.5">Nhập số lượng nguyên liệu cần dùng cho 1 phần món</p>
@@ -515,6 +519,7 @@ export function MenuManagement() {
                   </div>
                 ))}
               </div>
+              )}
 
               <div>
                 <label className="block text-xs font-medium mb-0.5">Mô tả</label>

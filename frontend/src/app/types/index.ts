@@ -372,6 +372,27 @@ export interface BranchAccount {
   fullName: string;
 }
 
+export interface BranchInvitation {
+  id: string;
+  email: string;
+  packageId: string;
+  packageName: string;
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED';
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+}
+
+export interface BranchBankAccount {
+  id: string;
+  branchId: string;
+  bankCode: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  isDefault: boolean;
+}
+
 // === POS Mode ===
 export type PosMode = 'CASHIER' | 'KITCHEN' | 'HYBRID';
 

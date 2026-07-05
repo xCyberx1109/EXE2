@@ -11,6 +11,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { BranchManagement } from './pages/BranchManagement';
 import { SetPasswordPage } from './pages/SetPasswordPage';
+import { SetupBranchPage } from './pages/SetupBranchPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PermissionManagement } from './pages/PermissionManagement';
 import { PosMachineLoginPage } from './pages/PosMachineLoginPage';
@@ -92,6 +93,10 @@ export const router = createBrowserRouter([
       {
         path: '/set-password',
         Component: SetPasswordPage,
+      },
+      {
+        path: '/setup-branch',
+        Component: SetupBranchPage,
       },
       {
         path: '/pos-machine/login',
