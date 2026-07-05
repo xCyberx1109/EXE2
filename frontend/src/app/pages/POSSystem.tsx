@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Printer, X } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
-import { menuApi, ordersApi, categoryApi, inventoryApi } from '../api/services';
-import type { MenuItem, CategoryItem, InventoryItem } from '../types';
+import { menuApi, ordersApi, inventoryApi } from '../api/services';
+import type { MenuItem, InventoryItem } from '../types';
 import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
 import { APP_NAME } from '../../shared/constants';
 
@@ -23,10 +23,8 @@ interface Table {
 export function POSSystem() {
   const [tables, setTables] = useState<Table[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showPayment, setShowPayment] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -36,20 +34,16 @@ export function POSSystem() {
   useEffect(() => {
     Promise.all([
       menuApi.list({ available: 'true' }),
-      categoryApi.list(),
       inventoryApi.list(),
-    ]).then(([items, cats, inv]) => {
+    ]).then(([items, inv]) => {
       setMenuItems(Array.isArray(items) ? items : []);
-      const catData = Array.isArray(cats) ? cats : (cats?.data ?? []);
-      setCategories(catData);
       setInventoryItems(Array.isArray(inv) ? inv : []);
     }).catch(console.error);
   }, []);
 
   const filteredMenuItems = menuItems.filter(item => {
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch && item.available;
+    return matchesSearch && item.available;
   });
 
   useEffect(() => {
@@ -66,16 +60,16 @@ export function POSSystem() {
   }, []);
 
   useEffect(() => {
+    let pollInterval = 2000;
+    let intervalId: ReturnType<typeof setInterval>;
 
     const loadOrders = async () => {
-
       try {
-
         const data = await ordersApi.list();
+        pollInterval = 2000; // reset on success
 
         setTables(prevTables =>
           prevTables.map(table => {
-
             const orders = (Array.isArray(data) ? data : [])
               .filter((o: any) => Number(o.table) === table.number)
               .flatMap((o: any) =>
@@ -90,24 +84,22 @@ export function POSSystem() {
               status: orders.length ? "occupied" : "available",
               qrOrders: orders
             };
-
           })
         );
-
       } catch (err) {
-
         console.log("Load order error", err);
-
+        pollInterval = Math.min(pollInterval * 1.5, 10000); // backoff on error
       }
 
+      clearInterval(intervalId);
+      intervalId = setInterval(loadOrders, pollInterval);
     };
 
     loadOrders();
 
-    const interval = setInterval(loadOrders, 2000);
+    intervalId = setInterval(loadOrders, pollInterval);
 
-    return () => clearInterval(interval);
-
+    return () => clearInterval(intervalId);
   }, []);
 
 
@@ -353,31 +345,8 @@ export function POSSystem() {
           {/* Menu Items */}
           {selectedTable && (
             <>
-              {/* Category Filter */}
+              {/* Search */}
               <div className="bg-white rounded-md border border-gray-200 p-3">
-                <div className="flex gap-1.5 flex-wrap mb-3">
-                  <button
-                    onClick={() => setSelectedCategory('all')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedCategory === 'all'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                  >
-                    Tất cả
-                  </button>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.name)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedCategory === cat.name
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
                 <input
                   type="text"
                   placeholder="Tìm món ăn..."
@@ -399,7 +368,7 @@ export function POSSystem() {
                           className={`p-3 bg-gray-50 rounded-md border border-gray-200 transition-all text-left w-full ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-blue-50 hover:border-blue-300'}`}
                         >
                           <div className="font-semibold text-gray-900 mb-1">{item.name}</div>
-                          <div className="text-xs text-gray-500 mb-2">{item.category}</div>
+                          
                           <div className="text-lg font-bold text-blue-600">{item.price.toLocaleString()} ₫</div>
                         </button>
                         {outOfStock && (

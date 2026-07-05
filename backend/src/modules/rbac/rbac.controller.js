@@ -200,7 +200,7 @@ export const rbacController = {
     // Grant plan permissions when plan changed without explicit permissions payload.
     // This only adds plan permissions — never removes manually-assigned ones.
     if (plan && uniqueByPermissionId.length === 0) {
-      syncPlanPermissions(targetAccountId, plan).catch((err) => {
+      await syncPlanPermissions(targetAccountId, plan).catch((err) => {
         console.error('[RBAC] Error syncing plan permissions:', err.message);
       });
     }

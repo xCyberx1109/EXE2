@@ -1,7 +1,6 @@
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { CategoryProvider } from './context/CategoryContext';
 import { Loader2 } from 'lucide-react';
 import { AppErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/app/components/ui/sonner';
@@ -50,9 +49,7 @@ export default function App() {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
       <AppErrorBoundary>
         <AuthProvider>
-          <CategoryProvider>
-            <AppContent />
-          </CategoryProvider>
+          <AppContent />
           <Toaster position="bottom-right" richColors offset={16} gap={12} />
           <ThemedToastContainer />
         </AuthProvider>

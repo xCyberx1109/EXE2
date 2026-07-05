@@ -16,7 +16,6 @@ import { orderService } from '../src/modules/orders/order.service.js';
 jest.setTimeout(30000);
 
 let testAccountId;
-let testCategoryId;
 let testMenuItemId;
 let testIngredientId;
 let testOrderIds = [];
@@ -31,10 +30,6 @@ beforeAll(async () => {
   });
   testAccountId = account.id;
 
-  const category = await prisma.category.create({
-    data: { name: 'Reservation Test Category', slug: `res-test-cat-${Date.now()}` },
-  });
-  testCategoryId = category.id;
 });
 
 afterEach(async () => {
@@ -60,9 +55,6 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  if (testCategoryId) {
-    await prisma.category.delete({ where: { id: testCategoryId } }).catch(() => {});
-  }
   if (testAccountId) {
     await prisma.account.delete({ where: { id: testAccountId } }).catch(() => {});
   }
@@ -93,7 +85,6 @@ async function createTestMenuItem(ingredientId, amountPerOrder) {
   const menuItem = await prisma.menuItem.create({
     data: {
       accountId: testAccountId,
-      categoryId: testCategoryId,
       name: `Mon test reservation ${Date.now()}`,
       price: 50000,
       cost: 20000,

@@ -116,6 +116,14 @@ export const errorHandler = (err, req, res, _next) => {
     });
   }
 
+  if (err.message?.includes('ECHECKOUTTIMEOUT') || err.message?.includes('Unable to check out a connection')) {
+    console.error('[Prisma Pool Exhaustion]', err.message);
+    return sendError(res, {
+      message: 'Hệ thống đang quá tải, vui lòng thử lại sau',
+      statusCode: 503,
+    });
+  }
+
   console.error('[Unhandled Error]', err);
 
   return sendError(res, {

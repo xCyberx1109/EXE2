@@ -7,6 +7,7 @@ import { playSessionRepository } from '../../repositories/playSession.repository
 import { reservationRepository } from '../../repositories/reservation.repository.js';
 import { rectsOverlap, findAvailablePosition } from '../../utils/tableOverlap.js';
 import { consumeIngredientBatchesFEFO } from '../../utils/inventoryBatches.js';
+import { mapConcurrent } from '../../utils/concurrency.js';
 
 function computeElapsedMinutes(startTime) {
   if (!startTime) return 0;
@@ -1138,7 +1139,7 @@ export const billiardService = {
     const tables = await tableRepository.findMany(where);
     if (!Array.isArray(tables)) return [];
 
-    const enriched = await Promise.all(tables.map(async (t) => {
+    const enriched = await mapConcurrent(tables, async (t) => {
       const activeOrder = await prisma.order.findFirst({
         where: {
           tableId: t.id,
@@ -1174,7 +1175,7 @@ export const billiardService = {
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
       };
-    }));
+    }, 5);
 
     return enriched;
   },

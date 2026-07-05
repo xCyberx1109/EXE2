@@ -17,7 +17,8 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const getMe = asyncHandler(async (req, res) => {
-  sendSuccess(res, { message: 'Lấy thông tin thành công', data: req.user });
+  const profile = await authService.getProfile(req.user.id);
+  sendSuccess(res, { message: 'Lấy thông tin thành công', data: profile });
 });
 
 export const updateMe = asyncHandler(async (req, res) => {
@@ -33,4 +34,15 @@ export const changeMyPassword = asyncHandler(async (req, res) => {
 export const resetMyPassword = asyncHandler(async (req, res) => {
   const result = await authService.resetPasswordForSelf(req.user.id, req.requestId);
   sendSuccess(res, { message: 'Đặt lại mật khẩu thành công.', data: result });
+});
+
+export const getMyPaymentInfo = asyncHandler(async (req, res) => {
+  const info = await authService.getPaymentInfo(req.user.id);
+  sendSuccess(res, { data: info || null, message: info ? 'Đã tải thông tin thanh toán' : 'Chưa cấu hình tài khoản thanh toán' });
+});
+
+export const updateMyPaymentInfo = asyncHandler(async (req, res) => {
+  const { bankCode, bankName, accountNumber, accountHolder } = req.body;
+  const info = await authService.upsertPaymentInfo(req.user.id, { bankCode, bankName, accountNumber, accountHolder });
+  sendSuccess(res, { data: info, message: 'Cập nhật thông tin thanh toán thành công' });
 });

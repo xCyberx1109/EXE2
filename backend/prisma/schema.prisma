@@ -358,25 +358,9 @@ model StaffSession {
   @@map("staff_sessions")
 }
 
-model Category {
-  id          String     @id @default(cuid())
-  name        String
-  slug        String
-  description String?
-  active      Boolean    @default(true)
-  deletedAt   DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  menuItems   MenuItem[]
-
-  @@index([active])
-  @@map("categories")
-}
-
 model MenuItem {
   id          String               @id @default(cuid())
   accountId   String
-  categoryId  String
   name        String
   price       Decimal              @db.Decimal(10, 2)
   cost        Decimal              @db.Decimal(10, 2)
@@ -388,10 +372,8 @@ model MenuItem {
   updatedAt   DateTime             @updatedAt
   ingredients MenuItemIngredient[]
   modifiers   MenuItemModifier[]
-  category    Category             @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
 
-  @@index([accountId, categoryId], map: "menu_items_branchId_categoryId_idx")
   @@map("menu_items")
 }
 

@@ -118,9 +118,7 @@ export function MenuQR() {
                                     {item.name}
                                 </div>
 
-                                <div className="text-gray-500 text-xs">
-                                    {item.category}
-                                </div>
+                                
                             </div>
 
                             <div className="text-blue-600 font-bold">
