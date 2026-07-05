@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit, Trash2, Search, AlertTriangle, TrendingDown, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, AlertTriangle, TrendingDown, Loader2, Package, ArrowUpFromLine } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   useInventoryItems, useInventoryStats,
@@ -8,6 +8,8 @@ import {
 } from '../api/hooks';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { DataTable, type Column } from '../components/DataTable';
+import { ImportModal } from '../components/ImportModal';
+import { ExportModal } from '../components/ExportModal';
 import type { InventoryItem, DeleteDependencyReport } from '../types';
 import { INGREDIENT_UNITS } from '../../shared/constants';
 
@@ -51,10 +53,11 @@ export function InventoryManagement() {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     unit: 'KG',
-    quantity: '',
     warningQuantity: '',
     price: '',
     supplier: '',
@@ -69,10 +72,9 @@ export function InventoryManagement() {
     setSaving(true);
     try {
       const toNum = (v: string) => v === '' ? 0 : Number(v);
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: formData.name,
         unit: formData.unit,
-        quantity: toNum(formData.quantity),
         warningQuantity: formData.warningQuantity === '' ? 0 : Number(formData.warningQuantity),
         price: toNum(formData.price),
         supplier: formData.supplier,
@@ -80,6 +82,7 @@ export function InventoryManagement() {
       if (editingItem) {
         await updateMutation.mutateAsync({ id: editingItem.id, ...payload });
       } else {
+        payload.quantity = 0;
         await createMutation.mutateAsync(payload);
       }
       resetForm();
@@ -96,7 +99,6 @@ export function InventoryManagement() {
     setFormData({
       name: '',
       unit: 'KG',
-      quantity: '',
       warningQuantity: '',
       price: '',
       supplier: '',
@@ -109,7 +111,6 @@ export function InventoryManagement() {
     setFormData({
       name: item.name,
       unit: item.unit,
-      quantity: String(item.quantity),
       warningQuantity: String(item.warningQuantity),
       price: String(item.price),
       supplier: item.supplier,
@@ -255,15 +256,35 @@ export function InventoryManagement() {
           <h1 className="text-lg font-bold text-foreground">Quản lý Tồn kho</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Theo dõi và quản lý hàng tồn kho</p>
         </div>
-        {hasPermission('INVENTORY_CREATE') && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="size-3.5" />
-            Thêm hàng hóa
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasPermission('INVENTORY_IMPORT') && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+            >
+              <Package className="size-3.5" />
+              Nhập kho
+            </button>
+          )}
+          {hasPermission('INVENTORY_EXPORT') && (
+            <button
+              onClick={() => setShowExport(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
+            >
+              <ArrowUpFromLine className="size-3.5" />
+              Xuất kho
+            </button>
+          )}
+          {hasPermission('INVENTORY_CREATE') && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="size-3.5" />
+              Thêm hàng hóa
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
@@ -344,91 +365,89 @@ export function InventoryManagement() {
       />
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg max-w-md w-full p-4">
-            <h2 className="text-lg font-bold text-foreground mb-3">
-              {editingItem ? 'Chỉnh sửa hàng hóa' : 'Thêm hàng hóa mới'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Tên hàng hóa</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-w-md w-full flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-zinc-700">
+              <h2 className="text-lg font-bold text-zinc-100">
+                {editingItem ? 'Chỉnh sửa hàng hóa' : 'Thêm hàng hóa mới'}
+              </h2>
+            </div>
+            {/* Body */}
+            <div className="p-6 space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">Số lượng</label>
+                  <label className="block text-sm font-medium text-zinc-200 mb-1.5">Tên hàng hóa</label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full h-10 px-3 border border-zinc-700 rounded-lg bg-zinc-900 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 hover:border-zinc-600 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">Đơn vị</label>
+                  <label className="block text-sm font-medium text-zinc-200 mb-1.5">Đơn vị</label>
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs"
+                    className="w-full h-10 px-3 border border-zinc-700 rounded-lg bg-zinc-900 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 hover:border-zinc-600 transition-colors"
                   >
                     {INGREDIENT_UNITS.map((u) => (
-                      <option key={u.value} value={u.value}>{u.label}</option>
+                      <option key={u.value} value={u.value} className="bg-zinc-900">{u.label}</option>
                     ))}
                   </select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">Ngưỡng cảnh báo</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formData.warningQuantity}
-                    onChange={(e) => setFormData({ ...formData, warningQuantity: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-200 mb-1.5">Ngưỡng cảnh báo</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={formData.warningQuantity}
+                      onChange={(e) => setFormData({ ...formData, warningQuantity: e.target.value })}
+                      className="w-full h-10 px-3 border border-zinc-700 rounded-lg bg-zinc-900 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 hover:border-zinc-600 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-200 mb-1.5">Đơn giá (₫)</label>
+                    <input
+                      type="number"
+                      required
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      className="w-full h-10 px-3 border border-zinc-700 rounded-lg bg-zinc-900 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 hover:border-zinc-600 transition-colors"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">Đơn giá (₫)</label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs"
-                  />
+                  <label className="block text-sm font-medium text-zinc-200 mb-1.5">Nhà cung cấp</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.supplier}
+                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                      className="w-full h-10 px-3 border border-zinc-700 rounded-lg bg-zinc-900 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 hover:border-zinc-600 transition-colors"
+                    />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Nhà cung cấp</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.supplier}
-                  onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs"
-                />
-              </div>
-              <div className="flex gap-2 pt-4">
-                <button type="button" onClick={resetForm} className="flex-1 px-3 py-1.5 border border-input text-foreground rounded-md hover:bg-accent">
-                  Hủy
-                </button>
-                <button type="submit" disabled={saving} className="flex-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50">
-                  {saving ? 'Đang lưu...' : editingItem ? 'Cập nhật' : 'Thêm mới'}
-                </button>
-              </div>
-            </form>
+                {/* Footer */}
+                <div className="pt-2 flex gap-3">
+                  <button type="button" onClick={resetForm} className="flex-1 h-10 px-4 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 text-sm font-medium transition-colors">
+                    Hủy
+                  </button>
+                  <button type="submit" disabled={saving} className="flex-1 h-10 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors">
+                    {saving ? 'Đang lưu...' : editingItem ? 'Cập nhật' : 'Thêm mới'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
+
+      <ImportModal open={showImport} onClose={() => setShowImport(false)} onSuccess={() => {}} />
+      <ExportModal open={showExport} onClose={() => setShowExport(false)} onSuccess={() => {}} />
     </div>
   );
 }

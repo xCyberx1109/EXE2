@@ -3,6 +3,7 @@ import {
   useDashboardData,
   BusinessOverview,
   SalesPerformance,
+  InventoryTransactionLog,
 } from '../../modules/dashboard';
 
 export function Dashboard() {
@@ -19,6 +20,14 @@ export function Dashboard() {
         </div>
         <BusinessOverview data={null} loading />
         <SalesPerformance data={null} loading chartRange={chartRange} onChartRangeChange={setChartRange} />
+        <div className="bg-card rounded-md border border-border p-3 animate-pulse">
+          <div className="h-4 bg-muted rounded w-48 mb-3" />
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-8 bg-muted rounded" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -57,6 +66,8 @@ export function Dashboard() {
         chartRange={chartRange}
         onChartRangeChange={setChartRange}
       />
+
+      <InventoryTransactionLog />
     </div>
   );
 }

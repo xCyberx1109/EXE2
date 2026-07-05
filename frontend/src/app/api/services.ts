@@ -196,6 +196,23 @@ export const inventoryApi = {
 
   listSellable: () =>
     apiFetch<SellableItem[]>('/inventory/sellable'),
+
+  bulkImport: (body: { items: Array<{ ingredientId: string; quantity: number }>; reason: string }) =>
+    apiFetch<{ transactions: any[] }>('/inventory/import', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  bulkExport: (body: { items: Array<{ ingredientId: string; quantity: number }>; reason: string }) =>
+    apiFetch<{ transactions: any[] }>('/inventory/export', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  listTransactions: (limit?: number) => {
+    const q = limit ? `?limit=${limit}` : '';
+    return apiFetch<import('../types').InventoryTransaction[]>(`/inventory/transactions${q}`);
+  },
 };
 
 // --- Dashboard ---
