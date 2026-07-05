@@ -791,3 +791,42 @@ export const employeeApi = {
       auth: false,
     }),
 };
+
+export const qrMenuApi = {
+  listTableLinks: () =>
+    apiFetch<Array<{
+      tableId: string;
+      tableCode: string;
+      tableName: string | null;
+      token: string;
+      qrUrl: string;
+    }>>('/qr-menu/tables'),
+
+  resolve: (token: string) =>
+    apiFetch<{
+      table: {
+        id: string;
+        tableCode: string;
+        tableName: string | null;
+        capacity: number;
+      };
+      menuItems: MenuItem[];
+    }>(`/qr-menu/public?t=${encodeURIComponent(token)}`, { auth: false }),
+
+  submit: (
+    token: string,
+    body: {
+      guestCount?: number;
+      items: Array<{ menuItemId: string; quantity: number }>;
+    }
+  ) =>
+    apiFetch<{
+      success: boolean;
+      table: { id: string; tableCode: string; tableName: string | null };
+      order: unknown;
+    }>(`/qr-menu/public/order?t=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      auth: false,
+    }),
+};

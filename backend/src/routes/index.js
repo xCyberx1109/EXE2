@@ -12,6 +12,7 @@ import categoryRoutes from '../modules/categories/category.routes.js';
 import employeeRoutes from '../modules/employee/employee.routes.js';
 import { optionalAuth } from '../middlewares/auth.js';
 import { getDashboard } from '../controllers/dashboard.controller.js';
+import qrMenuRoutes from '../modules/qr-menu/qrMenu.routes.js';
 
 const router = Router();
 
@@ -35,6 +36,7 @@ router.use('/tables', tableRoutes);
 router.use('/', billiardRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/employees', employeeRoutes);
+router.use('/', qrMenuRoutes);
 
 // Legacy order routes kept for compatibility
 router.get('/orders', (_req, res) => res.redirect('/api/orders'));

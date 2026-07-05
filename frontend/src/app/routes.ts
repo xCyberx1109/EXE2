@@ -28,6 +28,7 @@ import { RestaurantManagement } from './pages/RestaurantManagement';
 
 import { useAuth } from './context/AuthContext';
 import { APP_MENU } from '../shared/permissions/menuConfig';
+import { QrTablePrintPage } from './pages/QrTablePrintPage';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RootRedirect: điều hướng từ "/" theo auth state
@@ -110,6 +111,7 @@ export const router = createBrowserRouter([
             Component: Layout,
             children: [
               { index: true, element: withGuard(Dashboard, { rbacPerms: ['DASHBOARD_VIEW'] }) },
+              {path: 'qr-table-print',element: withGuard(QrTablePrintPage, {rbacPerms: ['RESTAURANT_TABLE_VIEW'],}),},
               { path: 'branch', element: withGuard(BranchManagement, { rbacPerms: ['BRANCH_VIEW'] }) },
               { path: 'categories', element: withGuard(CategoryManagement, { rbacPerms: ['CATEGORY_VIEW'] }) },
               { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_MANAGEMENT_VIEW'] }) },
