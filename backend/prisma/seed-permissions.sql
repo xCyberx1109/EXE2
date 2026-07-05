@@ -74,7 +74,7 @@ INSERT INTO "permissions" ("id", "code", "name", "module", "isSystem", "createdA
 (gen_random_uuid()::text, 'INVENTORY_DELETE', 'Xóa nguyên liệu', 'inventory', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'INVENTORY_IMPORT', 'Nhập kho', 'inventory', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'INVENTORY_EXPORT', 'Xuất kho', 'inventory', false, NOW(), NOW()),
-(gen_random_uuid()::text, 'INVENTORY_ADJUST', 'Điều chỉnh tồn kho', 'inventory', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'INVENTORY_TRANSACTION_VIEW', 'Xem lịch sử xuất nhập kho', 'inventory', false, NOW(), NOW()),
 
 -- MENU (4 permissions)
 (gen_random_uuid()::text, 'MENU_VIEW', 'Xem thực đơn', 'menu', false, NOW(), NOW()),

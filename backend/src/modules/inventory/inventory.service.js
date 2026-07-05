@@ -209,13 +209,14 @@ export const inventoryService = {
     return txs.map(mapInventoryTransaction);
   },
 
-  async listAllTransactions(user, take) {
+  async listAllTransactions(user, { page, limit } = {}) {
     const where = {};
     if (user) {
       where.ingredient = { accountId: user.accountId || user.id };
     }
-    const txs = await inventoryTransactionRepository.findMany(where, take);
-    return txs.map(mapInventoryTransaction);
+    const { page: p, limit: l, skip } = parsePagination({ page, limit });
+    const [total, txs] = await inventoryTransactionRepository.findManyPaginated(where, skip, l);
+    return paginatedResponse(txs.map(mapInventoryTransaction), total, { page: p, limit: l });
   },
 
   async listSellableItems(user) {

@@ -147,7 +147,7 @@ export function TaxManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-1">
+    <div className="flex flex-col space-y-1">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-lg font-bold text-foreground">Quản lý Thuế</h1>

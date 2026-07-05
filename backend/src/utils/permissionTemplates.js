@@ -37,6 +37,14 @@ export const PERMISSION_TEMPLATES = {
       'BILLIARD_PAY_VIEW', 'BILLIARD_PAY_PROCESS',
     ],
   },
+  WAREHOUSE_STAFF: {
+    name: 'Nhân viên kho',
+    permissionCodes: [
+      'INVENTORY_VIEW',
+      'INVENTORY_IMPORT',
+      'INVENTORY_EXPORT',
+    ],
+  },
 };
 
 export function getTemplateNames() {

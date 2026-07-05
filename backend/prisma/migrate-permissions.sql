@@ -60,7 +60,7 @@ INSERT INTO "permission_migrations" (old_code, new_code, mapping_type) VALUES
 ('INVENTORY_DELETE', 'INVENTORY_DELETE', '1:1'),
 ('INVENTORY_IMPORT', 'INVENTORY_IMPORT', '1:1'),
 ('INVENTORY_EXPORT', 'INVENTORY_EXPORT', '1:1'),
-('INVENTORY_ADJUST', 'INVENTORY_ADJUST', '1:1'),
+('INVENTORY_TRANSACTION_VIEW', 'INVENTORY_TRANSACTION_VIEW', '1:1'),
 ('TABLE_VIEW', 'TABLE_VIEW', '1:1'),
 ('TABLE_CREATE', 'TABLE_CREATE', '1:1'),
 ('TABLE_UPDATE', 'TABLE_UPDATE', '1:1'),
@@ -255,7 +255,7 @@ INSERT INTO "permissions" ("id", "code", "name", "module", "isSystem", "createdA
 (gen_random_uuid()::text, 'INVENTORY_DELETE', 'Xóa nguyên liệu', 'inventory', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'INVENTORY_IMPORT', 'Nhập kho', 'inventory', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'INVENTORY_EXPORT', 'Xuất kho', 'inventory', false, NOW(), NOW()),
-(gen_random_uuid()::text, 'INVENTORY_ADJUST', 'Điều chỉnh tồn kho', 'inventory', false, NOW(), NOW()),
+(gen_random_uuid()::text, 'INVENTORY_TRANSACTION_VIEW', 'Xem lịch sử xuất nhập kho', 'inventory', false, NOW(), NOW()),
 
 -- MENU (4)
 (gen_random_uuid()::text, 'MENU_VIEW', 'Xem thực đơn', 'menu', false, NOW(), NOW()),

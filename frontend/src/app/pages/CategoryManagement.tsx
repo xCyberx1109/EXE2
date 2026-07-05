@@ -268,7 +268,7 @@ export function CategoryManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-accent rounded-md flex items-center justify-center">

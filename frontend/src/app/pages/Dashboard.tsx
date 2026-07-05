@@ -5,9 +5,12 @@ import {
   SalesPerformance,
   InventoryTransactionLog,
 } from '../../modules/dashboard';
+import { useAuth } from '../context/AuthContext';
 
 export function Dashboard() {
   const { data, loading, error, chartRange, setChartRange, retry } = useDashboardData();
+  const { hasPermission, isReady } = useAuth();
+  const canViewTransactions = isReady && hasPermission('INVENTORY_TRANSACTION_VIEW');
 
   if (!data && loading) {
     return (
@@ -20,14 +23,16 @@ export function Dashboard() {
         </div>
         <BusinessOverview data={null} loading />
         <SalesPerformance data={null} loading chartRange={chartRange} onChartRangeChange={setChartRange} />
-        <div className="bg-card rounded-md border border-border p-3 animate-pulse">
-          <div className="h-4 bg-muted rounded w-48 mb-3" />
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-8 bg-muted rounded" />
-            ))}
+        {canViewTransactions && (
+          <div className="bg-card rounded-md border border-border p-3 animate-pulse">
+            <div className="h-4 bg-muted rounded w-48 mb-3" />
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-8 bg-muted rounded" />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
@@ -67,7 +72,7 @@ export function Dashboard() {
         onChartRangeChange={setChartRange}
       />
 
-      <InventoryTransactionLog />
+      {canViewTransactions && <InventoryTransactionLog />}
     </div>
   );
 }

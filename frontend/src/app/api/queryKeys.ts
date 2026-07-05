@@ -25,7 +25,8 @@ export const queryKeys = {
       ['inventory', 'list', filters] as const,
     detail: (id: string) => ['inventory', 'detail', id] as const,
     stats: ['inventory', 'stats'] as const,
-    transactions: ['inventory', 'transactions'] as const,
+    transactions: (params?: Record<string, string | number | undefined>) =>
+      ['inventory', 'transactions', params] as const,
     approvalThreshold: ['inventory', 'approvalThreshold'] as const,
     adjustmentRequests: (status?: string) => ['inventory', 'adjustmentRequests', status] as const,
   },

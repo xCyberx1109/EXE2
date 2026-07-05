@@ -41,7 +41,7 @@ export function DataTable<T>({
 
   return (
     <>
-      <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-auto rounded-xl border border-border bg-background shadow-sm">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-20">
             <tr className="bg-slate-100 dark:bg-zinc-800 border-b border-border">

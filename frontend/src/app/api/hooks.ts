@@ -396,10 +396,10 @@ export function useIngredientTransactions(ingredientId: string | null) {
   });
 }
 
-export function useInventoryTransactions(limit = 10) {
+export function useInventoryTransactions(params?: { page?: number; limit?: number; type?: string; search?: string }) {
   return useQuery({
-    queryKey: queryKeys.inventory.transactions,
-    queryFn: () => inventoryApi.listTransactions(limit),
+    queryKey: queryKeys.inventory.transactions(params),
+    queryFn: () => inventoryApi.listTransactions(params),
     staleTime: 1000 * 30,
   });
 }

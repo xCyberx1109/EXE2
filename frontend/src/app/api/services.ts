@@ -209,9 +209,11 @@ export const inventoryApi = {
       body: JSON.stringify(body),
     }),
 
-  listTransactions: (limit?: number) => {
-    const q = limit ? `?limit=${limit}` : '';
-    return apiFetch<import('../types').InventoryTransaction[]>(`/inventory/transactions${q}`);
+  listTransactions: (params?: { page?: number; limit?: number; type?: string; search?: string }) => {
+    const q = params ? '?' + new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)]))
+    ).toString() : '';
+    return apiFetch<import('../types').PaginatedResponse<import('../types').InventoryTransaction>>(`/inventory/transactions${q}`);
   },
 };
 

@@ -53,6 +53,7 @@ const TEMPLATE_META: Record<string, { icon: string; label: string }> = {
   KITCHEN: { icon: '🍳', label: 'Bếp' },
   RESTAURANT: { icon: '🍽️', label: 'Quản lý bàn nhà hàng' },
   BILLIARD: { icon: '🎱', label: 'Bida' },
+  WAREHOUSE_STAFF: { icon: '📦', label: 'Nhân viên kho' },
 };
 
 export function EmployeeManagement() {
@@ -373,7 +374,7 @@ export function EmployeeManagement() {
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 flex-shrink-0">
         <div>
           <h1 className="text-lg md:text-lg font-bold tracking-tight">Quản lý nhân viên</h1>
