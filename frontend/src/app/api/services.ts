@@ -10,6 +10,7 @@ import type {
   DailyOrdersResponse,
   User,
   Branch,
+  BranchInvitation,
   CategoryItem,
   TableItem,
   DeleteDependencyReport,
@@ -272,6 +273,42 @@ export const branchApi = {
       method: 'PUT', 
       body: body ? JSON.stringify(body) : undefined,
     }),
+};
+
+// --- Branch Invitations ---
+export const invitationApi = {
+  create: (body: { email: string; plan: string }) =>
+    apiFetch<{ id: string; email: string }>('/branch-invitations', { method: 'POST', body: JSON.stringify(body) }),
+
+  list: () => apiFetch<BranchInvitation[]>('/branch-invitations'),
+
+  verify: (token: string) =>
+    apiFetch<{ valid: boolean; email: string; packageId: string; packageName: string; planCode: string }>(
+      `/branch-invitations/verify?token=${encodeURIComponent(token)}`,
+      { auth: false }
+    ),
+
+  accept: (body: {
+    token: string;
+    branchName: string;
+    address: string;
+    phone: string;
+    password: string;
+    bankName: string;
+    bankCode: string;
+    accountHolder: string;
+    accountNumber: string;
+  }) =>
+    apiFetch<{ email: string }>(
+      '/branch-invitations/accept',
+      { method: 'POST', body: JSON.stringify(body), auth: false }
+    ),
+
+  resend: (id: string) =>
+    apiFetch<{ id: string }>(`/branch-invitations/${id}/resend`, { method: 'POST' }),
+
+  cancel: (id: string) =>
+    apiFetch<{ id: string }>(`/branch-invitations/${id}/cancel`, { method: 'POST' }),
 };
 
 // --- Invite (Set Password) ---

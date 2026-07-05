@@ -235,7 +235,8 @@ export async function seedDatabase() {
     'RESTAURANT_PAY_VIEW', 'RESTAURANT_PAY_PROCESS',
   ];
 
-  await mapConcurrent(managerPerms, async (permCode) => {
+  const uniqueManagerPerms = [...new Set(managerPerms)];
+  await mapConcurrent(uniqueManagerPerms, async (permCode) => {
     if (permissionMap[permCode]) {
       await prisma.accountPermission.upsert({
         where: { accountId_permissionId: { accountId: manager.id, permissionId: permissionMap[permCode] } },
@@ -252,12 +253,19 @@ export async function seedDatabase() {
   // =========================
   const categoryMap = {};
   for (const cat of categories) {
-    const created = await prisma.category.upsert({
-      where: { slug: cat.slug },
-      update: { name: cat.name, description: cat.description, active: cat.active ?? true },
-      create: { name: cat.name, slug: cat.slug, description: cat.description, active: cat.active ?? true },
-    });
-    categoryMap[cat.name] = created.id;
+    const existing = await prisma.category.findFirst({ where: { slug: cat.slug } });
+    if (existing) {
+      await prisma.category.update({
+        where: { id: existing.id },
+        data: { name: cat.name, description: cat.description, active: cat.active ?? true },
+      });
+      categoryMap[cat.name] = existing.id;
+    } else {
+      const created = await prisma.category.create({
+        data: { name: cat.name, slug: cat.slug, description: cat.description, active: cat.active ?? true },
+      });
+      categoryMap[cat.name] = created.id;
+    }
   }
 
   // =========================
@@ -535,7 +543,25 @@ export async function runSeedIfEmpty() {
 }
 
 async function getOrCreateDefaultAccount() {
-  return { id: DEFAULT_ACCOUNT_ID };
+  const accountId = DEFAULT_ACCOUNT_ID;
+  const hashedPassword = await bcrypt.hash(config.seed.adminPassword, SALT_ROUNDS);
+
+  await prisma.account.upsert({
+    where: { id: accountId },
+    update: {},
+    create: {
+      id: accountId,
+      email: config.seed.adminEmail,
+      password: hashedPassword,
+      fullName: config.seed.adminName,
+      phone: '0900000000',
+      status: 'ACTIVE',
+      mustChangePassword: false,
+      active: true,
+    },
+  });
+
+  return { id: accountId };
 }
 
 /** SAMPLE ORDERS */

@@ -123,9 +123,11 @@ model SubscriptionPlan {
   description     String?
   price           Decimal                     @db.Decimal(12, 2)
   billingInterval SubscriptionBillingInterval @default(MONTHLY)
+  durationDays    Int                         @default(30)
   isActive        Boolean                     @default(true)
   planFeatures    SubscriptionPlanFeature[]
   subscriptions   Subscription[]
+  invitations     BranchInvitation[]
 
   @@index([isActive])
   @@index([billingInterval])
@@ -896,6 +898,40 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
+model BranchInvitation {
+  id         String           @id @default(cuid())
+  email      String
+  packageId  String
+  tokenHash  String           @unique
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdBy  String
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  package    SubscriptionPlan @relation(fields: [packageId], references: [id])
+
+  @@index([email])
+  @@index([status])
+  @@index([email, status])
+  @@map("branch_invitations")
+}
+
+model BranchBankAccount {
+  id             String   @id @default(cuid())
+  branchId       String
+  bankCode       String
+  bankName       String
+  accountNumber  String
+  accountHolder  String
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([branchId])
+  @@map("branch_bank_accounts")
+}
+
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model account_permissions_backup {
   id           String?
@@ -1225,6 +1261,13 @@ enum EmployeeStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
 }
 
 enum PosMachineTemplate {
