@@ -4,7 +4,7 @@ import { AppError } from '../utils/AppError.js';
 const includeItems = {
   items: {
     include: {
-      menuItem: { include: { category: true } },
+      menuItem: true,
     },
   },
 };

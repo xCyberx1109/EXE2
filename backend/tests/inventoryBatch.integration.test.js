@@ -16,7 +16,6 @@ jest.setTimeout(30000);
 
 let testAccountId;
 let testIngredientId;
-let testCategoryId;
 let testMenuItemId;
 let testOrderId;
 
@@ -42,10 +41,6 @@ afterEach(async () => {
     await prisma.menuItemIngredient.deleteMany({ where: { menuItemId: testMenuItemId } });
     await prisma.menuItem.delete({ where: { id: testMenuItemId } }).catch(() => {});
     testMenuItemId = null;
-  }
-  if (testCategoryId) {
-    await prisma.category.delete({ where: { id: testCategoryId } }).catch(() => {});
-    testCategoryId = null;
   }
   if (testIngredientId) {
     await prisma.ingredientBatch.deleteMany({ where: { ingredientId: testIngredientId } });
@@ -161,15 +156,9 @@ describe('[INTEGRATION - DB thật] FEFO ap dung khi ban hang qua order checkout
       testUser()
     );
 
-    const category = await prisma.category.create({
-      data: { name: 'Test Category', slug: `test-cat-${Date.now()}` },
-    });
-    testCategoryId = category.id;
-
     const menuItem = await prisma.menuItem.create({
       data: {
         accountId: testAccountId,
-        categoryId: category.id,
         name: 'Mon test FEFO',
         price: 50000,
         cost: 20000,

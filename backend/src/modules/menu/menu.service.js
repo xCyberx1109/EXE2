@@ -1,66 +1,18 @@
 import { AppError } from '../../utils/AppError.js';
 import { parsePagination, paginatedResponse } from '../../utils/pagination.js';
-import { mapMenuItem, slugify } from '../../utils/mappers.js';
-import { categoryRepository } from '../../repositories/category.repository.js';
+import { mapMenuItem } from '../../utils/mappers.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { orderRepository } from '../../repositories/order.repository.js';
 import prisma from '../../prisma/client.js';
 
 export const menuService = {
-  // --- Categories (shared, global — no account scoping) ---
-  async listCategories() {
-    const categories = await categoryRepository.findMany();
-    return categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.slug,
-      description: c.description,
-      itemCount: c._count.menuItems,
-    }));
-  },
-
-  async createCategory({ name, description }) {
-    const slug = slugify(name);
-    const data = { name, slug, description };
-    const category = await categoryRepository.create(data);
-    return category;
-  },
-
-  async updateCategory(id, data) {
-    const existing = await categoryRepository.findById(id);
-    if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
-
-    const updateData = { ...data };
-    if (data.name) updateData.slug = slugify(data.name);
-
-    return categoryRepository.update(id, updateData);
-  },
-
-  async deleteCategory(id) {
-    const existing = await categoryRepository.findById(id);
-    if (!existing) throw new AppError('Không tìm thấy danh mục', 404);
-
-    const count = await menuItemRepository.count({ categoryId: id });
-    if (count > 0) {
-      throw new AppError('Không thể xóa danh mục đang có món ăn', 400);
-    }
-    await categoryRepository.softDelete(id);
-  },
-
   // --- Menu Items ---
-  async listMenuItems({ search, category, categoryId, available, accountId: queryAccountId, page, limit }, user) {
+  async listMenuItems({ search, available, accountId: queryAccountId, page, limit }, user) {
     if (!user && !queryAccountId) {
       return [];
     }
 
     const where = {};
-
-    if (categoryId) {
-      where.categoryId = categoryId;
-    } else if (category && category !== 'all') {
-      const cat = await categoryRepository.findByName(category);
-      if (cat) where.categoryId = cat.id;
-    }
 
     if (available !== undefined) {
       where.available = available === 'true' || available === true;
@@ -90,7 +42,6 @@ export const menuService = {
   },
 
   async getMenuItem(id, user) {
-    // Account isolation: require auth context to prevent cross-account data access
     if (!user) {
       throw new AppError('Vui lòng đăng nhập để xem món ăn', 401);
     }
@@ -98,7 +49,6 @@ export const menuService = {
     const item = await prisma.menuItem.findUnique({
       where: { id },
       include: {
-        category: true,
         ingredients: {
           include: { ingredient: true },
         },
@@ -116,20 +66,10 @@ export const menuService = {
   },
 
   async createMenuItem(body, user) {
-    const categoryId = await resolveCategoryId(body);
-
-    if (categoryId) {
-      const category = await categoryRepository.findById(categoryId);
-      if (!category) {
-        throw new AppError('Danh mục không tồn tại', 400);
-      }
-    }
-
     const item = await prisma.$transaction(async (tx) => {
       const menuItem = await tx.menuItem.create({
         data: {
           name: body.name,
-          categoryId,
           price: Number(body.price),
           cost: Number(body.cost),
           description: body.description || '',
@@ -137,7 +77,7 @@ export const menuService = {
           available: body.available ?? true,
           ...(user ? { accountId: user.accountId || user.id } : {}),
         },
-        include: { category: true, ingredients: { include: { ingredient: true } } },
+        include: { ingredients: { include: { ingredient: true } } },
       });
 
       if (body.ingredients && Array.isArray(body.ingredients)) {
@@ -173,13 +113,6 @@ export const menuService = {
       }
     }
 
-    if (body.categoryId) {
-      const category = await categoryRepository.findById(body.categoryId);
-      if (!category) {
-        throw new AppError('Danh mục không tồn tại', 400);
-      }
-    }
-
     const item = await prisma.$transaction(async (tx) => {
       const updateData = {};
       if (body.name) updateData.name = body.name;
@@ -189,14 +122,10 @@ export const menuService = {
       if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
       if (body.available !== undefined) updateData.available = !!body.available;
 
-      if (body.categoryId || body.category) {
-        updateData.categoryId = await resolveCategoryId(body);
-      }
-
       const updated = await tx.menuItem.update({
         where: { id },
         data: updateData,
-        include: { category: true, ingredients: { include: { ingredient: true } } },
+        include: { ingredients: { include: { ingredient: true } } },
       });
 
       if (body.ingredients && Array.isArray(body.ingredients)) {
@@ -283,7 +212,6 @@ export const menuService = {
       menuItemId: g.menuItemId,
       soldQuantity: g._sum.quantity,
       name: menuMap[g.menuItemId]?.name || 'Unknown',
-      category: menuMap[g.menuItemId]?.category?.name || '',
       price: Number(menuMap[g.menuItemId]?.price || 0),
       revenue: revenueMap[g.menuItemId] || 0,
     }));
@@ -291,22 +219,3 @@ export const menuService = {
     return result;
   },
 };
-
-async function resolveCategoryId(body) {
-  if (body.categoryId && body.categoryId.trim() !== '') {
-    return body.categoryId;
-  }
-
-  if (body.category && body.category.trim() !== '') {
-    let cat = await categoryRepository.findByName(body.category);
-    if (!cat) {
-      cat = await categoryRepository.create({
-        name: body.category,
-        slug: body.category.toLowerCase().replace(/ /g, '-'),
-      });
-    }
-    return cat.id;
-  }
-
-  return null;
-}

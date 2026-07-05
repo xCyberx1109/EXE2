@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import config from '../../config/index.js';
+import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { userRepository } from '../../repositories/user.repository.js';
 
@@ -52,8 +53,26 @@ export const authService = {
 
   async getProfile(userId) {
     const user = await userRepository.findById(userId);
+
     if (!user) throw new AppError('Không tìm thấy người dùng', 404);
-    return user;
+
+    const paymentInfo = await prisma.branchBankAccount.findFirst({
+      where: { branchId: userId, isDefault: true },
+    }) || await prisma.branchBankAccount.findFirst({
+      where: { branchId: userId },
+      orderBy: { createdAt: 'asc' },
+    }) || null;
+
+    return {
+      ...user,
+      paymentInformation: paymentInfo ? {
+        bankCode: paymentInfo.bankCode,
+        bankName: paymentInfo.bankName,
+        accountNumber: paymentInfo.accountNumber,
+        accountHolder: paymentInfo.accountHolder,
+        isDefault: paymentInfo.isDefault,
+      } : null,
+    };
   },
 
   async updateProfile(userId, { fullName, email }) {
@@ -122,6 +141,36 @@ export const authService = {
     });
 
     return { email: currentUser.email, newPassword };
+  },
+
+  async getPaymentInfo(accountId) {
+    return prisma.branchBankAccount.findFirst({
+      where: { branchId: accountId, isDefault: true },
+    });
+  },
+
+  async upsertPaymentInfo(accountId, { bankCode, bankName, accountNumber, accountHolder }) {
+    const existing = await prisma.branchBankAccount.findFirst({
+      where: { branchId: accountId, isDefault: true },
+    });
+
+    if (existing) {
+      return prisma.branchBankAccount.update({
+        where: { id: existing.id },
+        data: { bankCode, bankName, accountNumber, accountHolder },
+      });
+    }
+
+    return prisma.branchBankAccount.create({
+      data: {
+        branchId: accountId,
+        bankCode,
+        bankName,
+        accountNumber,
+        accountHolder,
+        isDefault: true,
+      },
+    });
   },
 };
 

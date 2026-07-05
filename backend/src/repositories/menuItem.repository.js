@@ -1,10 +1,9 @@
 import prisma from '../prisma/client.js';
 
-const includeCategory = { category: true };
 const includeIngredients = { ingredients: { include: { ingredient: true } } };
 
 const ALLOWED_FIELDS = [
-  'name', 'categoryId', 'price', 'cost', 'description', 'imageUrl',
+  'name', 'price', 'cost', 'description', 'imageUrl',
   'available', 'deletedAt', 'accountId',
 ];
 
@@ -27,7 +26,7 @@ export const menuItemRepository = {
       return Promise.all([
         prisma.menuItem.findMany({
           where: finalWhere,
-          include: { ...includeCategory, ...includeIngredients },
+          include: includeIngredients,
           orderBy: { name: 'asc' },
           skip,
           take: limit,
@@ -37,7 +36,7 @@ export const menuItemRepository = {
     }
     return prisma.menuItem.findMany({
       where: finalWhere,
-      include: { ...includeCategory, ...includeIngredients },
+      include: includeIngredients,
       orderBy: { name: 'asc' },
     });
   },
@@ -45,14 +44,14 @@ export const menuItemRepository = {
   findById: (id) =>
     prisma.menuItem.findUnique({
       where: { id },
-      include: { ...includeCategory, ...includeIngredients },
+      include: includeIngredients,
     }),
 
   create: (data) =>
-    prisma.menuItem.create({ data: sanitizePayload(data), include: includeCategory }),
+    prisma.menuItem.create({ data: sanitizePayload(data) }),
 
   update: (id, data) =>
-    prisma.menuItem.update({ where: { id }, data: sanitizePayload(data), include: { ...includeCategory, ...includeIngredients } }),
+    prisma.menuItem.update({ where: { id }, data: sanitizePayload(data), include: includeIngredients }),
 
   delete: (id) => prisma.menuItem.delete({ where: { id } }),
 

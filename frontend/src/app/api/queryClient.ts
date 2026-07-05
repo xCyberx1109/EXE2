@@ -4,7 +4,7 @@ import { QueryClient } from '@tanstack/react-query';
  * QueryClient configuration with sensible defaults:
  *
  * staleTime: 30s for most data - avoids refetching on component remount
- *   while keeping data reasonably fresh. Longer for stable data like categories (5min).
+ *   while keeping data reasonably fresh.
  *
  * gcTime: 5min - keeps cache entries for 5 minutes after they become unused,
  *   preventing unnecessary refetches when navigating back to a page.

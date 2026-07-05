@@ -3,12 +3,12 @@ import prisma from '../prisma/client.js';
 const includeItems = {
   items: {
     include: {
-      menuItem: { include: { category: true } },
+      menuItem: true,
     },
   },
 };
 
-/** Lightweight includes for queue list queries — no deep menuItem/category join */
+/** Lightweight includes for queue list queries — no deep menuItem join */
 const includeItemsLight = {
   items: {
     select: {
@@ -42,7 +42,7 @@ export const orderRepository = {
     });
   },
 
-  /** Lightweight version for queue lists — skips menuItem/category join */
+  /** Lightweight version for queue lists — skips menuItem join */
   findManyLight: (where = {}) =>
     prisma.order.findMany({
       where,

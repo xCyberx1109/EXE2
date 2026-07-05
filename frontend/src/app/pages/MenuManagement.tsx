@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Loader2, X, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Loader2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useCategories } from '../../shared/hooks/useCategories';
 import {
   useMenuItems, useTopSellingMenuItems, useInventoryItems,
   useCreateMenuItemMutation, useUpdateMenuItemMutation,
@@ -22,7 +21,6 @@ export function MenuManagement() {
   const { isReady, hasPermission } = useAuth();
   const canViewRecipe = hasPermission('INVENTORY_VIEW');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const debouncedSearch = useDebounce(searchTerm, 300);
@@ -30,7 +28,6 @@ export function MenuManagement() {
     page,
     limit: pageSize,
     search: debouncedSearch || undefined,
-    category: selectedCategory !== 'all' ? selectedCategory : undefined,
   });
   const { data: topSelling = [] } = useTopSellingMenuItems();
   const { data: ingredientsResponse } = useInventoryItems();
@@ -41,11 +38,6 @@ export function MenuManagement() {
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-    setPage(1);
-  };
-
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
     setPage(1);
   };
 
@@ -60,23 +52,15 @@ export function MenuManagement() {
 
   const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([{ ...emptyRecipeRow }]);
   const [saving, setSaving] = useState(false);
-  const { categories, loading: catsLoading, error: catsError } = useCategories();
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    categoryId: '',
     price: '',
     cost: '',
     description: '',
     available: true,
   });
-
-  useEffect(() => {
-    if (categories.length > 0 && formData.categoryId === '') {
-      setFormData((prev) => ({ ...prev, categoryId: categories[0].id }));
-    }
-  }, [categories]);
 
   const orderMap = topSelling.reduce((map, item) => {
     map[item.menuItemId] = item.soldQuantity;
@@ -125,9 +109,6 @@ export function MenuManagement() {
       if (!formData.name.trim()) {
         throw new Error('Tên món là bắt buộc');
       }
-      if (!formData.categoryId.trim()) {
-        throw new Error('Danh mục là bắt buộc');
-      }
       const priceVal = Number(formData.price);
       const costVal = Number(formData.cost);
       if (formData.price === '' || isNaN(priceVal)) {
@@ -147,7 +128,6 @@ export function MenuManagement() {
         : [];
       const payload = {
         name: formData.name.trim(),
-        categoryId: formData.categoryId.trim(),
         price: priceVal,
         cost: costVal,
         description: formData.description,
@@ -173,7 +153,6 @@ export function MenuManagement() {
     setEditingItem(null);
     setFormData({
       name: '',
-      categoryId: '',
       price: '',
       cost: '',
       description: '',
@@ -184,10 +163,6 @@ export function MenuManagement() {
 
   const openCreateForm = () => {
     resetForm();
-    setFormData((prev) => ({
-      ...prev,
-      categoryId: categories.length > 0 ? categories[0].id : '',
-    }));
     setShowForm(true);
   };
 
@@ -195,7 +170,6 @@ export function MenuManagement() {
     setEditingItem(item);
     setFormData({
       name: item.name,
-      categoryId: item.categoryId || '',
       price: String(item.price),
       cost: String(item.cost),
       description: item.description,
@@ -239,12 +213,6 @@ export function MenuManagement() {
           <div className="text-xs text-muted-foreground">{item.description}</div>
         </div>
       ),
-    },
-    {
-      key: 'category',
-      header: 'Danh mục',
-      className: 'text-muted-foreground',
-      render: (item) => <>{item.category}</>,
     },
     {
       key: 'recipe',
@@ -352,41 +320,7 @@ export function MenuManagement() {
               className="w-full pl-10 pr-4 py-1.5 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <div className="flex gap-1.5 flex-wrap">
-            <button
-              onClick={() => handleCategoryChange('all')}
-              className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedCategory === 'all'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-foreground hover:bg-accent'
-                }`}
-            >
-              Tất cả
-            </button>
-            {catsLoading ? (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" />
-                Đang tải danh mục...
-              </div>
-            ) : catsError ? (
-              <div className="flex items-center gap-1.5 text-xs text-red-400">
-                <AlertCircle className="size-3.5" />
-                Lỗi tải danh mục
-              </div>
-            ) : (
-              categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryChange(cat.name)}
-                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedCategory === cat.name
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground hover:bg-accent'
-                    }`}
-                >
-                  {cat.name}
-                </button>
-              ))
-            )}
-          </div>
+          <div className="flex gap-1.5 flex-wrap"></div>
         </div>
       </div>
 
@@ -415,27 +349,6 @@ export function MenuManagement() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs text-foreground"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-0.5">Danh mục</label>
-                <select
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs text-foreground"
-                  disabled={catsLoading}
-                >
-                  {catsLoading ? (
-                    <option value="">Đang tải danh mục...</option>
-                  ) : catsError ? (
-                    <option value="">Lỗi tải danh mục</option>
-                  ) : categories.length === 0 ? (
-                    <option value="">Chưa có danh mục</option>
-                  ) : (
-                    categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))
-                  )}
-                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

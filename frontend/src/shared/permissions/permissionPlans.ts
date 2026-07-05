@@ -79,7 +79,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, PlanConfig> = {
         name: 'Xem thực đơn',
         description: 'Xem thực đơn và danh mục',
         icon: 'UtensilsCrossed',
-        permissions: ['MENU_VIEW', 'CATEGORY_VIEW'],
+        permissions: ['MENU_VIEW'],
       },
       {
         id: 'customer',
@@ -185,13 +185,6 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, PlanConfig> = {
         description: 'Cập nhật và xóa thông tin khách hàng',
         icon: 'UserPen',
         permissions: ['CUSTOMER_UPDATE', 'CUSTOMER_DELETE'],
-      },
-      {
-        id: 'menu_category',
-        name: 'Quản lý danh mục',
-        description: 'Thêm, sửa, xóa danh mục món',
-        icon: 'Grid3X3',
-        permissions: ['CATEGORY_CREATE', 'CATEGORY_UPDATE', 'CATEGORY_DELETE'],
       },
       {
         id: 'shift_full',

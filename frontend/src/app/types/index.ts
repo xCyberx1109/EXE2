@@ -1,8 +1,6 @@
 export interface MenuItem {
   id: string;
   name: string;
-  category: string;
-  categoryId?: string;
   price: number;
   cost: number;
   description: string;
@@ -48,18 +46,6 @@ export interface RevenueRecord {
   profit: number;
 }
 
-export interface CategoryItem {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  active: boolean;
-  itemCount: number;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
 export interface PaginationMeta {
   page: number;
   limit: number;
@@ -76,7 +62,6 @@ export interface TopSellingItem {
   menuItemId: string;
   soldQuantity: number;
   name?: string;
-  category?: string;
   price?: number;
 }
 
@@ -248,7 +233,6 @@ export interface RevenueChartPoint {
 export interface DashboardTopItem {
   menuItemId: string;
   name: string;
-  category: string;
   soldQuantity: number;
   revenue: number;
 }
@@ -349,6 +333,13 @@ export interface User {
   permissionsVersion?: number;
   mustChangePassword?: boolean;
   createdAt: string;
+  paymentInformation?: {
+    bankCode: string;
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+    isDefault: boolean;
+  } | null;
 }
 
 export interface Branch {
@@ -495,11 +486,6 @@ export type DevicePermission =
   | 'RESTAURANT_ORDER_ADD_ITEM'
   | 'RESTAURANT_PAY_VIEW'
   | 'RESTAURANT_PAY_PROCESS'
-
-  | 'CATEGORY_VIEW'
-  | 'CATEGORY_CREATE'
-  | 'CATEGORY_UPDATE'
-  | 'CATEGORY_DELETE'
 
   | 'CUSTOMER_VIEW'
   | 'CUSTOMER_CREATE'

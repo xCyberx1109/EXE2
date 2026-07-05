@@ -5,7 +5,6 @@ import { Badge } from '../../app/components/ui/badge';
 import { Input } from '../../app/components/ui/input';
 import { useAuth } from '../../app/context/AuthContext';
 import { menuApi, inventoryApi } from '../../app/api/services';
-import { useCategories } from '../../shared/hooks/useCategories';
 import type { MenuItem, InventoryItem } from '../../app/types';
 import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
 import { ShoppingCart, Plus, Minus, CheckCircle, Table2, Utensils, Loader2, AlertCircle, Search } from 'lucide-react';
@@ -18,13 +17,11 @@ interface CartItem {
 }
 
 export function WaiterPOS() {
-  const { categories, loading: catsLoading } = useCategories();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [tableNumber, setTableNumber] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   const inventoryMap = useMemo(() => buildInventoryMap(inventoryItems), [inventoryItems]);
@@ -76,8 +73,7 @@ export function WaiterPOS() {
 
   const filteredItems = menuItems.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory || item.categoryId === selectedCategory;
-    return item.available && matchesSearch && matchesCategory;
+    return item.available && matchesSearch;
   });
 
   return (
@@ -125,39 +121,6 @@ export function WaiterPOS() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-            </div>
-
-            {/* Category filter pills */}
-            <div className="flex gap-1.5 mb-4 overflow-x-auto">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Tất cả
-              </button>
-              {catsLoading ? (
-                <div className="flex items-center gap-1.5 px-3 text-xs text-gray-400">
-                  <Loader2 className="size-3.5 animate-spin" />
-                </div>
-              ) : (
-                categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.name)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                      selectedCategory === cat.name
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
-                ))
-              )}
             </div>
 
             {menuLoading ? (

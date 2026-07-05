@@ -3,6 +3,7 @@ import { AppError } from '../../utils/AppError.js';
 import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 import { tableRepository } from '../../repositories/table.repository.js';
 import { rectsOverlap, findAvailablePosition, DEFAULT_TABLE_WIDTH_PERCENT, DEFAULT_TABLE_HEIGHT_PERCENT } from '../../utils/tableOverlap.js';
+import { mapConcurrent } from '../../utils/concurrency.js';
 
 function computeElapsedMinutes(startTime) {
   if (!startTime) return 0;
@@ -83,7 +84,7 @@ export const restaurantService = {
     const tables = await tableRepository.findMany(where);
     if (!Array.isArray(tables)) return [];
 
-    const enriched = await Promise.all(tables.map(async (t) => {
+    const enriched = await mapConcurrent(tables, async (t) => {
       const activeOrder = await prisma.order.findFirst({
         where: {
           ...buildOpenRestaurantOrderWhere(t.id, accountId),
@@ -146,7 +147,7 @@ export const restaurantService = {
         id: t.id,
         updatedAt: t.updatedAt,
       };
-    }));
+    }, 5);
 
     return enriched;
   },

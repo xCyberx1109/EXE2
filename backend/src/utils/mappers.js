@@ -3,8 +3,6 @@
 export const mapMenuItem = (item) => ({
   id: item.id,
   name: item.name,
-  category: item.category?.name ?? item.categoryName ?? '',
-  categoryId: item.categoryId,
   price: Number(item.price),
   cost: Number(item.cost),
   description: item.description || '',
@@ -194,7 +192,6 @@ export const mapPosOrder = (order) => {
       cost: Number(item.cost),
       quantity: item.quantity,
       lineTotal: Number(item.price) * item.quantity,
-      category: item.menuItem?.category?.name || '',
       description: item.menuItem?.description || '',
       available: true,
     })),

@@ -3,8 +3,6 @@ import { body, param, query } from 'express-validator';
 export const menuItemRules = [
   body('name').trim().notEmpty().withMessage('Tên món là bắt buộc'),
 
-  body('categoryId').notEmpty().withMessage('categoryId là bắt buộc'),
-
   body('price')
     .exists().withMessage('Giá bán là bắt buộc')
     .bail()
@@ -34,8 +32,6 @@ export const menuItemRules = [
 
 export const menuItemUpdateRules = [
   body('name').optional().trim().notEmpty().withMessage('Tên món không được để trống'),
-
-  body('categoryId').optional().notEmpty().withMessage('categoryId không được để trống'),
 
   body('price')
     .optional()
@@ -70,8 +66,6 @@ export const menuItemIdParam = [param('id').trim().notEmpty().withMessage('ID m�
 
 export const menuSearchQuery = [
   query('search').optional().trim(),
-  query('category').optional().trim(),
-  query('categoryId').optional().notEmpty(),
   query('available').optional().isIn(['true', 'false']),
   query('accountId').optional().notEmpty().withMessage('accountId không hợp lệ'),
 ];

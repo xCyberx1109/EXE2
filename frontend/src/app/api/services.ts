@@ -11,11 +11,11 @@ import type {
   User,
   Branch,
   BranchInvitation,
-  CategoryItem,
   TableItem,
   DeleteDependencyReport,
   InventoryIssue,
   Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse, EmployeeLoginResponse,
+  BranchBankAccount,
   PaginatedResponse,
 } from '../types';
 
@@ -45,6 +45,16 @@ export const authApi = {
 
   resetPassword: (token: string, password: string) =>
     apiFetch<null>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }), auth: false }),
+
+  getPaymentInfo: () =>
+    apiFetch<BranchBankAccount | null>('/auth/me/payment', { auth: true }),
+
+  updatePaymentInfo: (body: { bankCode: string; bankName: string; accountNumber: string; accountHolder: string }) =>
+    apiFetch<BranchBankAccount>('/auth/me/payment', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+      auth: true,
+    }),
 };
 
 const POS_TOKEN_KEY = 'fnb_pos_token';
@@ -85,54 +95,13 @@ export const deviceAuthApi = {
 
 };
 
-// --- Categories ---
-export const categoryApi = {
-  list: (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    sort?: string;
-    active?: boolean;
-    includeDeleted?: boolean;
-    deleted?: boolean;
-  }) => {
-    const q = new URLSearchParams();
-    if (params?.page) q.set('page', String(params.page));
-    if (params?.limit) q.set('limit', String(params.limit));
-    if (params?.search) q.set('search', params.search);
-    if (params?.sort) q.set('sort', params.sort);
-    if (params?.active !== undefined) q.set('active', String(params.active));
-    if (params?.includeDeleted) q.set('includeDeleted', 'true');
-    if (params?.deleted) q.set('deleted', 'true');
-    const query = q.toString();
-    const headers = getAuthHeaders();
-    return apiFetch<PaginatedResponse<CategoryItem>>(`/categories${query ? `?${query}` : ''}`, { auth: false, headers });
-  },
-
-  get: (id: string) =>
-    apiFetch<CategoryItem>(`/categories/${id}`),
-
-  create: (body: { name: string; description?: string; active?: boolean; slug?: string }) =>
-    apiFetch<CategoryItem>('/categories', { method: 'POST', body: JSON.stringify(body) }),
-
-  update: (id: string, body: { name?: string; description?: string; active?: boolean; slug?: string }) =>
-    apiFetch<CategoryItem>(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-
-  delete: (id: string) =>
-    apiFetch<null>(`/categories/${id}`, { method: 'DELETE' }),
-
-  restore: (id: string) =>
-    apiFetch<CategoryItem>(`/categories/${id}/restore`, { method: 'PATCH' }),
-};
-
 // --- Menu ---
 export const menuApi = {
-  list: (params?: { page?: number; limit?: number; search?: string; category?: string; available?: string; accountId?: string }) => {
+  list: (params?: { page?: number; limit?: number; search?: string; available?: string; accountId?: string }) => {
     const q = new URLSearchParams();
     if (params?.page) q.set('page', String(params.page));
     if (params?.limit) q.set('limit', String(params.limit));
     if (params?.search) q.set('search', params.search);
-    if (params?.category && params.category !== 'all') q.set('category', params.category);
     if (params?.available) q.set('available', params.available);
     if (params?.accountId) q.set('accountId', params.accountId);
     const query = q.toString();

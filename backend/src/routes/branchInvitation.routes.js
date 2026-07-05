@@ -111,7 +111,11 @@ router.post('/', authenticate, requirePermission('BRANCH_CREATE'), asyncHandler(
 
     const inviteLink = `${config.frontendUrl}/setup-branch?token=${rawToken}`;
 
-    sendBranchInvitationEmail({ email, inviteLink }).catch(() => {});
+    try {
+      await sendBranchInvitationEmail({ email, inviteLink });
+    } catch (_) {
+      // email send failure is non-critical
+    }
 
     logAction({
       accountId,
@@ -424,7 +428,11 @@ router.post('/:id/resend', authenticate, requirePermission('BRANCH_UPDATE'), asy
     });
 
     const inviteLink = `${config.frontendUrl}/setup-branch?token=${rawToken}`;
-    sendBranchInvitationEmail({ email: invitation.email, inviteLink }).catch(() => {});
+    try {
+      await sendBranchInvitationEmail({ email: invitation.email, inviteLink });
+    } catch (_) {
+      // email send failure is non-critical
+    }
 
     logAction({
       accountId,

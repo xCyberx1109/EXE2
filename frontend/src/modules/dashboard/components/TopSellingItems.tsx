@@ -30,7 +30,6 @@ export function TopSellingItems({ items }: { items: DashboardTopItem[] }) {
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
-                <p className="text-[10px] text-muted-foreground">{item.category}</p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-xs font-semibold text-foreground">{formatVND(item.revenue)}</p>

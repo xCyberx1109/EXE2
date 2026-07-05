@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './queryKeys';
 import {
-  authApi, categoryApi, menuApi, inventoryApi,
+  authApi, menuApi, inventoryApi,
   dashboardApi, branchApi, inviteApi, tableApi, ordersApi, ordersQueueApi, employeeApi,
 } from './services';
 import {
@@ -9,7 +9,7 @@ import {
 } from './posServices';
 import { apiFetch } from './client';
 import type {
-  MenuItem, InventoryItem, InventoryTransaction, DashboardDataV2, CategoryItem,
+  MenuItem, InventoryItem, InventoryTransaction, DashboardDataV2,
   TableItem, OrderDetail, DailyOrdersResponse, InventoryStats,
   PosDeviceV2,
   DeleteDependencyReport, InventoryIssue, PaginatedResponse, EmployeeFormData,
@@ -42,97 +42,10 @@ export function useLoginMutation() {
 }
 
 /* ========================================================================
-   Category Hooks
-   ======================================================================== */
-
-export function useCategories() {
-  return useQuery({
-    queryKey: queryKeys.categories.all,
-    queryFn: () => categoryApi.list({ limit: 1000, active: true }),
-    staleTime: 1000 * 60 * 5,
-    select: (res) => res?.data ?? [],
-  });
-}
-
-export function useCategoryList(filters?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sort?: string;
-  active?: boolean;
-  includeDeleted?: boolean;
-  deleted?: boolean;
-}) {
-  return useQuery({
-    queryKey: queryKeys.categories.list(filters as Record<string, string | number | boolean | undefined>),
-    queryFn: () => categoryApi.list(filters),
-    staleTime: 1000 * 30,
-  });
-}
-
-export function useCategory(id: string | null) {
-  return useQuery({
-    queryKey: queryKeys.categories.detail(id ?? ''),
-    queryFn: () => categoryApi.get(id as string),
-    enabled: !!id,
-  });
-}
-
-export function useCategoryStats() {
-  return useQuery({
-    queryKey: ['categories', 'stats'],
-    queryFn: () => categoryApi.stats(),
-    staleTime: 1000 * 30,
-  });
-}
-
-export function useCreateCategoryMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: { name: string; description?: string; active?: boolean; slug?: string }) =>
-      categoryApi.create(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-    },
-  });
-}
-
-export function useUpdateCategoryMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string; active?: boolean; slug?: string }) =>
-      categoryApi.update(id, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-    },
-  });
-}
-
-export function useDeleteCategoryMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => categoryApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-    },
-  });
-}
-
-export function useRestoreCategoryMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => categoryApi.restore(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-    },
-  });
-}
-
-/* ========================================================================
    Menu Hooks
    ======================================================================== */
 
-export function useMenuItems(filters?: { page?: number; limit?: number; search?: string; category?: string; available?: string; accountId?: string }) {
+export function useMenuItems(filters?: { page?: number; limit?: number; search?: string; available?: string; accountId?: string }) {
   return useQuery({
     queryKey: queryKeys.menu.all(filters as Record<string, string | number | undefined>),
     queryFn: () => menuApi.list(filters),

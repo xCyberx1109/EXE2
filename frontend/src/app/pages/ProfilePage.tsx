@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { User, Lock, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Lock, Building2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/services';
+import { BankSelect } from '../components/ui/BankSelect';
+import { BANKS, type BankOption } from '../../data/banks';
 
 export function ProfilePage() {
   const { user, setUser, logout } = useAuth();
@@ -21,7 +23,22 @@ export function ProfilePage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSaving, setPasswordSaving] = useState(false);
 
+  // Payment info state
+  const [paymentBank, setPaymentBank] = useState<BankOption | null>(null);
+  const [paymentAccountNumber, setPaymentAccountNumber] = useState('');
+  const [paymentAccountHolder, setPaymentAccountHolder] = useState('');
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (user?.paymentInformation) {
+      const bank = BANKS.find(b => b.code === user.paymentInformation!.bankCode) || null;
+      setPaymentBank(bank);
+      setPaymentAccountNumber(user.paymentInformation.accountNumber);
+      setPaymentAccountHolder(user.paymentInformation.accountHolder);
+    }
+  }, [user]);
 
   if (!user) {
     return (
@@ -81,6 +98,40 @@ export function ProfilePage() {
       setPasswordError(err.message || 'Lỗi khi đổi mật khẩu');
     } finally {
       setPasswordSaving(false);
+    }
+  };
+
+  const handleSavePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentBank || !paymentAccountNumber.trim() || !paymentAccountHolder.trim()) {
+      setPaymentError('Vui lòng điền đầy đủ thông tin ngân hàng');
+      return;
+    }
+    try {
+      setPaymentSaving(true);
+      setPaymentError(null);
+      setPaymentSuccess(null);
+      await authApi.updatePaymentInfo({
+        bankCode: paymentBank.code,
+        bankName: paymentBank.shortName,
+        accountNumber: paymentAccountNumber.trim(),
+        accountHolder: paymentAccountHolder.trim(),
+      });
+      setUser({
+        ...user!,
+        paymentInformation: {
+          bankCode: paymentBank.code,
+          bankName: paymentBank.shortName,
+          accountNumber: paymentAccountNumber.trim(),
+          accountHolder: paymentAccountHolder.trim(),
+          isDefault: true,
+        },
+      });
+      setPaymentSuccess('Cập nhật thông tin thanh toán thành công!');
+    } catch (err: any) {
+      setPaymentError(err.message || 'Lỗi khi cập nhật thông tin thanh toán');
+    } finally {
+      setPaymentSaving(false);
     }
   };
 
@@ -247,6 +298,97 @@ export function ProfilePage() {
           </div>
 
 
+        </div>
+      </div>
+
+      {/* Card 3: Payment Information */}
+      <div className="bg-card rounded-md border border-border shadow-sm flex flex-col min-h-0 overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-muted shrink-0">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+            <Building2 className="size-3.5 text-muted-foreground" />
+            Thông tin thanh toán
+          </h2>
+        </div>
+
+        <div className="p-3">
+          {paymentError && (
+            <div className="flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/30 p-3 text-xs text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800 mb-3">
+              <XCircle className="size-3.5 shrink-0 mt-0.5" />
+              <span>{paymentError}</span>
+            </div>
+          )}
+          {paymentSuccess && (
+            <div className="flex items-start gap-1.5 rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-xs text-green-600 dark:text-green-400 border border-green-100 dark:border-green-800 mb-3">
+              <CheckCircle2 className="size-3.5 shrink-0 mt-0.5" />
+              <span>{paymentSuccess}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSavePayment}>
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Left side: Form fields */}
+              <div className="flex-1 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Ngân hàng *</label>
+                  <BankSelect value={paymentBank} onChange={setPaymentBank} />
+                </div>
+
+                <div>
+                  <label htmlFor="accountNumber" className="block text-xs font-medium text-foreground mb-1">Số tài khoản *</label>
+                  <input
+                    id="accountNumber"
+                    type="text"
+                    value={paymentAccountNumber}
+                    onChange={(e) => setPaymentAccountNumber(e.target.value)}
+                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="Nhập số tài khoản"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="accountHolder" className="block text-xs font-medium text-foreground mb-1">Tên chủ tài khoản *</label>
+                  <input
+                    id="accountHolder"
+                    type="text"
+                    value={paymentAccountHolder}
+                    onChange={(e) => setPaymentAccountHolder(e.target.value)}
+                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="Nhập tên chủ tài khoản"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    disabled={paymentSaving}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    {paymentSaving && <Loader2 className="size-3.5 animate-spin" />}
+                    {paymentSaving ? 'Đang lưu...' : 'Lưu thông tin thanh toán'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Right side: QR Preview */}
+              {paymentBank && paymentAccountNumber && paymentAccountHolder && (
+                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2 pt-1">
+                  <div className="text-xs text-muted-foreground font-medium">QR thanh toán</div>
+                  <img
+                    src={`https://api.vietqr.io/image/${paymentBank.shortName}-${paymentAccountNumber}-compact.jpg?accountName=${encodeURIComponent(paymentAccountHolder)}`}
+                    alt="QR thanh toán"
+                    className="rounded-md border border-border"
+                    style={{ width: 180, height: 180 }}
+                  />
+                  <div className="text-[10px] text-muted-foreground text-center leading-tight">
+                    {paymentBank.shortName}<br />
+                    {paymentAccountNumber}
+                  </div>
+                </div>
+              )}
+            </div>
+          </form>
         </div>
       </div>
     </div>

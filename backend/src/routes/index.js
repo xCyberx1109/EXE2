@@ -9,7 +9,6 @@ import inviteRoutes from './invite.routes.js';
 import rbacRoutes from '../modules/rbac/rbac.routes.js';
 import tableRoutes from '../modules/tables/table.routes.js';
 import billiardRoutes from '../modules/billiard/billiard.routes.js';
-import categoryRoutes from '../modules/categories/category.routes.js';
 import employeeRoutes from '../modules/employee/employee.routes.js';
 import { optionalAuth } from '../middlewares/auth.js';
 import { getDashboard } from '../controllers/dashboard.controller.js';
@@ -35,7 +34,6 @@ router.use('/invite', inviteRoutes);
 router.use('/rbac', rbacRoutes);
 router.use('/tables', tableRoutes);
 router.use('/', billiardRoutes);
-router.use('/categories', categoryRoutes);
 router.use('/employees', employeeRoutes);
 
 // Legacy order routes kept for compatibility
