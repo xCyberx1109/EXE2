@@ -58,11 +58,22 @@ export const getIngredientTransactions = asyncHandler(async (req, res) => {
 });
 
 export const listTransactions = asyncHandler(async (req, res) => {
-  const data = await inventoryService.listAllTransactions(getContext(req));
+  const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
+  const data = await inventoryService.listAllTransactions(getContext(req), limit);
   sendSuccess(res, { message: 'Lấy lịch sử giao dịch thành công', data });
 });
 
 export const listSellableInventory = asyncHandler(async (req, res) => {
   const data = await inventoryService.listSellableItems(getContext(req));
   sendSuccess(res, { message: 'Lấy danh sách hàng hóa có thể bán thành công', data });
+});
+
+export const bulkImport = asyncHandler(async (req, res) => {
+  const data = await inventoryService.bulkImport(req.body, getContext(req));
+  sendSuccess(res, { message: 'Nhập kho thành công', data });
+});
+
+export const bulkExport = asyncHandler(async (req, res) => {
+  const data = await inventoryService.bulkExport(req.body, getContext(req));
+  sendSuccess(res, { message: 'Xuất kho thành công', data });
 });

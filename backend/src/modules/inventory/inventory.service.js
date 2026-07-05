@@ -112,6 +112,11 @@ export const inventoryService = {
       }
     }
 
+    // Chặn cập nhật quantity trực tiếp — chỉ cho phép qua import/export
+    if (body.quantity !== undefined) {
+      throw new AppError('Không được phép cập nhật số lượng trực tiếp. Vui lòng sử dụng chức năng Nhập kho hoặc Xuất kho.', 400);
+    }
+
     const item = await ingredientRepository.update(id, {
       ...body,
       lastUpdated: new Date(),
@@ -204,12 +209,12 @@ export const inventoryService = {
     return txs.map(mapInventoryTransaction);
   },
 
-  async listAllTransactions(user) {
+  async listAllTransactions(user, take) {
     const where = {};
     if (user) {
       where.ingredient = { accountId: user.accountId || user.id };
     }
-    const txs = await inventoryTransactionRepository.findMany(where);
+    const txs = await inventoryTransactionRepository.findMany(where, take);
     return txs.map(mapInventoryTransaction);
   },
 
@@ -228,6 +233,129 @@ export const inventoryService = {
       availableQuantity: Number(item.quantity),
       unit: item.unit,
     }));
+  },
+
+  /** Nhập kho nhiều nguyên liệu (bulk) */
+  async bulkImport({ items, reason }, user) {
+    const accountId = user?.accountId || user?.id;
+    if (!accountId) throw new AppError('Không xác định được tài khoản', 401);
+
+    const employeeId = user?.employeeId || null;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const results = [];
+
+      for (const { ingredientId, quantity } of items) {
+        const ingredient = await tx.ingredient.findUnique({ where: { id: ingredientId } });
+        if (!ingredient) throw new AppError(`Không tìm thấy nguyên liệu ID: ${ingredientId}`, 404);
+        if (ingredient.accountId !== accountId) {
+          throw new AppError(`Bạn không có quyền thao tác với nguyên liệu "${ingredient.name}"`, 403);
+        }
+
+        const qty = Number(quantity);
+        const current = Number(ingredient.quantity);
+        const newQty = current + qty;
+
+        await tx.ingredient.update({
+          where: { id: ingredientId },
+          data: { quantity: newQty, lastUpdated: new Date() },
+        });
+
+        const transaction = await tx.inventoryTransaction.create({
+          data: {
+            ingredientId,
+            accountId,
+            type: 'IMPORT',
+            quantity: qty,
+            beforeQuantity: current,
+            afterQuantity: newQty,
+            note: reason || null,
+            createdBy: user?.accountId || user?.id || 'system',
+          },
+          include: {
+            ingredient: { select: { id: true, name: true, unit: true } },
+          },
+        });
+
+        logAction({
+          accountId,
+          employeeId,
+          action: 'CREATE_GOODS_RECEIPT',
+          module: 'INVENTORY',
+          details: { ingredientId, name: ingredient.name, quantity: qty, beforeQuantity: current, afterQuantity: newQty, reason },
+        });
+
+        results.push(transaction);
+      }
+
+      return results;
+    });
+
+    return { transactions: result };
+  },
+
+  /** Xuất kho nhiều nguyên liệu (bulk) */
+  async bulkExport({ items, reason }, user) {
+    const accountId = user?.accountId || user?.id;
+    if (!accountId) throw new AppError('Không xác định được tài khoản', 401);
+
+    const employeeId = user?.employeeId || null;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const results = [];
+
+      for (const { ingredientId, quantity } of items) {
+        const ingredient = await tx.ingredient.findUnique({ where: { id: ingredientId } });
+        if (!ingredient) throw new AppError(`Không tìm thấy nguyên liệu ID: ${ingredientId}`, 404);
+        if (ingredient.accountId !== accountId) {
+          throw new AppError(`Bạn không có quyền thao tác với nguyên liệu "${ingredient.name}"`, 403);
+        }
+
+        const qty = Number(quantity);
+        const current = Number(ingredient.quantity);
+
+        if (current < qty) {
+          throw new AppError(`Không đủ tồn kho để xuất "${ingredient.name}". Cần ${qty}, hiện có ${current}`, 400);
+        }
+
+        const newQty = current - qty;
+
+        await tx.ingredient.update({
+          where: { id: ingredientId },
+          data: { quantity: newQty, lastUpdated: new Date() },
+        });
+
+        const transaction = await tx.inventoryTransaction.create({
+          data: {
+            ingredientId,
+            accountId,
+            type: 'EXPORT',
+            quantity: qty,
+            beforeQuantity: current,
+            afterQuantity: newQty,
+            note: reason || null,
+            createdBy: user?.accountId || user?.id || 'system',
+          },
+          include: {
+            ingredient: { select: { id: true, name: true, unit: true } },
+          },
+        });
+
+        logAction({
+          accountId,
+          employeeId,
+          action: 'CREATE_GOODS_ISSUE',
+          module: 'INVENTORY',
+          details: { ingredientId, name: ingredient.name, quantity: qty, beforeQuantity: current, afterQuantity: newQty, reason },
+        });
+
+        results.push(transaction);
+      }
+
+      return results;
+    });
+
+    return { transactions: result };
   },
 };
 

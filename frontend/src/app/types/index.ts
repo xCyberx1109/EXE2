@@ -300,6 +300,22 @@ export interface RevenueSummary {
   days: number;
 }
 
+export interface InventoryTransaction {
+  id: string;
+  ingredientId: string;
+  ingredientName: string;
+  ingredientUnit: string;
+  type: 'IMPORT' | 'OUT' | 'ADJUST' | 'RETURN' | 'WASTE' | 'AUDIT' | 'SALE';
+  quantity: number;
+  beforeQuantity: number | null;
+  afterQuantity: number | null;
+  note: string | null;
+  referenceType: string | null;
+  referenceId: string | null;
+  createdAt: string;
+  user: { id: string; fullName: string } | null;
+}
+
 export interface InventoryStats {
   totalItems: number;
   lowStockCount: number;

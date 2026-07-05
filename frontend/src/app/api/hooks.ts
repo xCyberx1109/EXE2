@@ -9,7 +9,7 @@ import {
 } from './posServices';
 import { apiFetch } from './client';
 import type {
-  MenuItem, InventoryItem, DashboardDataV2, CategoryItem,
+  MenuItem, InventoryItem, InventoryTransaction, DashboardDataV2, CategoryItem,
   TableItem, OrderDetail, DailyOrdersResponse, InventoryStats,
   PosDeviceV2,
   DeleteDependencyReport, InventoryIssue, PaginatedResponse, EmployeeFormData,
@@ -264,6 +264,28 @@ export function useDeleteInventoryItemMutation() {
   });
 }
 
+export function useBulkImportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { items: Array<{ ingredientId: string; quantity: number }>; reason: string }) =>
+      inventoryApi.bulkImport(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useBulkExportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { items: Array<{ ingredientId: string; quantity: number }>; reason: string }) =>
+      inventoryApi.bulkExport(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
 export function useStockInMutation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -371,6 +393,14 @@ export function useIngredientTransactions(ingredientId: string | null) {
     queryFn: () => inventoryApi.getIngredientTransactions(ingredientId as string),
     staleTime: 1000 * 15,
     enabled: !!ingredientId,
+  });
+}
+
+export function useInventoryTransactions(limit = 10) {
+  return useQuery({
+    queryKey: queryKeys.inventory.transactions,
+    queryFn: () => inventoryApi.listTransactions(limit),
+    staleTime: 1000 * 30,
   });
 }
 

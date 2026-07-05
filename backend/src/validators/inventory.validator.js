@@ -89,3 +89,17 @@ export const rejectAdjustmentRequestRules = [
 export const updateThresholdRules = [
   body('threshold').isFloat({ min: 0 }).withMessage('Ngưỡng phê duyệt phải là số >= 0'),
 ];
+
+export const bulkImportRules = [
+  body('items').isArray({ min: 1 }).withMessage('Phải có ít nhất 1 nguyên liệu'),
+  body('items.*.ingredientId').isString().notEmpty().withMessage('ID nguyên liệu không hợp lệ'),
+  body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Số lượng phải lớn hơn 0'),
+  body('reason').trim().notEmpty().withMessage('Lý do là bắt buộc'),
+];
+
+export const bulkExportRules = [
+  body('items').isArray({ min: 1 }).withMessage('Phải có ít nhất 1 nguyên liệu'),
+  body('items.*.ingredientId').isString().notEmpty().withMessage('ID nguyên liệu không hợp lệ'),
+  body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Số lượng phải lớn hơn 0'),
+  body('reason').trim().notEmpty().withMessage('Lý do là bắt buộc'),
+];
