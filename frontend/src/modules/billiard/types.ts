@@ -164,5 +164,4 @@ export interface MenuItemOption {
   name: string;
   price: number;
   available: boolean;
-  categoryId: string;
 }

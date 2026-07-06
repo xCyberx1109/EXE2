@@ -219,7 +219,7 @@ export function OrderDrawer({ open, onClose, tableId, tableName, tableCode, curr
                       >
                         <div className="font-semibold text-foreground">{item.name}</div>
                         <div className="mt-1 text-xs font-bold text-primary">{Number(item.price).toLocaleString()} ₫</div>
-                        {item.category && <div className="mt-1 text-xs text-muted-foreground">{item.category}</div>}
+                        
                       </button>
                     ))}
                   </div>

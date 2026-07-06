@@ -231,11 +231,15 @@ router.post('/', requirePermission('BRANCH_CREATE'), asyncHandler(async (req, re
 
     permissionService.invalidateCache(account.id);
 
-    sendCredentialsEmail({
-      email: account.email,
-      fullName: account.fullName,
-      password: tempPassword,
-    }).catch(() => {});
+    try {
+      await sendCredentialsEmail({
+        email: account.email,
+        fullName: account.fullName,
+        password: tempPassword,
+      });
+    } catch (_) {
+      // email send failure is non-critical
+    }
 
     sendSuccess(res, {
       statusCode: 201,

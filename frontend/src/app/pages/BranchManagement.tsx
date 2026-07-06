@@ -14,15 +14,17 @@ import {
   X,
   XCircle,
   Lock,
-  Shield,
+  Send,
+  RefreshCw,
+  Ban,
+  Hourglass,
   Check,
+  AlertTriangle,
 } from 'lucide-react';
-import { branchApi } from '../api/services';
+import { branchApi, invitationApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import type { Branch } from '../types';
+import type { Branch, BranchInvitation } from '../types';
 import type { BranchPayload, CreateBranchResult } from '../api/services';
-import { PLAN_PERMISSIONS, MODULE_GROUPS, getPlanPermissionCount, isAdvancedPermission } from '../../constants/planPermissions';
-import type { PlanKey } from '../../constants/planPermissions';
 import { DataTable, type Column } from '../components/DataTable';
 
 type Plan = Branch['plan'];
@@ -35,53 +37,22 @@ const PLAN_OPTIONS: Array<{ value: Plan; label: string }> = [
 ];
 
 type BranchFormState = {
-  name: string;
-  address: string;
-  phone: string;
   plan: Plan;
-  subscriptionStatus: SubscriptionStatus;
-  subscriptionStart: string;
-  subscriptionEnd: string;
   active: boolean;
   email: string;
 };
 
-const today = new Date().toISOString().slice(0, 10);
-
 const createDefaultForm = (): BranchFormState => ({
-  name: '',
-  address: '',
-  phone: '',
   plan: 'BASIC',
-  subscriptionStatus: 'ACTIVE',
-  subscriptionStart: today,
-  subscriptionEnd: today,
   active: true,
   email: '',
-});
-
-const toDateInputValue = (value?: string) => {
-  if (!value) return today;
-  return new Date(value).toISOString().slice(0, 10);
-};
-
-const toPayload = (form: BranchFormState, permissions: string[]): BranchPayload => ({
-  name: form.name.trim(),
-  address: form.address.trim(),
-  phone: form.phone.trim(),
-  plan: form.plan,
-  subscriptionStatus: form.subscriptionStatus,
-  subscriptionStart: form.subscriptionStart,
-  subscriptionEnd: form.subscriptionEnd,
-  active: form.active,
-  email: form.email.trim(),
-  fullName: '',
-  permissions,
 });
 
 export function BranchManagement() {
   const { hasPermission } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [invitations, setInvitations] = useState<BranchInvitation[]>([]);
+  const [activeTab, setActiveTab] = useState<'branches' | 'invitations'>('branches');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -104,42 +75,41 @@ export function BranchManagement() {
   const [confirmName, setConfirmName] = useState('');
   const [forceDeleting, setForceDeleting] = useState(false);
 
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(() => [...PLAN_PERMISSIONS['BASIC']]);
-
-  const handlePlanChange = useCallback((plan: Plan) => {
-    setForm((current) => ({ ...current, plan }));
-    const planPerms = PLAN_PERMISSIONS[plan as PlanKey] || [];
-    setSelectedPermissions((prev) => {
-      const merged = new Set([...prev, ...planPerms]);
-      return Array.from(merged);
-    });
-  }, []);
-
-  const togglePermission = useCallback((code: string) => {
-    setSelectedPermissions((prev) => {
-      if (prev.includes(code)) return prev.filter((p) => p !== code);
-      return [...prev, code];
-    });
-  }, []);
-
   const isEditing = Boolean(editingBranchId);
   const isEditModalOpen = Boolean(editingBranchId);
 
   const fetchBranches = async () => {
     try {
-      setLoading(true);
       setError(null);
       const data = await branchApi.list();
       setBranches(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tải danh sách chi nhánh');
+    }
+  };
+
+  const fetchInvitations = async () => {
+    try {
+      setError(null);
+      const data = await invitationApi.list();
+      setInvitations(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi tải danh sách lời mời');
+    }
+  };
+
+  const fetchAll = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await Promise.all([fetchBranches(), fetchInvitations()]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBranches();
+    fetchAll();
   }, []);
 
   const handleResetPasswordSubmit = async (event: FormEvent) => {
@@ -169,14 +139,12 @@ export function BranchManagement() {
     setIsCreateModalOpen(false);
     setEditingBranchId(null);
     setForm(createDefaultForm());
-    setSelectedPermissions([...PLAN_PERMISSIONS['BASIC']]);
   };
 
   const handleOpenCreateModal = () => {
     setError(null);
     setEditingBranchId(null);
     setForm(createDefaultForm());
-    setSelectedPermissions([...PLAN_PERMISSIONS['BASIC']]);
     setIsCreateModalOpen(true);
   };
 
@@ -186,8 +154,8 @@ export function BranchManagement() {
     if (isSubmittingRef.current) return;
     if (saving) return;
 
-    if (!form.name.trim() || !form.address.trim() || !form.phone.trim() || !form.email.trim()) {
-      setError('Vui lòng nhập đầy đủ tên chi nhánh, địa chỉ, số điện thoại và email');
+    if (!form.email.trim()) {
+      setError('Vui lòng nhập email quản lý');
       return;
     }
 
@@ -196,23 +164,26 @@ export function BranchManagement() {
 
     try {
       setError(null);
-      const payload = toPayload(form, selectedPermissions);
 
       if (editingBranchId) {
+        const payload: any = { email: form.email.trim(), name: '' };
+        if (form.plan) payload.name = form.plan;
         const updatedBranch = await branchApi.update(editingBranchId, payload);
         setBranches((current) =>
           current.map((branch) => (branch.id === editingBranchId ? updatedBranch : branch))
         );
       } else {
-        const result = await branchApi.create(payload);
-        const data = await branchApi.list();
-        setBranches(Array.isArray(data) ? data : []);
-        toast.success(`Đã gửi thông tin đăng nhập đến email ${result.email}`);
+        await invitationApi.create({
+          email: form.email.trim(),
+          plan: form.plan,
+        });
+        toast.success('Đã gửi email mời tạo chi nhánh.');
+        await fetchInvitations();
       }
 
       resetForm();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi lưu chi nhánh');
+      setError(err.message || 'Lỗi khi gửi lời mời');
     } finally {
       isSubmittingRef.current = false;
       setSaving(false);
@@ -224,13 +195,7 @@ export function BranchManagement() {
     setEditingBranchId(branch.id);
     setError(null);
     setForm({
-      name: branch.name,
-      address: branch.address,
-      phone: branch.phone,
       plan: branch.plan,
-      subscriptionStatus: branch.subscriptionStatus,
-      subscriptionStart: toDateInputValue(branch.subscriptionStart),
-      subscriptionEnd: toDateInputValue(branch.subscriptionEnd),
       active: branch.active,
       email: branch.account?.email ?? '',
     });
@@ -274,6 +239,30 @@ export function BranchManagement() {
       setError(err.message || 'Lỗi khi xoá vĩnh viễn chi nhánh');
     } finally {
       setForceDeleting(false);
+    }
+  };
+
+  const handleResendInvitation = async (invitation: BranchInvitation) => {
+    try {
+      setError(null);
+      await invitationApi.resend(invitation.id);
+      toast.success('Đã gửi lại email mời.');
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi gửi lại lời mời');
+    }
+  };
+
+  const handleCancelInvitation = async (invitation: BranchInvitation) => {
+    if (!window.confirm(`Bạn có chắc muốn hủy lời mời tới "${invitation.email}"?`)) return;
+    try {
+      setError(null);
+      await invitationApi.cancel(invitation.id);
+      setInvitations((current) =>
+        current.map((inv) => (inv.id === invitation.id ? { ...inv, status: 'CANCELLED' as const } : inv))
+      );
+      toast.success('Đã hủy lời mời.');
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi hủy lời mời');
     }
   };
 
@@ -403,6 +392,39 @@ export function BranchManagement() {
     limit: pageSize,
   } : undefined, [branches, page, pageSize]);
 
+  const statusBadge = (invitation: BranchInvitation) => {
+    switch (invitation.status) {
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+            <Hourglass className="size-3" />
+            Đã gửi lời mời
+          </span>
+        );
+      case 'ACCEPTED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400">
+            <CheckCircle2 className="size-3" />
+            Đã hoàn tất
+          </span>
+        );
+      case 'EXPIRED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400">
+            <AlertTriangle className="size-3" />
+            Hết hạn
+          </span>
+        );
+      case 'CANCELLED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-muted-foreground">
+            <Ban className="size-3" />
+            Đã hủy
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-4">
       <div className="bg-card rounded-md border border-border p-3 flex-shrink-0">
@@ -413,11 +435,11 @@ export function BranchManagement() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">Quản lý chi nhánh</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Quản lý danh sách chi nhánh, gói và trạng thái hoạt động.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Quản lý danh sách chi nhánh, lời mời và trạng thái hoạt động.</p>
             </div>
           </div>
 
-          {hasPermission('BRANCH_CREATE') && (
+          {hasPermission('BRANCH_CREATE') && activeTab === 'branches' && (
             <button
               type="button"
               onClick={handleOpenCreateModal}
@@ -428,31 +450,114 @@ export function BranchManagement() {
             </button>
           )}
         </div>
+
+        <div className="flex gap-4 mt-3 border-b border-border">
+          <button
+            type="button"
+            onClick={() => setActiveTab('branches')}
+            className={`pb-2 text-xs font-medium transition-colors relative ${
+              activeTab === 'branches'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Chi nhánh
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('invitations')}
+            className={`pb-2 text-xs font-medium transition-colors relative ${
+              activeTab === 'invitations'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Lời mời
+            {invitations.filter((i) => i.status === 'PENDING').length > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                {invitations.filter((i) => i.status === 'PENDING').length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && !isCreateModalOpen && !isEditModalOpen && (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive flex-shrink-0">{error}</div>
       )}
 
-      <DataTable
-        columns={columns}
-        data={branches}
-        keyExtractor={(branch) => branch.id}
-        loading={loading}
-        emptyMessage="Chưa có chi nhánh nào."
-        pagination={pagination}
-        onPageChange={setPage}
-        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
-      />
+      {activeTab === 'branches' && (
+        <DataTable
+          columns={columns}
+          data={branches}
+          keyExtractor={(branch) => branch.id}
+          loading={loading}
+          emptyMessage="Chưa có chi nhánh nào."
+          pagination={pagination}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+        />
+      )}
+
+      {activeTab === 'invitations' && (
+        <div className="bg-card rounded-md border border-border overflow-hidden">
+          <div className="divide-y divide-border">
+            {loading ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">Đang tải...</div>
+            ) : invitations.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">Chưa có lời mời nào.</div>
+            ) : (
+              invitations.map((invitation) => (
+                <div key={invitation.id} className="p-3 flex items-center justify-between gap-3 hover:bg-accent/30 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Mail className="size-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{invitation.email}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {invitation.packageName} &middot; {new Date(invitation.createdAt).toLocaleDateString('vi-VN')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {statusBadge(invitation)}
+                    {invitation.status === 'PENDING' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleResendInvitation(invitation)}
+                          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] font-medium text-foreground hover:bg-accent"
+                          title="Gửi lại lời mời"
+                        >
+                          <RefreshCw className="size-3" />
+                          Gửi lại
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelInvitation(invitation)}
+                          className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-[10px] font-medium text-destructive hover:bg-destructive/10"
+                          title="Hủy lời mời"
+                        >
+                          <Ban className="size-3" />
+                          Hủy
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-5xl rounded-lg bg-card shadow-2xl">
-            <form onSubmit={handleSubmit} className="space-y-2 p-3">
-              <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+          <div className="w-full max-w-lg rounded-lg bg-card shadow-2xl">
+            <form onSubmit={handleSubmit} className="space-y-3 p-4">
+              <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Thêm chi nhánh mới</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Tạo chi nhánh mới.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Gửi lời mời tạo chi nhánh qua email.</p>
                 </div>
                 <button
                   type="button"
@@ -469,40 +574,7 @@ export function BranchManagement() {
                 <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
               )}
 
-              <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Tên chi nhánh</span>
-                  <input
-                    value={form.name}
-                    onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                    placeholder="Nhập tên chi nhánh"
-                  />
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Địa chỉ</span>
-                  <input
-                    value={form.address}
-                    onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                    placeholder="Nhập địa chỉ"
-                  />
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Số điện thoại</span>
-                  <input
-                    value={form.phone}
-                    onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                    placeholder="Nhập số điện thoại"
-                  />
-                </label>
-
+              <div className={`space-y-3 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
                 <label className="space-y-1">
                   <span className="text-xs font-medium text-foreground">Email quản lý</span>
                   <input
@@ -516,154 +588,65 @@ export function BranchManagement() {
                   />
                 </label>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Gói</span>
-                  <select
-                    value={form.plan}
-                    onChange={(event) => handlePlanChange(event.target.value as Plan)}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                  >
-                    {PLAN_OPTIONS.map((plan) => (
-                      <option key={plan.value} value={plan.value}>
-                        {plan.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Trạng thái hoạt động</span>
-                  <button
-                    type="button"
-                    onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
-                    disabled={saving}
-                    className="flex w-full items-center justify-between rounded-md border border-input px-2 py-1.5 text-xs hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className={form.active ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground font-medium'}>
-                      {form.active ? 'Đang bật' : 'Đang tắt'}
-                    </span>
-                    <span
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                        form.active ? 'bg-primary' : 'bg-input'
-                      }`}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-foreground">Gói</span>
+                    <select
+                      value={form.plan}
+                      onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
+                      disabled={saving}
+                      className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     >
-                      <span
-                        className={`inline-block h-4 w-4 rounded-full bg-card shadow transition-transform ${
-                          form.active ? 'translate-x-4' : 'translate-x-0.5'
-                        }`}
-                      />
-                    </span>
-                  </button>
-                </div>
+                      {PLAN_OPTIONS.map((plan) => (
+                        <option key={plan.value} value={plan.value}>
+                          {plan.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Ngày bắt đầu</span>
-                  <input
-                    type="date"
-                    value={form.subscriptionStart}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, subscriptionStart: event.target.value }))
-                    }
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                  />
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Ngày kết thúc</span>
-                  <input
-                    type="date"
-                    value={form.subscriptionEnd}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, subscriptionEnd: event.target.value }))
-                    }
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                  />
-                </label>
-
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    disabled={saving || isSubmittingRef.current}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {saving ? (
-                      'Đang lưu...'
-                    ) : (
-                      <>
-                        <Plus className="size-3" />
-                        Thêm chi nhánh
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {!editingBranchId && (
-                <div className={`space-y-2 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
-                  <div className="border-t border-border pt-3">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Shield className="size-4 text-primary" />
-                      <h3 className="text-xs font-semibold text-foreground">Phân quyền theo gói</h3>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 rounded-md bg-primary/5 border border-primary/20 px-2 py-1.5 mb-2">
-                      <Check className="size-3 text-primary" />
-                      <span className="text-xs font-medium text-foreground">
-                        {getPlanPermissionCount(form.plan as PlanKey)} quyền được cấp bởi gói {PLAN_OPTIONS.find((p) => p.value === form.plan)?.label}
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-foreground">Trạng thái</span>
+                    <button
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
+                      disabled={saving}
+                      className="flex w-full items-center justify-between rounded-md border border-input px-2 py-1.5 text-xs hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className={form.active ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground font-medium'}>
+                        {form.active ? 'Hoạt động' : 'Không hoạt động'}
                       </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-1">
-                      {(() => {
-                        const planPerms = new Set(PLAN_PERMISSIONS[form.plan as PlanKey] || []);
-                        return MODULE_GROUPS.flatMap((group) => {
-                          const groupPerms = group.permissions.filter((p) => selectedPermissions.includes(p) || planPerms.has(p));
-                          if (groupPerms.length === 0) return [];
-                          const block = (
-                            <div key={group.module} className="space-y-1">
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</p>
-                              <div className="space-y-0.5">
-                                {group.permissions.map((code) => {
-                                  const isPlanPerm = planPerms.has(code);
-                                  const isSelected = selectedPermissions.includes(code);
-                                  const isAdvanced = isAdvancedPermission(code);
-                                  if (!isPlanPerm && !isSelected && !isAdvanced) return null;
-                                  return (
-                                    <label
-                                      key={code}
-                                      className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm cursor-pointer text-xs transition-colors ${
-                                        isPlanPerm
-                                          ? 'bg-primary/5 text-foreground'
-                                          : isSelected
-                                          ? 'bg-accent text-foreground'
-                                          : 'text-muted-foreground hover:bg-accent/50'
-                                      }`}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={isPlanPerm || isSelected}
-                                        disabled={isPlanPerm}
-                                        onChange={() => togglePermission(code)}
-                                        className="rounded border-input text-primary focus:ring-primary/20 disabled:opacity-60 size-3"
-                                      />
-                                      <span className="flex-1 text-[10px]">{code}</span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                          return [block];
-                        });
-                      })()}
-                    </div>
+                      <span
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                          form.active ? 'bg-primary' : 'bg-input'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 rounded-full bg-card shadow transition-transform ${
+                            form.active ? 'translate-x-4' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </span>
+                    </button>
                   </div>
-                </div>
-              )}
 
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving || isSubmittingRef.current}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? (
+                    'Đang gửi...'
+                  ) : (
+                    <>
+                      <Send className="size-3.5" />
+                      Gửi lời mời
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -671,9 +654,9 @@ export function BranchManagement() {
 
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-5xl rounded-lg bg-card shadow-2xl">
-            <form onSubmit={handleSubmit} className="space-y-2 p-3">
-              <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+          <div className="w-full max-w-lg rounded-lg bg-card shadow-2xl">
+            <form onSubmit={handleSubmit} className="space-y-3 p-4">
+              <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Cập nhật chi nhánh</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">Chỉnh sửa thông tin chi nhánh.</p>
@@ -693,40 +676,7 @@ export function BranchManagement() {
                 <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
               )}
 
-              <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Tên chi nhánh</span>
-                  <input
-                    value={form.name}
-                    onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                    placeholder="Nhập tên chi nhánh"
-                  />
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Địa chỉ</span>
-                  <input
-                    value={form.address}
-                    onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                    placeholder="Nhập địa chỉ"
-                  />
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Số điện thoại</span>
-                  <input
-                    value={form.phone}
-                    onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                    placeholder="Nhập số điện thoại"
-                  />
-                </label>
-
+              <div className={`space-y-3 ${saving ? 'pointer-events-none opacity-60' : ''}`}>
                 <label className="space-y-1">
                   <span className="text-xs font-medium text-foreground">Email quản lý</span>
                   <input
@@ -740,89 +690,64 @@ export function BranchManagement() {
                   />
                 </label>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Gói</span>
-                  <select
-                    value={form.plan}
-                    onChange={(event) => handlePlanChange(event.target.value as Plan)}
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                  >
-                    {PLAN_OPTIONS.map((plan) => (
-                      <option key={plan.value} value={plan.value}>
-                        {plan.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Trạng thái hoạt động</span>
-                  <button
-                    type="button"
-                    onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
-                    disabled={saving}
-                    className="flex w-full items-center justify-between rounded-md border border-input px-2 py-1.5 text-xs hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className={form.active ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground font-medium'}>
-                      {form.active ? 'Đang bật' : 'Đang tắt'}
-                    </span>
-                    <span
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                        form.active ? 'bg-primary' : 'bg-input'
-                      }`}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-foreground">Gói</span>
+                    <select
+                      value={form.plan}
+                      onChange={(event) => setForm((current) => ({ ...current, plan: event.target.value as Plan }))}
+                      disabled={saving}
+                      className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                     >
+                      {PLAN_OPTIONS.map((plan) => (
+                        <option key={plan.value} value={plan.value}>
+                          {plan.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-foreground">Trạng thái</span>
+                    <button
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, active: !current.active }))}
+                      disabled={saving}
+                      className="flex w-full items-center justify-between rounded-md border border-input px-2 py-1.5 text-xs hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className={form.active ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground font-medium'}>
+                        {form.active ? 'Hoạt động' : 'Không hoạt động'}
+                      </span>
                       <span
-                        className={`inline-block h-4 w-4 rounded-full bg-card shadow transition-transform ${
-                          form.active ? 'translate-x-4' : 'translate-x-0.5'
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                          form.active ? 'bg-primary' : 'bg-input'
                         }`}
-                      />
-                    </span>
-                  </button>
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 rounded-full bg-card shadow transition-transform ${
+                            form.active ? 'translate-x-4' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </span>
+                    </button>
+                  </div>
+
                 </div>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Ngày bắt đầu</span>
-                  <input
-                    type="date"
-                    value={form.subscriptionStart}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, subscriptionStart: event.target.value }))
-                    }
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                  />
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-foreground">Ngày kết thúc</span>
-                  <input
-                    type="date"
-                    value={form.subscriptionEnd}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, subscriptionEnd: event.target.value }))
-                    }
-                    disabled={saving}
-                    className="w-full rounded-md border border-input bg-input-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
-                  />
-                </label>
-
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    disabled={saving || isSubmittingRef.current}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {saving ? (
-                      'Đang lưu...'
-                    ) : (
-                      <>
-                        <Save className="size-3.5" />
-                        Lưu thay đổi
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={saving || isSubmittingRef.current}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? (
+                    'Đang lưu...'
+                  ) : (
+                    <>
+                      <Save className="size-3.5" />
+                      Lưu thay đổi
+                    </>
+                  )}
+                </button>
               </div>
             </form>
           </div>

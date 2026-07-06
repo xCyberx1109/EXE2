@@ -11,6 +11,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { BranchManagement } from './pages/BranchManagement';
 import { SetPasswordPage } from './pages/SetPasswordPage';
+import { SetupBranchPage } from './pages/SetupBranchPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PermissionManagement } from './pages/PermissionManagement';
 import { PosMachineLoginPage } from './pages/PosMachineLoginPage';
@@ -18,7 +19,6 @@ import NotFound from '../pages/NotFound';
 
 import { ProtectedRoute } from '../shared/permissions/ProtectedRoute';
 import { OrderQueuePOS } from './pages/OrderQueuePOS';
-import { CategoryManagement } from './pages/CategoryManagement';
 import { EmployeeManagement } from './pages/EmployeeManagement';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
@@ -95,6 +95,10 @@ export const router = createBrowserRouter([
         Component: SetPasswordPage,
       },
       {
+        path: '/setup-branch',
+        Component: SetupBranchPage,
+      },
+      {
         path: '/pos-machine/login',
         Component: PosMachineLoginPage,
       },
@@ -113,7 +117,6 @@ export const router = createBrowserRouter([
               { index: true, element: withGuard(Dashboard, { rbacPerms: ['DASHBOARD_VIEW'] }) },
               {path: 'qr-table-print',element: withGuard(QrTablePrintPage, {rbacPerms: ['RESTAURANT_TABLE_VIEW'],}),},
               { path: 'branch', element: withGuard(BranchManagement, { rbacPerms: ['BRANCH_VIEW'] }) },
-              { path: 'categories', element: withGuard(CategoryManagement, { rbacPerms: ['CATEGORY_VIEW'] }) },
               { path: 'menu', element: withGuard(MenuManagement, { rbacPerms: ['MENU_MANAGEMENT_VIEW'] }) },
               { path: 'inventory', element: withGuard(InventoryManagement, { rbacPerms: ['INVENTORY_VIEW'] }) },
               { path: 'staff', element: withGuard(EmployeeManagement, { rbacPerms: ['STAFF_VIEW'] }) },

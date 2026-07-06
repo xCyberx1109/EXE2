@@ -1,20 +1,14 @@
 /** Dữ liệu seed khớp frontend mockData.ts */
 
-export const categories = [
-  { name: 'Món chính', slug: 'mon-chinh', description: 'Các món ăn chính' },
-  { name: 'Món phụ', slug: 'mon-phu', description: 'Món ăn kèm, snack' },
-  { name: 'Đồ uống', slug: 'do-uong', description: 'Thức uống các loại' },
-];
-
 export const menuItems = [
-  { name: 'Phở Bò', category: 'Món chính', price: 65000, cost: 35000, description: 'Phở bò truyền thống Hà Nội', imageUrl: 'https://images.unsplash.com/photo-1591814468924-42a140c26160?w=400' },
-  { name: 'Bún Chả', category: 'Món chính', price: 55000, cost: 30000, description: 'Bún chả Hà Nội đặc sản', imageUrl: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400' },
-  { name: 'Cơm Tấm', category: 'Món chính', price: 45000, cost: 25000, description: 'Cơm tấm sườn bì chả', imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25ad6d3e?w=400' },
-  { name: 'Bánh Mì', category: 'Món phụ', price: 25000, cost: 12000, description: 'Bánh mì thịt nguội pate', imageUrl: 'https://images.unsplash.com/photo-1553909489-9a58f0e3a921?w=400' },
-  { name: 'Cà Phê Đen', category: 'Đồ uống', price: 25000, cost: 8000, description: 'Cà phê phin truyền thống', imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400' },
-  { name: 'Cà Phê Sữa', category: 'Đồ uống', price: 30000, cost: 10000, description: 'Cà phê sữa đá', imageUrl: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400' },
-  { name: 'Trà Chanh', category: 'Đồ uống', price: 20000, cost: 6000, description: 'Trà chanh tươi mát', imageUrl: 'https://images.unsplash.com/photo-1556675593-ef062e68f493?w=400' },
-  { name: 'Nem Rán', category: 'Món phụ', price: 35000, cost: 18000, description: 'Nem rán giòn rụm', imageUrl: 'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=400' },
+  { name: 'Phở Bò', price: 65000, cost: 35000, description: 'Phở bò truyền thống Hà Nội', imageUrl: 'https://images.unsplash.com/photo-1591814468924-42a140c26160?w=400' },
+  { name: 'Bún Chả', price: 55000, cost: 30000, description: 'Bún chả Hà Nội đặc sản', imageUrl: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400' },
+  { name: 'Cơm Tấm', price: 45000, cost: 25000, description: 'Cơm tấm sườn bì chả', imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25ad6d3e?w=400' },
+  { name: 'Bánh Mì', price: 25000, cost: 12000, description: 'Bánh mì thịt nguội pate', imageUrl: 'https://images.unsplash.com/photo-1553909489-9a58f0e3a921?w=400' },
+  { name: 'Cà Phê Đen', price: 25000, cost: 8000, description: 'Cà phê phin truyền thống', imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400' },
+  { name: 'Cà Phê Sữa', price: 30000, cost: 10000, description: 'Cà phê sữa đá', imageUrl: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400' },
+  { name: 'Trà Chanh', price: 20000, cost: 6000, description: 'Trà chanh tươi mát', imageUrl: 'https://images.unsplash.com/photo-1556675593-ef062e68f493?w=400' },
+  { name: 'Nem Rán', price: 35000, cost: 18000, description: 'Nem rán giòn rụm', imageUrl: 'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=400' },
 ];
 
 export const ingredients = [
@@ -95,12 +89,6 @@ export const permissions = [
   { code: 'BRANCH_LOCK', name: 'Khóa chi nhánh', module: 'branch' },
   { code: 'BRANCH_UNLOCK', name: 'Mở khóa chi nhánh', module: 'branch' },
   { code: 'BRANCH_FORCE_DELETE', name: 'Xóa vĩnh viễn chi nhánh', module: 'branch' },
-
-  // ================= CATEGORY =================
-  { code: 'CATEGORY_VIEW', name: 'Xem danh mục', module: 'category' },
-  { code: 'CATEGORY_CREATE', name: 'Tạo danh mục', module: 'category' },
-  { code: 'CATEGORY_UPDATE', name: 'Cập nhật danh mục', module: 'category' },
-  { code: 'CATEGORY_DELETE', name: 'Xóa danh mục', module: 'category' },
 
   // ================= CUSTOMER =================
   { code: 'CUSTOMER_VIEW', name: 'Xem khách hàng', module: 'customer' },

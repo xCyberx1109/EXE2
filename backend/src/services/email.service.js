@@ -70,3 +70,11 @@ export async function sendCredentialsEmail({ email, fullName, password }) {
     text: `Xin chào ${fullName},\n\nTài khoản của bạn đã được tạo.\n\nEmail đăng nhập: ${email}\nMật khẩu tạm thời: ${password}\n\nVui lòng đổi mật khẩu sau khi đăng nhập.\n\nTrân trọng,\nĐội ngũ POS Builders`,
   });
 }
+
+export async function sendBranchInvitationEmail({ email, inviteLink }) {
+  await sendEmail({
+    to: email,
+    subject: 'Bạn được mời tạo chi nhánh',
+    text: `Xin chào,\n\nBạn đã được mời tạo chi nhánh mới.\n\nNhấn vào liên kết dưới đây để hoàn tất tạo chi nhánh:\n${inviteLink}\n\nLiên kết có hiệu lực trong 24 giờ.\n\nTrân trọng,\nĐội ngũ POS Builders`,
+  });
+}

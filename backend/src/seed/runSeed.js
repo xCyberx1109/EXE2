@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import config from '../config/index.js';
 import prisma from '../prisma/client.js';
+import { mapConcurrent } from '../utils/concurrency.js';
 import {
   SubscriptionStatus,
   OrderStatus,
@@ -11,7 +12,6 @@ import {
   AccountStatus,
 } from '@prisma/client';
 import {
-  categories,
   menuItems,
   ingredients,
   menuIngredientLinks,
@@ -67,20 +67,6 @@ const FEATURE_PERMISSIONS = [
 
 const SALT_ROUNDS = 10;
 const DEFAULT_ACCOUNT_ID = 'account-default-001';
-
-/**
- * Chạy concurrent Promise.all với giới hạn số lượng parallel.
- * Tránh gửi quá nhiều query cùng lúc gây exhaustion connection pool.
- */
-async function mapConcurrent(items, fn, concurrency = 5) {
-  const results = [];
-  for (let i = 0; i < items.length; i += concurrency) {
-    const batch = items.slice(i, i + concurrency);
-    const batchResults = await Promise.all(batch.map(fn));
-    results.push(...batchResults);
-  }
-  return results;
-}
 
 /** Seed đầy đủ database */
 export async function seedDatabase() {
@@ -219,7 +205,6 @@ export async function seedDatabase() {
     'INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_UPDATE', 'INVENTORY_IMPORT', 'INVENTORY_EXPORT', 'INVENTORY_TRANSACTION_VIEW',
     'CUSTOMER_VIEW', 'CUSTOMER_CREATE',
     'TABLE_VIEW', 'TABLE_CREATE', 'TABLE_UPDATE',
-    'CATEGORY_VIEW', 'CATEGORY_CREATE', 'CATEGORY_UPDATE',
     'REPORT_VIEW',
     'SHIFT_VIEW', 'SHIFT_CREATE', 'SHIFT_CLOSE',
     'POS_ORDER_QUEUE_VIEW', 'POS_ORDER_QUEUE_CREATE', 'POS_ORDER_QUEUE_UPDATE', 'POS_ORDER_QUEUE_PAY',
@@ -235,7 +220,8 @@ export async function seedDatabase() {
     'RESTAURANT_PAY_VIEW', 'RESTAURANT_PAY_PROCESS',
   ];
 
-  await mapConcurrent(managerPerms, async (permCode) => {
+  const uniqueManagerPerms = [...new Set(managerPerms)];
+  await mapConcurrent(uniqueManagerPerms, async (permCode) => {
     if (permissionMap[permCode]) {
       await prisma.accountPermission.upsert({
         where: { accountId_permissionId: { accountId: manager.id, permissionId: permissionMap[permCode] } },
@@ -246,19 +232,6 @@ export async function seedDatabase() {
   }, 10);
 
   console.log(`  ✓ Admin + Manager accounts with permissions`);
-
-  // =========================
-  // CATEGORIES
-  // =========================
-  const categoryMap = {};
-  for (const cat of categories) {
-    const created = await prisma.category.upsert({
-      where: { slug: cat.slug },
-      update: { name: cat.name, description: cat.description, active: cat.active ?? true },
-      create: { name: cat.name, slug: cat.slug, description: cat.description, active: cat.active ?? true },
-    });
-    categoryMap[cat.name] = created.id;
-  }
 
   // =========================
   // MENU ITEMS
@@ -273,7 +246,6 @@ export async function seedDatabase() {
       ? await prisma.menuItem.update({
           where: { id: existing.id },
           data: {
-            categoryId: categoryMap[item.category],
             price: item.price,
             cost: item.cost,
             description: item.description,
@@ -284,7 +256,6 @@ export async function seedDatabase() {
       : await prisma.menuItem.create({
           data: {
             name: item.name,
-            categoryId: categoryMap[item.category],
             price: item.price,
             cost: item.cost,
             description: item.description,
@@ -535,7 +506,25 @@ export async function runSeedIfEmpty() {
 }
 
 async function getOrCreateDefaultAccount() {
-  return { id: DEFAULT_ACCOUNT_ID };
+  const accountId = DEFAULT_ACCOUNT_ID;
+  const hashedPassword = await bcrypt.hash(config.seed.adminPassword, SALT_ROUNDS);
+
+  await prisma.account.upsert({
+    where: { id: accountId },
+    update: {},
+    create: {
+      id: accountId,
+      email: config.seed.adminEmail,
+      password: hashedPassword,
+      fullName: config.seed.adminName,
+      phone: '0900000000',
+      status: 'ACTIVE',
+      mustChangePassword: false,
+      active: true,
+    },
+  });
+
+  return { id: accountId };
 }
 
 /** SAMPLE ORDERS */

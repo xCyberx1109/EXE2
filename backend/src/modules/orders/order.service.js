@@ -13,7 +13,7 @@ import { consumeIngredientBatchesFEFO } from '../../utils/inventoryBatches.js';
 const ORDER_ITEMS_INCLUDE = {
   items: {
     include: {
-      menuItem: { include: { category: true } },
+      menuItem: true,
     },
   },
 };
@@ -266,8 +266,7 @@ export const orderService = {
 
     // Tao don + giu cho ton kho trong cung 1 transaction: neu khong du hang kha dung
     // (co the da bi don khac giu cho), toan bo viec tao don se bi rollback.
-    // Include giong het orderRepository.create (items.menuItem.category) de khong mat du lieu
-    // hien thi (mapPosOrder dung item.menuItem?.category?.name).
+    // Include giong het orderRepository.create de khong mat du lieu hien thi.
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({ data: orderData, include: ORDER_ITEMS_INCLUDE });
       await reserveInventoryForOrderTx(tx, created);
@@ -754,7 +753,7 @@ export const orderService = {
 
           return updatedOrder;
         }, {
-          timeout: 30000,
+          timeout: 10000,
         });
 
         completed.push(mapPosOrder(updated));

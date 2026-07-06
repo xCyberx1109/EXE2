@@ -123,7 +123,6 @@ export function OrderQueuePOS() {
   const persistLoadingRef = useRef(false);
   const [orderSearch, setOrderSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [orderLines, setOrderLines] = useState<QueueLine[]>([]);
   const [discount, setDiscount] = useState(0);
@@ -209,24 +208,17 @@ export function OrderQueuePOS() {
     [orders, activeOrderId]
   );
 
-  const categories = useMemo(() => {
-    const unique = Array.from(new Set(menuItems.map(item => item.category).filter(Boolean)));
-    return unique.sort((a, b) => a.localeCompare(b));
-  }, [menuItems]);
-
   const filteredMenuItems = useMemo(() => {
     const keyword = productSearch.trim().toLowerCase();
     const result = menuItems.filter(item => {
-      const matchCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const matchKeyword =
         !keyword ||
         item.name.toLowerCase().includes(keyword) ||
-        item.category?.toLowerCase().includes(keyword) ||
         item.description?.toLowerCase().includes(keyword);
-      return matchCategory && matchKeyword;
+      return matchKeyword;
     });
     return result;
-  }, [menuItems, productSearch, selectedCategory]);
+  }, [menuItems, productSearch]);
 
   const sortedOpenOrders = useMemo(() => {
     return [...orders]
@@ -665,33 +657,6 @@ export function OrderQueuePOS() {
               </div>
             </div>
 
-            {/* Category pills */}
-            <div className="shrink-0 flex gap-2 overflow-x-auto px-2.5 lg:px-3 py-1.5 border-b border-border">
-              <button
-                type="button"
-                onClick={() => setSelectedCategory('all')}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs lg:text-sm font-bold transition whitespace-nowrap ${selectedCategory === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'border border-border bg-card text-foreground hover:bg-accent'
-                  }`}
-              >
-                Tất cả
-              </button>
-              {categories.map(category => (
-                <button
-                  type="button"
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`shrink-0 rounded-lg px-3 py-1.5 text-xs lg:text-sm font-bold transition whitespace-nowrap ${selectedCategory === category
-                    ? 'bg-slate-900 text-white'
-                    : 'border border-border bg-card text-foreground hover:bg-accent'
-                    }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-
             {/* Product grid - scrollable */}
             <div className="flex-1 overflow-y-auto p-2.5 lg:p-3">
               <div className="grid grid-cols-2 gap-2 lg:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
@@ -713,7 +678,7 @@ export function OrderQueuePOS() {
                           {item.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="text-[10px] lg:text-xs font-black text-foreground overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</div>
-                        <div className="mt-0.5 text-[9px] lg:text-[10px] font-semibold uppercase tracking-wide text-muted-foreground truncate">{item.category}</div>
+                        
                         <div className="mt-auto pt-0.5 lg:pt-1 text-xs lg:text-sm font-black text-primary">{formatMoney(item.price)}</div>
                       </button>
                       {outOfStock && (

@@ -10,8 +10,8 @@ function getContext(req) {
 
 // Menu items
 export const listMenuItems = asyncHandler(async (req, res) => {
-  const { search, category, categoryId, available, accountId, page, limit } = req.query;
-  const data = await menuService.listMenuItems({ search, category, categoryId, available, accountId, page, limit }, getContext(req));
+  const { search, available, accountId, page, limit } = req.query;
+  const data = await menuService.listMenuItems({ search, available, accountId, page, limit }, getContext(req));
   sendSuccess(res, { message: 'Lấy danh sách món thành công', data });
 });
 

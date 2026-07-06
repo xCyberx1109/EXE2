@@ -52,12 +52,6 @@ INSERT INTO "permissions" ("id", "code", "name", "module", "isSystem", "createdA
 (gen_random_uuid()::text, 'BRANCH_UNLOCK', 'Mở khóa chi nhánh', 'branch', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'BRANCH_FORCE_DELETE', 'Xóa vĩnh viễn chi nhánh', 'branch', false, NOW(), NOW()),
 
--- CATEGORY (4 permissions)
-(gen_random_uuid()::text, 'CATEGORY_VIEW', 'Xem danh mục', 'category', false, NOW(), NOW()),
-(gen_random_uuid()::text, 'CATEGORY_CREATE', 'Tạo danh mục', 'category', false, NOW(), NOW()),
-(gen_random_uuid()::text, 'CATEGORY_UPDATE', 'Cập nhật danh mục', 'category', false, NOW(), NOW()),
-(gen_random_uuid()::text, 'CATEGORY_DELETE', 'Xóa danh mục', 'category', false, NOW(), NOW()),
-
 -- CUSTOMER (4 permissions)
 (gen_random_uuid()::text, 'CUSTOMER_VIEW', 'Xem khách hàng', 'customer', false, NOW(), NOW()),
 (gen_random_uuid()::text, 'CUSTOMER_CREATE', 'Thêm khách hàng', 'customer', false, NOW(), NOW()),

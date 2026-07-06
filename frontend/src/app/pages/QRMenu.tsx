@@ -242,9 +242,14 @@ export function MenuQR() {
         <div className="w-full max-w-sm bg-white border rounded-2xl p-6 text-center shadow-sm">
           <CheckCircle2 className="w-16 h-16 mx-auto text-green-600" />
 
+<<<<<<< HEAD
           <h1 className="mt-4 text-2xl font-bold text-gray-900">
             Đã gửi order
           </h1>
+=======
+                                
+                            </div>
+>>>>>>> f7a13e753111d797f72a74829add5319dd0fb15d
 
           <p className="mt-2 text-gray-500">
             Order của {tableDisplayName} đã được gửi đến quán.

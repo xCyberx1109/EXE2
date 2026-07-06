@@ -1,0 +1,48 @@
+export interface BankOption {
+  code: string;
+  shortName: string;
+  name: string;
+}
+
+export const BANKS: BankOption[] = [
+  { code: 'VCB', shortName: 'Vietcombank', name: 'Ngân hàng TMCP Ngoại thương Việt Nam' },
+  { code: 'BIDV', shortName: 'BIDV', name: 'Ngân hàng TMCP Đầu tư và Phát triển Việt Nam' },
+  { code: 'TCB', shortName: 'Techcombank', name: 'Ngân hàng TMCP Kỹ thương Việt Nam' },
+  { code: 'CTG', shortName: 'VietinBank', name: 'Ngân hàng TMCP Công thương Việt Nam' },
+  { code: 'MB', shortName: 'MB Bank', name: 'Ngân hàng TMCP Quân đội' },
+  { code: 'VPB', shortName: 'VPBank', name: 'Ngân hàng TMCP Việt Nam Thịnh Vượng' },
+  { code: 'ACB', shortName: 'ACB', name: 'Ngân hàng TMCP Á Châu' },
+  { code: 'STB', shortName: 'Sacombank', name: 'Ngân hàng TMCP Sài Gòn Thương Tín' },
+  { code: 'TPB', shortName: 'TPBank', name: 'Ngân hàng TMCP Tiên Phong' },
+  { code: 'SHB', shortName: 'SHB', name: 'Ngân hàng TMCP Sài Gòn - Hà Nội' },
+  { code: 'HDB', shortName: 'HDBank', name: 'Ngân hàng TMCP Phát triển Thành phố Hồ Chí Minh' },
+  { code: 'OCB', shortName: 'OCB', name: 'Ngân hàng TMCP Phương Đông' },
+  { code: 'SEAB', shortName: 'SeABank', name: 'Ngân hàng TMCP Đông Nam Á' },
+  { code: 'EIB', shortName: 'Eximbank', name: 'Ngân hàng TMCP Xuất nhập khẩu Việt Nam' },
+  { code: 'NAB', shortName: 'Nam A Bank', name: 'Ngân hàng TMCP Nam Á' },
+  { code: 'LPB', shortName: 'LPBank', name: 'Ngân hàng TMCP Lộc Phát Việt Nam' },
+  { code: 'PVB', shortName: 'PVcomBank', name: 'Ngân hàng TMCP Đại chúng Việt Nam' },
+  { code: 'VIB', shortName: 'VIB', name: 'Ngân hàng TMCP Quốc tế Việt Nam' },
+  { code: 'ABB', shortName: 'ABBank', name: 'Ngân hàng TMCP An Bình' },
+  { code: 'MSB', shortName: 'MSB', name: 'Ngân hàng TMCP Hàng Hải Việt Nam' },
+  { code: 'KLB', shortName: 'KBank', name: 'Ngân hàng TMCP Kiên Long' },
+  { code: 'SCB', shortName: 'SCB', name: 'Ngân hàng TMCP Sài Gòn' },
+  { code: 'VAB', shortName: 'VietABank', name: 'Ngân hàng TMCP Việt Á' },
+  { code: 'BAB', shortName: 'Bac A Bank', name: 'Ngân hàng TMCP Bắc Á' },
+  { code: 'PGB', shortName: 'PG Bank', name: 'Ngân hàng TMCP Xăng dầu Petrolimex' },
+  { code: 'VRB', shortName: 'VRB', name: 'Ngân hàng Liên doanh Việt - Nga' },
+  { code: 'CIMB', shortName: 'CIMB', name: 'Ngân hàng TNHH MTV CIMB Việt Nam' },
+  { code: 'HSBC', shortName: 'HSBC', name: 'Ngân hàng TNHH MTV HSBC Việt Nam' },
+  { code: 'UOB', shortName: 'UOB', name: 'Ngân hàng TNHH MTV United Overseas Bank Việt Nam' },
+  { code: 'SC', shortName: 'Standard Chartered', name: 'Ngân hàng TNHH MTV Standard Chartered Việt Nam' },
+  { code: 'DBS', shortName: 'DBS', name: 'Ngân hàng TNHH MTV DBS Việt Nam' },
+  { code: 'SHBVN', shortName: 'Shinhan Bank', name: 'Ngân hàng TNHH MTV Shinhan Việt Nam' },
+  { code: 'KEBHANA', shortName: 'KEB Hana', name: 'Ngân hàng TNHH MTV KEB Hana Việt Nam' },
+  { code: 'WOORI', shortName: 'Woori Bank', name: 'Ngân hàng TNHH MTV Woori Việt Nam' },
+  { code: 'NCB', shortName: 'NCB', name: 'Ngân hàng TMCP Quốc Dân' },
+  { code: 'OCEANBANK', shortName: 'OceanBank', name: 'Ngân hàng TMCP Đại Dương' },
+  { code: 'GPB', shortName: 'GPBank', name: 'Ngân hàng TMCP Dầu khí Toàn cầu' },
+  { code: 'SAIGONBANK', shortName: 'Saigonbank', name: 'Ngân hàng TMCP Sài Gòn Công Thương' },
+  { code: 'COOPBANK', shortName: 'Co-op Bank', name: 'Ngân hàng Hợp tác xã Việt Nam' },
+  { code: 'BVB', shortName: 'BaoViet Bank', name: 'Ngân hàng TMCP Bảo Việt' },
+];

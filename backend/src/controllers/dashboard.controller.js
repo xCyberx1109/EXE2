@@ -180,7 +180,7 @@ async function getTopSellingItems(ctx, orderWhere) {
     const [menuItems, orderItems] = await Promise.all([
       prisma.menuItem.findMany({
         where: { id: { in: ids } },
-        select: { id: true, name: true, category: { select: { name: true } } },
+        select: { id: true, name: true },
       }),
       prisma.orderItem.findMany({
         where: { menuItemId: { in: ids }, order: { status: 'COMPLETED', accountId } },
@@ -199,7 +199,6 @@ async function getTopSellingItems(ctx, orderWhere) {
       result.push({
         menuItemId: g.menuItemId,
         name: menuMap[g.menuItemId]?.name || 'Unknown',
-        category: menuMap[g.menuItemId]?.category?.name || '',
         soldQuantity: g._sum.quantity,
         revenue: revenueMap[g.menuItemId] || 0,
       });
@@ -229,7 +228,6 @@ async function getTopSellingItems(ctx, orderWhere) {
       result.push({
         menuItemId: g.inventoryId,
         name: ingredientMap[g.inventoryId]?.name || 'Unknown',
-        category: 'Inventory',
         soldQuantity: g._sum.quantity,
         revenue: revenueMap[g.inventoryId] || 0,
       });
