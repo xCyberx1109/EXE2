@@ -6,7 +6,6 @@ import { tableRepository } from '../../repositories/table.repository.js';
 import { playSessionRepository } from '../../repositories/playSession.repository.js';
 import { reservationRepository } from '../../repositories/reservation.repository.js';
 import { rectsOverlap, findAvailablePosition } from '../../utils/tableOverlap.js';
-import { consumeIngredientBatchesFEFO } from '../../utils/inventoryBatches.js';
 import { mapConcurrent } from '../../utils/concurrency.js';
 
 function computeElapsedMinutes(startTime) {
@@ -18,7 +17,7 @@ function getAccountId(user) {
   return user?.accountId || user?.id || null;
 }
 
-const OPEN_ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'];
+const OPEN_ORDER_STATUSES = ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'];
 
 function buildOpenOrderWhere(tableId, accountId) {
   return {
@@ -26,7 +25,6 @@ function buildOpenOrderWhere(tableId, accountId) {
     ...(accountId ? { accountId } : {}),
     source: 'RESTAURANT',
     status: { in: OPEN_ORDER_STATUSES },
-    paymentStatus: { not: 'PAID' },
     deletedAt: null,
   };
 }
@@ -153,7 +151,7 @@ export const billiardService = {
     const tables = await tableRepository.findMany(where);
     if (!Array.isArray(tables)) return [];
 
-    const enriched = await Promise.all(tables.map(async (t) => {
+    const enriched = await mapConcurrent(tables, async (t) => {
       const session = await playSessionRepository.findActiveByTableId(t.id);
       const reservation = await reservationRepository.findPendingByTableId(t.id);
       const activeOrder = t.orders?.[0] || null;
@@ -216,7 +214,7 @@ export const billiardService = {
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
       };
-    }));
+    }, 5);
 
     return sortTablesByPriority(enriched);
   },
@@ -560,7 +558,7 @@ export const billiardService = {
     };
   },
 
-  async finishSession(tableId, user) {
+  async getFinalBill(tableId, user) {
     const table = await tableRepository.findById(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
     if (table.mode !== 'BILLIARD') throw new AppError('Bàn này không thuộc hệ thống bi-a', 400);
@@ -570,77 +568,42 @@ export const billiardService = {
     if (!session) throw new AppError('Không tìm thấy phiên chơi đang hoạt động', 404);
 
     const now = new Date();
-    const accountId = user.accountId || user.id;
-    const userId = user.accountId || user.id;
-
     const startedAt = session.startTime ? new Date(session.startTime).getTime() : now.getTime();
     const elapsedMinutes = Math.ceil((now.getTime() - startedAt) / 60000);
     const hourlyRate = Number(table.hourlyRate);
     const playingCost = computePlayCost(hourlyRate, elapsedMinutes);
 
-    return prisma.$transaction(async (tx) => {
-      await tx.playSession.update({
-        where: { id: session.id },
-        data: {
-          status: PlaySessionStatus.COMPLETED,
-          endTime: now,
-          durationMinutes: elapsedMinutes,
-          tableFee: playingCost,
-        },
-      });
+    const order = session.order || null;
+    const items = order?.items?.map(item => ({
+      id: item.id,
+      menuItemId: item.menuItemId,
+      inventoryId: item.inventoryId,
+      name: item.name,
+      price: Number(item.price),
+      quantity: item.quantity,
+      lineTotal: Number(item.total || item.price * item.quantity),
+    })) || [];
 
-      const order = await tx.order.findFirst({
-        where: { sessionId: session.id, status: { not: 'COMPLETED' } },
-        include: { items: { include: { menuItem: true } } },
-      });
+    const foodTotal = items.reduce((s, i) => s + i.lineTotal, 0);
+    const serviceCharge = order ? Number(order.serviceCharge || 0) : 0;
+    const tax = order ? Number(order.tax || 0) : 0;
+    const grandTotal = playingCost + foodTotal + serviceCharge + tax;
 
-      if (order) {
-        if (!order.inventoryDeducted) {
-          await deductInventoryForOrderTx(tx, order, userId);
-          await tx.order.update({
-            where: { id: order.id },
-            data: { inventoryDeducted: true },
-          });
-        }
-
-        const foodDrinkTotal = Number(order.total);
-        const grandTotal = foodDrinkTotal + playingCost;
-
-        await tx.payment.create({
-          data: {
-            orderId: order.id,
-            amount: grandTotal,
-            method: 'CASH',
-            status: 'PAID',
-          },
-        });
-
-        await tx.order.update({
-          where: { id: order.id },
-          data: {
-            status: 'COMPLETED',
-            paymentStatus: 'PAID',
-            paymentMethod: 'CASH',
-            completedAt: now,
-            total: grandTotal,
-            tableName: table.tableName,
-            tableCode: table.tableCode,
-            sessionStartTime: session.startTime || now,
-            playingDurationMinutes: elapsedMinutes,
-            hourlyRate,
-            playingCost,
-            foodDrinkTotal,
-          },
-        });
-      }
-
-      await tx.table.update({
-        where: { id: tableId },
-        data: { status: 'AVAILABLE' },
-      });
-
-      return { id: session.id, status: PlaySessionStatus.COMPLETED, orderCompleted: !!order, playingCost };
-    });
+    return {
+      sessionId: session.id,
+      orderId: order?.id || null,
+      orderNumber: order?.orderNumber || null,
+      items,
+      foodTotal,
+      playingCost,
+      hourlyRate,
+      serviceCharge,
+      tax,
+      grandTotal,
+      elapsedMinutes,
+      startTime: session.startTime,
+      tableStatus: table.status,
+    };
   },
 
   async getSessionOrder(sessionId, user) {
@@ -812,13 +775,18 @@ export const billiardService = {
     }
     if (order.table) assertBranchAccess(order.table, user, 'bàn');
 
+    // Batch resolve inventory items: 1 query thay vì N queries
+    const inventoryIds = [...new Set(items.map(i => i.inventoryId).filter(Boolean))];
+    const inventoryItems = inventoryIds.length > 0
+      ? await prisma.ingredient.findMany({ where: { id: { in: inventoryIds } } })
+      : [];
     const ingredientMap = {};
-    for (const { inventoryId } of items) {
-      if (!ingredientMap[inventoryId]) {
-        ingredientMap[inventoryId] = await prisma.ingredient.findUnique({ where: { id: inventoryId } });
-        if (!ingredientMap[inventoryId]) throw new AppError(`Không tìm thấy inventory item ${inventoryId}`, 404);
-        if (!ingredientMap[inventoryId].available) throw new AppError(`Inventory item ${inventoryId} không khả dụng`, 400);
-      }
+    for (const ing of inventoryItems) {
+      if (!ing.available) throw new AppError(`Inventory item ${ing.id} không khả dụng`, 400);
+      ingredientMap[ing.id] = ing;
+    }
+    for (const id of inventoryIds) {
+      if (!ingredientMap[id]) throw new AppError(`Không tìm thấy inventory item ${id}`, 404);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -1044,93 +1012,6 @@ export const billiardService = {
     };
   },
 
-  async payOrder(orderId, { paymentMethod = 'CASH' } = {}, user) {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: { table: true, session: true, items: true },
-    });
-    if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-    if (user) {
-      const accountId = user.accountId || user.id;
-      if (accountId && order.accountId !== accountId) {
-        throw new AppError('Đơn hàng này thuộc tài khoản khác', 403);
-      }
-    }
-    if (order.table) assertBranchAccess(order.table, user, 'bàn');
-
-    if (order.paymentStatus === 'PAID') {
-      throw new AppError('Đơn hàng đã được thanh toán', 400);
-    }
-
-    const userId = user?.accountId || user?.id || order.createdBy;
-    const now = new Date();
-    const method = paymentMethod || 'CASH';
-
-    return prisma.$transaction(async (tx) => {
-      if (order.table?.mode === 'BILLIARD') {
-        const playingCost = order.session ? Number(order.session.tableFee) : 0;
-        const totalWithPlaying = Number(order.total) + playingCost;
-
-        await tx.payment.create({
-          data: { orderId, amount: totalWithPlaying, method, status: 'PAID' },
-        });
-
-        await deductInventoryForOrderTx(tx, order, userId);
-
-        await tx.order.update({
-          where: { id: orderId },
-          data: { paymentStatus: 'PAID', status: 'COMPLETED', completedAt: now, inventoryDeducted: true },
-        });
-
-        if (order.sessionId) {
-          await tx.playSession.update({
-            where: { id: order.sessionId },
-            data: { status: PlaySessionStatus.COMPLETED, endTime: now },
-          });
-        }
-
-        if (order.tableId) {
-          await tx.table.update({
-            where: { id: order.tableId },
-            data: { status: 'AVAILABLE' },
-          });
-        }
-
-        return { id: orderId, paymentStatus: 'PAID', playingCost, method };
-      }
-
-      // RESTAURANT payment
-      const total = Number(order.total);
-
-      await tx.payment.create({
-        data: { orderId, amount: total, method, status: 'PAID' },
-      });
-
-      await tx.order.update({
-        where: { id: orderId },
-        data: { paymentStatus: 'PAID', status: 'COMPLETED', completedAt: now },
-      });
-
-      if (order.tableId) {
-        await tx.table.update({
-          where: { id: order.tableId },
-          data: { status: 'AVAILABLE', isMerged: false, mergedIntoTableId: null },
-        });
-      }
-
-      if (order.mergedTableIds && Array.isArray(order.mergedTableIds)) {
-        for (const mergedId of order.mergedTableIds) {
-          await tx.table.update({
-            where: { id: mergedId },
-            data: { status: 'AVAILABLE', isMerged: false, mergedIntoTableId: null },
-          });
-        }
-      }
-
-      return { id: orderId, paymentStatus: 'PAID', method };
-    });
-  },
-
   // ==================== RESTAURANT-SPECIFIC OPERATIONS ====================
 
   async listRestaurantTables(user) {
@@ -1146,7 +1027,6 @@ export const billiardService = {
           ...(accountId ? { accountId } : {}),
           source: 'RESTAURANT',
           status: { in: OPEN_ORDER_STATUSES },
-          paymentStatus: { not: 'PAID' },
           deletedAt: null,
         },
         include: {
@@ -1236,6 +1116,16 @@ export const billiardService = {
       orderBy: { id: 'desc' },
     });
 
+    console.warn('[billiard.openOrderForTable] Restaurant endpoint reached billiard service', {
+      tableId,
+      tableMode: table.mode,
+      tableAccountId: table.accountId,
+      tableStatus: table.status,
+      existingOrderId: existingOrder?.id || null,
+      existingOrderStatus: existingOrder?.status || null,
+      existingOrderPaymentStatus: existingOrder?.paymentStatus || null,
+    });
+
     if (existingOrder) return mapOrderSummary(existingOrder);
 
     if (table.status === 'OCCUPIED') {
@@ -1262,7 +1152,7 @@ export const billiardService = {
           source: 'RESTAURANT',
           tableName: table.tableName,
           tableCode: table.tableCode,
-          status: 'CONFIRMED',
+          status: 'PENDING_PAYMENT',
           paymentStatus: 'UNPAID',
           orderType: 'DINE_IN',
           subtotal: 0,
@@ -1304,7 +1194,21 @@ export const billiardService = {
     });
 
     if (!order) return null;
-    return mapOrderSummary(order);
+
+    const bankAccounts = await prisma.branchBankAccount.findMany({
+      where: { branchId: table.accountId },
+      orderBy: { isDefault: 'desc' },
+    });
+
+    return {
+      ...mapOrderSummary(order),
+      bankAccounts: bankAccounts.map(ba => ({
+        bankCode: ba.bankCode,
+        bankName: ba.bankName,
+        accountNumber: ba.accountNumber,
+        accountHolder: ba.accountHolder,
+      })),
+    };
   },
 
   async transferOrder(tableId, { targetTableId }, user) {
@@ -1583,106 +1487,3 @@ export const billiardService = {
     await tableRepository.softDelete(tableId);
   },
 };
-
-/**
- * Deduct inventory for order items inside a Prisma transaction.
- * Matches the logic from order.service.js.
- */
-async function deductInventoryForOrderTx(tx, order, createdBy) {
-  const orderItems = order.items || [];
-
-  for (const orderItem of orderItems) {
-    // Direct inventory sale: deduct stock directly
-    if (orderItem.inventoryId && !orderItem.menuItemId) {
-      const currentIngredient = await tx.ingredient.findUnique({
-        where: { id: orderItem.inventoryId },
-      });
-      if (!currentIngredient) continue;
-
-      const currentQty = Number(currentIngredient.quantity);
-      if (currentQty < orderItem.quantity) {
-        throw new AppError(
-          `Không đủ hàng tồn kho: ${currentIngredient.name}. Cần ${orderItem.quantity}, có ${currentQty}`,
-          400
-        );
-      }
-
-      const updatedIngredient = await tx.ingredient.update({
-        where: { id: orderItem.inventoryId },
-        data: {
-          quantity: { increment: -orderItem.quantity },
-          lastUpdated: new Date(),
-        },
-      });
-
-      await tx.inventoryTransaction.create({
-        data: {
-          ingredientId: orderItem.inventoryId,
-          accountId: order.accountId,
-          type: 'SALE',
-          quantity: orderItem.quantity,
-          beforeQuantity: Number(updatedIngredient.quantity) + orderItem.quantity,
-          afterQuantity: Number(updatedIngredient.quantity),
-          note: `Direct sale from order ${order.orderNumber}`,
-          referenceType: 'ORDER',
-          referenceId: order.id,
-          createdBy,
-        },
-      });
-      await consumeIngredientBatchesFEFO(tx, orderItem.inventoryId, orderItem.quantity);
-      continue;
-    }
-
-    // MenuItem-based deduction (existing recipe flow)
-    if (!orderItem.menuItemId) {
-      continue;
-    }
-
-    const recipes = await tx.menuItemIngredient.findMany({
-      where: { menuItemId: orderItem.menuItemId },
-      include: { ingredient: true },
-    });
-
-    for (const recipe of recipes) {
-      const totalUsage = Number(recipe.amount) * orderItem.quantity;
-      const ingredient = recipe.ingredient;
-
-      if (!ingredient) {
-        continue;
-      }
-
-      const currentQty = Number(ingredient.quantity);
-
-      if (currentQty < totalUsage) {
-        throw new AppError(
-          `Không đủ nguyên liệu: ${ingredient.name}. Cần ${totalUsage}, có ${currentQty}`,
-          400
-        );
-      }
-
-      const updatedIngredient = await tx.ingredient.update({
-        where: { id: recipe.ingredientId },
-        data: {
-          quantity: { increment: -totalUsage },
-          lastUpdated: new Date(),
-        },
-      });
-
-      await tx.inventoryTransaction.create({
-        data: {
-          ingredientId: recipe.ingredientId,
-          accountId: order.accountId,
-          type: 'OUT',
-          quantity: totalUsage,
-          beforeQuantity: Number(updatedIngredient.quantity) + totalUsage,
-          afterQuantity: Number(updatedIngredient.quantity),
-          note: `Deduction from order ${order.orderNumber}`,
-          referenceType: 'ORDER',
-          referenceId: order.id,
-          createdBy,
-        },
-      });
-      await consumeIngredientBatchesFEFO(tx, recipe.ingredientId, totalUsage);
-    }
-  }
-}

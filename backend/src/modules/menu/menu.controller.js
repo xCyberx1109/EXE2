@@ -34,6 +34,7 @@ export const createMenuItem = asyncHandler(async (req, res) => {
     const data = await menuService.createMenuItem(req.body, getContext(req));
     sendSuccess(res, { message: 'Thêm món thành công', data, statusCode: 201 });
   } catch (error) {
+    console.error('[createMenuItem] Error:', error.message, error.stack, { body: req.body, user: getContext(req)?.accountId });
     const statusCode = error.statusCode || 400;
     return res.status(statusCode).json({
       success: false,
@@ -57,6 +58,7 @@ export const updateMenuItem = asyncHandler(async (req, res) => {
     const data = await menuService.updateMenuItem(req.params.id, req.body, getContext(req));
     sendSuccess(res, { message: 'Cập nhật món thành công', data });
   } catch (error) {
+    console.error('[updateMenuItem] Error:', error.message, error.stack, { body: req.body, params: req.params, user: getContext(req)?.accountId });
     const statusCode = error.statusCode || 400;
     return res.status(statusCode).json({
       success: false,

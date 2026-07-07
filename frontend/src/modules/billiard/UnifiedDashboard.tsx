@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { TableFloor } from './components/TableFloor';
 import { RightPanel } from './components/RightPanel';
 import { useBilliardTables, useRestaurantTables } from './hooks';
+import { menuApi } from '@/app/api/services';
 import type { BilliardTableWithSession } from './types';
 import { Loader2, AlertCircle } from 'lucide-react';
 
@@ -19,6 +21,7 @@ export function UnifiedDashboard({
   onAutoOpenDrawerConsumed?: () => void;
   onOrderCreated?: () => void;
 }) {
+  const queryClient = useQueryClient();
   const billiardQuery = useBilliardTables(mode === 'BILLIARD');
   const restaurantQuery = useRestaurantTables(mode === 'RESTAURANT');
 
@@ -59,6 +62,16 @@ export function UnifiedDashboard({
     window.addEventListener('pos-refresh', handleRefresh);
     return () => window.removeEventListener('pos-refresh', handleRefresh);
   }, [refetch]);
+
+  useEffect(() => {
+    if (mode === 'RESTAURANT') {
+      queryClient.prefetchQuery({
+        queryKey: ['menu', 'list', { available: 'true' }],
+        queryFn: () => menuApi.list({ available: 'true' }),
+        staleTime: 1000 * 30,
+      });
+    }
+  }, [mode, queryClient]);
 
   const handleClose = useCallback(() => {
     if (layoutMode && dirtyRef.current) {

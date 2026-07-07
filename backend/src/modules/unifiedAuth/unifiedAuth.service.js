@@ -181,7 +181,24 @@ export const unifiedAuthService = {
     if (!user) throw new AppError('Không tìm thấy người dùng', 404);
     user.permissions = await permissionService.getEffectivePermissions(userId);
     user.permissionsVersion = await permissionService.getPermissionsVersion(userId);
-    return user;
+
+    const paymentInfo = await prisma.branchBankAccount.findFirst({
+      where: { branchId: userId, isDefault: true },
+    }) || await prisma.branchBankAccount.findFirst({
+      where: { branchId: userId },
+      orderBy: { createdAt: 'asc' },
+    }) || null;
+
+    return {
+      ...user,
+      paymentInformation: paymentInfo ? {
+        bankCode: paymentInfo.bankCode,
+        bankName: paymentInfo.bankName,
+        accountNumber: paymentInfo.accountNumber,
+        accountHolder: paymentInfo.accountHolder,
+        isDefault: paymentInfo.isDefault,
+      } : null,
+    };
   },
 
   async updateProfile(userId, { fullName, email }) {
@@ -223,7 +240,7 @@ export const unifiedAuthService = {
 
     const isMatch = await bcrypt.compare(currentPassword, currentUser.password);
     if (!isMatch) {
-      throw new AppError('Mật khẩu hiện tại không chính xác', 400);
+      throw new AppError('Mật khẩu hiện tại không đúng', 400);
     }
 
     const sameAsCurrent = await bcrypt.compare(newPassword, currentUser.password);
@@ -235,5 +252,35 @@ export const unifiedAuthService = {
     await userRepository.updateById(userId, { password: hashedPassword, mustChangePassword: false });
 
     return { success: true };
+  },
+
+  async getPaymentInfo(accountId) {
+    return prisma.branchBankAccount.findFirst({
+      where: { branchId: accountId, isDefault: true },
+    });
+  },
+
+  async upsertPaymentInfo(accountId, { bankCode, bankName, accountNumber, accountHolder }) {
+    const existing = await prisma.branchBankAccount.findFirst({
+      where: { branchId: accountId, isDefault: true },
+    });
+
+    if (existing) {
+      return prisma.branchBankAccount.update({
+        where: { id: existing.id },
+        data: { bankCode, bankName, accountNumber, accountHolder },
+      });
+    }
+
+    return prisma.branchBankAccount.create({
+      data: {
+        branchId: accountId,
+        bankCode,
+        bankName,
+        accountNumber,
+        accountHolder,
+        isDefault: true,
+      },
+    });
   },
 };

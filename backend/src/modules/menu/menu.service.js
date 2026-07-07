@@ -37,7 +37,7 @@ export const menuService = {
       return paginatedResponse(items.map(mapMenuItem), total, { page: p, limit: l });
     }
 
-    const items = await menuItemRepository.findMany(where);
+    const items = await menuItemRepository.findManyLight(where);
     return items.map(mapMenuItem);
   },
 

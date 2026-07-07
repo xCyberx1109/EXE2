@@ -2,15 +2,15 @@ import prisma from '../../prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { assertBranchAccess, buildBranchWhere } from '../../middlewares/branchScope.js';
 import { tableRepository } from '../../repositories/table.repository.js';
+import { orderRepository } from '../../repositories/order.repository.js';
 import { rectsOverlap, findAvailablePosition, DEFAULT_TABLE_WIDTH_PERCENT, DEFAULT_TABLE_HEIGHT_PERCENT } from '../../utils/tableOverlap.js';
-import { mapConcurrent } from '../../utils/concurrency.js';
+
+const RESTAURANT_OPEN_ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'PENDING_PAYMENT'];
 
 function computeElapsedMinutes(startTime) {
   if (!startTime) return 0;
   return Math.floor((Date.now() - new Date(startTime).getTime()) / 60000);
 }
-
-const OPEN_ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'];
 
 function getAccountId(user) {
   return user?.accountId || user?.id || null;
@@ -21,17 +21,6 @@ function assertRestaurantTable(table, user) {
   if (table.mode !== 'RESTAURANT') {
     throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
   }
-}
-
-function buildOpenRestaurantOrderWhere(tableId, accountId) {
-  return {
-    tableId,
-    ...(accountId ? { accountId } : {}),
-    source: 'RESTAURANT',
-    status: { in: OPEN_ORDER_STATUSES },
-    paymentStatus: { not: 'PAID' },
-    deletedAt: null,
-  };
 }
 
 function mapOrderSummary(order) {
@@ -84,19 +73,38 @@ export const restaurantService = {
     const tables = await tableRepository.findMany(where);
     if (!Array.isArray(tables)) return [];
 
-    const enriched = await mapConcurrent(tables, async (t) => {
-      const activeOrder = await prisma.order.findFirst({
-        where: {
-          ...buildOpenRestaurantOrderWhere(t.id, accountId),
-        },
-        include: {
-          items: {
-            orderBy: { id: 'asc' },
-            select: { id: true, menuItemId: true, name: true, price: true, quantity: true, total: true },
+    const tableIds = tables.map(t => t.id);
+
+    const activeOrders = tableIds.length > 0
+      ? await prisma.order.findMany({
+          where: {
+            tableId: { in: tableIds },
+            source: 'RESTAURANT',
+            status: { in: RESTAURANT_OPEN_ORDER_STATUSES },
+            deletedAt: null,
           },
-        },
-        orderBy: { id: 'desc' },
-      });
+          select: {
+            id: true, orderNumber: true, status: true, total: true,
+            tableId: true, guestCount: true, note: true,
+            mergedTableIds: true, paymentStatus: true, serviceCharge: true,
+            items: {
+              select: { id: true, menuItemId: true, name: true, price: true, quantity: true, total: true },
+              orderBy: { id: 'asc' },
+            },
+          },
+          orderBy: { id: 'desc' },
+        })
+      : [];
+
+    const orderMap = new Map();
+    for (const order of activeOrders) {
+      if (!orderMap.has(order.tableId)) {
+        orderMap.set(order.tableId, order);
+      }
+    }
+
+    const enriched = tables.map(t => {
+      const activeOrder = orderMap.get(t.id) || null;
 
       const items = activeOrder?.items?.map(item => ({
         id: item.id,
@@ -147,7 +155,7 @@ export const restaurantService = {
         id: t.id,
         updatedAt: t.updatedAt,
       };
-    }, 5);
+    });
 
     return enriched;
   },
@@ -246,15 +254,14 @@ export const restaurantService = {
   },
 
   async createOrderForTable(tableId, { guestCount, note }, user) {
-    const table = await tableRepository.findById(tableId);
+    const table = await tableRepository.findByIdLight(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
     assertRestaurantTable(table, user);
 
     const accountId = getAccountId(user);
 
     const result = await prisma.$transaction(async (tx) => {
-      const existingOrder = await tx.order.findFirst({
-        where: buildOpenRestaurantOrderWhere(tableId, accountId),
+      const existingOrder = await orderRepository.findOpenRestaurantOrderByTableTx(tx, tableId, accountId, {
         include: { items: { orderBy: { id: 'asc' } } },
         orderBy: { id: 'desc' },
       });
@@ -271,7 +278,6 @@ export const restaurantService = {
           source: 'RESTAURANT',
           tableName: table.tableName,
           tableCode: table.tableCode,
-          mode: 'RESTAURANT',
           status: 'CONFIRMED',
           paymentStatus: 'UNPAID',
           orderType: 'DINE_IN',
@@ -299,28 +305,48 @@ export const restaurantService = {
   },
 
   async openOrderForTable(tableId, { guestCount }, user) {
-    const table = await tableRepository.findById(tableId);
+    const table = await tableRepository.findByIdLight(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
 
     assertRestaurantTable(table, user);
 
     const accountId = getAccountId(user);
 
-    const existingOrder = await prisma.order.findFirst({
-      where: buildOpenRestaurantOrderWhere(tableId, accountId),
+    const existingOrder = await orderRepository.findOpenRestaurantOrderByTable(tableId, accountId, {
       include: { items: { orderBy: { id: 'asc' } } },
       orderBy: { id: 'desc' },
+    });
+
+    console.info('[restaurant.openOrderForTable]', {
+      tableId,
+      tableMode: table.mode,
+      tableAccountId: table.accountId,
+      tableStatus: table.status,
+      existingOrderId: existingOrder?.id || null,
+      existingOrderStatus: existingOrder?.status || null,
+      existingOrderPaymentStatus: existingOrder?.paymentStatus || null,
     });
 
     if (existingOrder) return mapOrderSummary(existingOrder);
 
     if (table.status === 'OCCUPIED') {
+      console.warn('[restaurant.openOrderForTable][throw OCCUPIED]', {
+        tableId,
+        tableStatus: table.status,
+        tableMode: table.mode,
+        tableAccountId: table.accountId,
+        existingOrder,
+        existingOrderId: existingOrder?.id || null,
+        existingOrderStatus: existingOrder?.status || null,
+        existingPaymentStatus: existingOrder?.paymentStatus || null,
+        tableMergedIntoTableId: table.mergedIntoTableId || null,
+        tableIsMerged: table.isMerged ?? null,
+      });
       throw new AppError('Bàn này đã có đơn hàng đang mở', 400);
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const existingInTx = await tx.order.findFirst({
-        where: buildOpenRestaurantOrderWhere(tableId, accountId),
+      const existingInTx = await orderRepository.findOpenRestaurantOrderByTableTx(tx, tableId, accountId, {
         include: { items: { orderBy: { id: 'asc' } } },
         orderBy: { id: 'desc' },
       });
@@ -338,7 +364,6 @@ export const restaurantService = {
           source: 'RESTAURANT',
           tableName: table.tableName,
           tableCode: table.tableCode,
-          mode: 'RESTAURANT',
           status: 'CONFIRMED',
           paymentStatus: 'UNPAID',
           orderType: 'DINE_IN',
@@ -387,13 +412,12 @@ export const restaurantService = {
   },
 
   async getTableOrder(tableId, user) {
-    const table = await tableRepository.findById(tableId);
+    const table = await tableRepository.findByIdLight(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
     assertRestaurantTable(table, user);
     const accountId = getAccountId(user);
 
-    const order = await prisma.order.findFirst({
-      where: buildOpenRestaurantOrderWhere(tableId, accountId),
+    const order = await orderRepository.findOpenRestaurantOrderByTable(tableId, accountId, {
       include: {
         items: { orderBy: { id: 'asc' } },
       },
@@ -422,8 +446,8 @@ export const restaurantService = {
     }
     assertRestaurantTable(order.table, user);
 
-    if (order.paymentStatus === 'PAID') {
-      throw new AppError('Đơn hàng đã thanh toán, không thể thêm món', 400);
+    if (order.status === 'COMPLETED') {
+      throw new AppError('Đơn hàng đã hoàn tất, không thể thêm món', 400);
     }
 
     const menuItem = await prisma.menuItem.findUnique({ where: { id: menuItemId } });
@@ -501,8 +525,8 @@ export const restaurantService = {
     }
     assertRestaurantTable(order.table, user);
 
-    if (order.paymentStatus === 'PAID') {
-      throw new AppError('Đơn hàng đã thanh toán, không thể thêm món', 400);
+    if (order.status === 'COMPLETED') {
+      throw new AppError('Đơn hàng đã hoàn tất, không thể thêm món', 400);
     }
 
     return prisma.$transaction(async (tx) => {
@@ -659,11 +683,11 @@ export const restaurantService = {
   },
 
   async transferOrder(tableId, { targetTableId }, user) {
-    const sourceTable = await tableRepository.findById(tableId);
+    const sourceTable = await tableRepository.findByIdLight(tableId);
     if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
     assertRestaurantTable(sourceTable, user);
 
-    const targetTable = await tableRepository.findById(targetTableId);
+    const targetTable = await tableRepository.findByIdLight(targetTableId);
     if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
     assertRestaurantTable(targetTable, user);
 
@@ -671,12 +695,8 @@ export const restaurantService = {
       throw new AppError('Bàn đích đang có khách', 400);
     }
 
-    const activeOrder = await prisma.order.findFirst({
-      where: {
-        tableId,
-        status: { in: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'] },
-        deletedAt: null,
-      },
+    const activeOrder = await orderRepository.findOpenRestaurantOrderByTable(tableId, getAccountId(user), {
+      include: { items: { orderBy: { id: 'asc' } } },
       orderBy: { id: 'desc' },
     });
 
@@ -705,20 +725,15 @@ export const restaurantService = {
   },
 
   async mergeTables(tableId, { targetTableId }, user) {
-    const sourceTable = await tableRepository.findById(tableId);
+    const sourceTable = await tableRepository.findByIdLight(tableId);
     if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
     assertRestaurantTable(sourceTable, user);
 
-    const targetTable = await tableRepository.findById(targetTableId);
+    const targetTable = await tableRepository.findByIdLight(targetTableId);
     if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
     assertRestaurantTable(targetTable, user);
 
-    const sourceOrder = await prisma.order.findFirst({
-      where: {
-        tableId,
-        status: { in: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'] },
-        deletedAt: null,
-      },
+    const sourceOrder = await orderRepository.findOpenRestaurantOrderByTable(tableId, getAccountId(user), {
       include: { items: true },
       orderBy: { id: 'desc' },
     });
@@ -727,12 +742,7 @@ export const restaurantService = {
       throw new AppError('Bàn nguồn không có đơn hàng nào để gộp', 400);
     }
 
-    const targetOrder = await prisma.order.findFirst({
-      where: {
-        tableId: targetTableId,
-        status: { in: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'] },
-        deletedAt: null,
-      },
+    const targetOrder = await orderRepository.findOpenRestaurantOrderByTable(targetTableId, getAccountId(user), {
       include: { items: true },
       orderBy: { id: 'desc' },
     });
@@ -805,11 +815,11 @@ export const restaurantService = {
   },
 
   async splitOrder(tableId, { targetTableId, items }, user) {
-    const sourceTable = await tableRepository.findById(tableId);
+    const sourceTable = await tableRepository.findByIdLight(tableId);
     if (!sourceTable) throw new AppError('Không tìm thấy bàn nguồn', 404);
     assertRestaurantTable(sourceTable, user);
 
-    const targetTable = await tableRepository.findById(targetTableId);
+    const targetTable = await tableRepository.findByIdLight(targetTableId);
     if (!targetTable) throw new AppError('Không tìm thấy bàn đích', 404);
     assertRestaurantTable(targetTable, user);
 
@@ -817,12 +827,7 @@ export const restaurantService = {
       throw new AppError('Bàn đích đang có khách', 400);
     }
 
-    const sourceOrder = await prisma.order.findFirst({
-      where: {
-        tableId,
-        status: { in: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'] },
-        deletedAt: null,
-      },
+    const sourceOrder = await orderRepository.findOpenRestaurantOrderByTable(tableId, getAccountId(user), {
       include: { items: true },
       orderBy: { id: 'desc' },
     });
@@ -980,41 +985,16 @@ export const restaurantService = {
         where: { id: orderId },
         data: {
           paymentStatus: 'PAID',
-          status: 'COMPLETED',
-          completedAt: now,
+          paymentMethod: method,
         },
       });
-
-      if (order.tableId) {
-        await tx.table.update({
-          where: { id: order.tableId },
-          data: {
-            status: 'AVAILABLE',
-            isMerged: false,
-            mergedIntoTableId: null,
-          },
-        });
-      }
-
-      if (order.mergedTableIds && Array.isArray(order.mergedTableIds)) {
-        for (const mergedId of order.mergedTableIds) {
-          await tx.table.update({
-            where: { id: mergedId },
-            data: {
-              status: 'AVAILABLE',
-              isMerged: false,
-              mergedIntoTableId: null,
-            },
-          });
-        }
-      }
 
       return { id: orderId, paymentStatus: 'PAID', method };
     });
   },
 
   async updateTable(tableId, data, user) {
-    const existing = await tableRepository.findById(tableId);
+    const existing = await tableRepository.findByIdLight(tableId);
     if (!existing) throw new AppError('Không tìm thấy bàn', 404);
     if (existing.mode !== 'RESTAURANT') throw new AppError('Bàn này không thuộc hệ thống nhà hàng', 400);
     assertBranchAccess(existing, user, 'bàn');
@@ -1066,16 +1046,11 @@ export const restaurantService = {
   },
 
   async updateGuestCount(tableId, guestCount, user) {
-    const table = await tableRepository.findById(tableId);
+    const table = await tableRepository.findByIdLight(tableId);
     if (!table) throw new AppError('Không tìm thấy bàn', 404);
     assertRestaurantTable(table, user);
 
-    const activeOrder = await prisma.order.findFirst({
-      where: {
-        tableId,
-        status: { in: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED'] },
-        deletedAt: null,
-      },
+    const activeOrder = await orderRepository.findOpenRestaurantOrderByTable(tableId, getAccountId(user), {
       orderBy: { id: 'desc' },
     });
 

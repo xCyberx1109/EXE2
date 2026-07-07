@@ -5,6 +5,13 @@ export interface ReceiptLineItem {
   total: number;
 }
 
+export interface BankAccountInfo {
+  bankCode: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
 export interface ReceiptData {
   businessName?: string;
   branchName?: string;
@@ -18,9 +25,15 @@ export interface ReceiptData {
   tax?: number;
   discount?: number;
   grandTotal: number;
+  bankAccounts?: BankAccountInfo[];
+  paymentContent?: string;
 }
 
-export function printReceipt(data: ReceiptData): void {
+export function openReceiptWindow(): Window | null {
+  return window.open('', '_blank', 'width=420,height=640');
+}
+
+export async function printReceipt(data: ReceiptData, targetWindow?: Window | null): Promise<void> {
   const fmt = (n: number) => n.toLocaleString() + '₫';
   const hasItems = data.items.length > 0;
 
@@ -31,6 +44,24 @@ export function printReceipt(data: ReceiptData): void {
            ${data.items.map(i => `<tr><td>${i.name}</td><td class="qty">${i.quantity}</td><td class="price">${fmt(i.unitPrice)}</td><td class="total">${fmt(i.total)}</td></tr>`).join('')}
          </tbody>
        </table>`
+    : '';
+
+  const paymentContent = data.paymentContent || `TT${data.invoiceNumber}`;
+  const qrSection = data.bankAccounts?.length
+    ? `<hr />
+       <div class="section-title">QUÉT MÃ QR ĐỂ THANH TOÁN</div>
+       <div style="text-align:center;margin:8px 0;">
+         <img src="https://api.vietqr.io/image/${data.bankAccounts[0].bankCode}-${data.bankAccounts[0].accountNumber}-compact.jpg?accountName=${encodeURIComponent(data.bankAccounts[0].accountHolder)}&amount=${data.grandTotal}&addInfo=${encodeURIComponent(paymentContent)}"
+              alt="QR thanh toán"
+              style="width:180px;height:180px;border:1px solid #ccc;border-radius:4px;" />
+       </div>
+       <div style="font-size:10px;text-align:center;color:#333;">
+         <div>Ngân hàng: ${data.bankAccounts[0].bankName}</div>
+         <div>Số TK: ${data.bankAccounts[0].accountNumber}</div>
+         <div>Chủ TK: ${data.bankAccounts[0].accountHolder}</div>
+         <div style="margin-top:2px;">Số tiền: ${fmt(data.grandTotal)}</div>
+         <div>NDCK: ${paymentContent}</div>
+       </div>`
     : '';
 
   const html = `<!DOCTYPE html>
@@ -82,6 +113,7 @@ export function printReceipt(data: ReceiptData): void {
     ${data.discount ? `<div class="row"><span>Giảm giá</span><span>-${fmt(data.discount)}</span></div>` : ''}
     <div class="row grand"><span>Tổng cộng</span><span>${fmt(data.grandTotal)}</span></div>
   </div>
+  ${qrSection}
   <hr />
   <div class="footer">
     <p>Cảm ơn quý khách!</p>
@@ -90,9 +122,27 @@ export function printReceipt(data: ReceiptData): void {
 </body>
 </html>`;
 
-  const receiptWindow = window.open('', '_blank', 'width=420,height=640');
-  if (!receiptWindow) return;
+  const receiptWindow = targetWindow && !targetWindow.closed ? targetWindow : window.open('', '_blank', 'width=420,height=640');
+  if (!receiptWindow) {
+    console.warn('[printReceipt] Không thể mở cửa sổ in. Vui lòng kiểm tra trình chặn popup.');
+    return;
+  }
   receiptWindow.document.write(html);
   receiptWindow.document.close();
-  receiptWindow.print();
+
+  const imgs = receiptWindow.document.images;
+  if (imgs.length > 0) {
+    await Promise.all(Array.from(imgs).map(img =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; })
+    ));
+  }
+
+  return new Promise(resolve => {
+    setTimeout(() => {
+      receiptWindow.print();
+      resolve();
+    }, 0);
+  });
 }

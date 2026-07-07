@@ -1,7 +1,7 @@
 import app from './app.js';
 import config from './config/index.js';
 import prisma from './prisma/client.js';
-import { syncPermissions } from './seed/runSeed.js';
+// import { syncPermissions } from './seed/runSeed.js'; // tắt tạm để kiểm tra ECHECKOUTTIMEOUT
 import { permissionService } from './modules/permissions/permission.service.js';
 import { mailLogger } from './utils/logger.js';
 
@@ -21,15 +21,15 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('✓ Kết nối PostgreSQL thành công');
 
-    // Đồng bộ permissions khi start (nhẹ, chỉ upsert nếu cần)
-    try {
-      console.log('→ Đồng bộ permissions...');
-      await syncPermissions();
-      permissionService.invalidateCache();
-      console.log('✓ Hoàn tất đồng bộ permissions');
-    } catch (syncError) {
-      console.error('⚠ Lỗi đồng bộ permissions:', syncError.message);
-    }
+    // ELIMINATION TEST: tạm thời bỏ qua syncPermissions để kiểm tra ECHECKOUTTIMEOUT
+    // try {
+    //   console.log('→ Đồng bộ permissions...');
+    //   await syncPermissions();
+    //   permissionService.invalidateCache();
+    //   console.log('✓ Hoàn tất đồng bộ permissions');
+    // } catch (syncError) {
+    //   console.error('⚠ Lỗi đồng bộ permissions:', syncError.message);
+    // }
 
     // Seed riêng qua CLI: npx prisma db seed
 

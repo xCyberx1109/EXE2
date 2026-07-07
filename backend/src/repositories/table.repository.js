@@ -48,6 +48,11 @@ export const tableRepository = {
     return prisma.table.findUnique({ where: { id }, ...tableWithActiveOrder });
   },
 
+  findByIdLight: (id) => {
+    if (!id) return Promise.resolve(null);
+    return prisma.table.findUnique({ where: { id } });
+  },
+
   create: (data) =>
     prisma.table.create({ data }),
 

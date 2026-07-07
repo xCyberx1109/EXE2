@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  listOrders, listOrdersByDate, createOrder, deleteOrder, completeTablePayment, getActiveTableOrder,
+  listOrders, listOrdersByDate, createOrder, deleteOrder, getActiveTableOrder,
   listKitchenQueue, updateKitchenStatus,
   listOrderHistory, getOrderDetail,
   listOrderQueue, createOrderQueue, updateOrderQueue, payOrderQueue, cancelOrderQueue,
@@ -18,8 +18,6 @@ router.get('/orders/history', optionalAuth, requirePermission('ORDER_HISTORY_VIE
 router.get('/orders', optionalAuth, listOrders);
 router.post('/orders', optionalAuth, createOrderRules, validate, createOrder);
 router.delete('/orders/:id', optionalAuth, orderIdParam, validate, deleteOrder);
-router.post('/orders/complete-payment', optionalAuth, completeTablePayment);
-
 // No-cache middleware for order queue endpoints (fresh data always)
 const noCache = (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

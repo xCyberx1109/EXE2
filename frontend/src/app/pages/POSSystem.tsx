@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Printer, X } from 'lucide-react';
 import { QRCodeCanvas } from "qrcode.react";
-import { menuApi, ordersApi, inventoryApi } from '../api/services';
+import { menuApi, ordersApi, inventoryApi, paymentApi } from '../api/services';
 import type { MenuItem, InventoryItem } from '../types';
 import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
+import { printReceipt, openReceiptWindow } from '../../shared/utils/printReceipt';
 import { APP_NAME } from '../../shared/constants';
 
 interface OrderItem extends MenuItem {
@@ -206,17 +207,51 @@ export function POSSystem() {
 
     if (!selectedTable) return;
 
+    const receiptWindow = openReceiptWindow();
+
     try {
 
-      // Gọi API thanh toán - update status = COMPLETED + release table (không xóa order)
-      const paymentMethod = method === 'cash' ? 'CASH' : 'CARD';
-      await ordersApi.completePayment(selectedTable.number, paymentMethod);
+      const activeOrder = await ordersApi.getActiveByTable(selectedTable.id);
+      if (!activeOrder || !activeOrder.id) {
+        toast.error('Không tìm thấy đơn hàng cho bàn này');
+        return;
+      }
 
-      toast.success(`Đã thanh toán ${(calculateTotal() * 1.1).toLocaleString()} ₫`, {
+      if (String(activeOrder.paymentStatus || '').toUpperCase() === 'PAID') {
+        toast.error('Đơn hàng này đã được thanh toán');
+        return;
+      }
+
+      const paymentMethod = method === 'cash' ? 'CASH' : 'CARD';
+      console.log('===== PAYMENT CONFIRM =====');
+      console.log('Request:', { orderId: activeOrder.id, paymentMethod });
+      const initiateResult = await paymentApi.initiate(activeOrder.id, { paymentMethod });
+      const confirmResult = await paymentApi.confirm(activeOrder.id, { paymentMethod });
+      console.log('Response:', confirmResult);
+      console.log('Status Code: 200');
+
+      const total = calculateTotal();
+      toast.success(`Đã thanh toán ${(total * 1.1).toLocaleString()} ₫`, {
         description: `Phương thức: ${method === 'cash' ? 'Tiền mặt' : 'Thẻ'}`,
       });
 
-      // reset UI
+      const items = orderItems.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        total: item.price * item.quantity,
+      }));
+      await printReceipt({
+        businessName: APP_NAME,
+        invoiceNumber: `#${selectedTable.number}-${Date.now()}`,
+        checkoutDate: new Date().toISOString(),
+        items,
+        foodTotal: total,
+        grandTotal: total * 1.1,
+        bankAccounts: initiateResult.bankAccounts,
+        paymentContent: initiateResult.paymentContent,
+      }, receiptWindow);
+
       setTables(prev =>
         prev.map(t =>
           t.id === selectedTable.id
@@ -229,11 +264,11 @@ export function POSSystem() {
       setShowPayment(false);
       setSelectedTable(null);
 
-    } catch (err) {
-
-      console.log("Payment error", err);
-      toast.error('Thanh toán thất bại');
-
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Thanh toán thất bại';
+      console.error('===== PAYMENT CONFIRM ERROR =====');
+      console.error('Error:', err);
+      toast.error(message);
     }
   };
 

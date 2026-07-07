@@ -6,7 +6,8 @@ import { mapPosOrder, mapOrderDetail } from '../../utils/mappers.js';
 import { orderRepository } from '../../repositories/order.repository.js';
 import { menuItemRepository } from '../../repositories/menuItem.repository.js';
 import { logAction } from '../../utils/auditLogger.js';
-import { consumeIngredientBatchesFEFO } from '../../utils/inventoryBatches.js';
+import { mapConcurrent } from '../../utils/concurrency.js';
+import { validateInventoryForOrder, releaseReservationsForOrder, reserveInventoryForOrderTx } from '../../utils/inventoryOperations.js';
 
 // Phai khop voi `includeItems` trong order.repository.js (khong export) - dung khi tao/sua don
 // qua tx truc tiep (khong qua repository) de giu cho ton kho trong cung 1 transaction.
@@ -42,16 +43,7 @@ async function buildRecipeSnapshot(menuItemId) {
  * Chuyen recipeSnapshot (JSON luu san) thanh danh sach { ingredientId, amount, ingredient }
  * giong het shape ma deductInventoryForOrderTx/validateInventoryForOrder mong doi tu
  * menuItemIngredient.findMany({include:{ingredient:true}}) — chi khac la "amount" lay tu
- * snapshot (co dinh) thay vi cong thuc hien tai, con "ingredient" (ton kho, gia) luon lay LIVE.
  */
-async function resolveRecipeFromSnapshot(tx, snapshot) {
-  const ingredientIds = snapshot.map((s) => s.ingredientId);
-  const ingredients = await tx.ingredient.findMany({ where: { id: { in: ingredientIds } } });
-  const byId = new Map(ingredients.map((i) => [i.id, i]));
-  return snapshot
-    .map((s) => ({ ingredientId: s.ingredientId, amount: s.amount, ingredient: byId.get(s.ingredientId) }))
-    .filter((r) => r.ingredient); // bo qua neu nguyen lieu da bi xoa sau khi tao don
-}
 
 export const orderService = {
   /** Lấy tất cả đơn cho kitchen queue */
@@ -59,6 +51,7 @@ export const orderService = {
     if (!user) return [];
     const where = {
       kitchenStatus: { in: ['PENDING', 'RECEIVED', 'PREPARING', 'READY'] },
+      status: { not: 'PENDING_PAYMENT' },
       accountId: user.accountId || user.id,
       deletedAt: null,
     };
@@ -101,7 +94,12 @@ export const orderService = {
 
     const updated = await prisma.order.update({
       where: { id: orderId },
-      data: { kitchenStatus: normalized },
+      data: {
+        kitchenStatus: normalized,
+        ...(normalized === 'PREPARING' || normalized === 'READY' || normalized === 'SERVED'
+          ? { status: normalized }
+          : {}),
+      },
     });
 
     if (normalized === 'READY') {
@@ -196,7 +194,7 @@ export const orderService = {
       where.status = { notIn: ['COMPLETED', 'CANCELLED', 'REFUNDED'] };
     } else {
       if (paymentStatus) where.paymentStatus = String(paymentStatus).toUpperCase();
-      where.status = statusFilter || { in: ['PENDING', 'PREPARING'] };
+      where.status = statusFilter || { in: ['PENDING', 'PENDING_PAYMENT', 'PREPARING'] };
     }
 
     if (!user) return [];
@@ -227,7 +225,7 @@ export const orderService = {
     let subtotal = 0;
     let cost = 0;
 
-    const orderItemsData = await Promise.all(normalizedItems.map(async (item) => {
+    const orderItemsData = await mapConcurrent(normalizedItems, async (item) => {
       const lineTotal = item.price * item.quantity;
       const lineCost = item.cost * item.quantity;
       subtotal += lineTotal;
@@ -240,7 +238,7 @@ export const orderService = {
         quantity: item.quantity,
         recipeSnapshot: await buildRecipeSnapshot(item.menuItemId),
       };
-    }));
+    }, 5);
 
     const tax = 0;
     const total = subtotal;
@@ -320,7 +318,7 @@ export const orderService = {
       const normalizedItems = await normalizeOrderItems(body.items);
       let subtotal = 0;
       let cost = 0;
-      const orderItemsData = await Promise.all(normalizedItems.map(async (item) => {
+      const orderItemsData = await mapConcurrent(normalizedItems, async (item) => {
         const lineTotal = item.price * item.quantity;
         const lineCost = item.cost * item.quantity;
         subtotal += lineTotal;
@@ -333,7 +331,7 @@ export const orderService = {
           quantity: item.quantity,
           recipeSnapshot: await buildRecipeSnapshot(item.menuItemId),
         };
-      }));
+      }, 5);
       const discount = body.discount !== undefined ? Number(body.discount) : 0;
       const tax = 0;
       const total = Math.max(0, subtotal - discount);
@@ -359,6 +357,32 @@ export const orderService = {
         })
       : await orderRepository.updateStatus(id, updateData);
 
+    if (body.status === 'COMPLETED' && order.tableId) {
+      await prisma.$transaction(async (tx) => {
+        await tx.table.update({
+          where: { id: order.tableId },
+          data: {
+            status: 'AVAILABLE',
+            isMerged: false,
+            mergedIntoTableId: null,
+          },
+        });
+
+        if (Array.isArray(order.mergedTableIds)) {
+          for (const mergedId of order.mergedTableIds) {
+            await tx.table.update({
+              where: { id: mergedId },
+              data: {
+                status: 'AVAILABLE',
+                isMerged: false,
+                mergedIntoTableId: null,
+              },
+            });
+          }
+        }
+      });
+    }
+
     logAction({
       accountId: order.accountId,
       employeeId: user?.employeeId,
@@ -370,114 +394,26 @@ export const orderService = {
     return mapPosOrder(updated);
   },
 
-  /** Thanh toán Order Queue (atomic: update + deduct inventory) */
-  async completeQueuePayment(id, paymentMethod = 'CASH', user = null, authType) {
-    try {
-      const order = await orderRepository.findById(id);
-      if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
-      if (user) {
-        const accountId = user.accountId || user.id;
-        if (accountId && order.accountId !== accountId) {
-          throw new AppError('Bạn không có quyền thanh toán đơn hàng này', 403);
-        }
-        // Employee: chỉ được thanh toán đơn của chính mình
-        if (authType === 'employee' && order.createdByUserId !== user.id) {
-          throw new AppError('Bạn không có quyền thanh toán đơn hàng này', 403);
-        }
+  /** Validate Order Queue before payment (inventory check) */
+  async completeQueuePayment(id, _paymentMethod, user = null, authType) {
+    const order = await orderRepository.findById(id);
+    if (!order) throw new AppError('Không tìm thấy đơn hàng', 404);
+    if (user) {
+      const accountId = user.accountId || user.id;
+      if (accountId && order.accountId !== accountId) {
+        throw new AppError('Bạn không có quyền thanh toán đơn hàng này', 403);
       }
-
-      const method = paymentMethod.toUpperCase();
-      const paymentMethodFinal = ['CASH', 'CARD', 'BANKING', 'E_WALLET', 'OTHER'].includes(method) ? method : 'CASH';
-      const userId = user ? (user.accountId || user.id) : null;
-
-      const beforeItems = await prisma.orderItem.findMany({ where: { orderId: id } });
-      if (beforeItems.length === 0) {
-        console.warn("[CHECKOUT] WARNING: Order has NO items in database! Payment will process an empty order.");
+      if (authType === 'employee' && order.createdByUserId !== user.id) {
+        throw new AppError('Bạn không có quyền thanh toán đơn hàng này', 403);
       }
-
-      // PRE-VALIDATION: Check inventory sufficiency before payment
-      const inventoryIssues = await validateInventoryForOrder(order);
-      if (inventoryIssues.length > 0) {
-        return { inventoryIssues, orderId: id };
-      }
-
-      const updated = await prisma.$transaction(async (tx) => {
-        const lockedOrder = await tx.order.findUnique({
-          where: { id },
-          include: { items: true },
-        });
-        if (!lockedOrder) throw new AppError('Không tìm thấy đơn hàng', 404);
-
-        if (lockedOrder.inventoryDeducted) {
-          return lockedOrder;
-        }
-
-        const updateData = {
-          paymentStatus: 'PAID',
-          paymentMethod: paymentMethodFinal,
-        };
-
-        const updatedOrder = await tx.order.update({
-          where: { id },
-          data: updateData,
-          include: { items: { include: { menuItem: true } } },
-        });
-
-        await tx.payment.create({
-          data: {
-            orderId: id,
-            amount: Number(lockedOrder.total),
-            method: paymentMethodFinal,
-            status: 'PAID',
-          },
-        });
-
-        await deductInventoryForOrderTx(tx, updatedOrder, userId || lockedOrder.createdBy);
-        await releaseReservationsForOrder(tx, id);
-
-        await tx.order.update({
-          where: { id },
-          data: { inventoryDeducted: true },
-        });
-
-        return updatedOrder;
-      }, {
-        timeout: 10000,
-      });
-
-      logAction({
-        accountId: order.accountId,
-      employeeId: user?.employeeId,
-      action: 'ORDER_PAID',
-      module: 'POS_ORDER',
-      details: { orderId: order.id, orderNumber: order.orderNumber, total: Number(order.total), paymentMethod: paymentMethodFinal, itemCount: beforeItems.length },
-      });
-
-      return mapPosOrder(updated);
-    } catch (error) {
-      console.error("[PAYMENT ERROR] ===== START =====");
-      console.error("[PAYMENT ERROR] name:", error.name);
-      console.error("[PAYMENT ERROR] message:", error.message);
-      console.error("[PAYMENT ERROR] code:", error.code);
-      console.error("[PAYMENT ERROR] statusCode:", error.statusCode);
-      console.error("[PAYMENT ERROR] meta:", JSON.stringify(error.meta, null, 2));
-      console.error("[PAYMENT ERROR] stack:", error.stack);
-      console.error("[PAYMENT ERROR] =====  END  =====");
-
-      if (error.code === 'P2002') {
-        console.error("[PRISMA P2002] Unique constraint violation - dữ liệu đã tồn tại");
-      }
-      if (error.code === 'P2003') {
-        console.error("[PRISMA P2003] Foreign key constraint failure - dữ liệu tham chiếu không hợp lệ");
-        console.error("[PRISMA P2003] field:", error.meta?.field_name);
-      }
-      if (error.code === 'P2025') {
-        console.error("[PRISMA P2025] Record not found - bản ghi không tồn tại");
-        console.error("[PRISMA P2025] cause:", error.meta?.cause);
-      }
-
-      throw error;
     }
+
+    const inventoryIssues = await validateInventoryForOrder(order);
+    if (inventoryIssues.length > 0) {
+      return { inventoryIssues, orderId: id };
+    }
+
+    return { valid: true, orderId: id, total: Number(order.total) };
   },
 
   /** Hủy Order Queue */
@@ -704,377 +640,25 @@ export const orderService = {
     });
   },
 
-   /** Thanh toán - hoàn tất đơn + trừ kho (atomic per order) */
-   async completeTableOrders(tableNumber, paymentMethod = 'CASH', user = null) {
-     if (!user) throw new AppError('Vui lòng đăng nhập để thanh toán', 401);
-     const where = {
-       tableNumber,
-       status: { in: ['PENDING', 'PREPARING'] },
-       accountId: user.accountId || user.id,
-     };
-      const orders = await orderRepository.findMany(where);
-      if (orders.length === 0) {
-        throw new AppError('Không có đơn hàng để thanh toán', 404);
-     }
-
-      const method = paymentMethod.toUpperCase();
-      const paymentMethodFinal = ['CASH', 'CARD', 'BANKING', 'E_WALLET', 'OTHER'].includes(method) ? method : 'CASH';
-      const completed = [];
-     const userId = user ? (user.accountId || user.id) : null;
-
-      for (const order of orders) {
-        const updated = await prisma.$transaction(async (tx) => {
-          const lockedOrder = await tx.order.findUnique({
-            where: { id: order.id },
-            include: { items: true },
-          });
-          if (!lockedOrder) throw new AppError('Không tìm thấy đơn hàng', 404);
-
-          if (lockedOrder.inventoryDeducted) {
-            return lockedOrder;
-          }
-
-          const updatedOrder = await tx.order.update({
-            where: { id: order.id },
-            data: {
-              status: 'COMPLETED',
-              paymentMethod: paymentMethodFinal,
-              completedAt: new Date(),
-            },
-            include: { items: { include: { menuItem: true } } },
-          });
-
-          await deductInventoryForOrderTx(tx, updatedOrder, userId || lockedOrder.createdBy);
-
-          await tx.order.update({
-            where: { id: order.id },
-            data: { inventoryDeducted: true },
-          });
-
-          return updatedOrder;
-        }, {
-          timeout: 10000,
-        });
-
-        completed.push(mapPosOrder(updated));
-
-        logAction({
-          accountId: order.accountId,
-        employeeId: user?.employeeId,
-        action: 'ORDER_PAID',
-          module: 'POS_ORDER',
-          details: { orderId: order.id, orderNumber: order.orderNumber, total: Number(order.total), paymentMethod: paymentMethodFinal, tableNumber },
-        });
-      }
-
-      // --- Update table(s) status to AVAILABLE ---
-      const tableIds = [...new Set(orders.map(o => o.tableId).filter(Boolean))];
-      if (tableIds.length > 0) {
-        await prisma.table.updateMany({
-          where: { id: { in: tableIds } },
-          data: { status: 'AVAILABLE' },
-        });
-      } else {
-        const accountId = user?.accountId || user?.id;
-        if (accountId) {
-          await prisma.table.updateMany({
-            where: { tableCode: String(tableNumber), accountId },
-            data: { status: 'AVAILABLE' },
-          });
-        }
-      }
-
-      return completed;
-     },
 };
-
-/**
- * Validate inventory for an order without deducting.
- * Returns array of inventory issues (empty if all sufficient).
- */
-async function validateInventoryForOrder(order) {
-  const orderItems = order.items || [];
-  const issues = [];
-
-  for (const orderItem of orderItems) {
-    // Direct inventory sale: validate stock directly
-    if (orderItem.inventoryId && !orderItem.menuItemId) {
-      const ingredient = await prisma.ingredient.findUnique({ where: { id: orderItem.inventoryId } });
-      if (!ingredient) {
-        issues.push({
-          menuItemId: null,
-          menuItemName: orderItem.name,
-          missingIngredients: [{ ingredientName: orderItem.name, required: orderItem.quantity, available: 0 }],
-        });
-        continue;
-      }
-      const available = Number(ingredient.quantity);
-      if (available < orderItem.quantity) {
-        issues.push({
-          menuItemId: null,
-          menuItemName: orderItem.name,
-          missingIngredients: [{
-            ingredientName: ingredient.name,
-            required: orderItem.quantity,
-            available,
-          }],
-        });
-      }
-      continue;
-    }
-
-    if (!orderItem.menuItemId) {
-      continue;
-    }
-
-    // Uu tien dung recipeSnapshot (cong thuc tai thoi diem tao don) neu co, de nhat quan voi
-    // luc thuc su tru kho — fallback ve cong thuc hien tai cho don cu chua co snapshot.
-    const recipes = orderItem.recipeSnapshot?.length > 0
-      ? await resolveRecipeFromSnapshot(prisma, orderItem.recipeSnapshot)
-      : await prisma.menuItemIngredient.findMany({
-          where: { menuItemId: orderItem.menuItemId },
-          include: { ingredient: true },
-        });
-
-    const missingIngredients = [];
-
-    for (const recipe of recipes) {
-      const totalUsage = Number(recipe.amount) * orderItem.quantity;
-      const ingredient = recipe.ingredient;
-      const available = Number(ingredient.quantity);
-
-      if (available < totalUsage) {
-        missingIngredients.push({
-          ingredientName: ingredient.name,
-          required: totalUsage,
-          available: available,
-        });
-      }
-    }
-
-    if (missingIngredients.length > 0) {
-      issues.push({
-        menuItemId: orderItem.menuItemId,
-        menuItemName: orderItem.name,
-        missingIngredients,
-      });
-    }
-  }
-
-  return issues;
-}
-
-/** Gom nhu cau nguyen lieu tu danh sach order items (theo cong thuc menu hoac ban thang tu kho). */
-async function computeRequiredIngredients(tx, orderItems) {
-  const required = new Map(); // ingredientId -> so luong can
-
-  for (const item of orderItems) {
-    if (item.inventoryId && !item.menuItemId) {
-      required.set(item.inventoryId, (required.get(item.inventoryId) || 0) + Number(item.quantity));
-      continue;
-    }
-    if (!item.menuItemId) continue;
-
-    const recipes = await tx.menuItemIngredient.findMany({ where: { menuItemId: item.menuItemId } });
-    for (const recipe of recipes) {
-      const usage = Number(recipe.amount) * Number(item.quantity);
-      required.set(recipe.ingredientId, (required.get(recipe.ingredientId) || 0) + usage);
-    }
-  }
-
-  return required;
-}
-
-/**
- * Giu cho tam thoi ton kho cho 1 don hang (PENDING, chua thanh toan), ngan 2 don cung luc
- * "thay" con hang trong khi thuc te chi du cho 1 don. Dung SELECT...FOR UPDATE de khoa row
- * Ingredient — nguoi goi thu 2 gan nhu dong thoi se PHAI CHO tran giao dich thu nhat commit/
- * rollback truoc khi doc duoc so lieu, tranh race condition thuc su (khong chi giam xac suat).
- *
- * Goi trong 1 Prisma interactive transaction (tx). Neu khong du kha dung, throw AppError 400 —
- * toan bo transaction (bao gom viec tao/sua don) se bi rollback.
- */
-async function reserveInventoryForOrderTx(tx, order) {
-  const orderItems = order.items || [];
-  const required = await computeRequiredIngredients(tx, orderItems);
-
-  if (required.size === 0) {
-    await tx.inventoryReservation.deleteMany({ where: { orderId: order.id } });
-    return;
-  }
-
-  // Batch: khóa tất cả ingredient cần kiểm tra trong 1 query, tránh N round trips
-  const ingredientIds = Array.from(required.keys());
-  const locked = await tx.$queryRaw`
-    SELECT "id", "name", "quantity" FROM "ingredients"
-    WHERE "id" IN (${Prisma.join(ingredientIds)}) FOR UPDATE
-  `;
-  const ingredientMap = {};
-  for (const row of locked) {
-    ingredientMap[row.id] = { name: row.name, quantity: Number(row.quantity) };
-  }
-
-  // Batch: lấy tổng reservation của tất cả ingredient trong 1 query
-  const reservationSums = await tx.inventoryReservation.groupBy({
-    by: ['ingredientId'],
-    _sum: { quantity: true },
-    where: { ingredientId: { in: ingredientIds }, orderId: { not: order.id } },
-  });
-  const reservedMap = {};
-  for (const r of reservationSums) {
-    reservedMap[r.ingredientId] = Number(r._sum.quantity || 0);
-  }
-
-  for (const [ingredientId, amount] of required.entries()) {
-    const ingredient = ingredientMap[ingredientId];
-    if (!ingredient) continue;
-
-    const reserved = reservedMap[ingredientId] || 0;
-    const available = ingredient.quantity - reserved;
-
-    if (available < amount) {
-      throw new AppError(
-        `Không đủ tồn kho khả dụng cho "${ingredient.name}" (có thể đã được đơn khác giữ chỗ). Cần ${amount}, còn khả dụng ${available}.`,
-        400
-      );
-    }
-  }
-
-  // Tat ca nguyen lieu deu du -> thay the toan bo reservation cu bang reservation moi cua don nay.
-  await tx.inventoryReservation.deleteMany({ where: { orderId: order.id } });
-  await tx.inventoryReservation.createMany({
-    data: Array.from(required.entries()).map(([ingredientId, amount]) => ({
-      accountId: order.accountId,
-      orderId: order.id,
-      ingredientId,
-      quantity: amount,
-    })),
-  });
-}
-
-async function releaseReservationsForOrder(tx, orderId) {
-  await tx.inventoryReservation.deleteMany({ where: { orderId } });
-}
-
-/**
- * Deduct inventory inside an existing Prisma transaction.
- * Batch ingredient queries + transaction creates để giảm round trips.
- */
-async function deductInventoryForOrderTx(tx, order, createdBy) {
-  const orderItems = order.items || [];
-  const txRecords = [];
-
-  for (const orderItem of orderItems) {
-    // Direct inventory sale: deduct stock directly
-    if (orderItem.inventoryId && !orderItem.menuItemId) {
-      const currentIngredient = await tx.ingredient.findUnique({
-        where: { id: orderItem.inventoryId },
-      });
-      if (!currentIngredient) continue;
-
-      const currentQty = Number(currentIngredient.quantity);
-      if (currentQty < orderItem.quantity) {
-        throw new AppError(
-          `Không đủ hàng tồn kho: ${currentIngredient.name}. Cần ${orderItem.quantity}, có ${currentQty}`,
-          400
-        );
-      }
-
-      const updatedIngredient = await tx.ingredient.update({
-        where: { id: orderItem.inventoryId },
-        data: {
-          quantity: { increment: -orderItem.quantity },
-          lastUpdated: new Date(),
-        },
-      });
-
-      txRecords.push({
-        ingredientId: orderItem.inventoryId,
-        accountId: order.accountId,
-        type: 'SALE',
-        quantity: orderItem.quantity,
-        beforeQuantity: Number(updatedIngredient.quantity) + orderItem.quantity,
-        afterQuantity: Number(updatedIngredient.quantity),
-        note: `Direct sale from order ${order.orderNumber}`,
-        referenceType: 'ORDER',
-        referenceId: order.id,
-        createdBy,
-      });
-      await consumeIngredientBatchesFEFO(tx, orderItem.inventoryId, orderItem.quantity);
-      continue;
-    }
-
-    if (!orderItem.menuItemId) {
-      continue;
-    }
-
-    // Uu tien tru kho theo recipeSnapshot (cong thuc luc tao don) — neu cong thuc bi sua doi
-    // sau khi don da tao, don nay van tru dung nhu da chup, khong bi anh huong.
-    const recipes = orderItem.recipeSnapshot?.length > 0
-      ? await resolveRecipeFromSnapshot(tx, orderItem.recipeSnapshot)
-      : await tx.menuItemIngredient.findMany({
-          where: { menuItemId: orderItem.menuItemId },
-          include: { ingredient: true },
-        });
-
-    for (const recipe of recipes) {
-      const totalUsage = Number(recipe.amount) * orderItem.quantity;
-      const ingredient = recipe.ingredient;
-
-      if (!ingredient) {
-        continue;
-      }
-
-      const currentQty = Number(ingredient.quantity);
-
-      if (currentQty < totalUsage) {
-        throw new AppError(
-          `Không đủ nguyên liệu: ${ingredient.name}. Cần ${totalUsage}, có ${currentQty}`,
-          400
-        );
-      }
-
-      const updatedIngredient = await tx.ingredient.update({
-        where: { id: recipe.ingredientId },
-        data: {
-          quantity: { increment: -totalUsage },
-          lastUpdated: new Date(),
-        },
-      });
-
-      txRecords.push({
-        ingredientId: recipe.ingredientId,
-        accountId: order.accountId,
-        type: 'OUT',
-        quantity: totalUsage,
-        beforeQuantity: Number(updatedIngredient.quantity) + totalUsage,
-        afterQuantity: Number(updatedIngredient.quantity),
-        note: `Deduction from order ${order.orderNumber}`,
-        referenceType: 'ORDER',
-        referenceId: order.id,
-        createdBy,
-      });
-      await consumeIngredientBatchesFEFO(tx, recipe.ingredientId, totalUsage);
-    }
-  }
-
-  // Batch create tất cả inventory transaction records trong 1 query
-  if (txRecords.length > 0) {
-    await tx.inventoryTransaction.createMany({ data: txRecords });
-  }
-}
 
 /** Chuẩn hóa items từ POS (full MenuItem) hoặc QR (itemId, name, price) */
 async function normalizeOrderItems(items = []) {
   const result = [];
 
-  for (const raw of items) {
-    let menuItem = null;
+  // Batch resolve menu items: 1 query thay vì N queries
+  const allIds = items
+    .map(r => r.id || r.itemId || r.menuItemId)
+    .filter(Boolean)
+    .map(String);
+  const menuItems = allIds.length > 0
+    ? await prisma.menuItem.findMany({ where: { id: { in: allIds } } })
+    : [];
+  const menuItemMap = new Map(menuItems.map(m => [m.id, m]));
 
+  for (const raw of items) {
     const id = raw.id || raw.itemId || raw.menuItemId;
-    if (id) {
-      menuItem = await menuItemRepository.findById(String(id));
-    }
+    const menuItem = id ? menuItemMap.get(String(id)) : null;
 
     const quantity = parseInt(raw.quantity || 1, 10);
     const name = raw.name || menuItem?.name || 'Món không xác định';

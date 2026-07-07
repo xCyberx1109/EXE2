@@ -73,17 +73,6 @@ export const getActiveTableOrder = asyncHandler(async (req, res) => {
   sendSuccess(res, { message: 'Lấy đơn hàng của bàn thành công', data });
 });
 
-export const completeTablePayment = asyncHandler(async (req, res) => {
-  const { table, paymentMethod } = req.body;
-  const ctx = req.user;
-  const data = await orderService.completeTableOrders(
-    String(table).trim(),
-    paymentMethod,
-    ctx
-  );
-  sendSuccess(res, { message: 'Thanh toán thành công', data });
-});
-
 /** Order Detail */
 export const getOrderDetail = asyncHandler(async (req, res) => {
   const ctx = req.user;

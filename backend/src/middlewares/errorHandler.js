@@ -42,6 +42,7 @@ export const errorHandler = (err, req, res, _next) => {
     const details = err.errors ? (Array.isArray(err.errors) ? err.errors.map(e => `[${e.path || e.param || 'field'}]: ${e.msg || e.message}`).join('; ') : JSON.stringify(err.errors)) : null;
     console.error(`[AppError ${err.statusCode}] ${err.message}`, details);
     if (err.statusCode === 400) console.error(err.stack);
+    console.debug('[Request context]', { body: req.body, params: req.params, user: req.user?.accountId || req.user?.id });
 
     const body = {
       message: details ? `${err.message}: ${details}` : err.message,

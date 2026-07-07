@@ -31,7 +31,7 @@ export class ApiError extends Error {
 
 type RequestOptions = RequestInit & { auth?: boolean };
 
-const FETCH_TIMEOUT = 30_000;
+const FETCH_TIMEOUT = 10_000;
 const RETRY_ATTEMPTS = 1;
 const RETRY_DELAY = 500;
 

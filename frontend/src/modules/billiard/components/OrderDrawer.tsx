@@ -8,9 +8,10 @@ import { Input } from '@/app/components/ui/input';
 import { useMenuItems, useSellableItems } from '@/app/api/hooks';
 import { useOptimisticOrderEditor } from '@/shared/hooks/useOptimisticOrderEditor';
 import type { MenuItem, SellableItem } from '@/app/types';
+import { getUnitLabel } from '@/shared/constants';
 import {
   useRestaurantTableOrder,
-  useTableOrderSummary,
+  useBilliardTableOrderSummary,
 } from '../hooks';
 import { billiardApi, restaurantApi } from '@/app/api/services';
 
@@ -53,13 +54,13 @@ export function OrderDrawer({ open, onClose, tableId, tableName, tableCode, curr
   const displayName = tableName || tableCode;
 
   const { data: menuData, isLoading: menuLoading } = useMenuItems({ available: 'true' });
-  const { data: orderData, isLoading: orderLoading } = useRestaurantTableOrder(tableId);
+  const { data: orderData, isLoading: orderLoading } = useRestaurantTableOrder(isRestaurant ? tableId : '');
 
   const { data: sellableData, isLoading: itemsLoading } = useSellableItems();
 
   const menuItems = Array.isArray(menuData) ? menuData : (menuData?.data ?? []);
   const sellableItems = sellableData ?? [];
-  const { data: orderSummary, isLoading: summaryLoading } = useTableOrderSummary(tableId);
+  const { data: orderSummary, isLoading: summaryLoading } = useBilliardTableOrderSummary(isRestaurant ? '' : tableId);
 
   const order = orderData as any;
   const orderId = currentOrderId || (isRestaurant ? order?.id : orderSummary?.orderId) || null;
@@ -263,7 +264,7 @@ export function OrderDrawer({ open, onClose, tableId, tableName, tableCode, curr
                               lowStock ? 'text-amber-500' :
                               'text-muted-foreground'
                             }`}>
-                              Tồn: {item.stockQty} {item.unit}
+                              Tồn: {item.stockQty} {getUnitLabel(item.unit)}
                             </span>
                             {outOfStock && <AlertTriangle className="size-2.5 text-destructive ml-auto" />}
                           </div>

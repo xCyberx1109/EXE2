@@ -41,6 +41,12 @@ export const menuItemRepository = {
     });
   },
 
+  findManyLight: (where = {}) =>
+    prisma.menuItem.findMany({
+      where: { deletedAt: null, ...where },
+      orderBy: { name: 'asc' },
+    }),
+
   findById: (id) =>
     prisma.menuItem.findUnique({
       where: { id },

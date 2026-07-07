@@ -58,8 +58,8 @@ export const getIngredientTransactions = asyncHandler(async (req, res) => {
 });
 
 export const listTransactions = asyncHandler(async (req, res) => {
-  const { page, limit } = req.query;
-  const data = await inventoryService.listAllTransactions(getContext(req), { page, limit });
+  const { page, limit, type, search } = req.query;
+  const data = await inventoryService.listAllTransactions(getContext(req), { page, limit, type, search });
   sendSuccess(res, { message: 'Lấy lịch sử giao dịch thành công', data });
 });
 

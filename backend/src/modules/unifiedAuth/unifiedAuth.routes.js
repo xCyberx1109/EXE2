@@ -3,6 +3,7 @@ import {
   register, login,
   getMe, updateMe, changeMyPassword,
   forgotPassword, resetPassword,
+  getMyPaymentInfo, updateMyPaymentInfo,
 } from './unifiedAuth.controller.js';
 import { validate } from '../../middlewares/validate.js';
 import { authenticate } from '../../middlewares/auth.js';
@@ -19,6 +20,10 @@ router.post('/login', loginRules, validate, login);
 router.get('/me', authenticate, getMe);
 router.put('/me', authenticate, updateMeRules, validate, updateMe);
 router.put('/change-password', authenticate, changePasswordRules, validate, changeMyPassword);
+
+// Payment info
+router.get('/me/payment', authenticate, getMyPaymentInfo);
+router.put('/me/payment', authenticate, updateMyPaymentInfo);
 
 // Forgot / Reset password
 router.post('/forgot-password', forgotPasswordRules, validate, forgotPassword);

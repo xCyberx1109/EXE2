@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './queryKeys';
 import {
   authApi, menuApi, inventoryApi,
-  dashboardApi, branchApi, inviteApi, tableApi, ordersApi, ordersQueueApi, employeeApi,
+  dashboardApi, branchApi, inviteApi, tableApi, ordersApi, ordersQueueApi, employeeApi, paymentApi,
 } from './services';
 import {
   posDevicesV2Api,
@@ -471,8 +471,8 @@ export function useCreatePosOrderMutation() {
 export function useCompletePaymentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tableNumber, paymentMethod }: { tableNumber: string | number; paymentMethod?: string }) =>
-      ordersApi.completePayment(tableNumber, paymentMethod),
+    mutationFn: ({ orderId, paymentMethod }: { orderId: string; paymentMethod?: string }) =>
+      paymentApi.initiate(orderId, { paymentMethod }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
@@ -555,6 +555,40 @@ export function usePayOrderQueueMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
       queryClient.invalidateQueries({ queryKey: ['orders', 'daily'] });
+    },
+  });
+}
+
+// ==================== PAYMENT FLOW HOOKS ====================
+
+export function useInitiatePayment() {
+  return useMutation({
+    mutationFn: ({ orderId, paymentMethod, amount }: { orderId: string; paymentMethod?: string; amount?: number }) =>
+      paymentApi.initiate(orderId, { paymentMethod, amount }),
+  });
+}
+
+export function useConfirmPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, paymentMethod, amount }: { orderId: string; paymentMethod?: string; amount?: number }) =>
+      paymentApi.confirm(orderId, { paymentMethod, amount }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] });
+      qc.invalidateQueries({ queryKey: ['restaurant', 'order'] });
+      qc.invalidateQueries({ queryKey: ['billiard', 'tables'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useCancelPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => paymentApi.cancel(orderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 }

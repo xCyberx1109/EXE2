@@ -5,6 +5,7 @@ import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { DataTable, type Column } from '../../../app/components/DataTable';
 import { SectionHeader } from './shared';
 import type { InventoryTransaction } from '../../../app/types';
+import { getUnitLabel } from '../../../shared/constants';
 
 const formatTime = (iso: string) => {
   const d = new Date(iso);
@@ -85,7 +86,7 @@ export function InventoryTransactionLog() {
         const isImport = tx.type === 'IMPORT';
         return (
           <span className={`font-semibold ${isImport ? 'text-green-600' : 'text-red-600'}`}>
-            {isImport ? '+' : '-'}{tx.quantity} {tx.ingredientUnit}
+            {isImport ? '+' : '-'}{tx.quantity} {getUnitLabel(tx.ingredientUnit)}
           </span>
         );
       },
