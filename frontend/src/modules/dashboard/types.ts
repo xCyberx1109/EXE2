@@ -1,4 +1,4 @@
-import type { RevenueChartPoint, DashboardTopItem } from '../../app/types';
+import type { RevenueChartPoint, DashboardTopItem, DashboardLowStockItem } from '../../app/types';
 
 export interface BusinessOverviewData {
   todayRevenue: number;
@@ -18,4 +18,8 @@ export interface SalesPerformanceData {
 export interface DashboardModuleData {
   overview: BusinessOverviewData;
   sales: SalesPerformanceData;
+  alerts: {
+    lowStockItems: DashboardLowStockItem[];
+    orderStatus: Record<string, number>;
+  };
 }

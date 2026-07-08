@@ -41,7 +41,7 @@ export function DataTable<T>({
 
   return (
     <>
-      <div className="overflow-auto rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-auto rounded-lg border border-border bg-background shadow-sm">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-20">
             <tr className="bg-slate-100 dark:bg-zinc-800 border-b border-border">
@@ -49,14 +49,14 @@ export function DataTable<T>({
                 <th
                   key={col.key}
                   className={`
-                    px-6 py-4
+                    px-4 py-2.5
                     text-left
-                    text-xs
-                    font-bold
+                    text-[11px]
+                    font-semibold
                     uppercase
-                    tracking-wide
-                    text-slate-700
-                    dark:text-slate-300
+                    tracking-wider
+                    text-slate-600
+                    dark:text-slate-400
                     whitespace-nowrap
                     ${col.headerClassName || ''}
                   `}
@@ -70,9 +70,9 @@ export function DataTable<T>({
           <tbody className="divide-y divide-border bg-white dark:bg-card">
             {loading ? (
               <tr>
-                <td colSpan={colSpan} className="py-12 text-center">
+                <td colSpan={colSpan} className="py-10 text-center">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                  <p className="mt-3 text-sm text-muted-foreground">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Đang tải...
                   </p>
                 </td>
@@ -81,7 +81,7 @@ export function DataTable<T>({
               <tr>
                 <td
                   colSpan={colSpan}
-                  className="py-12 text-center text-sm text-destructive"
+                  className="py-10 text-center text-sm text-destructive"
                 >
                   {error}
                 </td>
@@ -90,7 +90,7 @@ export function DataTable<T>({
               <tr>
                 <td
                   colSpan={colSpan}
-                  className="py-12 text-center text-sm text-muted-foreground"
+                  className="py-10 text-center text-sm text-muted-foreground"
                 >
                   {emptyMessage}
                 </td>
@@ -100,7 +100,7 @@ export function DataTable<T>({
                 <tr
                   key={keyExtractor(item)}
                   className="
-                    transition-colors
+                    transition-colors duration-150
                     hover:bg-slate-50
                     dark:hover:bg-zinc-800/60
                   "
@@ -109,8 +109,8 @@ export function DataTable<T>({
                     <td
                       key={col.key}
                       className={`
-                        px-6
-                        py-4
+                        px-4
+                        py-2.5
                         text-sm
                         text-slate-700
                         dark:text-slate-200

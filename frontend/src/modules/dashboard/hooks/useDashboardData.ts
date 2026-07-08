@@ -22,6 +22,10 @@ export function useDashboardData() {
         revenueChart: dash.revenueChart ?? [],
         topItems: dash.topItems ?? [],
       },
+      alerts: {
+        lowStockItems: dash.lowStockItems ?? [],
+        orderStatus: dash.orderStatus ?? {},
+      },
     };
   }, [dash, chartRange]);
 
@@ -32,6 +36,7 @@ export function useDashboardData() {
       todayOrders: 0, todayOrdersTrend: 0,
     },
     sales: { chartRange, revenueChart: [], topItems: [] },
+    alerts: { lowStockItems: [], orderStatus: {} },
   };
 
   return {

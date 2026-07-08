@@ -189,13 +189,13 @@ export function Layout() {
           }`}>
           <div className="flex flex-col h-full">
             <TooltipProvider delayDuration={0}>
-              <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
+              <nav className="flex-1 p-2 space-y-1.5 overflow-y-auto overflow-x-hidden">
                 {visibleGroups.map((group) => {
                   if (!group.children) return null;
                   return (
-                    <div key={group.name} className="mb-2">
+                    <div key={group.name} className="mb-3">
                       {!sidebarCollapsed && (
-                        <p className="px-2 mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <p className="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {group.name}
                         </p>
                       )}
@@ -207,7 +207,7 @@ export function Layout() {
                             key={item.name}
                             to={item.href}
                             onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${isActive
+                            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 ${isActive
                               ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                               : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                               } ${sidebarCollapsed ? 'justify-center' : ''}`}

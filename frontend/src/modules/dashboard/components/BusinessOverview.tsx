@@ -1,4 +1,3 @@
-import { DollarSign, TrendingUp, ShoppingCart } from 'lucide-react';
 import { KpiCard, SkeletonCard } from './shared';
 import type { BusinessOverviewData } from '../types';
 
@@ -22,9 +21,9 @@ export function BusinessOverview({ data, loading }: { data: BusinessOverviewData
   if (!data) return null;
 
   const cards = [
-    { title: 'Doanh thu hôm nay', value: formatVND(data.todayRevenue), trend: data.todayRevenueTrend, icon: DollarSign, color: 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400' },
-    { title: 'Lợi nhuận hôm nay', value: formatVND(data.todayProfit), trend: data.todayProfitTrend, icon: TrendingUp, color: 'bg-green-50 dark:bg-green-950/50 text-green-600 dark:text-green-400' },
-    { title: 'Đơn hàng hôm nay', value: formatNumber(data.todayOrders), trend: data.todayOrdersTrend, icon: ShoppingCart, color: 'bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400' },
+    { title: 'Doanh thu hôm nay', value: formatVND(data.todayRevenue), trend: data.todayRevenueTrend },
+    { title: 'Lợi nhuận hôm nay', value: formatVND(data.todayProfit), trend: data.todayProfitTrend },
+    { title: 'Đơn hàng hôm nay', value: formatNumber(data.todayOrders), trend: data.todayOrdersTrend },
   ];
 
   return (
