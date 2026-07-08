@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useInventoryItems, useBulkImportMutation } from '../api/hooks';
 import { Loader2, Plus, X, Package } from 'lucide-react';
 import type { InventoryItem } from '../types';
+import { getUnitLabel } from '../../shared/constants';
 
 const IMPORT_REASONS = [
   'Nhập hàng từ nhà cung cấp',
@@ -163,13 +164,13 @@ export function ImportModal({ open, onClose, onSuccess }: { open: boolean; onClo
                           : availableIngredients
                         ).map((i) => (
                           <option key={i.id} value={i.id} className="bg-zinc-900">
-                            {i.name} ({i.unit})
+                            {i.name} ({getUnitLabel(i.unit)})
                           </option>
                         ))}
                       </select>
                       {ingredient && (
                         <p className="text-xs text-zinc-400 mt-1">
-                          Đơn vị: {ingredient.unit} | Tồn kho: {ingredient.quantity}
+                          Đơn vị: {getUnitLabel(ingredient.unit)} | Tồn kho: {ingredient.quantity}
                         </p>
                       )}
                     </div>

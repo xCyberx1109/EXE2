@@ -175,14 +175,13 @@ export async function seedDatabase() {
   });
 
   // Grant all permissions to admin (batch với concurrency)
-  const permEntries = Object.entries(permissionMap);
-  await mapConcurrent(permEntries, async ([permCode, permId]) => {
-    await prisma.accountPermission.upsert({
-      where: { accountId_permissionId: { accountId: admin.id, permissionId: permId } },
-      update: {},
-      create: { accountId: admin.id, permissionId: permId },
-    });
-  }, 10);
+  await prisma.accountPermission.createMany({
+    data: Object.values(permissionMap).map((permissionId) => ({
+      accountId: admin.id,
+      permissionId,
+    })),
+    skipDuplicates: true,
+  });
 
   // MANAGER DEMO
   const managerPassword = await bcrypt.hash('Manager@123', SALT_ROUNDS);
@@ -233,7 +232,6 @@ export async function seedDatabase() {
 
   console.log(`  ✓ Admin + Manager accounts with permissions`);
 
-  // =========================
   // MENU ITEMS
   // =========================
   const menuMap = {};

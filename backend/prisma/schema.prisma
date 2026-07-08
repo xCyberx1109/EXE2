@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  connectionLimit = 25
 }
 
 datasource db {
@@ -374,6 +375,7 @@ model MenuItem {
   modifiers   MenuItemModifier[]
   orderItems  OrderItem[]
 
+  @@index([accountId])
   @@map("menu_items")
 }
 
@@ -541,6 +543,9 @@ model InventoryTransaction {
   account        Account                  @relation("InventoryTransactionCreatedBy", fields: [createdBy], references: [id])
   ingredient     Ingredient               @relation(fields: [ingredientId], references: [id])
 
+  @@index([ingredientId])
+  @@index([accountId])
+  @@index([createdBy])
   @@map("inventory_transactions")
 }
 
@@ -1114,6 +1119,7 @@ enum PosStatus {
 
 enum OrderStatus {
   PENDING
+  PENDING_PAYMENT
   CONFIRMED
   PREPARING
   READY
@@ -1161,11 +1167,12 @@ enum ShiftStatus {
 
 enum IngredientUnit {
   KG
-  G
   LITER
-  ML
   PIECE
-  UNIT
+  PACK
+  BOX
+  BOTTLE
+  CAN
 }
 
 enum InventoryTransactionType {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Users, ShoppingCart, Plus, LogOut,
   Loader2, ArrowRightLeft, Merge, Split,
-  Printer, Ban, Timer,
+  Printer, Timer,
 } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -15,12 +15,13 @@ import {
 } from '@/app/components/ui/select';
 import { toast } from 'sonner';
 import {
-  useFinishSession, useTableOrderSummary,
+  useFinishSession, useBilliardTableOrderSummary,
   useRestaurantTableOrder, usePayRestaurantOrder, useUpdateGuestCount, useUpdateOrderNote,
   useTransferTable, useMergeTables, useSplitOrder, useRestaurantTables,
 } from '../hooks';
 import { OrderDrawer } from './OrderDrawer';
-import { printReceipt } from '@/shared/utils/printReceipt';
+import { InvoicePaymentModal } from '@/shared/components/InvoicePaymentModal';
+import { printReceipt, openReceiptWindow, BankAccountInfo } from '@/shared/utils/printReceipt';
 import { cn } from '@/app/components/ui/utils';
 import { useAsyncActionGuard, useConcurrentGuard } from '@/shared/hooks/useAsyncActionGuard';
 import { formatTime } from '@/shared/utils/date';
@@ -99,9 +100,16 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
     grandTotal: number;
   } | null>(null);
 
-  const finishSession = useFinishSession();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANKING'>('CASH');
+  const [paymentData, setPaymentData] = useState<{
+    orderId: string; amount: number; paymentContent: string; bankAccounts: BankAccountInfo[]; orderNumber?: string;
+  } | null>(null);
 
-  const { data: orderSummary, isLoading: summaryLoading } = useTableOrderSummary(table.id);
+  const finishSession = useFinishSession();
+  const initiatePay = usePayRestaurantOrder();
+
+  const { data: orderSummary, isLoading: summaryLoading } = useBilliardTableOrderSummary(table.id);
 
   const orderId = orderSummary?.orderId || null;
 
@@ -130,10 +138,15 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
 
   const handleFinish = useConcurrentGuard(async () => {
     const snap = checkoutSnapshot;
-    if (!snap) return;
+    if (!snap || !orderId) return;
 
+    const receiptWindow = openReceiptWindow();
     try {
-      await finishSession.mutateAsync(table.id);
+      const result = await initiatePay.mutateAsync({
+        orderId,
+        paymentMethod: paymentMethod === 'BANKING' ? 'BANKING' : 'CASH',
+        amount: snap.grandTotal,
+      });
 
       const durMinutes = Math.floor(snap.elapsedSeconds / 60);
       const durSeconds = snap.elapsedSeconds % 60;
@@ -154,7 +167,7 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
       ];
       const itemsTotal = allItems.reduce((s, i) => s + i.total, 0);
 
-      printReceipt({
+      await printReceipt({
         invoiceNumber: orderSummary?.orderNumber || table.id,
         checkoutDate: snap.endTime.toISOString(),
         items: allItems,
@@ -162,15 +175,29 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
         serviceCharge: snap.serviceCharge,
         tax: snap.tax,
         grandTotal: snap.grandTotal,
-      });
+        bankAccounts: result.bankAccounts,
+        paymentContent: result.paymentContent,
+      }, receiptWindow);
 
-      setCheckoutSnapshot(null);
-      setShowFinishConfirm(false);
-      onSuccess();
-    } catch {
+      setPaymentData({
+        orderId,
+        amount: result.amount,
+        paymentContent: result.paymentContent,
+        bankAccounts: result.bankAccounts,
+        orderNumber: orderSummary?.orderNumber,
+      });
+      setShowPaymentModal(true);
+    } catch (err) {
+      console.error('[BilliardOccupiedPanel.handleFinish] Payment initiation failed:', err);
       toast.error('Thanh toán thất bại');
     }
   });
+
+  const handleBilliardPaymentConfirmed = () => {
+    setCheckoutSnapshot(null);
+    setShowFinishConfirm(false);
+    onSuccess();
+  };
 
   if (!session) {
     return (
@@ -362,6 +389,30 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
             );
           })()}
 
+          <div className="px-2">
+            <label className="text-xs text-muted-foreground block mb-1">Phương thức thanh toán</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                type="button"
+                variant={paymentMethod === 'CASH' ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs"
+                onClick={() => setPaymentMethod('CASH')}
+              >
+                Tiền mặt
+              </Button>
+              <Button
+                type="button"
+                variant={paymentMethod === 'BANKING' ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs"
+                onClick={() => setPaymentMethod('BANKING')}
+              >
+                Chuyển khoản
+              </Button>
+            </div>
+          </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowFinishConfirm(false); setCheckoutSnapshot(null); }}>Hủy</Button>
             <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleFinish.run} disabled={handleFinish.isBusy}>
@@ -371,20 +422,31 @@ function BilliardOccupiedPanel({ table, onSuccess, onRefresh }: { table: Billiar
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InvoicePaymentModal
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        paymentMethod={paymentMethod}
+        data={paymentData}
+        onConfirmed={handleBilliardPaymentConfirmed}
+      />
     </>
   );
 }
 
 function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, onAutoOpenDrawerConsumed }: OccupiedPanelProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState<{
+    orderId: string; amount: number; paymentContent: string; bankAccounts: BankAccountInfo[]; orderNumber?: string;
+  } | null>(null);
   const [showTransfer, setShowTransfer] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
   const [showSplit, setShowSplit] = useState(false);
   const [targetTableId, setTargetTableId] = useState('');
-  const [guestCount, setGuestCount] = useState(String((table.currentOrder as any)?.guestCount || 1));
-  const [note, setNote] = useState((table.currentOrder as any)?.note || '');
+  const [guestCount, setGuestCount] = useState('1');
+  const [note, setNote] = useState('');
 
   const { data: orderData, isLoading } = useRestaurantTableOrder(table.id);
   const { data: allTables } = useRestaurantTables();
@@ -402,15 +464,16 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
     }
   }, [autoOpenDrawer, isLoading]);
 
-  const order = orderData || (table as any).currentOrder;
+  const order = orderData || null;
   const hasItems = (order?.items?.length || 0) > 0;
   const items = order?.items || [];
   const foodTotal = order?.foodTotal || 0;
-  const grandTotal = order?.grandTotal || Number((table as any)?.currentOrder?.total || 0);
+  const grandTotal = order?.grandTotal || 0;
   const serviceCharge = order?.serviceCharge || 0;
   const tax = order?.tax || 0;
   const discount = order?.discount || 0;
   const total = grandTotal || foodTotal + serviceCharge + tax - discount;
+  const isPaid = String(order?.paymentStatus || '').toUpperCase() === 'PAID';
 
   const availableTables = (allTables || []).filter(t =>
     t.id !== table.id && t.status === 'AVAILABLE' && !(t as any).isMerged
@@ -421,46 +484,55 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
   );
 
   useEffect(() => {
-    if ((table as any).currentOrder) {
-      setGuestCount(String((table as any).currentOrder.guestCount || 1));
-      setNote((table as any).currentOrder.note || '');
+    if (!order) return;
+    setGuestCount(String(order.guestCount || 1));
+    setNote(order.note || '');
+  }, [order?.id, order?.guestCount, order?.note]);
+
+  const handlePay = useAsyncActionGuard(async () => {
+    if (!order?.id) return;
+    if (String(order.paymentStatus || '').toUpperCase() === 'PAID') {
+      toast.error('Đơn hàng này đã được thanh toán');
+      return;
     }
-  }, [(table as any).currentOrder]);
-
-  const handlePay = useAsyncActionGuard(async (shouldPrint: boolean) => {
-    if (!(table as any).currentOrder?.id) return;
+    const receiptWindow = openReceiptWindow();
     try {
-      await payOrder.mutateAsync({
-        orderId: (table as any).currentOrder.id,
+      const result = await payOrder.mutateAsync({
+        orderId: order.id,
         paymentMethod,
+      }) as any;
+
+      const paymentContent = result.paymentContent || `TT${order?.orderNumber || ''}`;
+
+      await printReceipt({
+        businessName: 'Nhà hàng',
+        invoiceNumber: `#${order?.orderNumber || ''}`,
+        checkoutDate: new Date().toISOString(),
+        items: items.map((i: any) => ({
+          name: i.name,
+          quantity: i.quantity,
+          unitPrice: i.price,
+          total: i.lineTotal,
+        })),
+        foodTotal,
+        serviceCharge: serviceCharge || undefined,
+        tax: tax || undefined,
+        discount: discount || undefined,
+        grandTotal: total,
+        bankAccounts: result.bankAccounts || undefined,
+        paymentContent,
+      }, receiptWindow);
+
+      setPaymentData({
+        orderId: result.id,
+        amount: result.amount || total,
+        paymentContent: result.paymentContent || `TT${order?.orderNumber || ''}`,
+        bankAccounts: result.bankAccounts || [],
+        orderNumber: order?.orderNumber,
       });
-
-      toast.success('Thanh toán thành công', {
-        description: `${paymentMethod === 'CASH' ? 'Tiền mặt' : paymentMethod === 'CARD' ? 'Thẻ' : 'QR'} • ${fmt(total)}`,
-      });
-
-      if (shouldPrint) {
-        printReceipt({
-          businessName: 'Nhà hàng',
-          invoiceNumber: `#${order?.orderNumber || (table as any).currentOrder.orderNumber}`,
-          checkoutDate: new Date().toISOString(),
-          items: items.map((i: any) => ({
-            name: i.name,
-            quantity: i.quantity,
-            unitPrice: i.price,
-            total: i.lineTotal,
-          })),
-          foodTotal,
-          serviceCharge: serviceCharge || undefined,
-          tax: tax || undefined,
-          discount: discount || undefined,
-          grandTotal: total,
-        });
-      }
-
-      setShowPayment(false);
-      onSuccess();
-    } catch {
+      setShowPaymentModal(true);
+    } catch (err) {
+      console.error('[RestaurantOccupiedPanel.handlePay] Payment initiation failed:', err);
       toast.error('Thanh toán thất bại');
     }
   }, { delay: 500 });
@@ -475,9 +547,9 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
   }, { delay: 300 });
 
   const handleUpdateNote = useAsyncActionGuard(async () => {
-    if (!(table as any).currentOrder?.id) return;
+    if (!order?.id) return;
     try {
-      await updateOrderNote.mutateAsync({ orderId: (table as any).currentOrder.id, note });
+      await updateOrderNote.mutateAsync({ orderId: order.id, note });
       toast.success('Cập nhật ghi chú thành công');
     } catch { toast.error('Cập nhật thất bại'); }
   }, { delay: 300 });
@@ -540,7 +612,7 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">Có khách</span>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Users className="size-3" />
-              <span>{(table as any).currentOrder?.guestCount || 1} khách</span>
+              <span>{order?.guestCount || 1} khách</span>
             </div>
           </div>
         </div>
@@ -604,6 +676,34 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
             <Plus className="size-3.5" /> Thêm món
           </Button>
 
+          {/* In hóa đơn QR (trước thanh toán) */}
+          {hasItems && order?.bankAccounts?.length > 0 && (
+            <Button variant="outline" className="w-full justify-start text-blue-600 border-blue-200" onClick={async () => {
+              const bankAccs = order.bankAccounts as any;
+              const orderNumber = order?.orderNumber || '';
+              await printReceipt({
+                businessName: 'Nhà hàng',
+                invoiceNumber: `#${orderNumber}`,
+                checkoutDate: new Date().toISOString(),
+                items: items.map((i: any) => ({
+                  name: i.name,
+                  quantity: i.quantity,
+                  unitPrice: i.price,
+                  total: i.lineTotal,
+                })),
+                foodTotal,
+                serviceCharge: serviceCharge || undefined,
+                tax: tax || undefined,
+                discount: discount || undefined,
+                grandTotal: total,
+                bankAccounts: bankAccs,
+                paymentContent: `TT${orderNumber}`,
+              });
+            }}>
+              <Printer className="size-3.5" /> In hóa đơn QR
+            </Button>
+          )}
+
       
         
           {/* Ghi chú */}
@@ -615,47 +715,35 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
             </div>
           </div>
 
-          {/* Phương thức thanh toán — chỉ hiện khi mở panel */}
-          {showPayment && (
-            <div className="space-y-1.5 rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3">
-              <Label className="text-xs font-semibold">Phương thức thanh toán</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger><SelectValue placeholder="Chọn phương thức" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CASH">Tiền mặt</SelectItem>
-                  <SelectItem value="CARD">Thẻ / Chuyển khoản</SelectItem>
-                  <SelectItem value="QR">QR Code</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex gap-1.5 pt-1">
-                <Button className="flex-1 gap-1.5" onClick={() => handlePay.run(true)} disabled={handlePay.isBusy || !hasItems}>
-                  {handlePay.isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Printer className="size-3.5" />}
-                  In hóa đơn
-                </Button>
-                <Button variant="outline" className="flex-1 gap-1.5" onClick={() => handlePay.run(false)} disabled={handlePay.isBusy || !hasItems}>
-                  {handlePay.isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
-                  Không in
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Padding đáy để nội dung không bị footer che */}
           <div className="h-2" />
         </div>
 
-        {/* ── STICKY FOOTER: tổng tiền + nút thanh toán ── */}
-        <div className="shrink-0 border-t border-border bg-card px-3 py-3 space-y-1.5">
+        {/* ── STICKY FOOTER: tổng tiền + thanh toán ── */}
+        <div className="shrink-0 border-t border-border bg-card px-3 py-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground shrink-0">Phương thức:</span>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CASH">Tiền mặt</SelectItem>
+                <SelectItem value="BANKING">Chuyển khoản QR</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex justify-between items-center text-xs font-bold">
             <span>Tổng cộng</span>
             <span className="text-primary tabular-nums">{fmt(total)}</span>
           </div>
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700"
-            onClick={() => { setShowPayment(!showPayment); setShowTransfer(false); setShowMerge(false); setShowSplit(false); }}
+            onClick={handlePay.run}
+            disabled={false}
           >
-            <LogOut className="size-3.5" />
-            {showPayment ? 'Đóng thanh toán' : `Thanh toán — ${fmt(total)}`}
+            {handlePay.isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <LogOut className="size-3.5" />}
+            Thanh toán — {fmt(total)}
           </Button>
         </div>
       </div>
@@ -665,9 +753,21 @@ function RestaurantOccupiedPanel({ table, onSuccess, onRefresh, autoOpenDrawer, 
         onClose={() => setDrawerOpen(false)}
         tableId={table.id}
         tableName={table.tableName || table.tableCode}
-        currentOrderId={(table as any).currentOrder?.id || null}
+        currentOrderId={order?.id || null}
         mode="RESTAURANT"
         onSuccess={() => { if (onRefresh) onRefresh(); }}
+      />
+
+      <InvoicePaymentModal
+        open={showPaymentModal}
+        onOpenChange={(v) => { setShowPaymentModal(v); if (!v) setPaymentData(null); }}
+        paymentMethod={paymentMethod}
+        data={paymentData}
+        onConfirmed={() => {
+          setPaymentMethod('CASH');
+          setPaymentData(null);
+          onSuccess();
+        }}
       />
     </>
   );

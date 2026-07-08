@@ -11,7 +11,7 @@ import { DataTable, type Column } from '../components/DataTable';
 import { ImportModal } from '../components/ImportModal';
 import { ExportModal } from '../components/ExportModal';
 import type { InventoryItem, DeleteDependencyReport } from '../types';
-import { INGREDIENT_UNITS } from '../../shared/constants';
+import { INGREDIENT_UNITS, getUnitLabel } from '../../shared/constants';
 
 type StockStatus = 'all' | 'LOW_STOCK' | 'NORMAL';
 
@@ -177,7 +177,7 @@ export function InventoryManagement() {
         const isLowStock = item.quantity <= item.warningQuantity;
         return (
           <span className={`font-medium ${isLowStock ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
-            {item.quantity} {item.unit}
+            {item.quantity} {getUnitLabel(item.unit)}
           </span>
         );
       },
@@ -186,7 +186,7 @@ export function InventoryManagement() {
       key: 'warning',
       header: 'Ngưỡng cảnh báo',
       className: 'text-muted-foreground',
-      render: (item) => <>{item.warningQuantity} {item.unit}</>,
+      render: (item) => <>{item.warningQuantity} {getUnitLabel(item.unit)}</>,
     },
     {
       key: 'status',

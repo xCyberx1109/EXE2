@@ -379,15 +379,6 @@ export const ordersApi = {
     });
   },
 
-  /** Thanh toán - hoàn tất đơn và giải phóng bàn (không xóa) */
-  completePayment: (tableNumber: string | number, paymentMethod: string = 'CASH') => {
-    return apiFetch<import('../types').PosOrder[]>('/orders/complete-payment', {
-      method: 'POST',
-      body: JSON.stringify({ table: tableNumber, paymentMethod }),
-      auth: false,
-      headers: getAuthHeaders(),
-    });
-  },
 };
 
 // --- Order Queue POS ---
@@ -720,12 +711,6 @@ export const restaurantApi = {
       { method: 'POST', body: JSON.stringify(body) }
     ),
 
-  payOrder: (orderId: string, paymentMethod?: string) =>
-    apiFetch<{ id: string; paymentStatus: string; method: string }>(
-      `/restaurant/orders/${orderId}/pay`,
-      { method: 'POST', body: JSON.stringify({ paymentMethod }) }
-    ),
-
   updateGuestCount: (tableId: string, guestCount: number) =>
     apiFetch<import('../types').OrderDetail>(
       `/restaurant/tables/${tableId}/guest-count`,
@@ -798,6 +783,7 @@ export const employeeApi = {
     }),
 };
 
+<<<<<<< HEAD
 export const qrMenuApi = {
   listTableLinks: () =>
     apiFetch<Array<{
@@ -836,3 +822,28 @@ export const qrMenuApi = {
       auth: false,
     }),
 };
+=======
+// ==================== PAYMENT FLOW (2-phase: initiate → confirm) ====================
+export const paymentApi = {
+  initiate: (orderId: string, body?: { paymentMethod?: string; amount?: number }) =>
+    apiFetch<{
+      id: string;
+      orderNumber: string;
+      amount: number;
+      paymentContent: string;
+      bankAccounts: Array<{ bankCode: string; bankName: string; accountNumber: string; accountHolder: string }>;
+    }>(`/payment/orders/${orderId}/pay`, { method: 'POST', body: JSON.stringify(body || {}) }),
+
+  confirm: (orderId: string, body?: { paymentMethod?: string; amount?: number }) =>
+    apiFetch<{ id: string; paymentStatus: string; source: string }>(
+      `/payment/orders/${orderId}/confirm`,
+      { method: 'POST', body: JSON.stringify(body || {}) }
+    ),
+
+  cancel: (orderId: string) =>
+    apiFetch<{ id: string; status: string }>(
+      `/payment/orders/${orderId}/cancel`,
+      { method: 'POST' }
+    ),
+};
+>>>>>>> a227204b8537241f369dcb31d195c34403aaf8bc

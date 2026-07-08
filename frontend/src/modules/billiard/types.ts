@@ -148,6 +148,7 @@ export interface RestaurantTable {
     elapsedMinutes: number;
     note: string | null;
     mergedTableIds: string[] | null;
+    bankAccounts?: Array<{ bankCode: string; bankName: string; accountNumber: string; accountHolder: string }>;
   } | null;
   isActive: boolean;
   createdAt: string;

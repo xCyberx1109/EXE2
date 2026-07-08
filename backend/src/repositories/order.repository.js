@@ -8,6 +8,18 @@ const includeItems = {
   },
 };
 
+const RESTAURANT_OPEN_ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'PENDING_PAYMENT'];
+
+function buildOpenRestaurantOrderWhere(tableId, accountId) {
+  return {
+    tableId,
+    ...(accountId ? { accountId } : {}),
+    source: 'RESTAURANT',
+    status: { in: RESTAURANT_OPEN_ORDER_STATUSES },
+    deletedAt: null,
+  };
+}
+
 /** Lightweight includes for queue list queries — no deep menuItem join */
 const includeItemsLight = {
   items: {
@@ -62,6 +74,20 @@ export const orderRepository = {
 
   findById: (id) =>
     prisma.order.findUnique({ where: { id }, include: includeItems }),
+
+  findOpenRestaurantOrderByTable: (tableId, accountId, options = {}) =>
+    prisma.order.findFirst({
+      where: buildOpenRestaurantOrderWhere(tableId, accountId),
+      include: options.include ?? includeItems,
+      orderBy: options.orderBy ?? { createdAt: 'desc' },
+    }),
+
+  findOpenRestaurantOrderByTableTx: (tx, tableId, accountId, options = {}) =>
+    tx.order.findFirst({
+      where: buildOpenRestaurantOrderWhere(tableId, accountId),
+      include: options.include ?? includeItems,
+      orderBy: options.orderBy ?? { createdAt: 'desc' },
+    }),
 
   /** Lightweight find for permission checks only */
   findByIdLight: (id, select) =>

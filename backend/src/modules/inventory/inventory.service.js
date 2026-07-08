@@ -209,10 +209,19 @@ export const inventoryService = {
     return txs.map(mapInventoryTransaction);
   },
 
-  async listAllTransactions(user, { page, limit } = {}) {
+  async listAllTransactions(user, { page, limit, type, search } = {}) {
     const where = {};
     if (user) {
       where.ingredient = { accountId: user.accountId || user.id };
+    }
+    if (type) {
+      where.type = type;
+    }
+    if (search) {
+      where.ingredient = {
+        ...where.ingredient,
+        name: { contains: search, mode: 'insensitive' },
+      };
     }
     const { page: p, limit: l, skip } = parsePagination({ page, limit });
     const [total, txs] = await inventoryTransactionRepository.findManyPaginated(where, skip, l);

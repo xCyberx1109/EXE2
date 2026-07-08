@@ -46,11 +46,6 @@ export const getCurrentSession = asyncHandler(async (req, res) => {
   sendSuccess(res, { message: 'Lấy thông tin phiên chơi thành công', data });
 });
 
-export const finishSession = asyncHandler(async (req, res) => {
-  const data = await billiardService.finishSession(req.params.tableId, getContext(req));
-  sendSuccess(res, { message: 'Kết thúc phiên chơi thành công', data });
-});
-
 export const getSessionOrder = asyncHandler(async (req, res) => {
   const data = await billiardService.getSessionOrder(req.params.id, getContext(req));
   sendSuccess(res, { message: 'Lấy đơn hàng của phiên chơi thành công', data });
@@ -81,11 +76,6 @@ export const getTableOrderSummary = asyncHandler(async (req, res) => {
   sendSuccess(res, { message: 'Lấy thông tin đơn hàng thành công', data });
 });
 
-export const payOrder = asyncHandler(async (req, res) => {
-  const data = await billiardService.payOrder(req.params.id, req.body, getContext(req));
-  sendSuccess(res, { message: 'Thanh toán thành công', data });
-});
-
 export const createBilliardTable = asyncHandler(async (req, res) => {
   const data = await billiardService.createTable(req.body, getContext(req));
   sendSuccess(res, { message: 'Tạo bàn billiard thành công', data, statusCode: 201 });
@@ -105,7 +95,7 @@ export const createRestaurantTable = asyncHandler(async (req, res) => {
 
 export const openOrderForTable = asyncHandler(async (req, res) => {
   const data = await billiardService.openOrderForTable(req.params.tableId, req.body, getContext(req));
-  sendSuccess(res, { message: 'Mở đơn hàng thành công', data, statusCode: data?.status === 'CONFIRMED' ? 201 : 200 });
+  sendSuccess(res, { message: 'Mở đơn hàng thành công', data, statusCode: data?.status === 'PENDING_PAYMENT' ? 201 : 200 });
 });
 
 export const getTableOrder = asyncHandler(async (req, res) => {

@@ -4,11 +4,15 @@ export const INGREDIENT_UNITS = [
   { value: 'KG', label: 'kg' },
   { value: 'LITER', label: 'lít' },
   { value: 'PIECE', label: 'cái' },
-  { value: 'UNIT', label: 'gói' },
+  { value: 'PACK', label: 'gói' },
   { value: 'BOX', label: 'hộp' },
   { value: 'BOTTLE', label: 'chai' },
   { value: 'CAN', label: 'lon' },
 ] as const;
+
+export function getUnitLabel(unit: string): string {
+  return INGREDIENT_UNITS.find(u => u.value === unit)?.label || unit;
+}
 
 // Phải khớp với STOCK_IN_TYPES trong backend/src/validators/inventory.validator.js
 export const STOCK_IN_TYPES = [

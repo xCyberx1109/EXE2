@@ -36,3 +36,14 @@ export const resetPassword = asyncHandler(async (req, res) => {
   const result = await unifiedAuthService.resetPassword(req.body);
   sendSuccess(res, { message: result.message, data: null });
 });
+
+export const getMyPaymentInfo = asyncHandler(async (req, res) => {
+  const info = await unifiedAuthService.getPaymentInfo(req.user.id);
+  sendSuccess(res, { data: info || null, message: info ? 'Đã tải thông tin thanh toán' : 'Chưa cấu hình tài khoản thanh toán' });
+});
+
+export const updateMyPaymentInfo = asyncHandler(async (req, res) => {
+  const { bankCode, bankName, accountNumber, accountHolder } = req.body;
+  const info = await unifiedAuthService.upsertPaymentInfo(req.user.id, { bankCode, bankName, accountNumber, accountHolder });
+  sendSuccess(res, { data: info, message: 'Cập nhật thông tin thanh toán thành công' });
+});

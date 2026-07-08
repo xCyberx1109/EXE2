@@ -2,7 +2,6 @@ export function ChartRangeSelector({ value, onChange }: { value: string; onChang
   const options = [
     { value: '7days', label: '7 ngày' },
     { value: '30days', label: '30 ngày' },
-    { value: '12months', label: '12 tháng' },
   ];
   return (
     <div className="flex gap-0.5 bg-muted p-0.5 rounded-md">

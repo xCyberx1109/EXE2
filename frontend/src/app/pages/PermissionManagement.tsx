@@ -313,7 +313,7 @@ export function PermissionManagement() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 flex-1 min-h-0 flex flex-col">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -324,7 +324,7 @@ export function PermissionManagement() {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-border">
+      <div className="flex items-center gap-1 border-b border-border shrink-0">
         <button
           onClick={() => setTab('plan')}
           className={`px-2 py-1.5 text-xs font-medium border-b-2 transition-colors ${
@@ -349,7 +349,7 @@ export function PermissionManagement() {
         </button>
       </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-1 min-h-0">
         {/* Sidebar */}
         <div className="md:col-span-1 space-y-4">
           <div className="bg-card rounded-md border border-border overflow-hidden shadow-sm">
@@ -418,9 +418,9 @@ export function PermissionManagement() {
         </div>
 
         {/* Main */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex flex-col min-h-0">
           {selectedAccount ? (
-            <>
+            <div className="flex-1 min-h-0 flex flex-col">
               {/* Account Info */}
               <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden mb-4">
                 <div className="p-4 flex items-center justify-between">
@@ -471,7 +471,7 @@ export function PermissionManagement() {
                   onSave={handleSave}
                 />
               )}
-            </>
+            </div>
           ) : (
             <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-muted border-2 border-dashed border-border rounded-md p-6 text-center">
               <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
@@ -796,7 +796,7 @@ function AllPermissionsTab({
   const allCount = permissions.length;
 
   return (
-    <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden h-151">
+    <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
       <div className="p-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-2 bg-card sticky top-0 z-10">
         <div className="flex items-center gap-2 flex-1">
           <List className="w-5 h-5 text-muted-foreground" />
@@ -824,7 +824,7 @@ function AllPermissionsTab({
         </button>
       </div>
 
-      <div className="p-3 overflow-y-auto max-h-[650px] space-y-2">
+      <div className="p-3 flex-1 min-h-0 overflow-y-auto space-y-2">
         {filteredGroups.map((group) => {
           const isExpanded = expandedModules.has(group.module);
           const checkedCount = group.perms.filter((p) => accountPermIdSet.has(p.id)).length;

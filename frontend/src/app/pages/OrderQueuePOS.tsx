@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { menuApi, ordersQueueApi, inventoryApi } from '../api/services';
+import { menuApi, ordersQueueApi, inventoryApi, paymentApi } from '../api/services';
 import { MenuItem, OrderDetail, InventoryItem, InventoryIssue } from '../types';
 import { APP_NAME } from '../../shared/constants';
-import { printReceipt } from '../../shared/utils/printReceipt';
+import { printReceipt, openReceiptWindow } from '../../shared/utils/printReceipt';
 import { queryClient } from '../api/queryClient';
 import {
   Clock,
@@ -20,6 +20,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { buildInventoryMap, isItemOutOfStock } from '../../shared/utils/inventoryAvailability';
 import { OrdersToMakePanel } from '../components/OrdersToMakePanel';
+import { InvoicePaymentModal } from '../../shared/components/InvoicePaymentModal';
+import type { BankAccountInfo } from '../../shared/utils/printReceipt';
 
 type QueueLine = {
   menuItemId: string;
@@ -30,7 +32,7 @@ type QueueLine = {
 
 type OrderLabelMap = Record<string, string>;
 
-const OPEN_STATUSES = ['PENDING', 'PREPARING', 'OPEN'];
+const OPEN_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'OPEN', 'PENDING_PAYMENT'];
 const LABEL_STORAGE_KEY = 'order_queue_customer_labels';
 
 function toQueueLines(order?: OrderDetail | null): QueueLine[] {
@@ -133,6 +135,18 @@ export function OrderQueuePOS() {
   const [ordersToMakeRefresh, setOrdersToMakeRefresh] = useState(0);
   const [inventoryIssues, setInventoryIssues] = useState<InventoryIssue[]>([]);
   const [inventoryStatus, setInventoryStatus] = useState<'VALID' | 'INVALID' | 'NEEDS_REVALIDATION'>('VALID');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState<{
+    orderId: string; amount: number; paymentContent: string; bankAccounts: BankAccountInfo[]; orderNumber?: string;
+  } | null>(null);
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<'CASH' | 'BANKING' | 'CARD' | 'TRANSFER'>('CASH');
+
+  const pendingLinesRef = useRef<QueueLine[]>([]);
+  const pendingDiscountRef = useRef(0);
+  const pendingNoteRef = useRef('');
+  const pendingOrderNumberRef = useRef('');
+  const pendingBankAccountsRef = useRef<BankAccountInfo[]>([]);
+  const pendingPaymentContentRef = useRef('');
 
   const affectedMenuItemIds = useMemo(
     () => new Set(inventoryIssues.map(issue => issue.menuItemId)),
@@ -207,6 +221,7 @@ export function OrderQueuePOS() {
     () => orders.find(order => order.id === activeOrderId) || null,
     [orders, activeOrderId]
   );
+  const activeOrderPaid = normalizeStatus(activeOrder?.paymentStatus) === 'PAID';
 
   const filteredMenuItems = useMemo(() => {
     const keyword = productSearch.trim().toLowerCase();
@@ -222,7 +237,7 @@ export function OrderQueuePOS() {
 
   const sortedOpenOrders = useMemo(() => {
     return [...orders]
-      .filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)) && normalizeStatus(order.paymentStatus) !== 'PAID')
+      .filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders]);
 
@@ -256,7 +271,7 @@ export function OrderQueuePOS() {
     setLoading(true);
     setError(null);
     ordersQueueApi
-      .list({ paymentStatus: 'UNPAID' })
+      .list()
       .then(data => {
         const openOrders = (Array.isArray(data) ? data : []).filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)));
         const sorted = [...openOrders].sort(
@@ -500,49 +515,62 @@ export function OrderQueuePOS() {
     return Promise.resolve();
   };
 
+  const handlePaymentConfirmed = () => {
+    const orderId = activeOrder?.id;
+    if (!orderId) return;
+
+    const orderNumber = pendingOrderNumberRef.current;
+
+    toast.success(`Thanh toán thành công • ${orderNumber}`);
+    setOrders(current => current.filter(order => order.id !== orderId));
+    setActiveOrderId(current => (current === orderId ? null : current));
+    setOrdersToMakeRefresh(k => k + 1);
+    queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
+
+    setPaymentData(null);
+    setShowPaymentModal(false);
+  };
+
   const processPayment = async () => {
     if (!activeOrder || !canPayment) return;
+    if (normalizeStatus(activeOrder.paymentStatus) === 'PAID') {
+      setError('Order này đã được thanh toán.');
+      return;
+    }
     if (orderLines.length === 0) {
       console.warn("PAYMENT BLOCKED: Cart is empty");
       setError('Order cần có ít nhất 1 món trước khi thanh toán.');
       return;
     }
 
-    // Cancel any pending debounced save to avoid race conditions
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
 
-    // Capture local variables immediately — do NOT rely on React state after async ops
     const orderId = activeOrder.id;
     const method = paymentMethod;
     const lines = orderLines.map(l => ({ ...l }));
     const discountValue = discount;
     const noteValue = orderNote;
 
+    const receiptWindow = openReceiptWindow();
+
     setCheckoutLoading(true);
     setError(null);
     try {
-      // ALWAYS save cart to backend before payment — do NOT rely on flushPersist debounce timer
-      try {
-        const savedOrder = await ordersQueueApi.update(orderId, {
-          items: lines.map(line => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
-          discount: discountValue,
-          note: noteValue,
-        } as any);
-        setOrders(current => current.map(order => (order.id === orderId ? savedOrder : order)));
-      } catch (saveErr: any) {
-        setError(saveErr.message || 'Không thể lưu order trước khi thanh toán.');
-        setCheckoutLoading(false);
-        return;
-      }
+      const savedOrder = await ordersQueueApi.update(orderId, {
+        items: lines.map(line => ({ menuItemId: line.menuItemId, quantity: line.quantity })),
+        discount: discountValue,
+        note: noteValue,
+      } as any);
+      setOrders(current => current.map(order => (order.id === orderId ? savedOrder : order)));
 
-      const result = await ordersQueueApi.pay(orderId, method);
+      const validation = await ordersQueueApi.pay(orderId, method);
 
-      if (result && 'inventoryIssues' in result) {
+      if (validation && 'inventoryIssues' in validation) {
         setInventoryStatus('INVALID');
-        setInventoryIssues(result.inventoryIssues || []);
+        setInventoryIssues(validation.inventoryIssues || []);
         toast.error('Kiểm tra tồn kho thất bại', {
           description: 'Vui lòng điều chỉnh số lượng hoặc xóa món không đủ nguyên liệu.',
         });
@@ -550,36 +578,57 @@ export function OrderQueuePOS() {
         return;
       }
 
-      const paidOrder = result as OrderDetail;
       setInventoryStatus('VALID');
       setInventoryIssues([]);
-      toast.success(`Thanh toán thành công • ${paidOrder.orderNumber}`, {
-        description: `${method === 'CASH' ? 'Tiền mặt' : method === 'CARD' ? 'Thẻ' : 'QR'} • ${Number(paidOrder.total).toLocaleString()}₫`,
-      });
-      setOrders(current => current.filter(order => order.id !== orderId));
-      setActiveOrderId(current => (current === orderId ? null : current));
-      setOrdersToMakeRefresh(k => k + 1);
-      queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
 
+      const mappedMethod = method === 'QR' ? 'BANKING' : method;
+      const initiateResult = await paymentApi.initiate(orderId, { paymentMethod: mappedMethod });
+
+      const bankAccounts = initiateResult.bankAccounts || [];
+      const paymentContent = initiateResult.paymentContent || `TT${savedOrder?.orderNumber || ''}`;
+
+      pendingLinesRef.current = lines;
+      pendingDiscountRef.current = discountValue;
+      pendingNoteRef.current = noteValue;
+      pendingOrderNumberRef.current = savedOrder?.orderNumber || activeOrder?.orderNumber || '';
+      pendingBankAccountsRef.current = bankAccounts;
+      pendingPaymentContentRef.current = paymentContent;
+
+      setPaymentData({
+        orderId,
+        amount: payableTotal,
+        paymentContent,
+        bankAccounts,
+        orderNumber: savedOrder?.orderNumber || activeOrder?.orderNumber,
+      });
+      setPendingPaymentMethod(mappedMethod as 'CASH' | 'BANKING' | 'CARD' | 'TRANSFER');
+
+      const orderNumber = savedOrder?.orderNumber || activeOrder?.orderNumber || '';
+      const localPrintItems = lines.map(l => ({
+        name: l.name || '',
+        quantity: l.quantity,
+        unitPrice: l.price,
+        total: l.price * l.quantity,
+      }));
       printReceipt({
         businessName: APP_NAME,
-        invoiceNumber: `#${paidOrder.orderNumber}`,
+        invoiceNumber: `#${orderNumber}`,
         checkoutDate: new Date().toISOString(),
-        items: paidOrder.items.map(i => ({
-          name: i.name,
-          quantity: i.quantity,
-          unitPrice: i.price,
-          total: i.lineTotal,
-        })),
-        foodTotal: paidOrder.items.reduce((s, i) => s + i.lineTotal, 0),
-        serviceCharge: paidOrder.serviceCharge || undefined,
-        tax: paidOrder.tax || undefined,
-        discount: paidOrder.discount || undefined,
-        grandTotal: paidOrder.total,
-      });
+        items: localPrintItems,
+        foodTotal: localPrintItems.reduce((s, i) => s + i.total, 0),
+        discount: discountValue || undefined,
+        grandTotal: localPrintItems.reduce((s, i) => s + i.total, 0),
+        bankAccounts,
+        paymentContent,
+      }, receiptWindow);
+
+      setShowPaymentModal(true);
     } catch (e: any) {
-      toast.error('Thanh toán thất bại', { description: e.message || 'Không thể thanh toán order.' });
-      setError(e.message || 'Không thể thanh toán order.');
+      const message = e?.response?.data?.message || e?.message || 'Không thể thanh toán order.';
+      console.error('===== PAYMENT ERROR =====');
+      console.error('Error:', e);
+      toast.error('Thanh toán thất bại', { description: message });
+      setError(message);
     } finally {
       setCheckoutLoading(false);
     }
@@ -714,7 +763,7 @@ export function OrderQueuePOS() {
                   <h2 className="text-xs lg:text-base font-black text-foreground">Đơn đang mở</h2>
                   <p className="text-[10px] lg:text-xs text-muted-foreground">Cũ nhất • {filteredOrders.length} chưa thanh toán</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 text-[10px] lg:text-xs font-black text-emerald-700 dark:text-emerald-400">UNPAID</span>
+                <span className="shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 text-[10px] lg:text-xs font-black text-emerald-700 dark:text-emerald-400">ACTIVE</span>
               </div>
               <div className="relative mb-1.5">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
@@ -730,7 +779,6 @@ export function OrderQueuePOS() {
                 <div className="flex flex-row gap-2 overflow-x-auto overflow-y-hidden scrollbar-none">
                   {filteredOrders.map(order => {
                     const selected = order.id === activeOrderId;
-                    const badge = ORDER_STATUS_BADGE[normalizeStatus(order.status)] || ORDER_STATUS_BADGE.PENDING;
                     const label = getCustomerLabel(order);
                     const displayLabel = label.startsWith('Khách') ? 'Khách' : label;
                     const orderHasIssues = activeOrderId === order.id && hasInventoryIssues;
@@ -753,12 +801,7 @@ export function OrderQueuePOS() {
                               <span className="text-[9px] leading-none text-red-600 dark:text-red-400">🔴</span>
                               <span className="text-[9px] leading-none font-semibold text-red-600 dark:text-red-400">Vấn đề tồn kho</span>
                             </>
-                          ) : (
-                            <>
-                              <span className={`text-[9px] leading-none ${selected ? 'text-primary-foreground/70' : ''}`}>{badge.dot}</span>
-                              <span className={`text-[9px] leading-none font-semibold ${selected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{badge.label}</span>
-                            </>
-                          )}
+                          ) : null}
                         </div>
                         <span className={`text-[11px] font-bold leading-tight w-full ${selected ? 'text-primary-foreground' : orderHasIssues ? 'text-red-900 dark:text-red-300' : 'text-foreground'}`}>
                           {displayLabel}
@@ -818,11 +861,7 @@ export function OrderQueuePOS() {
                         <span className="shrink-0 rounded-full bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 text-[9px] lg:text-[10px] font-black text-red-700 dark:text-red-400">
                           🔴 VẤN ĐỀ TỒN KHO
                         </span>
-                      ) : (
-                        <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 text-[9px] lg:text-[10px] font-black text-amber-700 dark:text-amber-400">
-                          {(ORDER_STATUS_BADGE[normalizeStatus(activeOrder.status)] || ORDER_STATUS_BADGE.PENDING).dot} {activeOrder.status}
-                        </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                   <label className="flex items-center gap-1.5">
@@ -933,13 +972,12 @@ export function OrderQueuePOS() {
                       className="h-9 lg:h-10 rounded-md border border-border bg-input-background px-2 text-[10px] lg:text-xs font-bold"
                     >
                       <option value="CASH">Tiền mặt</option>
-                      <option value="CARD">Thẻ</option>
-                      <option value="QR">QR</option>
+                      <option value="QR">Chuyển khoản QR</option>
                     </select>
                     <button
                       type="button"
                       onClick={processPayment}
-                      disabled={checkoutLoading || orderLines.length === 0 || !canPayment}
+                      disabled={checkoutLoading || orderLines.length === 0 || !canPayment || activeOrderPaid}
                       className="flex h-9 lg:h-10 items-center justify-center gap-1.5 rounded-md bg-emerald-600 dark:bg-emerald-700 px-3 text-[10px] lg:text-xs font-black text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 disabled:opacity-60"
                     >
                       <CreditCard className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
@@ -975,9 +1013,6 @@ export function OrderQueuePOS() {
                             <span className="truncate">{getCustomerLabel(order)}</span>
                           </div>
                         </div>
-                        <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 text-[9px] lg:text-[10px] font-black text-amber-700 dark:text-amber-400">
-                          {(ORDER_STATUS_BADGE[normalizeStatus(order.status)] || ORDER_STATUS_BADGE.PENDING).dot} {order.status}
-                        </span>
                       </div>
                       <div className="grid grid-cols-3 gap-1 text-[10px] lg:text-xs">
                         <div className="rounded-md lg:rounded-xl bg-muted p-1 lg:p-1.5">
@@ -1018,6 +1053,14 @@ export function OrderQueuePOS() {
           </div>
         )}
       </div>
+
+      <InvoicePaymentModal
+        open={showPaymentModal}
+        onOpenChange={(v) => { setShowPaymentModal(v); if (!v) setPaymentData(null); }}
+        paymentMethod={pendingPaymentMethod}
+        data={paymentData}
+        onConfirmed={handlePaymentConfirmed}
+      />
     </div>
   );
 }

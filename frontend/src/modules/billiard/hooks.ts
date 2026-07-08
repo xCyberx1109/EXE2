@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { billiardApi, restaurantApi } from '@/app/api/services';
+import { billiardApi, restaurantApi, paymentApi } from '@/app/api/services';
+import { toast } from 'sonner';
 import type { BilliardTableWithSession, CreateTableBody, RestaurantTable } from './types';
 
 // ==================== BILLIARD HOOKS ====================
@@ -8,7 +9,7 @@ export function useBilliardTables(enabled = true) {
   return useQuery<BilliardTableWithSession[]>({
     queryKey: ['billiard', 'tables'],
     queryFn: () => billiardApi.listTables(),
-    refetchInterval: 30_000,
+    staleTime: 1000 * 30,
     enabled,
   });
 }
@@ -52,7 +53,8 @@ export function useCancelReservation() {
 export function useFinishSession() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tableId: string) => billiardApi.finishSession(tableId),
+    mutationFn: ({ orderId, paymentMethod, amount }: { orderId: string; paymentMethod?: string; amount?: number }) =>
+      paymentApi.confirm(orderId, { paymentMethod, amount }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['billiard', 'tables'] }); },
   });
 }
@@ -92,7 +94,7 @@ export function useUpdateLayout(mode: 'BILLIARD' | 'RESTAURANT') {
   });
 }
 
-export function useTableOrderSummary(tableId: string) {
+export function useBilliardTableOrderSummary(tableId: string) {
   return useQuery({
     queryKey: ['billiard', 'order-summary', tableId],
     queryFn: () => billiardApi.getOrderSummary(tableId),
@@ -100,13 +102,15 @@ export function useTableOrderSummary(tableId: string) {
   });
 }
 
+export const useTableOrderSummary = useBilliardTableOrderSummary;
+
 // ==================== RESTAURANT HOOKS ====================
 
 export function useRestaurantTables(enabled = true) {
   return useQuery<RestaurantTable[]>({
     queryKey: ['restaurant', 'tables'],
     queryFn: () => restaurantApi.listTables(),
-    refetchInterval: 15_000,
+    staleTime: 1000 * 30,
     enabled,
   });
 }
@@ -140,7 +144,10 @@ export function useOpenOrder() {
   return useMutation({
     mutationFn: ({ tableId, guestCount }: { tableId: string; guestCount?: number }) =>
       restaurantApi.openOrder(tableId, { guestCount }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] }); },
+    onSuccess: (data, { tableId }) => {
+      qc.setQueryData(['restaurant', 'order', tableId], data);
+      qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] });
+    },
   });
 }
 
@@ -149,7 +156,7 @@ export function useRestaurantTableOrder(tableId: string) {
     queryKey: ['restaurant', 'order', tableId],
     queryFn: () => restaurantApi.getTableOrder(tableId),
     enabled: !!tableId,
-    refetchInterval: 10_000,
+    staleTime: 1000 * 30,
   });
 }
 
@@ -193,10 +200,9 @@ export function useAddRestaurantOrderItem() {
     onError: (err, { tableId }: any, context) => {
       if (context?.previousOrder) qc.setQueryData(['restaurant', 'order', tableId], context.previousOrder);
     },
-    onSuccess: async (data, { orderId, tableId }: any) => {
+    onSuccess: (data, { orderId, tableId }: any) => {
       if (data?.order) qc.setQueryData(['restaurant', 'order', tableId], data.order);
-      await qc.invalidateQueries({ queryKey: ['restaurant', 'order', tableId] });
-      await qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] });
+      qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] });
     },
   });
 }
@@ -279,15 +285,36 @@ export function useSplitOrder() {
 }
 
 export function usePayRestaurantOrder() {
+  return useMutation({
+    mutationFn: ({ orderId, paymentMethod, amount }: { orderId: string; paymentMethod?: string; amount?: number }) =>
+      paymentApi.initiate(orderId, { paymentMethod, amount }),
+  });
+}
+
+export function useConfirmPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ orderId, paymentMethod }: { orderId: string; paymentMethod?: string }) =>
-      restaurantApi.payOrder(orderId, paymentMethod),
+    mutationFn: async ({ orderId, paymentMethod, amount }: { orderId: string; paymentMethod: string; amount?: number }) => {
+      console.log('===== PAYMENT CONFIRM =====');
+      console.log('Request:', { orderId, paymentMethod, amount });
+      const result = await paymentApi.confirm(orderId, { paymentMethod, amount });
+      console.log('Response:', result);
+      console.log('Status Code: 200');
+      return result;
+    },
     onSuccess: () => {
+      toast.success('✅ Thanh toán thành công');
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] });
       qc.invalidateQueries({ queryKey: ['restaurant', 'order'] });
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['billiard', 'tables'] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || error?.message || 'Xác nhận thanh toán thất bại';
+      console.error('===== PAYMENT CONFIRM ERROR =====');
+      console.error('Error:', error);
+      toast.error(message);
     },
   });
 }
