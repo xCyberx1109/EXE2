@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router';
-import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock, CircleDot, PanelLeftClose, PanelLeft, Sun, Moon } from 'lucide-react';
+import { Menu, X, Loader2, LogOut, User, Building2, Smartphone, UtensilsCrossed, Package, TrendingUp, LayoutDashboard, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock, CircleDot, PanelLeftClose, PanelLeft, Sun, Moon, QrCode } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { APP_MENU, type AppMenuItem } from '../../shared/permissions/menuConfig';
@@ -16,7 +16,7 @@ import {
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, Smartphone, UtensilsCrossed, Package, TrendingUp,
-  Building2, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock, CircleDot,
+  Building2, Users, Settings, ClipboardList, ChefHat, Shield, MapPin, Grid3X3, Clock, CircleDot, QrCode,
 };
 
 function getDefaultRoute(hasPermission: (p: string) => boolean): string {

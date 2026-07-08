@@ -6,7 +6,6 @@ import {
   InventoryTransactionLog,
 } from '../../modules/dashboard';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router';
 
 function DashboardAlerts({ lowStockItems, orderStatus }: { lowStockItems: any[]; orderStatus: Record<string, number> }) {
   const alerts: { icon: any; color: string; bg: string; message: string }[] = [];
@@ -67,22 +66,9 @@ export function Dashboard() {
   if (!data && loading) {
     return (
       <div className="space-y-4">
-<<<<<<< HEAD
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-foreground">Tổng quan</h1>
-            <p className="text-muted-foreground text-xs mt-0.5">Tổng quan hoạt động kinh doanh</p>
-          </div>
-        <Link
-          to="/qr-table-print"
-          className="px-3 py-2 rounded-md bg-black text-white text-sm font-medium">
-          In QR bàn
-        </Link>          
-=======
         <div>
           <h1 className="text-lg font-bold text-foreground">Tổng quan</h1>
           <p className="text-muted-foreground text-xs mt-0.5">Tổng quan hoạt động kinh doanh</p>
->>>>>>> a227204b8537241f369dcb31d195c34403aaf8bc
         </div>
         <BusinessOverview data={null} loading />
         <SalesPerformance data={null} loading chartRange={chartRange} onChartRangeChange={setChartRange} />

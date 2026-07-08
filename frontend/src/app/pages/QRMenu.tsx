@@ -1,39 +1,43 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { CheckCircle2, Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import {
+  CheckCircle2,
+  Minus,
+  Plus,
+  ShoppingCart,
+  Trash2,
+} from 'lucide-react';
 
 import { qrMenuApi } from '../api/services';
 import type { MenuItem } from '../types';
 
-type CartItem = MenuItem & {
-  quantity: number;
-};
+type CartItem = MenuItem & { quantity: number };
 
 type TableInfo = {
-  id?: string;
+  id: string;
   tableCode: string;
   tableName: string | null;
-  capacity?: number;
+  capacity: number;
 };
 
 export function MenuQR() {
   const [params] = useSearchParams();
-  const token = params.get('t') || '';
+  const token = params.get('t') ?? '';
 
   const [tableInfo, setTableInfo] = useState<TableInfo | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-
   const [cart, setCart] = useState<CartItem[]>([]);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [showCart, setShowCart] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadMenu = async () => {
       if (!token) {
         setLoadError('Mã QR không hợp lệ hoặc bị thiếu.');
@@ -44,9 +48,9 @@ export function MenuQR() {
       try {
         setLoading(true);
         setLoadError('');
-
         const response = await qrMenuApi.resolve(token);
 
+        if (cancelled) return;
         setTableInfo(response.table);
         setMenuItems(
           Array.isArray(response.menuItems)
@@ -54,19 +58,22 @@ export function MenuQR() {
             : [],
         );
       } catch (error) {
+        if (cancelled) return;
         console.error('Load QR menu error:', error);
-
         setLoadError(
           error instanceof Error
             ? error.message
             : 'Không thể tải menu. Vui lòng quét lại mã QR.',
         );
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     void loadMenu();
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const totalQuantity = useMemo(
@@ -75,54 +82,33 @@ export function MenuQR() {
   );
 
   const totalPrice = useMemo(
-    () => cart.reduce(
-      (sum, item) => sum + Number(item.price) * item.quantity,
-      0,
-    ),
+    () =>
+      cart.reduce(
+        (sum, item) => sum + Number(item.price) * item.quantity,
+        0,
+      ),
     [cart],
   );
 
   const tableDisplayName =
-    tableInfo?.tableName?.trim() ||
-    tableInfo?.tableCode ||
-    'Bàn';
+    tableInfo?.tableName?.trim() || tableInfo?.tableCode || 'Bàn';
 
-  const openItem = (itemId: string) => {
-    setOpenItemId((currentId) => {
-      if (currentId === itemId) {
-        return null;
-      }
-
-      return itemId;
-    });
-
+  const toggleItem = (itemId: string) => {
+    setOpenItemId((current) => (current === itemId ? null : itemId));
     setSelectedQuantity(1);
   };
 
   const addToCart = (item: MenuItem) => {
-    setCart((currentCart) => {
-      const existingItem = currentCart.find(
-        (cartItem) => cartItem.id === item.id,
-      );
-
-      if (existingItem) {
-        return currentCart.map((cartItem) =>
-          cartItem.id === item.id
-            ? {
-                ...cartItem,
-                quantity: cartItem.quantity + selectedQuantity,
-              }
-            : cartItem,
+    setCart((current) => {
+      const existing = current.find((entry) => entry.id === item.id);
+      if (existing) {
+        return current.map((entry) =>
+          entry.id === item.id
+            ? { ...entry, quantity: entry.quantity + selectedQuantity }
+            : entry,
         );
       }
-
-      return [
-        ...currentCart,
-        {
-          ...item,
-          quantity: selectedQuantity,
-        },
-      ];
+      return [...current, { ...item, quantity: selectedQuantity }];
     });
 
     setOpenItemId(null);
@@ -130,18 +116,16 @@ export function MenuQR() {
   };
 
   const increaseCartItem = (itemId: string) => {
-    setCart((currentCart) =>
-      currentCart.map((item) =>
-        item.id === itemId
-          ? { ...item, quantity: item.quantity + 1 }
-          : item,
+    setCart((current) =>
+      current.map((item) =>
+        item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item,
       ),
     );
   };
 
   const decreaseCartItem = (itemId: string) => {
-    setCart((currentCart) =>
-      currentCart
+    setCart((current) =>
+      current
         .map((item) =>
           item.id === itemId
             ? { ...item, quantity: item.quantity - 1 }
@@ -152,25 +136,14 @@ export function MenuQR() {
   };
 
   const removeCartItem = (itemId: string) => {
-    setCart((currentCart) =>
-      currentCart.filter((item) => item.id !== itemId),
-    );
+    setCart((current) => current.filter((item) => item.id !== itemId));
   };
 
   const submitOrder = async () => {
-    if (!token) {
-      alert('Mã QR không hợp lệ.');
-      return;
-    }
-
-    if (cart.length === 0) {
-      alert('Vui lòng chọn ít nhất một món.');
-      return;
-    }
+    if (!token || cart.length === 0 || submitting) return;
 
     try {
-      setIsSubmitting(true);
-
+      setSubmitting(true);
       await qrMenuApi.submit(token, {
         guestCount: 1,
         items: cart.map((item) => ({
@@ -185,14 +158,13 @@ export function MenuQR() {
       setSubmitted(true);
     } catch (error) {
       console.error('Submit QR order error:', error);
-
       alert(
         error instanceof Error
           ? error.message
           : 'Không thể gửi order. Vui lòng thử lại.',
       );
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
@@ -201,10 +173,7 @@ export function MenuQR() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="w-10 h-10 mx-auto border-4 border-gray-200 border-t-black rounded-full animate-spin" />
-
-          <p className="mt-4 text-sm text-gray-600">
-            Đang tải menu...
-          </p>
+          <p className="mt-4 text-sm text-gray-600">Đang tải menu...</p>
         </div>
       </div>
     );
@@ -215,15 +184,8 @@ export function MenuQR() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-white border rounded-2xl p-6 text-center shadow-sm">
           <div className="text-4xl mb-3">⚠️</div>
-
-          <h1 className="text-xl font-bold text-gray-900">
-            Không thể mở menu
-          </h1>
-
-          <p className="mt-2 text-sm text-gray-500">
-            {loadError}
-          </p>
-
+          <h1 className="text-xl font-bold text-gray-900">Không thể mở menu</h1>
+          <p className="mt-2 text-sm text-gray-500">{loadError}</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -241,24 +203,10 @@ export function MenuQR() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-white border rounded-2xl p-6 text-center shadow-sm">
           <CheckCircle2 className="w-16 h-16 mx-auto text-green-600" />
-
-<<<<<<< HEAD
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">
-            Đã gửi order
-          </h1>
-=======
-                                
-                            </div>
->>>>>>> f7a13e753111d797f72a74829add5319dd0fb15d
-
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">Đã gửi order</h1>
           <p className="mt-2 text-gray-500">
-            Order của {tableDisplayName} đã được gửi đến quán.
+            Order của {tableDisplayName} đã được gửi đến nhân viên.
           </p>
-
-          <p className="mt-1 text-sm text-gray-400">
-            Nhân viên sẽ chuẩn bị món cho bạn.
-          </p>
-
           <button
             type="button"
             onClick={() => setSubmitted(false)}
@@ -273,13 +221,11 @@ export function MenuQR() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Header */}
       <header className="sticky top-0 z-20 border-b bg-white">
         <div className="max-w-md mx-auto px-4 py-4">
           <h1 className="text-xl font-bold text-center text-gray-900">
             Menu – {tableDisplayName}
           </h1>
-
           <p className="mt-1 text-xs text-center text-gray-500">
             Chọn món, kiểm tra order và nhấn “Xong”
           </p>
@@ -292,18 +238,12 @@ export function MenuQR() {
             <p className="font-medium text-gray-700">
               Hiện chưa có món nào khả dụng
             </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Vui lòng liên hệ nhân viên để được hỗ trợ.
-            </p>
           </div>
         ) : (
           <div className="space-y-3">
             {menuItems.map((item) => {
               const isOpen = openItemId === item.id;
-              const cartItem = cart.find(
-                (cartEntry) => cartEntry.id === item.id,
-              );
+              const cartItem = cart.find((entry) => entry.id === item.id);
 
               return (
                 <div
@@ -312,7 +252,7 @@ export function MenuQR() {
                 >
                   <button
                     type="button"
-                    onClick={() => openItem(item.id)}
+                    onClick={() => toggleItem(item.id)}
                     className="w-full p-4 text-left"
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -321,25 +261,18 @@ export function MenuQR() {
                           <h2 className="font-semibold text-gray-900">
                             {item.name}
                           </h2>
-
                           {cartItem && (
                             <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
                               {cartItem.quantity}
                             </span>
                           )}
                         </div>
-
-                        <p className="mt-1 text-xs text-gray-500">
-                          {item.category || 'Chưa phân loại'}
-                        </p>
-
                         {item.description && (
-                          <p className="mt-2 line-clamp-2 text-sm text-gray-500">
+                          <p className="mt-2 text-sm text-gray-500">
                             {item.description}
                           </p>
                         )}
                       </div>
-
                       <div className="whitespace-nowrap font-bold text-blue-600">
                         {Number(item.price).toLocaleString('vi-VN')} ₫
                       </div>
@@ -361,11 +294,9 @@ export function MenuQR() {
                         >
                           <Minus className="h-4 w-4" />
                         </button>
-
                         <span className="w-12 text-center text-xl font-bold">
                           {selectedQuantity}
                         </span>
-
                         <button
                           type="button"
                           onClick={() =>
@@ -377,11 +308,10 @@ export function MenuQR() {
                           <Plus className="h-4 w-4" />
                         </button>
                       </div>
-
                       <button
                         type="button"
                         onClick={() => addToCart(item)}
-                        className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white active:bg-blue-700"
+                        className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white"
                       >
                         Thêm {selectedQuantity} món
                       </button>
@@ -394,7 +324,6 @@ export function MenuQR() {
         )}
       </main>
 
-      {/* Thanh giỏ hàng dưới màn hình */}
       {cart.length > 0 && (
         <button
           type="button"
@@ -404,26 +333,18 @@ export function MenuQR() {
           <div className="max-w-md mx-auto flex items-center justify-between px-4 py-4">
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5" />
-
-              <span className="font-semibold">
-                {totalQuantity} món
-              </span>
+              <span className="font-semibold">{totalQuantity} món</span>
             </div>
-
             <div className="text-right">
               <div className="font-bold">
                 {totalPrice.toLocaleString('vi-VN')} ₫
               </div>
-
-              <div className="text-xs text-green-100">
-                Xem order
-              </div>
+              <div className="text-xs text-green-100">Xem order</div>
             </div>
           </div>
         </button>
       )}
 
-      {/* Popup giỏ hàng */}
       {showCart && (
         <div
           className="fixed inset-0 z-40 flex items-end bg-black/50"
@@ -438,12 +359,8 @@ export function MenuQR() {
                 <h2 className="text-lg font-bold text-gray-900">
                   Order của bạn
                 </h2>
-
-                <p className="text-xs text-gray-500">
-                  {tableDisplayName}
-                </p>
+                <p className="text-xs text-gray-500">{tableDisplayName}</p>
               </div>
-
               <button
                 type="button"
                 onClick={() => setShowCart(false)}
@@ -455,21 +372,16 @@ export function MenuQR() {
 
             <div className="space-y-3 p-4">
               {cart.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl border p-3"
-                >
+                <div key={item.id} className="rounded-xl border p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-gray-900">
                         {item.name}
                       </h3>
-
                       <p className="mt-1 text-sm text-gray-500">
                         {Number(item.price).toLocaleString('vi-VN')} ₫ / món
                       </p>
                     </div>
-
                     <button
                       type="button"
                       onClick={() => removeCartItem(item.id)}
@@ -490,11 +402,9 @@ export function MenuQR() {
                       >
                         <Minus className="h-4 w-4" />
                       </button>
-
                       <span className="w-8 text-center font-bold">
                         {item.quantity}
                       </span>
-
                       <button
                         type="button"
                         onClick={() => increaseCartItem(item.id)}
@@ -504,11 +414,10 @@ export function MenuQR() {
                         <Plus className="h-4 w-4" />
                       </button>
                     </div>
-
                     <div className="font-bold text-gray-900">
-                      {(
-                        Number(item.price) * item.quantity
-                      ).toLocaleString('vi-VN')}{' '}
+                      {(Number(item.price) * item.quantity).toLocaleString(
+                        'vi-VN',
+                      )}{' '}
                       ₫
                     </div>
                   </div>
@@ -519,27 +428,20 @@ export function MenuQR() {
             <div className="sticky bottom-0 border-t bg-white p-4">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">
-                    Tổng cộng
-                  </p>
-
-                  <p className="text-xs text-gray-400">
-                    {totalQuantity} món
-                  </p>
+                  <p className="text-sm text-gray-500">Tổng cộng</p>
+                  <p className="text-xs text-gray-400">{totalQuantity} món</p>
                 </div>
-
                 <div className="text-xl font-bold text-gray-900">
                   {totalPrice.toLocaleString('vi-VN')} ₫
                 </div>
               </div>
-
               <button
                 type="button"
                 onClick={submitOrder}
-                disabled={isSubmitting || cart.length === 0}
+                disabled={submitting || cart.length === 0}
                 className="w-full rounded-xl bg-green-600 px-4 py-3.5 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? 'Đang gửi order...' : 'Xong'}
+                {submitting ? 'Đang gửi order...' : 'Xong'}
               </button>
             </div>
           </div>

@@ -12,10 +12,10 @@ import restaurantRoutes from '../modules/restaurant/restaurant.routes.js';
 import billiardRoutes from '../modules/billiard/billiard.routes.js';
 import employeeRoutes from '../modules/employee/employee.routes.js';
 import paymentRoutes from '../modules/payment/payment.routes.js';
+import qrMenuRoutes from '../modules/qr-menu/qrMenu.routes.js';
 import '../modules/payment/payment.init.js';
 import { optionalAuth } from '../middlewares/auth.js';
 import { getDashboard } from '../controllers/dashboard.controller.js';
-import qrMenuRoutes from '../modules/qr-menu/qrMenu.routes.js';
 
 const router = Router();
 
@@ -40,8 +40,8 @@ router.use('/tables', tableRoutes);
 router.use('/', restaurantRoutes);
 router.use('/', billiardRoutes);
 router.use('/', paymentRoutes);
-router.use('/employees', employeeRoutes);
 router.use('/', qrMenuRoutes);
+router.use('/employees', employeeRoutes);
 
 // Legacy order routes kept for compatibility
 router.get('/orders', (_req, res) => res.redirect('/api/orders'));
