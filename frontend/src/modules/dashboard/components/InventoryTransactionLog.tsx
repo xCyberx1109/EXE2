@@ -4,6 +4,7 @@ import { useInventoryTransactions } from '../../../app/api/hooks';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { DataTable, type Column } from '../../../app/components/DataTable';
 import { SectionHeader } from './shared';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../../../app/components/ui/tooltip';
 import type { InventoryTransaction } from '../../../app/types';
 import { getUnitLabel } from '../../../shared/constants';
 
@@ -94,8 +95,17 @@ export function InventoryTransactionLog() {
     {
       key: 'note',
       header: 'Lý do',
-      className: 'text-muted-foreground max-w-[180px] truncate hidden sm:table-cell',
-      render: (tx) => <>{tx.note || '—'}</>,
+      className: 'text-muted-foreground max-w-[100px] hidden sm:table-cell',
+      render: (tx) => (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="block truncate cursor-default">{tx.note || '—'}</span>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="start">
+            <p className="max-w-[240px] break-words">{tx.note || '—'}</p>
+          </TooltipContent>
+        </Tooltip>
+      ),
     },
     {
       key: 'user',
