@@ -16,8 +16,23 @@ import type {
   InventoryIssue,
   Employee, EmployeeFormData, EmployeeCreateResponse, EmployeeLogsResponse, EmployeeLoginResponse,
   BranchBankAccount,
+  PermissionTemplatesResponse,
   PaginatedResponse,
 } from '../types';
+
+function buildQueryString(params?: Record<string, unknown>): string {
+  if (!params) return '';
+
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      query.set(key, String(value));
+    }
+  }
+
+  const result = query.toString();
+  return result ? `?${result}` : '';
+}
 
 // Payload used by menu create/update. Recipe rows are persisted to MenuItemIngredient.
 export type MenuItemPayload = Partial<Omit<MenuItem, 'ingredients'>> & {
@@ -127,6 +142,49 @@ export const menuApi = {
   delete: (id: string) =>
     apiFetch<null>(`/menu-items/${id}`, { method: 'DELETE' }),
 };
+
+// --- QR gọi món theo bàn ---
+export const qrMenuApi = {
+  listTableLinks: () =>
+    apiFetch<Array<{
+      tableId: string;
+      tableCode: string;
+      tableName: string | null;
+      token: string;
+    }>>('/qr-menu/tables'),
+
+  resolve: (token: string) =>
+    apiFetch<{
+      table: {
+        id: string;
+        tableCode: string;
+        tableName: string | null;
+        capacity: number;
+      };
+      menuItems: MenuItem[];
+    }>(`/qr-menu/public?t=${encodeURIComponent(token)}`, { auth: false }),
+
+  submit: (
+    token: string,
+    body: {
+      guestCount?: number;
+      items: Array<{ menuItemId: string; quantity: number }>;
+    },
+  ) =>
+    apiFetch<{
+      table: {
+        id: string;
+        tableCode: string;
+        tableName: string | null;
+      };
+      order: unknown;
+    }>(`/qr-menu/public/order?t=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      auth: false,
+    }),
+};
+
 
 // --- Inventory ---
 export const inventoryApi = {
@@ -298,9 +356,7 @@ export const inviteApi = {
 // --- Tables ---
 export const tableApi = {
   list: (params?: { page?: number; limit?: number }) => {
-    const q = params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null))
-    ).toString() : '';
+    const q = buildQueryString(params);
     return apiFetch<PaginatedResponse<TableItem> | TableItem[]>(`/tables${q}`);
   },
 
@@ -727,9 +783,7 @@ export const restaurantApi = {
 // ======== Employee API ========
 export const employeeApi = {
   list: (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
-    const q = params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null && v !== ''))
-    ).toString() : '';
+    const q = buildQueryString(params);
     return apiFetch<PaginatedResponse<Employee>>(`/employees${q}`);
   },
 
@@ -757,9 +811,7 @@ export const employeeApi = {
     apiFetch<null>(`/employees/${id}`, { method: 'DELETE' }),
 
   logs: (id: string, params?: { page?: number; limit?: number; action?: string; module?: string; startDate?: string; endDate?: string }) => {
-    const query = params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null && v !== ''))
-    ).toString() : '';
+    const query = buildQueryString(params);
     return apiFetch<EmployeeLogsResponse>(`/employees/${id}/logs${query}`);
   },
 
