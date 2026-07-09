@@ -144,14 +144,36 @@ export const menuApi = {
 };
 
 // --- QR gọi món theo bàn ---
+export type QrOrderItem = {
+  id: string;
+  menuItemId: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type QrCurrentOrder = {
+  id: string;
+  orderNumber: string;
+  status: string;
+  paymentStatus?: string;
+  items: QrOrderItem[];
+  foodTotal: number;
+  grandTotal: number;
+  guestCount?: number;
+};
+
 export const qrMenuApi = {
   listTableLinks: () =>
-    apiFetch<Array<{
-      tableId: string;
-      tableCode: string;
-      tableName: string | null;
-      token: string;
-    }>>('/qr-menu/tables'),
+    apiFetch<
+      Array<{
+        tableId: string;
+        tableCode: string;
+        tableName: string | null;
+        token: string;
+      }>
+    >('/qr-menu/tables'),
 
   resolve: (token: string) =>
     apiFetch<{
@@ -162,13 +184,19 @@ export const qrMenuApi = {
         capacity: number;
       };
       menuItems: MenuItem[];
-    }>(`/qr-menu/public?t=${encodeURIComponent(token)}`, { auth: false }),
+      currentOrder: QrCurrentOrder | null;
+    }>(`/qr-menu/public?t=${encodeURIComponent(token)}`, {
+      auth: false,
+    }),
 
   submit: (
     token: string,
     body: {
       guestCount?: number;
-      items: Array<{ menuItemId: string; quantity: number }>;
+      items: Array<{
+        menuItemId: string;
+        quantity: number;
+      }>;
     },
   ) =>
     apiFetch<{
@@ -177,7 +205,7 @@ export const qrMenuApi = {
         tableCode: string;
         tableName: string | null;
       };
-      order: unknown;
+      order: QrCurrentOrder;
     }>(`/qr-menu/public/order?t=${encodeURIComponent(token)}`, {
       method: 'POST',
       body: JSON.stringify(body),

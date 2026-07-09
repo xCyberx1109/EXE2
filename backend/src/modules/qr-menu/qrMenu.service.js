@@ -93,9 +93,11 @@ export const qrMenuService = {
   },
 
   async resolvePublicMenu(token) {
-    const table = await getTableByToken(token);
+  const table = await getTableByToken(token);
+  const context = publicContext(table);
 
-    const menuItems = await prisma.menuItem.findMany({
+  const [menuItems, currentOrder] = await Promise.all([
+    prisma.menuItem.findMany({
       where: {
         accountId: table.accountId,
         available: true,
@@ -110,24 +112,33 @@ export const qrMenuService = {
         available: true,
         imageUrl: true,
       },
-      orderBy: { name: 'asc' },
-    });
-
-    return {
-      table: {
-        id: table.id,
-        tableCode: table.tableCode,
-        tableName: table.tableName,
-        capacity: table.capacity,
+      orderBy: {
+        name: 'asc',
       },
-      menuItems: menuItems.map((item) => ({
-        ...item,
-        price: Number(item.price),
-        cost: Number(item.cost),
-        description: item.description || '',
-      })),
-    };
-  },
+    }),
+
+    restaurantService.getTableOrder(table.id, context),
+  ]);
+
+  return {
+    table: {
+      id: table.id,
+      tableCode: table.tableCode,
+      tableName: table.tableName,
+      capacity: table.capacity,
+    },
+
+    menuItems: menuItems.map((item) => ({
+      ...item,
+      price: Number(item.price),
+      cost: Number(item.cost),
+      description: item.description || '',
+    })),
+
+
+    currentOrder,
+  };
+},
 
   async submitPublicOrder(token, body) {
     const table = await getTableByToken(token);

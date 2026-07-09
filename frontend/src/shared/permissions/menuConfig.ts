@@ -21,12 +21,6 @@ export const APP_MENU: AppMenuGroup[] = [
       icon: 'LayoutDashboard',
       requiredPermission: 'DASHBOARD_VIEW',
     },
-    {
-      name: 'QR bàn',
-      href: '/app/qr-table-print',
-      icon: 'QrCode',
-      requiredPermission: 'RESTAURANT_TABLE_VIEW',
-    },
   ],
 },
   {
