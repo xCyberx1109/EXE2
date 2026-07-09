@@ -195,6 +195,9 @@ export const orderService = {
     } else {
       if (paymentStatus) where.paymentStatus = String(paymentStatus).toUpperCase();
       where.status = statusFilter || { in: ['PENDING', 'PENDING_PAYMENT', 'PREPARING'] };
+      if (!paymentStatus && !statusFilter) {
+        where.paymentStatus = { not: 'PAID' };
+      }
     }
 
     if (!user) return [];
@@ -215,6 +218,7 @@ export const orderService = {
       ];
     }
     const orders = await orderRepository.findManyLight(where);
+    console.log('[ORDER QUEUE LIST]', { where: { ...where, OR: where.OR ? '(search)' : undefined }, count: orders.length, orderIds: orders.map(o => o.id) });
     return orders.map(mapPosOrder);
   },
 

@@ -42,11 +42,36 @@ function mapEmployee(emp) {
   };
 }
 
-async function setEmployeePermissions(employeeId, permissionIds) {
+const RESTAURANT_PAY_AUTO_GRANT = ['RESTAURANT_PAY_VIEW', 'RESTAURANT_PAY_PROCESS'];
+
+export async function setEmployeePermissions(employeeId, permissionIds) {
+  let ids = [...(permissionIds || [])];
+
+  if (ids.length > 0) {
+    const perms = await prisma.permission.findMany({
+      where: {
+        OR: [
+          { id: { in: ids } },
+          { code: { in: RESTAURANT_PAY_AUTO_GRANT } },
+        ],
+      },
+      select: { id: true, code: true },
+    });
+
+    const selectedCodes = new Set(perms.filter(p => ids.includes(p.id)).map(p => p.code));
+    if (selectedCodes.has('POS_ORDER_QUEUE_PAY')) {
+      for (const p of perms) {
+        if (RESTAURANT_PAY_AUTO_GRANT.includes(p.code) && !ids.includes(p.id)) {
+          ids.push(p.id);
+        }
+      }
+    }
+  }
+
   await prisma.employeePermission.deleteMany({ where: { employeeId } });
-  if (permissionIds && permissionIds.length > 0) {
+  if (ids.length > 0) {
     await prisma.employeePermission.createMany({
-      data: permissionIds.map(permissionId => ({
+      data: ids.map(permissionId => ({
         employeeId,
         permissionId,
       })),
@@ -55,28 +80,22 @@ async function setEmployeePermissions(employeeId, permissionIds) {
 }
 
 export const employeeService = {
-  async loginByPin(pinCode) {
-    const employees = await prisma.employee.findMany({
-      where: { status: 'ACTIVE', deletedAt: null },
+  async loginByPin(employeeCode, pinCode) {
+    const emp = await prisma.employee.findFirst({
+      where: { employeeCode, status: 'ACTIVE', deletedAt: null },
       include: {
         permissions: { include: { permission: true } },
       },
     });
 
-    let matchedEmp = null;
-    for (const emp of employees) {
-      const valid = await bcrypt.compare(pinCode, emp.pinCode);
-      if (valid) {
-        matchedEmp = emp;
-        break;
-      }
-    }
+    if (!emp) throw new AppError('Mã nhân viên hoặc PIN không đúng', 401);
 
-    if (!matchedEmp) throw new AppError('Mã PIN không đúng', 401);
+    const valid = await bcrypt.compare(pinCode, emp.pinCode);
+    if (!valid) throw new AppError('Mã nhân viên hoặc PIN không đúng', 401);
 
-    const permissionCodes = (matchedEmp.permissions || []).map(ep => ep.permission.code);
+    const permissionCodes = (emp.permissions || []).map(ep => ep.permission.code);
     return {
-      employee: mapEmployee(matchedEmp),
+      employee: mapEmployee(emp),
       permissions: permissionCodes,
     };
   },

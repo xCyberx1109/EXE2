@@ -187,13 +187,13 @@ export const inventoryService = {
   },
 
   /** Nhập kho */
-  async stockIn(ingredientId, { quantity, note }, user) {
-    return applyTransaction(ingredientId, 'IN', quantity, note, user);
+  async stockIn(ingredientId, { quantity, note }, user, employeeId = null) {
+    return applyTransaction(ingredientId, 'IN', quantity, note, user, employeeId);
   },
 
   /** Xuất kho */
-  async stockOut(ingredientId, { quantity, note }, user) {
-    return applyTransaction(ingredientId, 'OUT', quantity, note, user);
+  async stockOut(ingredientId, { quantity, note }, user, employeeId = null) {
+    return applyTransaction(ingredientId, 'OUT', quantity, note, user, employeeId);
   },
 
   async getTransactionHistory(ingredientId, user) {
@@ -246,11 +246,9 @@ export const inventoryService = {
   },
 
   /** Nhập kho nhiều nguyên liệu (bulk) */
-  async bulkImport({ items, reason }, user) {
+  async bulkImport({ items, reason }, user, employeeId = null) {
     const accountId = user?.accountId || user?.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 401);
-
-    const employeeId = user?.employeeId || null;
 
     const result = await prisma.$transaction(async (tx) => {
       const results = [];
@@ -281,6 +279,7 @@ export const inventoryService = {
             afterQuantity: newQty,
             note: reason || null,
             createdBy: user?.accountId || user?.id || 'system',
+            employeeId,
           },
           include: {
             ingredient: { select: { id: true, name: true, unit: true } },
@@ -305,11 +304,9 @@ export const inventoryService = {
   },
 
   /** Xuất kho nhiều nguyên liệu (bulk) */
-  async bulkExport({ items, reason }, user) {
+  async bulkExport({ items, reason }, user, employeeId = null) {
     const accountId = user?.accountId || user?.id;
     if (!accountId) throw new AppError('Không xác định được tài khoản', 401);
-
-    const employeeId = user?.employeeId || null;
 
     const result = await prisma.$transaction(async (tx) => {
       const results = [];
@@ -345,6 +342,7 @@ export const inventoryService = {
             afterQuantity: newQty,
             note: reason || null,
             createdBy: user?.accountId || user?.id || 'system',
+            employeeId,
           },
           include: {
             ingredient: { select: { id: true, name: true, unit: true } },
@@ -369,7 +367,7 @@ export const inventoryService = {
   },
 };
 
-async function applyTransaction(ingredientId, type, quantity, note, user) {
+async function applyTransaction(ingredientId, type, quantity, note, user, employeeId = null) {
   const ingredient = await ingredientRepository.findById(ingredientId);
   if (!ingredient) throw new AppError('Không tìm thấy nguyên liệu', 404);
 
@@ -398,6 +396,7 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
     afterQuantity: newQty,
     note,
     createdBy: user?.accountId || user?.id || 'system',
+    employeeId,
   };
   const [updated, transaction] = await prisma.$transaction([
     prisma.ingredient.update({
@@ -409,6 +408,7 @@ async function applyTransaction(ingredientId, type, quantity, note, user) {
       include: {
         ingredient: true,
         account: { select: { id: true, fullName: true } },
+        employee: { select: { id: true, employeeCode: true, fullName: true } },
       },
     }),
   ]);

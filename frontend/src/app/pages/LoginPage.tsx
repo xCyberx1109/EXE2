@@ -139,10 +139,10 @@ export function LoginPage() {
               className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 text-white px-2 py-1.5 rounded-md text-xs font-medium hover:bg-emerald-700 transition-colors"
             >
               <Smartphone className="size-3.5" />
-              Đăng nhập POS bằng mã PIN
+              Đăng nhập POS bằng mã nhân viên
             </Link>
             <p className="text-xs text-center text-muted-foreground mt-3">
-              Dành cho thiết bị POS đã được quản lý cấp mã PIN
+              Dành cho thiết bị POS đã được quản lý cấp mã nhân viên
             </p>
           </div>
         </div>

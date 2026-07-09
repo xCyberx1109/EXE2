@@ -7,8 +7,9 @@ import { Loader2, Smartphone, CheckCircle2 } from 'lucide-react';
 export function PosMachineLoginPage() {
   const { employeeLoginByPin, isAuthenticated, isReady, isEmployeeMode, employee } = useAuth();
   const navigate = useNavigate();
-  const pinInputRef = useRef<HTMLInputElement>(null);
+  const employeeCodeRef = useRef<HTMLInputElement>(null);
 
+  const [employeeCode, setEmployeeCode] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,19 +28,20 @@ export function PosMachineLoginPage() {
   }, [isReady, isAuthenticated, isEmployeeMode, success, navigate]);
 
   useEffect(() => {
-    if (pinInputRef.current) pinInputRef.current.focus();
+    if (employeeCodeRef.current) employeeCodeRef.current.focus();
   }, []);
 
   const handleLogin = async () => {
     setError('');
+    if (!employeeCode.trim()) { setError('Vui lòng nhập mã nhân viên'); return; }
     if (pinCode.length !== 6) { setError('Mã PIN phải có 6 chữ số'); return; }
 
     setLoading(true);
     try {
-      await employeeLoginByPin(pinCode);
+      await employeeLoginByPin(employeeCode.trim(), pinCode);
       setSuccess(true);
     } catch (err: any) {
-      setError(err?.message || 'Mã PIN không hợp lệ');
+      setError(err?.message || 'Mã nhân viên hoặc PIN không hợp lệ');
       setPinCode('');
     } finally {
       setLoading(false);
@@ -64,14 +66,28 @@ export function PosMachineLoginPage() {
                 <Smartphone className="w-7 h-7 text-white" />
               </div>
               <h1 className="text-lg font-bold text-foreground">Đăng nhập nhân viên</h1>
-              <p className="text-xs text-muted-foreground mt-1">Nhập mã PIN để tiếp tục</p>
+              <p className="text-xs text-muted-foreground mt-1">Nhập mã nhân viên và PIN để tiếp tục</p>
             </div>
 
             <div className="space-y-1.5">
               <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Mã nhân viên</label>
+                <input
+                  ref={employeeCodeRef}
+                  type="text"
+                  placeholder="Ví dụ: EMP-001"
+                  value={employeeCode}
+                  onChange={(e) => setEmployeeCode(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+                  className="w-full px-3 py-2.5 border border-input rounded-md text-xs font-mono bg-input-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:bg-muted"
+                  disabled={loading}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-foreground mb-1">Mã PIN</label>
                 <input
-                  ref={pinInputRef}
                   type="password"
                   placeholder="6 chữ số"
                   value={pinCode}
@@ -91,7 +107,7 @@ export function PosMachineLoginPage() {
 
               <button
                 onClick={handleLogin}
-                disabled={loading || pinCode.length !== 6}
+                disabled={loading || !employeeCode.trim() || pinCode.length !== 6}
                 className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 text-white px-2 py-1.5 rounded-md text-xs font-medium hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? (

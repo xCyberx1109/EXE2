@@ -102,19 +102,19 @@ export const posMachineApi = {
       body: JSON.stringify({ permissions: permissionIds }),
     }),
 
-  /** Official POS Machine login — requires machineId and pinCode */
-  login: (pinCode: string, machineId?: string) =>
+  /** Official POS Machine login — requires employeeCode, pinCode, and optional machineId */
+  login: (employeeCode: string, pinCode: string, machineId?: string) =>
     apiFetch<PosMachineLoginResponse>('/pos-machine/login', {
       method: 'POST',
-      body: JSON.stringify({ pinCode, machineId }),
+      body: JSON.stringify({ employeeCode, pinCode, machineId }),
       auth: false,
     }),
 
-  /** PIN-only login — no machine selection needed */
-  loginByPin: (pinCode: string) =>
+  /** Employee Code + PIN login — no machine selection needed */
+  loginByPin: (employeeCode: string, pinCode: string) =>
     apiFetch<LoginByPinResult>('/pos-machine/login-by-pin', {
       method: 'POST',
-      body: JSON.stringify({ pinCode }),
+      body: JSON.stringify({ employeeCode, pinCode }),
       auth: false,
     }),
 };

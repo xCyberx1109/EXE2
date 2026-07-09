@@ -215,10 +215,14 @@ export interface DashboardData {
 export interface DashboardKpi {
   todayRevenue: number;
   todayRevenueTrend: number;
+  todayCost: number;
+  todayCostTrend: number;
   todayProfit: number;
   todayProfitTrend: number;
   todayOrders: number;
   todayOrdersTrend: number;
+  todayAvgOrderValue: number;
+  todayAvgOrderValueTrend: number;
   activeMenuItems: number;
   lowInventoryAlerts: number;
 }
@@ -226,6 +230,7 @@ export interface DashboardKpi {
 export interface RevenueChartPoint {
   date: string;
   revenue: number;
+  cost: number;
   profit: number;
   orderCount: number;
 }
@@ -235,6 +240,9 @@ export interface DashboardTopItem {
   name: string;
   soldQuantity: number;
   revenue: number;
+  cost?: number;
+  profit?: number;
+  profitMargin?: number;
 }
 
 export interface DashboardLowStockItem {
@@ -266,6 +274,7 @@ export interface DashboardQuickStats {
 export interface DashboardDataV2 {
   kpi: DashboardKpi;
   revenueChart: RevenueChartPoint[];
+  chartType: 'hourly' | 'daily';
   orderStatus: Record<string, number>;
   topItems: DashboardTopItem[];
   lowStockItems: DashboardLowStockItem[];
@@ -298,6 +307,7 @@ export interface InventoryTransaction {
   referenceId: string | null;
   createdAt: string;
   user: { id: string; fullName: string } | null;
+  employee: { id: string; employeeCode: string; fullName: string } | null;
 }
 
 export interface InventoryStats {

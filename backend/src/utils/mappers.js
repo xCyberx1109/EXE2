@@ -48,6 +48,7 @@ export const mapInventoryTransaction = (tx) => ({
   referenceId: tx.referenceId,
   createdAt: tx.createdAt,
   user: tx.account ? { id: tx.account.id, fullName: tx.account.fullName } : null,
+  employee: tx.employee ? { id: tx.employee.id, employeeCode: tx.employee.employeeCode, fullName: tx.employee.fullName } : null,
 });
 
 export const mapAdjustmentRequest = (req) => ({

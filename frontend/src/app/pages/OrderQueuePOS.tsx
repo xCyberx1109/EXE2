@@ -237,7 +237,7 @@ export function OrderQueuePOS() {
 
   const sortedOpenOrders = useMemo(() => {
     return [...orders]
-      .filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)))
+      .filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)) && normalizeStatus(order.paymentStatus) !== 'PAID')
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders]);
 
@@ -273,7 +273,7 @@ export function OrderQueuePOS() {
     ordersQueueApi
       .list()
       .then(data => {
-        const openOrders = (Array.isArray(data) ? data : []).filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)));
+        const openOrders = (Array.isArray(data) ? data : []).filter(order => OPEN_STATUSES.includes(normalizeStatus(order.status)) && normalizeStatus(order.paymentStatus) !== 'PAID');
         const sorted = [...openOrders].sort(
           (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );

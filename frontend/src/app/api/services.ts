@@ -855,10 +855,10 @@ export const employeeApi = {
       body: JSON.stringify({ permissionIds }),
     }),
 
-  loginByPin: (pinCode: string) =>
+  loginByPin: (employeeCode: string, pinCode: string) =>
     apiFetch<EmployeeLoginResponse>('/employees/login-by-pin', {
       method: 'POST',
-      body: JSON.stringify({ pinCode }),
+      body: JSON.stringify({ employeeCode, pinCode }),
       auth: false,
     }),
 };

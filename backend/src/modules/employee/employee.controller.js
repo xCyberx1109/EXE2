@@ -1,5 +1,5 @@
 import prisma from '../../prisma/client.js';
-import { employeeService } from './employee.service.js';
+import { employeeService, setEmployeePermissions } from './employee.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
 import { AppError } from '../../utils/AppError.js';
@@ -81,12 +81,7 @@ export const updateEmployeePermissions = asyncHandler(async (req, res) => {
   });
   if (!emp) throw new AppError('Không tìm thấy nhân viên', 404);
 
-  await prisma.employeePermission.deleteMany({ where: { employeeId: emp.id } });
-  if (permissionIds && permissionIds.length > 0) {
-    await prisma.employeePermission.createMany({
-      data: permissionIds.map(pid => ({ employeeId: emp.id, permissionId: pid })),
-    });
-  }
+  await setEmployeePermissions(emp.id, permissionIds);
   sendSuccess(res, { message: 'Cập nhật quyền thành công' });
 });
 
@@ -100,12 +95,15 @@ export const getPermissionTemplates = asyncHandler(async (_req, res) => {
 });
 
 export const loginByPin = asyncHandler(async (req, res) => {
-  const { pinCode } = req.body;
+  const { employeeCode, pinCode } = req.body;
+  if (!employeeCode || !employeeCode.trim()) {
+    throw new AppError('Mã nhân viên là bắt buộc', 400);
+  }
   if (!pinCode || !/^\d{6}$/.test(pinCode)) {
     throw new AppError('Mã PIN phải có 6 chữ số', 400);
   }
 
-  const { employee, permissions } = await employeeService.loginByPin(pinCode);
+  const { employee, permissions } = await employeeService.loginByPin(employeeCode.trim(), pinCode);
   await employeeService.updateLastLogin(employee.id);
 
   const token = jwt.sign(

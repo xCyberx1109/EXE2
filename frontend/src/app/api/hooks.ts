@@ -531,8 +531,13 @@ export function useUpdateOrderQueueMutation() {
         }
       }
     },
-    onSettled: () => {
+    onSettled: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
+      if (variables?.status === 'COMPLETED') {
+        queryClient.invalidateQueries({ queryKey: ['orders', 'daily'] });
+        queryClient.invalidateQueries({ queryKey: ['orders', 'history'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      }
     },
   });
 }
