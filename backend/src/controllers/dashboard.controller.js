@@ -25,6 +25,37 @@ function vietnamMidnight(date) {
   return new Date(vietnamMidnight.getTime() - VIETNAM_TZ_OFFSET_MS);
 }
 
+function getDateRange(chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo) {
+  switch (chartRange) {
+    case 'today':
+      return { startDate: todayStart, prevDays: 1 };
+    case '7days':
+      return { startDate: sevenDaysAgo, prevDays: 7 };
+    case '30days':
+      return { startDate: thirtyDaysAgo, prevDays: 30 };
+    default:
+      return { startDate: sevenDaysAgo, prevDays: 7 };
+  }
+}
+
+function buildDateWhere(startDate) {
+  return {
+    OR: [
+      { completedAt: { gte: startDate } },
+      { completedAt: null, createdAt: { gte: startDate } },
+    ],
+  };
+}
+
+function buildDateRangeWhere(startDate, endDate) {
+  return {
+    OR: [
+      { completedAt: { gte: startDate, lt: endDate } },
+      { completedAt: null, createdAt: { gte: startDate, lt: endDate } },
+    ],
+  };
+}
+
 export const getDashboard = asyncHandler(async (req, res) => {
   const ctx = getContext(req);
 
@@ -43,47 +74,42 @@ export const getDashboard = asyncHandler(async (req, res) => {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const twelveMonthsAgo = new Date(new Date(todayStart).setMonth(todayStart.getMonth() - 12));
 
-  const [
-    todayAgg,
-    yesterdayAgg,
-    statusCounts,
-    topItemsData,
-    lowStockData,
-    menuCount,
-    activityData,
-    quickStatsAgg,
-  ] = await Promise.all([
+  const { startDate, prevDays } = getDateRange(chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo);
+  const prevStartDate = new Date(startDate);
+  prevStartDate.setDate(prevStartDate.getDate() - prevDays);
+
+  const [rangeAgg, prevRangeAgg, statusCounts, topItemsData, lowStockData, menuCount, activityData, quickStatsAgg] = await Promise.all([
     prisma.order.aggregate({
-      where: { status: 'COMPLETED', completedAt: { gte: todayStart }, ...orderWhere },
+      where: { status: 'COMPLETED', ...buildDateWhere(startDate), ...orderWhere },
       _sum: { total: true, cost: true },
       _count: { id: true },
     }),
     prisma.order.aggregate({
-      where: { status: 'COMPLETED', completedAt: { gte: yesterdayStart, lt: todayStart }, ...orderWhere },
+      where: { status: 'COMPLETED', ...buildDateRangeWhere(prevStartDate, startDate), ...orderWhere },
       _sum: { total: true, cost: true },
       _count: { id: true },
     }),
     prisma.order.groupBy({
       by: ['status'],
-      where: { ...orderWhere },
+      where: { ...buildDateWhere(startDate), ...orderWhere },
       _count: { id: true },
     }),
-    getTopSellingItems(ctx, orderWhere),
+    getTopSellingItems(ctx, orderWhere, startDate),
     getLowStockItems(accountWhere),
     prisma.menuItem.count({ where: { available: true, deletedAt: null, ...accountWhere } }),
     getRecentActivities(accountWhere),
     getQuickStats(orderWhere, thirtyDaysAgo),
   ]);
 
-  const todayOrders = todayAgg._count.id;
-  const todayTotal = Number(todayAgg._sum.total || 0);
-  const todayCost = Number(todayAgg._sum.cost || 0);
-  const todayProfit = todayTotal - todayCost;
+  const rangeOrders = rangeAgg._count.id;
+  const rangeTotal = Number(rangeAgg._sum.total || 0);
+  const rangeCost = Number(rangeAgg._sum.cost || 0);
+  const rangeProfit = rangeTotal - rangeCost;
 
-  const yesterdayTotal = Number(yesterdayAgg._sum.total || 0);
-  const yesterdayCost = Number(yesterdayAgg._sum.cost || 0);
-  const yesterdayProfit = yesterdayTotal - yesterdayCost;
-  const yesterdayOrders = yesterdayAgg._count.id;
+  const prevTotal = Number(prevRangeAgg._sum.total || 0);
+  const prevCost = Number(prevRangeAgg._sum.cost || 0);
+  const prevProfit = prevTotal - prevCost;
+  const prevOrders = prevRangeAgg._count.id;
 
   const calcTrend = (curr, prev) =>
     prev > 0 ? Math.round(((curr - prev) / prev) * 1000) / 10 : (curr > 0 ? 100 : 0);
@@ -93,22 +119,31 @@ export const getDashboard = asyncHandler(async (req, res) => {
     statusMap[s.status] = s._count.id;
   }
 
+  const chartType = chartRange === 'today' ? 'hourly' : 'daily';
   const revenueChart = await getRevenueChartData(orderWhere, chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo, twelveMonthsAgo);
 
   const responseData = {
     message: 'Lấy dữ liệu dashboard thành công',
     data: {
       kpi: {
-        todayRevenue: todayTotal,
-        todayRevenueTrend: calcTrend(todayTotal, yesterdayTotal),
-        todayProfit: todayProfit,
-        todayProfitTrend: calcTrend(todayProfit, yesterdayProfit),
-        todayOrders: todayOrders,
-        todayOrdersTrend: calcTrend(todayOrders, yesterdayOrders),
+        todayRevenue: rangeTotal,
+        todayRevenueTrend: calcTrend(rangeTotal, prevTotal),
+        todayProfit: rangeProfit,
+        todayProfitTrend: calcTrend(rangeProfit, prevProfit),
+        todayOrders: rangeOrders,
+        todayOrdersTrend: calcTrend(rangeOrders, prevOrders),
+        todayCost: rangeCost,
+        todayCostTrend: calcTrend(rangeCost, prevCost),
+        todayAvgOrderValue: rangeOrders > 0 ? Math.round(rangeTotal / rangeOrders) : 0,
+        todayAvgOrderValueTrend: calcTrend(
+          rangeOrders > 0 ? Math.round(rangeTotal / rangeOrders) : 0,
+          prevOrders > 0 ? Math.round(prevTotal / prevOrders) : 0
+        ),
         activeMenuItems: menuCount,
         lowInventoryAlerts: lowStockData.length,
       },
       revenueChart,
+      chartType,
       orderStatus: statusMap,
       topItems: topItemsData,
       lowStockItems: lowStockData,
@@ -120,27 +155,67 @@ export const getDashboard = asyncHandler(async (req, res) => {
   sendSuccess(res, responseData);
 });
 
-async function getRevenueChartData(orderWhere, range, _todayStart, sevenDaysAgo, thirtyDaysAgo, twelveMonthsAgo) {
+async function getRevenueChartData(orderWhere, range, todayStart, sevenDaysAgo, thirtyDaysAgo, twelveMonthsAgo) {
   let startDate;
-  if (range === '30days') startDate = thirtyDaysAgo;
-  else if (range === '12months') startDate = twelveMonthsAgo;
-  else startDate = sevenDaysAgo;
+  let endDate;
+  if (range === 'today') {
+    startDate = todayStart;
+    endDate = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  } else if (range === '30days') {
+    startDate = thirtyDaysAgo;
+  } else if (range === '12months') {
+    startDate = twelveMonthsAgo;
+  } else {
+    startDate = sevenDaysAgo;
+  }
+
+  const dateFilter = endDate
+    ? { completedAt: { gte: startDate, lt: endDate } }
+    : { completedAt: { gte: startDate } };
 
   const orders = await prisma.order.findMany({
-    where: { status: 'COMPLETED', completedAt: { gte: startDate }, ...orderWhere },
+    where: {
+      status: 'COMPLETED',
+      OR: [
+        dateFilter,
+        { completedAt: null, createdAt: dateFilter.completedAt },
+      ],
+      ...orderWhere,
+    },
     select: { total: true, cost: true, completedAt: true, createdAt: true },
     orderBy: { completedAt: 'asc' },
-    take: 5000,
+    take: range === 'today' ? 5000 : 5000,
   });
+
+  if (range === 'today') {
+    const byHour = {};
+    for (const order of orders) {
+      const d = order.completedAt || order.createdAt;
+      const vn = new Date(d.getTime() + VIETNAM_TZ_OFFSET_MS);
+      const hour = String(vn.getUTCHours()).padStart(2, '0');
+      const key = `${hour}:00`;
+      if (!byHour[key]) byHour[key] = { date: key, revenue: 0, profit: 0, orderCount: 0 };
+      byHour[key].revenue += Number(order.total);
+      byHour[key].profit += Number(order.total) - Number(order.cost);
+      byHour[key].orderCount += 1;
+    }
+    const result = [];
+    for (let h = 0; h < 24; h++) {
+      const key = `${String(h).padStart(2, '0')}:00`;
+      result.push(byHour[key] || { date: key, revenue: 0, profit: 0, orderCount: 0 });
+    }
+    return result;
+  }
 
   const byDate = {};
   for (const order of orders) {
     const d = order.completedAt || order.createdAt;
+    const vn = new Date(d.getTime() + VIETNAM_TZ_OFFSET_MS);
     let key;
     if (range === '12months') {
-      key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      key = `${vn.getUTCFullYear()}-${String(vn.getUTCMonth() + 1).padStart(2, '0')}`;
     } else {
-      key = d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0];
+      key = `${vn.getUTCFullYear()}-${String(vn.getUTCMonth() + 1).padStart(2, '0')}-${String(vn.getUTCDate()).padStart(2, '0')}`;
     }
     if (!byDate[key]) byDate[key] = { date: key, revenue: 0, profit: 0, orderCount: 0 };
     byDate[key].revenue += Number(order.total);
@@ -150,11 +225,14 @@ async function getRevenueChartData(orderWhere, range, _todayStart, sevenDaysAgo,
   return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-async function getTopSellingItems(ctx, orderWhere) {
+async function getTopSellingItems(ctx, orderWhere, startDate) {
   const accountId = orderWhere.accountId;
+  const orderFilter = startDate
+    ? { completedAt: { gte: startDate } }
+    : {};
 
   // MenuItem-based top selling
-  const menuItemWhere = { menuItemId: { not: { equals: null } }, order: { status: 'COMPLETED', accountId } };
+  const menuItemWhere = { menuItemId: { not: { equals: null } }, order: { status: 'COMPLETED', accountId, ...orderFilter } };
   const menuItemGrouped = await prisma.orderItem.groupBy({
     by: ['menuItemId'],
     where: { ...menuItemWhere, menuItemId: { not: { equals: null } } },
@@ -164,7 +242,7 @@ async function getTopSellingItems(ctx, orderWhere) {
   });
 
   // Direct inventory top selling (items with inventoryId and no menuItemId)
-  const inventoryWhere = { inventoryId: { not: { equals: null } }, menuItemId: null, order: { status: 'COMPLETED', accountId } };
+  const inventoryWhere = { inventoryId: { not: { equals: null } }, menuItemId: null, order: { status: 'COMPLETED', accountId, ...orderFilter } };
   const inventoryGrouped = await prisma.orderItem.groupBy({
     by: ['inventoryId'],
     where: inventoryWhere,
@@ -183,24 +261,31 @@ async function getTopSellingItems(ctx, orderWhere) {
         select: { id: true, name: true },
       }),
       prisma.orderItem.findMany({
-        where: { menuItemId: { in: ids }, order: { status: 'COMPLETED', accountId } },
-        select: { menuItemId: true, price: true, quantity: true },
+        where: { menuItemId: { in: ids }, order: { status: 'COMPLETED', accountId, ...orderFilter } },
+        select: { menuItemId: true, price: true, cost: true, quantity: true },
       }),
     ]);
     const menuMap = Object.fromEntries(menuItems.map(m => [m.id, m]));
 
     const revenueMap = {};
+    const costMap = {};
     for (const item of orderItems) {
       if (!item.menuItemId) continue;
       revenueMap[item.menuItemId] = (revenueMap[item.menuItemId] || 0) + Number(item.price) * item.quantity;
+      costMap[item.menuItemId] = (costMap[item.menuItemId] || 0) + Number(item.cost) * item.quantity;
     }
 
     for (const g of menuItemGrouped) {
+      const rev = revenueMap[g.menuItemId] || 0;
+      const cst = costMap[g.menuItemId] || 0;
       result.push({
         menuItemId: g.menuItemId,
         name: menuMap[g.menuItemId]?.name || 'Unknown',
         soldQuantity: g._sum.quantity,
-        revenue: revenueMap[g.menuItemId] || 0,
+        revenue: rev,
+        cost: cst,
+        profit: rev - cst,
+        profitMargin: rev > 0 ? Math.round(((rev - cst) / rev) * 1000) / 10 : 0,
       });
     }
   }
@@ -214,22 +299,29 @@ async function getTopSellingItems(ctx, orderWhere) {
     const ingredientMap = Object.fromEntries(ingredients.map(i => [i.id, i]));
 
     const invOrderItems = await prisma.orderItem.findMany({
-      where: { inventoryId: { in: invIds }, menuItemId: null, order: { status: 'COMPLETED', accountId } },
-      select: { inventoryId: true, price: true, quantity: true },
+      where: { inventoryId: { in: invIds }, menuItemId: null, order: { status: 'COMPLETED', accountId, ...orderFilter } },
+      select: { inventoryId: true, price: true, cost: true, quantity: true },
     });
 
     const revenueMap = {};
+    const costMap = {};
     for (const item of invOrderItems) {
       if (!item.inventoryId) continue;
       revenueMap[item.inventoryId] = (revenueMap[item.inventoryId] || 0) + Number(item.price) * item.quantity;
+      costMap[item.inventoryId] = (costMap[item.inventoryId] || 0) + Number(item.cost) * item.quantity;
     }
 
     for (const g of inventoryGrouped) {
+      const rev = revenueMap[g.inventoryId] || 0;
+      const cst = costMap[g.inventoryId] || 0;
       result.push({
         menuItemId: g.inventoryId,
         name: ingredientMap[g.inventoryId]?.name || 'Unknown',
         soldQuantity: g._sum.quantity,
-        revenue: revenueMap[g.inventoryId] || 0,
+        revenue: rev,
+        cost: cst,
+        profit: rev - cst,
+        profitMargin: rev > 0 ? Math.round(((rev - cst) / rev) * 1000) / 10 : 0,
       });
     }
   }
@@ -283,7 +375,14 @@ async function getRecentActivities(where) {
 
 async function getQuickStats(orderWhere, thirtyDaysAgo) {
   const agg = await prisma.order.aggregate({
-    where: { status: 'COMPLETED', completedAt: { gte: thirtyDaysAgo }, ...orderWhere },
+    where: {
+      status: 'COMPLETED',
+      OR: [
+        { completedAt: { gte: thirtyDaysAgo } },
+        { completedAt: null, createdAt: { gte: thirtyDaysAgo } },
+      ],
+      ...orderWhere,
+    },
     _sum: { total: true, cost: true, guestCount: true },
     _count: { id: true },
   });

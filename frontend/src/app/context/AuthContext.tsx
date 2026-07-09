@@ -36,7 +36,7 @@ interface AuthContextValue {
   setUser: (user: User | null) => void;
 
   login: (email: string, password: string) => Promise<User>;
-  employeeLoginByPin: (pinCode: string) => Promise<EmployeeLoginResponse>;
+  employeeLoginByPin: (employeeCode: string, pinCode: string) => Promise<EmployeeLoginResponse>;
 
   logout: () => void;
   logoutEmployee: () => void;
@@ -114,8 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return loggedUser;
   };
 
-  const employeeLoginByPin = async (pinCode: string) => {
-    const res = await employeeApi.loginByPin(pinCode);
+  const employeeLoginByPin = async (employeeCode: string, pinCode: string) => {
+    const res = await employeeApi.loginByPin(employeeCode, pinCode);
 
     setEmployeeToken(res.token);
 

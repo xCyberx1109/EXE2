@@ -89,7 +89,7 @@ export async function validateInventoryForOrder(order, tx) {
   return issues;
 }
 
-export async function deductInventoryForOrderTx(tx, order, createdBy) {
+export async function deductInventoryForOrderTx(tx, order, createdBy, employeeId = null) {
   const orderItems = order.items || [];
   const txRecords = [];
 
@@ -127,6 +127,7 @@ export async function deductInventoryForOrderTx(tx, order, createdBy) {
         referenceType: 'ORDER',
         referenceId: order.id,
         createdBy,
+        employeeId,
       });
       await consumeIngredientBatchesFEFO(tx, orderItem.inventoryId, orderItem.quantity);
       continue;
@@ -179,12 +180,20 @@ export async function deductInventoryForOrderTx(tx, order, createdBy) {
         referenceType: 'ORDER',
         referenceId: order.id,
         createdBy,
+        employeeId,
       });
       await consumeIngredientBatchesFEFO(tx, recipe.ingredientId, totalUsage);
     }
   }
 
   if (txRecords.length > 0) {
+    console.log('[INVENTORY DEDUCT]', {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      createdBy,
+      employeeId,
+      txCount: txRecords.length,
+    });
     await tx.inventoryTransaction.createMany({ data: txRecords });
   }
 }

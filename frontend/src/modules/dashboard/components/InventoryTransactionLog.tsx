@@ -111,7 +111,7 @@ export function InventoryTransactionLog() {
       key: 'user',
       header: 'Nhân viên',
       className: 'text-muted-foreground hidden md:table-cell',
-      render: (tx) => <>{tx.user?.fullName || '—'}</>,
+      render: (tx) => <>{tx.employee?.fullName || tx.user?.fullName || '—'}</>,
     },
   ], []);
 

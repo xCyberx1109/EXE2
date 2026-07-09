@@ -5,8 +5,8 @@ function computePlayCost(hourlyRate, durationMinutes) {
   return Math.round((Number(hourlyRate) * Number(durationMinutes)) / 60);
 }
 
-registerPaymentCallback('RESTAURANT', async (tx, order, method, userId) => {
-  await deductInventoryForOrderTx(tx, order, userId);
+registerPaymentCallback('RESTAURANT', async (tx, order, method, userId, employeeId) => {
+  await deductInventoryForOrderTx(tx, order, userId, employeeId);
   await tx.order.update({
     where: { id: order.id },
     data: { status: 'COMPLETED', completedAt: new Date() },
@@ -25,13 +25,16 @@ registerPaymentCallback('RESTAURANT', async (tx, order, method, userId) => {
   }
 });
 
-registerPaymentCallback('ORDER_QUEUE_POS', async (tx, order, method, userId) => {
-  await deductInventoryForOrderTx(tx, order, userId);
+registerPaymentCallback('ORDER_QUEUE_POS', async (tx, order, method, userId, employeeId) => {
+  console.log('[PAYMENT CALLBACK] ORDER_QUEUE_POS:', { orderId: order.id, status: order.status, paymentStatus: order.paymentStatus });
+  await deductInventoryForOrderTx(tx, order, userId, employeeId);
+  // KHÔNG đặt status=COMPLETED ở đây — order sẽ xuất hiện trong "Orders To Make"
+  // để bếp chế biến, sau đó nhân viên bấm Complete mới chuyển sang COMPLETED.
   await tx.inventoryReservation.deleteMany({ where: { orderId: order.id } });
 });
 
-registerPaymentCallback('BILLIARD', async (tx, order, method, userId) => {
-  await deductInventoryForOrderTx(tx, order, userId);
+registerPaymentCallback('BILLIARD', async (tx, order, method, userId, employeeId) => {
+  await deductInventoryForOrderTx(tx, order, userId, employeeId);
 
   const session = await tx.playSession.findFirst({
     where: { tableId: order.tableId, status: 'PLAYING' },
@@ -60,6 +63,7 @@ registerPaymentCallback('BILLIARD', async (tx, order, method, userId) => {
       where: { id: order.id },
       data: {
         status: 'COMPLETED',
+        completedAt: now,
         sessionStartTime: session.startTime || now,
         playingDurationMinutes: elapsedMinutes,
         hourlyRate,

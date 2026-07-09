@@ -30,26 +30,44 @@ function buildContinuousTimeline(apiData: RevenueChartPoint[], range: string): R
 
   const lookup = new Map<string, RevenueChartPoint>();
   for (const point of apiData) {
-    lookup.set(point.date, point);
+    const cost = point.cost ?? point.revenue - point.profit;
+    lookup.set(point.date, { ...point, cost });
   }
 
   return generatedDates.map((date) =>
-    lookup.get(date) ?? { date, revenue: 0, profit: 0, orderCount: 0 },
+    lookup.get(date) ?? { date, revenue: 0, cost: 0, profit: 0, orderCount: 0 },
   );
 }
 
-export function SalesChart({ data, chartRange }: { data: RevenueChartPoint[]; chartRange: string }) {
+function buildHourlyTimeline(apiData: RevenueChartPoint[]): RevenueChartPoint[] {
+  const hours = Array.from({ length: 24 }, (_, i) =>
+    `${String(i).padStart(2, '0')}:00`,
+  );
+  const lookup = new Map<string, RevenueChartPoint>();
+  for (const point of apiData) {
+    const cost = point.cost ?? point.revenue - point.profit;
+    lookup.set(point.date, { ...point, cost });
+  }
+  return hours.map((hour) =>
+    lookup.get(hour) ?? { date: hour, revenue: 0, cost: 0, profit: 0, orderCount: 0 },
+  );
+}
+
+export function SalesChart({ data, chartRange, chartType = 'daily' }: { data: RevenueChartPoint[]; chartRange: string; chartType?: 'hourly' | 'daily' }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const chartColors = { revenue: '#3b82f6', profit: '#10b981' };
+  const chartColors = { revenue: '#3b82f6', cost: '#F59E0B', profit: '#10b981' };
   const gridStroke = isDark ? '#374151' : '#f0f0f0';
   const tickFill = isDark ? '#9ca3af' : '#9ca3af';
 
-  const chartData = useMemo(() => buildContinuousTimeline(data, chartRange), [data, chartRange]);
+  const chartData = useMemo(() => {
+    if (chartType === 'hourly') return buildHourlyTimeline(data);
+    return buildContinuousTimeline(data, chartRange);
+  }, [data, chartRange, chartType]);
 
   if (!Array.isArray(data) || data.length === 0) {
-    if (chartData.every((p) => p.revenue === 0 && p.profit === 0)) {
+    if (chartData.every((p) => p.revenue === 0 && p.cost === 0 && p.profit === 0)) {
       return <EmptyState message="Không có dữ liệu doanh thu" icon={BarChart3} />;
     }
   }
@@ -65,9 +83,9 @@ export function SalesChart({ data, chartRange }: { data: RevenueChartPoint[]; ch
               tick={{ fontSize: 11, fill: tickFill }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => formatDateLabel(v)}
+              tickFormatter={(v) => chartType === 'hourly' ? v : formatDateLabel(v)}
               interval="preserveStartEnd"
-              minTickGap={40}
+              minTickGap={chartType === 'hourly' ? 0 : 40}
             />
             <YAxis
               tick={{ fontSize: 11, fill: tickFill }}
@@ -85,15 +103,20 @@ export function SalesChart({ data, chartRange }: { data: RevenueChartPoint[]; ch
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 padding: '8px 12px',
               }}
-              formatter={(value: number, name: string) => [formatVND(value), name === 'revenue' ? 'Doanh thu' : 'Lợi nhuận']}
+              formatter={(value: number, name: string) => {
+                const labels: Record<string, string> = { revenue: 'Doanh thu', cost: 'Vốn', profit: 'Lợi nhuận' };
+                return [formatVND(value), labels[name] ?? name];
+              }}
               labelFormatter={(label) => {
+                if (chartType === 'hourly') return `Giờ ${label}`;
                 const d = new Date(label);
                 return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
               }}
               cursor={{ fill: isDark ? '#374151' : '#f3f4f6', opacity: 0.3 }}
             />
-            <Bar dataKey="revenue" fill={chartColors.revenue} radius={[4, 4, 0, 0]} maxBarSize={32} />
-            <Bar dataKey="profit" fill={chartColors.profit} radius={[4, 4, 0, 0]} maxBarSize={32} />
+            <Bar dataKey="revenue" fill={chartColors.revenue} radius={[4, 4, 0, 0]} maxBarSize={chartType === 'hourly' ? 16 : 28} />
+            <Bar dataKey="cost" fill={chartColors.cost} radius={[4, 4, 0, 0]} maxBarSize={chartType === 'hourly' ? 16 : 28} />
+            <Bar dataKey="profit" fill={chartColors.profit} radius={[4, 4, 0, 0]} maxBarSize={chartType === 'hourly' ? 16 : 28} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -101,6 +124,10 @@ export function SalesChart({ data, chartRange }: { data: RevenueChartPoint[]; ch
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: chartColors.revenue }} />
           <span className="text-[11px] text-muted-foreground">Doanh thu</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: chartColors.cost }} />
+          <span className="text-[11px] text-muted-foreground">Vốn</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: chartColors.profit }} />

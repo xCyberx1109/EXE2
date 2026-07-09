@@ -3,6 +3,7 @@ import prisma from '../prisma/client.js';
 const txInclude = {
   ingredient: true,
   account: { select: { id: true, fullName: true } },
+  employee: { select: { id: true, employeeCode: true, fullName: true } },
 };
 
 export const inventoryTransactionRepository = {

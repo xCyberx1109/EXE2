@@ -70,8 +70,18 @@ export function Dashboard() {
           <h1 className="text-lg font-bold text-foreground">Tổng quan</h1>
           <p className="text-muted-foreground text-xs mt-0.5">Tổng quan hoạt động kinh doanh</p>
         </div>
-        <BusinessOverview data={null} loading />
-        <SalesPerformance data={null} loading chartRange={chartRange} onChartRangeChange={setChartRange} />
+        <div className="bg-card rounded-md border border-border animate-pulse">
+          <div className="p-3 border-b border-border">
+            <div className="h-4 bg-muted rounded w-40" />
+            <div className="h-3 bg-muted rounded w-60 mt-1" />
+          </div>
+          <div className="p-3 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 bg-muted rounded" />)}
+            </div>
+            <div className="h-64 bg-muted rounded" />
+          </div>
+        </div>
         {canViewTransactions && (
           <div className="bg-card rounded-md border border-border p-3 animate-pulse">
             <div className="h-4 bg-muted rounded w-48 mb-3" />
@@ -104,6 +114,12 @@ export function Dashboard() {
 
   if (!data) return null;
 
+  const rangeOptions = [
+    { value: 'today', label: 'Hôm nay' },
+    { value: '7days', label: '7 ngày' },
+    { value: '30days', label: '30 ngày' },
+  ];
+
   return (
     <div className="space-y-3">
       <div>
@@ -111,16 +127,39 @@ export function Dashboard() {
         <p className="text-muted-foreground text-xs mt-0.5">Tổng quan hoạt động kinh doanh</p>
       </div>
 
-      <BusinessOverview data={data.overview} loading={loading} />
+      <div className="bg-card rounded-md border border-border">
+        <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border">
+          <div>
+            <h2 className="text-xs font-semibold text-foreground">Báo cáo kinh doanh</h2>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Phân tích doanh thu và hiệu quả kinh doanh</p>
+          </div>
+          <div className="flex gap-0.5 bg-muted p-0.5 rounded-md">
+            {rangeOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setChartRange(opt.value)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  chartRange === opt.value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="px-3 pt-3">
+          <BusinessOverview data={data.overview} loading={loading} timeRange={chartRange} />
+        </div>
+
+        <div className="border-t border-border mt-3">
+          <SalesPerformance data={data.sales} loading={loading} />
+        </div>
+      </div>
 
       <DashboardAlerts lowStockItems={data.alerts.lowStockItems} orderStatus={data.alerts.orderStatus} />
-
-      <SalesPerformance
-        data={data.sales}
-        loading={loading}
-        chartRange={chartRange}
-        onChartRangeChange={setChartRange}
-      />
 
       {canViewTransactions && <InventoryTransactionLog />}
     </div>

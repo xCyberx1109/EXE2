@@ -3,7 +3,7 @@ import { AppError } from '../../utils/AppError.js';
 import { getPaymentCallback } from './payment.callbacks.js';
 
 export const paymentFlowService = {
-  async initiatePayment(orderId, { paymentMethod = 'CASH', amount } = {}, user) {
+  async initiatePayment(orderId, { paymentMethod = 'CASH', amount } = {}, user, employeeId = null) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { table: true, session: true, items: true },
@@ -58,7 +58,7 @@ export const paymentFlowService = {
     });
   },
 
-  async confirmPayment(orderId, { paymentMethod = 'CASH', amount } = {}, user) {
+  async confirmPayment(orderId, { paymentMethod = 'CASH', amount } = {}, user, employeeId = null) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { table: true, items: true },
@@ -85,6 +85,14 @@ export const paymentFlowService = {
     const userId = user?.accountId || user?.id || order.createdBy;
     const source = order.source || 'ORDER_QUEUE_POS';
     const payAmount = amount !== undefined ? Number(amount) : Number(order.total);
+
+    console.log('[PAYMENT CONFIRM]', {
+      orderId,
+      userId,
+      employeeId,
+      authUser: user ? { id: user.id, accountId: user.accountId } : null,
+      source,
+    });
 
     return prisma.$transaction(async (tx) => {
       const guarded = await tx.order.updateMany({
@@ -128,14 +136,14 @@ export const paymentFlowService = {
 
       const callback = getPaymentCallback(source);
       if (callback && updatedOrder) {
-        await callback(tx, { ...order, ...updatedOrder }, prismaMethod, userId);
+        await callback(tx, { ...order, ...updatedOrder }, prismaMethod, userId, employeeId);
       }
 
       return { id: orderId, paymentStatus: 'PAID', source };
     });
   },
 
-  async cancelPayment(orderId, user) {
+  async cancelPayment(orderId, user, employeeId = null) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { table: true },

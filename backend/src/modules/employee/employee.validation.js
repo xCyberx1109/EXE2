@@ -74,3 +74,14 @@ export const employeeQueryParams = [
   query('search').optional().trim(),
   query('status').optional().isIn(['ACTIVE', 'INACTIVE', 'SUSPENDED']).withMessage('Trạng thái không hợp lệ'),
 ];
+
+export const loginByPinRules = [
+  body('employeeCode')
+    .trim()
+    .notEmpty()
+    .withMessage('Mã nhân viên là bắt buộc'),
+  body('pinCode')
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Mã PIN phải có 6 chữ số'),
+];

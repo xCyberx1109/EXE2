@@ -531,6 +531,7 @@ model InventoryTransaction {
   accountId      String
   ingredientId   String
   createdBy      String
+  employeeId     String?
   type           InventoryTransactionType
   quantity       Decimal                  @db.Decimal(10, 2)
   beforeQuantity Decimal?                 @db.Decimal(10, 2)
@@ -542,10 +543,12 @@ model InventoryTransaction {
   updatedAt      DateTime                 @updatedAt
   account        Account                  @relation("InventoryTransactionCreatedBy", fields: [createdBy], references: [id])
   ingredient     Ingredient               @relation(fields: [ingredientId], references: [id])
+  employee       Employee?                @relation(fields: [employeeId], references: [id])
 
   @@index([ingredientId])
   @@index([accountId])
   @@index([createdBy])
+  @@index([employeeId])
   @@map("inventory_transactions")
 }
 
@@ -1037,6 +1040,7 @@ model Employee {
   posMachines    EmployeePosMachine[]
   activityLogs   ActivityLog[]
   permissions    EmployeePermission[]
+  inventoryTransactionsCreated InventoryTransaction[]
 
   @@unique([accountId, employeeCode])
   @@index([accountId])

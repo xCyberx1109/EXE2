@@ -12,13 +12,18 @@ export function useDashboardData() {
       overview: {
         todayRevenue: dash.kpi.todayRevenue ?? 0,
         todayRevenueTrend: dash.kpi.todayRevenueTrend ?? 0,
+        todayCost: dash.kpi.todayCost ?? 0,
+        todayCostTrend: dash.kpi.todayCostTrend ?? 0,
         todayProfit: dash.kpi.todayProfit ?? 0,
         todayProfitTrend: dash.kpi.todayProfitTrend ?? 0,
         todayOrders: dash.kpi.todayOrders ?? 0,
         todayOrdersTrend: dash.kpi.todayOrdersTrend ?? 0,
+        todayAvgOrderValue: dash.kpi.todayAvgOrderValue ?? 0,
+        todayAvgOrderValueTrend: dash.kpi.todayAvgOrderValueTrend ?? 0,
       },
       sales: {
         chartRange,
+        chartType: dash.chartType ?? 'daily',
         revenueChart: dash.revenueChart ?? [],
         topItems: dash.topItems ?? [],
       },
@@ -32,10 +37,12 @@ export function useDashboardData() {
   const fallback: DashboardModuleData = {
     overview: {
       todayRevenue: 0, todayRevenueTrend: 0,
+      todayCost: 0, todayCostTrend: 0,
       todayProfit: 0, todayProfitTrend: 0,
       todayOrders: 0, todayOrdersTrend: 0,
+      todayAvgOrderValue: 0, todayAvgOrderValueTrend: 0,
     },
-    sales: { chartRange, revenueChart: [], topItems: [] },
+    sales: { chartRange, chartType: 'daily', revenueChart: [], topItems: [] },
     alerts: { lowStockItems: [], orderStatus: {} },
   };
 

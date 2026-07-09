@@ -6,6 +6,10 @@ function getContext(req) {
   return req.user || req.employee || null;
 }
 
+function getEmployeeId(req) {
+  return req.authType === 'employee' ? req.employee?.id || null : null;
+}
+
 export const listIngredients = asyncHandler(async (req, res) => {
   const { search, lowStock, status, page, limit } = req.query;
   const data = await inventoryService.listIngredients({ search, lowStock, status, page, limit }, getContext(req));
@@ -43,12 +47,12 @@ export const deleteIngredient = asyncHandler(async (req, res) => {
 });
 
 export const stockIn = asyncHandler(async (req, res) => {
-  const data = await inventoryService.stockIn(req.params.id, req.body, getContext(req));
+  const data = await inventoryService.stockIn(req.params.id, req.body, getContext(req), getEmployeeId(req));
   sendSuccess(res, { message: 'Nhập kho thành công', data });
 });
 
 export const stockOut = asyncHandler(async (req, res) => {
-  const data = await inventoryService.stockOut(req.params.id, req.body, getContext(req));
+  const data = await inventoryService.stockOut(req.params.id, req.body, getContext(req), getEmployeeId(req));
   sendSuccess(res, { message: 'Xuất kho thành công', data });
 });
 
@@ -69,11 +73,11 @@ export const listSellableInventory = asyncHandler(async (req, res) => {
 });
 
 export const bulkImport = asyncHandler(async (req, res) => {
-  const data = await inventoryService.bulkImport(req.body, getContext(req));
+  const data = await inventoryService.bulkImport(req.body, getContext(req), getEmployeeId(req));
   sendSuccess(res, { message: 'Nhập kho thành công', data });
 });
 
 export const bulkExport = asyncHandler(async (req, res) => {
-  const data = await inventoryService.bulkExport(req.body, getContext(req));
+  const data = await inventoryService.bulkExport(req.body, getContext(req), getEmployeeId(req));
   sendSuccess(res, { message: 'Xuất kho thành công', data });
 });

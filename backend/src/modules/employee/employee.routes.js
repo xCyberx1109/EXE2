@@ -17,13 +17,14 @@ import {
   updateEmployeeRules,
   employeeIdParam,
   employeeQueryParams,
+  loginByPinRules,
 } from './employee.validation.js';
 import { authenticate, requirePermission } from '../../middlewares/auth.js';
 import { validate } from '../../middlewares/validate.js';
 
 const router = Router();
 
-router.post('/login-by-pin', loginByPin);
+router.post('/login-by-pin', loginByPinRules, validate, loginByPin);
 
 router.use(authenticate);
 
