@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { subDays, format } from 'date-fns';
 import { BarChart3 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { EmptyState } from './shared';
@@ -19,26 +18,6 @@ const formatDateLabel = (dateStr: string) => {
   return `${day}/${month}`;
 };
 
-function buildContinuousTimeline(apiData: RevenueChartPoint[], range: string): RevenueChartPoint[] {
-  const today = new Date();
-  const count = range === '7days' ? 7 : 30;
-  const dateFormat = 'yyyy-MM-dd';
-
-  const generatedDates = Array.from({ length: count }, (_, i) =>
-    format(subDays(today, count - 1 - i), dateFormat),
-  );
-
-  const lookup = new Map<string, RevenueChartPoint>();
-  for (const point of apiData) {
-    const cost = point.cost ?? point.revenue - point.profit;
-    lookup.set(point.date, { ...point, cost });
-  }
-
-  return generatedDates.map((date) =>
-    lookup.get(date) ?? { date, revenue: 0, cost: 0, profit: 0, orderCount: 0 },
-  );
-}
-
 function buildHourlyTimeline(apiData: RevenueChartPoint[]): RevenueChartPoint[] {
   const hours = Array.from({ length: 24 }, (_, i) =>
     `${String(i).padStart(2, '0')}:00`,
@@ -53,7 +32,7 @@ function buildHourlyTimeline(apiData: RevenueChartPoint[]): RevenueChartPoint[] 
   );
 }
 
-export function SalesChart({ data, chartRange, chartType = 'daily' }: { data: RevenueChartPoint[]; chartRange: string; chartType?: 'hourly' | 'daily' }) {
+export function SalesChart({ data, chartRange, chartType = 'daily', startDate, endDate }: { data: RevenueChartPoint[]; chartRange: string; chartType?: 'hourly' | 'daily'; startDate?: string; endDate?: string }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
@@ -63,8 +42,8 @@ export function SalesChart({ data, chartRange, chartType = 'daily' }: { data: Re
 
   const chartData = useMemo(() => {
     if (chartType === 'hourly') return buildHourlyTimeline(data);
-    return buildContinuousTimeline(data, chartRange);
-  }, [data, chartRange, chartType]);
+    return data;
+  }, [data, chartType]);
 
   if (!Array.isArray(data) || data.length === 0) {
     if (chartData.every((p) => p.revenue === 0 && p.cost === 0 && p.profit === 0)) {

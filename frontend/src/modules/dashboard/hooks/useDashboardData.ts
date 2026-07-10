@@ -1,13 +1,48 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useDashboardDataV2 } from '../../../app/api/hooks';
 import type { DashboardModuleData } from '../types';
+import { toDateInputValue, getPresetDates, buildContinuousTimeline } from '../utils';
+
+export interface DateRangeState {
+  preset: string;
+  startDate?: string;
+  endDate?: string;
+}
 
 export function useDashboardData() {
-  const [chartRange, setChartRange] = useState('7days');
-  const { data: dash, isLoading, error: queryError, refetch } = useDashboardDataV2(chartRange);
+  const [dateRange, setDateRange] = useState<DateRangeState>({ preset: '7days' });
+
+  const setChartRange = useCallback((preset: string) => {
+    setDateRange({ preset });
+  }, []);
+
+  const setCustomDateRange = useCallback((from: Date, to: Date) => {
+    setDateRange({
+      preset: 'custom',
+      startDate: toDateInputValue(from),
+      endDate: toDateInputValue(to),
+    });
+  }, []);
+
+  const chartRange = dateRange.preset;
+  const { data: dash, isLoading, error: queryError, refetch } = useDashboardDataV2(
+    dateRange.preset === 'custom' ? undefined : dateRange.preset,
+    dateRange.startDate,
+    dateRange.endDate,
+  );
 
   const mappedData = useMemo((): DashboardModuleData | null => {
     if (!dash) return null;
+
+    const presetDates = dateRange.preset !== 'custom' ? getPresetDates(dateRange.preset) : null;
+    const effectiveStartDate = dateRange.startDate ?? (presetDates ? toDateInputValue(presetDates.from) : undefined);
+    const effectiveEndDate = dateRange.endDate ?? (presetDates ? toDateInputValue(presetDates.to) : undefined);
+    const chartType = dash.chartType ?? 'daily';
+    const shouldFillGaps = chartType === 'daily';
+    const revenueChart = shouldFillGaps && effectiveStartDate && effectiveEndDate
+      ? buildContinuousTimeline(dash.revenueChart ?? [], effectiveStartDate, effectiveEndDate)
+      : dash.revenueChart ?? [];
+
     return {
       overview: {
         todayRevenue: dash.kpi.todayRevenue ?? 0,
@@ -23,16 +58,18 @@ export function useDashboardData() {
       },
       sales: {
         chartRange,
-        chartType: dash.chartType ?? 'daily',
-        revenueChart: dash.revenueChart ?? [],
+        chartType,
+        revenueChart,
         topItems: dash.topItems ?? [],
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
       },
       alerts: {
         lowStockItems: dash.lowStockItems ?? [],
         orderStatus: dash.orderStatus ?? {},
       },
     };
-  }, [dash, chartRange]);
+  }, [dash, chartRange, dateRange.preset, dateRange.startDate, dateRange.endDate]);
 
   const fallback: DashboardModuleData = {
     overview: {
@@ -52,6 +89,8 @@ export function useDashboardData() {
     error: queryError ? 'Không thể tải dữ liệu dashboard.' : '',
     chartRange,
     setChartRange,
+    dateRange,
+    setCustomDateRange,
     retry: () => refetch(),
   };
 }

@@ -276,8 +276,12 @@ export const inventoryApi = {
 // --- Dashboard ---
 export const dashboardApi = {
   get: () => apiFetch<DashboardData>('/dashboard'),
-  getV2: (chartRange?: string) => {
-    const q = chartRange ? `?chartRange=${chartRange}` : '';
+  getV2: (chartRange?: string, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (chartRange) params.set('chartRange', chartRange);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const q = params.toString() ? `?${params.toString()}` : '';
     return apiFetch<import('../types').DashboardDataV2>(`/dashboard${q}`);
   },
 };

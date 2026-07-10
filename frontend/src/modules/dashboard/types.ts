@@ -18,6 +18,8 @@ export interface SalesPerformanceData {
   chartType: 'hourly' | 'daily';
   revenueChart: RevenueChartPoint[];
   topItems: DashboardTopItem[];
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface DashboardModuleData {
