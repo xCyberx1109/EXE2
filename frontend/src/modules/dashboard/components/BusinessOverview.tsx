@@ -13,6 +13,7 @@ const LABELS: Record<string, { revenue: string; cost: string; profit: string; or
   today: { revenue: 'Doanh thu hôm nay', cost: 'Giá vốn hôm nay', profit: 'Lợi nhuận hôm nay', orders: 'Đơn hàng hôm nay', avgOrder: 'Giá trị đơn TB hôm nay' },
   '7days': { revenue: 'Doanh thu 7 ngày', cost: 'Giá vốn 7 ngày', profit: 'Lợi nhuận 7 ngày', orders: 'Đơn hàng 7 ngày', avgOrder: 'Giá trị đơn TB 7 ngày' },
   '30days': { revenue: 'Doanh thu 30 ngày', cost: 'Giá vốn 30 ngày', profit: 'Lợi nhuận 30 ngày', orders: 'Đơn hàng 30 ngày', avgOrder: 'Giá trị đơn TB 30 ngày' },
+  custom: { revenue: 'Doanh thu', cost: 'Giá vốn', profit: 'Lợi nhuận', orders: 'Đơn hàng', avgOrder: 'Giá trị đơn TB' },
 };
 
 export function BusinessOverview({ data, loading, timeRange = 'today' }: { data: BusinessOverviewData | null; loading?: boolean; timeRange?: string }) {

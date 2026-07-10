@@ -321,10 +321,10 @@ export function useInventoryTransactions(params?: { page?: number; limit?: numbe
    Dashboard Hooks
    ======================================================================== */
 
-export function useDashboardDataV2(chartRange?: string) {
+export function useDashboardDataV2(chartRange?: string, startDate?: string, endDate?: string) {
   return useQuery({
-    queryKey: queryKeys.dashboard.v2(chartRange),
-    queryFn: () => dashboardApi.getV2(chartRange),
+    queryKey: queryKeys.dashboard.v2(chartRange, startDate, endDate),
+    queryFn: () => dashboardApi.getV2(chartRange, startDate, endDate),
     staleTime: 1000 * 60,
     retry: 2,
   });

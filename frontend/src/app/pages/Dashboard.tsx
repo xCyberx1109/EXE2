@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { AlertTriangle, RefreshCw, AlertCircle, Bell } from 'lucide-react';
 import {
   useDashboardData,
@@ -5,7 +6,12 @@ import {
   SalesPerformance,
   InventoryTransactionLog,
 } from '../../modules/dashboard';
+import { ReportExportFilter } from '../../modules/dashboard/components/ReportExportFilter';
+import { exportToExcel, exportToPDF } from '../../modules/dashboard/utils';
+import type { ExportReportData } from '../../modules/dashboard/utils';
 import { useAuth } from '../context/AuthContext';
+import { formatDateTime } from '../../shared/utils/date';
+import type { DateRangeState } from '../../modules/dashboard/hooks/useDashboardData';
 
 function DashboardAlerts({ lowStockItems, orderStatus }: { lowStockItems: any[]; orderStatus: Record<string, number> }) {
   const alerts: { icon: any; color: string; bg: string; message: string }[] = [];
@@ -58,10 +64,51 @@ function DashboardAlerts({ lowStockItems, orderStatus }: { lowStockItems: any[];
   );
 }
 
+function buildReportPeriod(dateRange: DateRangeState): string {
+  switch (dateRange.preset) {
+    case 'today': return 'Hôm nay';
+    case '7days': return '7 ngày gần nhất';
+    case '30days': return '30 ngày gần nhất';
+    case 'custom': {
+      if (dateRange.startDate && dateRange.endDate) {
+        const from = new Date(dateRange.startDate).toLocaleDateString('vi-VN');
+        const to = new Date(dateRange.endDate).toLocaleDateString('vi-VN');
+        return `${from} - ${to}`;
+      }
+      return 'Tùy chỉnh';
+    }
+    default: return dateRange.preset;
+  }
+}
+
 export function Dashboard() {
-  const { data, loading, error, chartRange, setChartRange, retry } = useDashboardData();
-  const { hasPermission, isReady } = useAuth();
+  const { data, loading, error, chartRange, setChartRange, dateRange, setCustomDateRange, retry } = useDashboardData();
+  const { hasPermission, isReady, user, employee } = useAuth();
   const canViewTransactions = isReady && hasPermission('INVENTORY_TRANSACTION_VIEW');
+
+  const handleExport = useCallback((format: 'xlsx' | 'pdf') => {
+    const storeName = user?.fullName || employee?.fullName || 'FBMS POS';
+    const reportData: ExportReportData = {
+      storeName,
+      reportPeriod: buildReportPeriod(dateRange),
+      generatedTime: formatDateTime(new Date()),
+      kpi: {
+        revenue: data.overview.todayRevenue,
+        cost: data.overview.todayCost,
+        profit: data.overview.todayProfit,
+        orders: data.overview.todayOrders,
+        avgOrderValue: data.overview.todayAvgOrderValue,
+      },
+      revenueChart: data.sales.revenueChart,
+      topItems: data.sales.topItems,
+    };
+
+    if (format === 'xlsx') {
+      exportToExcel(reportData);
+    } else {
+      exportToPDF(reportData);
+    }
+  }, [data, dateRange, user, employee]);
 
   if (!data && loading) {
     return (
@@ -114,12 +161,6 @@ export function Dashboard() {
 
   if (!data) return null;
 
-  const rangeOptions = [
-    { value: 'today', label: 'Hôm nay' },
-    { value: '7days', label: '7 ngày' },
-    { value: '30days', label: '30 ngày' },
-  ];
-
   return (
     <div className="space-y-3">
       <div>
@@ -128,26 +169,17 @@ export function Dashboard() {
       </div>
 
       <div className="bg-card rounded-md border border-border">
-        <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border">
+        <div className="px-3 pt-3 pb-2 border-b border-border space-y-2">
           <div>
             <h2 className="text-xs font-semibold text-foreground">Báo cáo kinh doanh</h2>
             <p className="text-[10px] text-muted-foreground mt-0.5">Phân tích doanh thu và hiệu quả kinh doanh</p>
           </div>
-          <div className="flex gap-0.5 bg-muted p-0.5 rounded-md">
-            {rangeOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setChartRange(opt.value)}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                  chartRange === opt.value
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <ReportExportFilter
+            dateRange={dateRange}
+            setChartRange={setChartRange}
+            setCustomDateRange={setCustomDateRange}
+            onExport={handleExport}
+          />
         </div>
 
         <div className="px-3 pt-3">

@@ -25,7 +25,27 @@ function vietnamMidnight(date) {
   return new Date(vietnamMidnight.getTime() - VIETNAM_TZ_OFFSET_MS);
 }
 
-function getDateRange(chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo) {
+function vietnamNextDay(date) {
+  const vietnamTime = new Date(date.getTime() + VIETNAM_TZ_OFFSET_MS);
+  const nextDay = new Date(Date.UTC(
+    vietnamTime.getUTCFullYear(),
+    vietnamTime.getUTCMonth(),
+    vietnamTime.getUTCDate() + 1,
+  ));
+  return new Date(nextDay.getTime() - VIETNAM_TZ_OFFSET_MS);
+}
+
+function parseLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d) - VIETNAM_TZ_OFFSET_MS);
+}
+
+function getDateRange(chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo, customStart, customEnd) {
+  if (customStart && customEnd) {
+    const durationMs = customEnd.getTime() - customStart.getTime();
+    const prevStart = new Date(customStart.getTime() - durationMs);
+    return { startDate: customStart, endDate: customEnd, prevStart, prevEnd: customStart };
+  }
   switch (chartRange) {
     case 'today':
       return { startDate: todayStart, prevDays: 1 };
@@ -64,6 +84,14 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const orderWhere = buildBranchWhere(ctx, {}, 'accountId');
   const chartRange = req.query.chartRange || '7days';
 
+  const customStartDate = req.query.startDate ? parseLocalDate(req.query.startDate) : null;
+  const customEndDate = req.query.endDate ? parseLocalDate(req.query.endDate) : null;
+  const hasCustomRange = customStartDate && customEndDate && !isNaN(customStartDate.getTime()) && !isNaN(customEndDate.getTime());
+
+  if (hasCustomRange) {
+    customEndDate.setTime(vietnamNextDay(customEndDate).getTime());
+  }
+
   const now = new Date();
   const todayStart = vietnamMidnight(now);
   const yesterdayStart = new Date(todayStart);
@@ -74,27 +102,47 @@ export const getDashboard = asyncHandler(async (req, res) => {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const twelveMonthsAgo = new Date(new Date(todayStart).setMonth(todayStart.getMonth() - 12));
 
-  const { startDate, prevDays } = getDateRange(chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo);
-  const prevStartDate = new Date(startDate);
-  prevStartDate.setDate(prevStartDate.getDate() - prevDays);
+  const { startDate, prevDays, prevStart, prevEnd, endDate: rangeEndDate } = getDateRange(
+    chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo,
+    hasCustomRange ? customStartDate : null,
+    hasCustomRange ? customEndDate : null,
+  );
+
+  const isCustom = hasCustomRange;
+  const effectiveEndDate = isCustom ? rangeEndDate : undefined;
+
+  let prevStartDate;
+  if (isCustom && prevStart && prevEnd) {
+    prevStartDate = prevStart;
+  } else {
+    prevStartDate = new Date(startDate);
+    prevStartDate.setDate(prevStartDate.getDate() - prevDays);
+  }
+
+  const currentWhere = effectiveEndDate
+    ? buildDateRangeWhere(startDate, effectiveEndDate)
+    : buildDateWhere(startDate);
+  const prevWhere = isCustom && prevStart && prevEnd
+    ? buildDateRangeWhere(prevStart, prevEnd)
+    : buildDateRangeWhere(prevStartDate, startDate);
 
   const [rangeAgg, prevRangeAgg, statusCounts, topItemsData, lowStockData, menuCount, activityData, quickStatsAgg] = await Promise.all([
     prisma.order.aggregate({
-      where: { status: 'COMPLETED', ...buildDateWhere(startDate), ...orderWhere },
+      where: { status: 'COMPLETED', ...currentWhere, ...orderWhere },
       _sum: { total: true, cost: true },
       _count: { id: true },
     }),
     prisma.order.aggregate({
-      where: { status: 'COMPLETED', ...buildDateRangeWhere(prevStartDate, startDate), ...orderWhere },
+      where: { status: 'COMPLETED', ...prevWhere, ...orderWhere },
       _sum: { total: true, cost: true },
       _count: { id: true },
     }),
     prisma.order.groupBy({
       by: ['status'],
-      where: { ...buildDateWhere(startDate), ...orderWhere },
+      where: { ...currentWhere, ...orderWhere },
       _count: { id: true },
     }),
-    getTopSellingItems(ctx, orderWhere, startDate),
+    getTopSellingItems(ctx, orderWhere, startDate, effectiveEndDate),
     getLowStockItems(accountWhere),
     prisma.menuItem.count({ where: { available: true, deletedAt: null, ...accountWhere } }),
     getRecentActivities(accountWhere),
@@ -119,8 +167,12 @@ export const getDashboard = asyncHandler(async (req, res) => {
     statusMap[s.status] = s._count.id;
   }
 
-  const chartType = chartRange === 'today' ? 'hourly' : 'daily';
-  const revenueChart = await getRevenueChartData(orderWhere, chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo, twelveMonthsAgo);
+  const chartType = chartRange === 'today' && !isCustom ? 'hourly' : 'daily';
+  const revenueChart = await getRevenueChartData(
+    orderWhere, chartRange, todayStart, sevenDaysAgo, thirtyDaysAgo, twelveMonthsAgo,
+    isCustom ? customStartDate : null,
+    isCustom ? customEndDate : null,
+  );
 
   const responseData = {
     message: 'Lấy dữ liệu dashboard thành công',
@@ -155,10 +207,13 @@ export const getDashboard = asyncHandler(async (req, res) => {
   sendSuccess(res, responseData);
 });
 
-async function getRevenueChartData(orderWhere, range, todayStart, sevenDaysAgo, thirtyDaysAgo, twelveMonthsAgo) {
+async function getRevenueChartData(orderWhere, range, todayStart, sevenDaysAgo, thirtyDaysAgo, twelveMonthsAgo, customStart, customEnd) {
   let startDate;
   let endDate;
-  if (range === 'today') {
+  if (customStart && customEnd) {
+    startDate = customStart;
+    endDate = customEnd;
+  } else if (range === 'today') {
     startDate = todayStart;
     endDate = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   } else if (range === '30days') {
@@ -187,7 +242,10 @@ async function getRevenueChartData(orderWhere, range, todayStart, sevenDaysAgo, 
     take: range === 'today' ? 5000 : 5000,
   });
 
-  if (range === 'today') {
+  const isCustomRange = !!(customStart && customEnd);
+  const useHourly = range === 'today' && !isCustomRange;
+
+  if (useHourly) {
     const byHour = {};
     for (const order of orders) {
       const d = order.completedAt || order.createdAt;
@@ -225,10 +283,12 @@ async function getRevenueChartData(orderWhere, range, todayStart, sevenDaysAgo, 
   return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-async function getTopSellingItems(ctx, orderWhere, startDate) {
+async function getTopSellingItems(ctx, orderWhere, startDate, endDate) {
   const accountId = orderWhere.accountId;
   const orderFilter = startDate
-    ? { completedAt: { gte: startDate } }
+    ? endDate
+      ? { completedAt: { gte: startDate, lt: endDate } }
+      : { completedAt: { gte: startDate } }
     : {};
 
   // MenuItem-based top selling

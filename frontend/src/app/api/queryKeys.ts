@@ -26,7 +26,8 @@ export const queryKeys = {
   },
   dashboard: {
     all: ['dashboard'] as const,
-    v2: (chartRange?: string) => ['dashboard', 'v2', chartRange] as const,
+    v2: (chartRange?: string, startDate?: string, endDate?: string) =>
+      ['dashboard', 'v2', chartRange, startDate, endDate] as const,
   },
   tables: {
     all: ['tables'] as const,
