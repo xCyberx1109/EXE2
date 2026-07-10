@@ -8,8 +8,10 @@ import {
   Minus,
   Plus,
   ReceiptText,
+  Search,
   ShoppingCart,
   Trash2,
+  X,
 } from 'lucide-react';
 
 import {
@@ -29,6 +31,9 @@ type TableInfo = {
   capacity: number;
 };
 
+const formatCurrency = (value: number) =>
+  `${value.toLocaleString('vi-VN')} ₫`;
+
 export function MenuQR() {
   const [params] = useSearchParams();
   const token = params.get('t') ?? '';
@@ -39,8 +44,7 @@ export function MenuQR() {
     useState<QrCurrentOrder | null>(null);
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [openItemId, setOpenItemId] = useState<string | null>(null);
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [showCart, setShowCart] = useState(false);
   const [showOrderedItems, setShowOrderedItems] = useState(false);
@@ -103,6 +107,17 @@ export function MenuQR() {
     };
   }, [token]);
 
+  const filteredMenuItems = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return menuItems;
+
+    return menuItems.filter((item) =>
+      `${item.name} ${item.description ?? ''}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [menuItems, searchTerm]);
+
   const totalQuantity = useMemo(
     () =>
       cart.reduce(
@@ -142,15 +157,7 @@ export function MenuQR() {
     tableInfo?.tableCode ||
     'Bàn';
 
-  const toggleItem = (itemId: string) => {
-    setOpenItemId((current) =>
-      current === itemId ? null : itemId,
-    );
-
-    setSelectedQuantity(1);
-  };
-
-  const addToCart = (item: MenuItem) => {
+  const addOneToCart = (item: MenuItem) => {
     setCart((currentCart) => {
       const existingItem = currentCart.find(
         (cartItem) => cartItem.id === item.id,
@@ -159,26 +166,13 @@ export function MenuQR() {
       if (existingItem) {
         return currentCart.map((cartItem) =>
           cartItem.id === item.id
-            ? {
-                ...cartItem,
-                quantity:
-                  cartItem.quantity + selectedQuantity,
-              }
+            ? { ...cartItem, quantity: cartItem.quantity + 1 }
             : cartItem,
         );
       }
 
-      return [
-        ...currentCart,
-        {
-          ...item,
-          quantity: selectedQuantity,
-        },
-      ];
+      return [...currentCart, { ...item, quantity: 1 }];
     });
-
-    setOpenItemId(null);
-    setSelectedQuantity(1);
   };
 
   const increaseCartItem = (itemId: string) => {
@@ -234,7 +228,6 @@ export function MenuQR() {
       setCurrentOrder(response.order);
       setCart([]);
       setShowCart(false);
-      setOpenItemId(null);
       setShowSuccess(true);
       setShowOrderedItems(true);
 
@@ -319,48 +312,79 @@ export function MenuQR() {
     >
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto max-w-lg px-4 py-3">
-          <img
-            src="/Logo.png"
-            alt="POSitive"
-            className="mx-auto h-9 w-auto object-contain"
-          />
+        <div className="mx-auto max-w-lg px-4 py-3 sm:max-w-2xl lg:max-w-5xl lg:px-6 xl:max-w-6xl">
+          <div className="flex flex-col items-center gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+            <img
+              src="/Logo.png"
+              alt="POSitive"
+              className="h-9 w-auto object-contain lg:order-1"
+            />
 
-          <div className="mt-2 text-center">
-            <h1 className="text-lg font-bold text-slate-900">
-              {tableDisplayName}
-            </h1>
+            <div className="text-center lg:order-3 lg:text-right">
+              <h1 className="text-lg font-bold text-slate-900">
+                {tableDisplayName}
+              </h1>
 
-            <p className="mt-0.5 text-xs text-slate-500">
-              Chọn món và nhấn “Xong” để gửi đến nhân viên
-            </p>
+              <p className="mt-0.5 hidden text-xs text-slate-500 lg:block">
+                Chọn món và nhấn “Xong” để gửi đến nhân viên
+              </p>
+            </div>
+
+            <div className="relative w-full lg:order-2 lg:max-w-md lg:flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Tìm món ăn, thức uống..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  aria-label="Xóa tìm kiếm"
+                  className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-slate-200 text-slate-500"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
+
+          <p className="mt-2 text-center text-xs text-slate-500 lg:hidden">
+            Chọn món và nhấn “Xong” để gửi đến nhân viên
+          </p>
         </div>
       </header>
 
       <main
-  className="
-    mx-auto max-w-lg px-3 pt-3
-    pb-[calc(10rem+env(safe-area-inset-bottom))]
-  "
->
-  {/* Hướng dẫn thanh toán */}
-  <section className="mb-3 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-      <BadgeInfo className="h-5 w-5 text-amber-700" />
-    </div>
+        className="
+          mx-auto max-w-lg px-3 pt-3
+          pb-[calc(10rem+env(safe-area-inset-bottom))]
+          sm:max-w-2xl
+          lg:max-w-5xl lg:px-6 lg:pt-4 lg:pb-[calc(3rem+env(safe-area-inset-bottom))]
+          xl:max-w-6xl
+        "
+      >
+        {/* Hướng dẫn thanh toán */}
+        <section className="mb-3 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+            <BadgeInfo className="h-5 w-5 text-amber-700" />
+          </div>
 
-    <div>
-      <h2 className="font-bold text-amber-950">
-        Hướng dẫn thanh toán
-      </h2>
+          <div>
+            <h2 className="font-bold text-amber-950">
+              Hướng dẫn thanh toán
+            </h2>
 
-      <p className="mt-1 text-sm leading-5 text-amber-800">
-        Sau khi dùng món, quý khách vui lòng ra quầy thu ngân để
-        thanh toán và thông báo mã bàn cho nhân viên.
-      </p>
-    </div>
-  </section>
+            <p className="mt-1 text-sm leading-5 text-amber-800">
+              Sau khi dùng món, quý khách vui lòng ra quầy thu ngân để
+              thanh toán và thông báo mã bàn cho nhân viên.
+            </p>
+          </div>
+        </section>
+
         {/* Thông báo thành công */}
         {showSuccess && (
           <div className="mb-3 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
@@ -401,8 +425,7 @@ export function MenuQR() {
                   </h2>
 
                   <p className="text-xs text-emerald-700">
-                    {orderedQuantity} món ·{' '}
-                    {orderedTotal.toLocaleString('vi-VN')} ₫
+                    {orderedQuantity} món · {formatCurrency(orderedTotal)}
                   </p>
                 </div>
               </div>
@@ -422,7 +445,7 @@ export function MenuQR() {
 
             {showOrderedItems && (
               <div className="border-t border-emerald-200 px-3 pb-3 pt-3">
-                <div className="space-y-2">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {currentOrder.items.map((item) => (
                     <div
                       key={item.id}
@@ -434,18 +457,12 @@ export function MenuQR() {
                         </p>
 
                         <p className="mt-0.5 text-xs text-slate-500">
-                          {Number(item.price).toLocaleString(
-                            'vi-VN',
-                          )}{' '}
-                          ₫ × {item.quantity}
+                          {formatCurrency(Number(item.price))} × {item.quantity}
                         </p>
                       </div>
 
                       <p className="shrink-0 text-sm font-bold text-slate-900">
-                        {Number(
-                          item.lineTotal,
-                        ).toLocaleString('vi-VN')}{' '}
-                        ₫
+                        {formatCurrency(Number(item.lineTotal))}
                       </p>
                     </div>
                   ))}
@@ -457,7 +474,7 @@ export function MenuQR() {
                   </span>
 
                   <span className="font-bold text-emerald-950">
-                    {orderedTotal.toLocaleString('vi-VN')} ₫
+                    {formatCurrency(orderedTotal)}
                   </span>
                 </div>
               </div>
@@ -468,17 +485,17 @@ export function MenuQR() {
         {/* Tiêu đề danh sách món */}
         <div className="mb-3 flex items-end justify-between px-1">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">
+            <h2 className="text-lg font-bold text-slate-900 lg:text-xl">
               Thực đơn
             </h2>
 
             <p className="text-xs text-slate-500">
-              Chạm vào món để chọn số lượng
+              Chạm vào món để thêm vào giỏ hàng
             </p>
           </div>
 
           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
-            {menuItems.length} món
+            {filteredMenuItems.length} món
           </span>
         </div>
 
@@ -489,120 +506,105 @@ export function MenuQR() {
               Hiện chưa có món nào khả dụng
             </p>
           </div>
+        ) : filteredMenuItems.length === 0 ? (
+          <div className="rounded-3xl border bg-white p-8 text-center shadow-sm">
+            <p className="font-medium text-slate-700">
+              Không tìm thấy món phù hợp với “{searchTerm}”
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="mt-3 text-sm font-semibold text-blue-600"
+            >
+              Xóa tìm kiếm
+            </button>
+          </div>
         ) : (
-          <div className="space-y-3">
-            {menuItems.map((item) => {
-              const isOpen = openItemId === item.id;
-
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredMenuItems.map((item) => {
               const cartItem = cart.find(
                 (entry) => entry.id === item.id,
               );
+              const quantity = cartItem?.quantity ?? 0;
 
               return (
                 <article
                   key={item.id}
-                  className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+                  className="group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleItem(item.id)}
-                    className="w-full p-3 text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Ảnh món hoặc chữ cái đại diện */}
-                      {item.imageUrl ? (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.name}
-                          className="h-20 w-20 shrink-0 rounded-2xl object-cover"
-                        />
+                  <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-100 to-amber-50 text-4xl font-bold text-orange-500">
+                        {item.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    {quantity > 0 && (
+                      <span className="absolute left-2 top-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
+                        Đã chọn {quantity}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-1 flex-col p-3">
+                    <h3 className="line-clamp-1 font-bold text-slate-900">
+                      {item.name}
+                    </h3>
+
+                    {item.description && (
+                      <p className="mt-1 line-clamp-2 flex-1 text-xs leading-5 text-slate-500">
+                        {item.description}
+                      </p>
+                    )}
+
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <p className="whitespace-nowrap text-base font-bold text-blue-600">
+                        {formatCurrency(Number(item.price))}
+                      </p>
+
+                      {quantity === 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => addOneToCart(item)}
+                          aria-label={`Thêm ${item.name}`}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm transition active:scale-95"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
                       ) : (
-                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-100 to-amber-50 text-2xl font-bold text-orange-600">
-                          {item.name.charAt(0).toUpperCase()}
+                        <div className="flex shrink-0 items-center gap-2 rounded-full bg-slate-100 p-1">
+                          <button
+                            type="button"
+                            onClick={() => decreaseCartItem(item.id)}
+                            aria-label={`Giảm số lượng ${item.name}`}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm active:scale-95"
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </button>
+
+                          <span className="w-4 text-center text-sm font-bold text-slate-900">
+                            {quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => increaseCartItem(item.id)}
+                            aria-label={`Tăng số lượng ${item.name}`}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm active:scale-95"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       )}
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="truncate font-bold text-slate-900">
-                                {item.name}
-                              </h3>
-
-                              {cartItem && (
-                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                                  {cartItem.quantity}
-                                </span>
-                              )}
-                            </div>
-
-                            {item.description && (
-                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                                {item.description}
-                              </p>
-                            )}
-                          </div>
-
-                          <p className="shrink-0 whitespace-nowrap font-bold text-blue-600">
-                            {Number(item.price).toLocaleString(
-                              'vi-VN',
-                            )}{' '}
-                            ₫
-                          </p>
-                        </div>
-                      </div>
                     </div>
-                  </button>
-
-                  {isOpen && (
-                    <div className="border-t border-slate-100 bg-slate-50 p-3">
-                      <div className="mb-3 flex items-center justify-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedQuantity((current) =>
-                              Math.max(1, current - 1),
-                            )
-                          }
-                          className="flex h-11 w-11 items-center justify-center rounded-full border bg-white shadow-sm active:scale-95"
-                          aria-label="Giảm số lượng"
-                        >
-                          <Minus className="h-5 w-5" />
-                        </button>
-
-                        <span className="w-12 text-center text-xl font-bold text-slate-900">
-                          {selectedQuantity}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedQuantity(
-                              (current) => current + 1,
-                            )
-                          }
-                          className="flex h-11 w-11 items-center justify-center rounded-full border bg-white shadow-sm active:scale-95"
-                          aria-label="Tăng số lượng"
-                        >
-                          <Plus className="h-5 w-5" />
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => addToCart(item)}
-                        className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-bold text-white shadow-sm active:bg-blue-700"
-                      >
-                        Thêm {selectedQuantity} món ·{' '}
-                        {(
-                          Number(item.price) *
-                          selectedQuantity
-                        ).toLocaleString('vi-VN')}{' '}
-                        ₫
-                      </button>
-                    </div>
-                  )}
+                  </div>
                 </article>
               );
             })}
@@ -614,15 +616,16 @@ export function MenuQR() {
       {cart.length > 0 && (
         <div
           className="
-            fixed left-1/2 z-40 w-[calc(100%-1.5rem)]
-            max-w-lg -translate-x-1/2
+            fixed inset-x-3 z-40
             bottom-[calc(0.75rem+env(safe-area-inset-bottom))]
+            sm:left-1/2 sm:right-auto sm:w-[calc(100%-1.5rem)] sm:max-w-lg sm:-translate-x-1/2
+            lg:left-auto lg:right-6 lg:w-96 lg:translate-x-0
           "
         >
           <button
             type="button"
             onClick={() => setShowCart(true)}
-            className="flex w-full items-center justify-between rounded-2xl bg-emerald-600 px-4 py-3.5 text-white shadow-[0_10px_35px_rgba(5,150,105,0.35)] active:scale-[0.99]"
+            className="flex w-full items-center justify-between rounded-2xl bg-emerald-600 px-4 py-3.5 text-white shadow-[0_10px_35px_rgba(5,150,105,0.35)] transition active:scale-[0.99]"
           >
             <div className="flex items-center gap-3">
               <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
@@ -645,26 +648,27 @@ export function MenuQR() {
             </div>
 
             <p className="text-lg font-bold">
-              {totalPrice.toLocaleString('vi-VN')} ₫
+              {formatCurrency(totalPrice)}
             </p>
           </button>
         </div>
       )}
 
-      {/* Popup giỏ hàng */}
+      {/* Popup giỏ hàng: bottom sheet trên mobile, side panel trên desktop */}
       {showCart && (
         <div
-          className="fixed inset-0 z-50 flex items-end bg-slate-950/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 backdrop-blur-sm lg:items-stretch lg:justify-end"
           onClick={() => setShowCart(false)}
         >
           <div
             className="
               mx-auto flex max-h-[88dvh] w-full max-w-lg
               flex-col overflow-hidden rounded-t-3xl bg-white
+              lg:mx-0 lg:h-full lg:max-h-full lg:w-[420px] lg:rounded-none lg:rounded-l-3xl
             "
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-slate-200" />
+            <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-slate-200 lg:hidden" />
 
             <div className="flex items-center justify-between border-b px-4 py-4">
               <div>
@@ -700,10 +704,7 @@ export function MenuQR() {
                       </h3>
 
                       <p className="mt-1 text-xs text-slate-500">
-                        {Number(item.price).toLocaleString(
-                          'vi-VN',
-                        )}{' '}
-                        ₫ / món
+                        {formatCurrency(Number(item.price))} / món
                       </p>
                     </div>
 
@@ -745,10 +746,7 @@ export function MenuQR() {
                     </div>
 
                     <p className="font-bold text-slate-900">
-                      {(
-                        Number(item.price) * item.quantity
-                      ).toLocaleString('vi-VN')}{' '}
-                      ₫
+                      {formatCurrency(Number(item.price) * item.quantity)}
                     </p>
                   </div>
                 </div>
@@ -773,7 +771,7 @@ export function MenuQR() {
                 </div>
 
                 <p className="text-xl font-bold text-slate-900">
-                  {totalPrice.toLocaleString('vi-VN')} ₫
+                  {formatCurrency(totalPrice)}
                 </p>
               </div>
 
