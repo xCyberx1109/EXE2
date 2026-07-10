@@ -98,15 +98,15 @@ export function MenuManagement() {
     const selectedIds = validRows.map((row) => row.ingredientId);
 
     if (validRows.some((row) => !row.ingredientId)) {
-      throw new Error('Vui long chon nguyen lieu cho tat ca dong cong thuc');
+      throw new Error('Vui lòng chọn nguyên liệu cho tất cả dòng công thức');
     }
 
     if (validRows.some((row) => Number(row.amount) <= 0)) {
-      throw new Error('So luong nguyen lieu phai lon hon 0');
+      throw new Error('Số lượng nguyên liệu phải lớn hơn 0');
     }
 
     if (new Set(selectedIds).size !== selectedIds.length) {
-      throw new Error('Khong duoc chon trung nguyen lieu trong cung mot mon');
+      throw new Error('Không được chọn trùng nguyên liệu trong cùng một món');
     }
 
     return validRows;
@@ -117,18 +117,18 @@ export function MenuManagement() {
     setSaving(true);
     try {
       if (!formData.name.trim()) {
-        throw new Error('Ten mon la bat buoc');
+        throw new Error('Tên món là bắt buộc');
       }
       const priceVal = Number(formData.price);
       const costVal = Number(formData.cost);
       if (formData.price === '' || Number.isNaN(priceVal)) {
-        throw new Error('Gia ban la bat buoc va phai la so hop le');
+        throw new Error('Giá bán là bắt buộc và phải là số hợp lệ');
       }
       if (formData.cost === '' || Number.isNaN(costVal)) {
-        throw new Error('Gia von la bat buoc va phai la so hop le');
+        throw new Error('Giá vốn là bắt buộc và phải là số hợp lệ');
       }
-      if (priceVal < 0) throw new Error('Gia ban khong duoc am');
-      if (costVal < 0) throw new Error('Gia von khong duoc am');
+      if (priceVal < 0) throw new Error('Giá bán không được âm');
+      if (costVal < 0) throw new Error('Giá vốn không được âm');
 
       const recipeIngredients = canViewRecipe
         ? validateRecipeRows().map((row) => ({
@@ -154,7 +154,7 @@ export function MenuManagement() {
       }
       resetForm();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Luu that bai');
+      alert(err instanceof Error ? err.message : 'Lưu thất bại');
     } finally {
       setSaving(false);
     }
@@ -202,11 +202,11 @@ export function MenuManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Ban co chac muon xoa mon an nay?')) return;
+    if (!confirm('Bạn có chắc muốn xóa món ăn này?')) return;
     try {
       await deleteMutation.mutateAsync(id);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Xoa that bai');
+      alert(err instanceof Error ? err.message : 'Xóa thất bại');
     }
   };
 
@@ -214,13 +214,13 @@ export function MenuManagement() {
     try {
       await toggleMutation.mutateAsync(id);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Cap nhat that bai');
+      alert(err instanceof Error ? err.message : 'Cập nhật thất bại');
     }
   };
 
   const handleGenerateImage = async () => {
     if (!formData.name.trim()) {
-      alert('Vui long nhap ten mon truoc khi tao anh');
+      alert('Vui lòng nhập tên món trước khi tạo ảnh');
       return;
     }
 
@@ -234,7 +234,7 @@ export function MenuManagement() {
         body: JSON.stringify({
           name: formData.name.trim(),
           description: formData.description.trim() || formData.name.trim(),
-          category: 'Mon chinh',
+          category: 'Món chính',
           style: 'realistic',
         }),
       });
@@ -242,12 +242,12 @@ export function MenuManagement() {
       const result = await response.json();
       if (!response.ok || !result?.imageUrl) {
         const detail = typeof result?.detail === 'string' ? result.detail : result?.message;
-        throw new Error(detail || 'Khong the tao anh AI');
+        throw new Error(detail || 'Không thể tạo ảnh AI');
       }
 
       setFormData((prev) => ({ ...prev, imageUrl: result.imageUrl }));
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Khong the tao anh AI');
+      alert(err instanceof Error ? err.message : 'Không thể tạo ảnh AI');
     } finally {
       setGeneratingImage(false);
     }
@@ -267,12 +267,12 @@ export function MenuManagement() {
       const result = await response.json();
       if (!response.ok || !result?.imageUrl) {
         const detail = typeof result?.detail === 'string' ? result.detail : result?.message;
-        throw new Error(detail || 'Khong the tai anh len');
+        throw new Error(detail || 'Không thể tải ảnh lên');
       }
 
       setFormData((prev) => ({ ...prev, imageUrl: result.imageUrl }));
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Khong the tai anh len');
+      alert(err instanceof Error ? err.message : 'Không thể tải ảnh lên');
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -282,7 +282,7 @@ export function MenuManagement() {
   const columns: Column<MenuItem>[] = [
     {
       key: 'name',
-      header: 'Ten mon',
+      header: 'Tên món',
       render: (item) => (
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 overflow-hidden rounded-md bg-muted flex-shrink-0">
@@ -301,41 +301,41 @@ export function MenuManagement() {
     },
     {
       key: 'recipe',
-      header: 'Cong thuc',
+      header: 'Công thức',
       className: 'text-muted-foreground',
       render: (item) =>
         item.ingredients?.length ? (
           <div className="space-y-1">
             {item.ingredients.slice(0, 3).map((row) => (
               <div key={row.id} className="text-muted-foreground">
-                {row.ingredient?.name || 'Nguyen lieu'}:{' '}
+                {row.ingredient?.name || 'Nguyên liệu'}:{' '}
                 <span className="font-medium">
                   {Number(row.amount).toLocaleString()} {row.ingredient?.unit || ''}
                 </span>
               </div>
             ))}
             {item.ingredients.length > 3 && (
-              <div className="text-xs text-muted-foreground">+{item.ingredients.length - 3} nguyen lieu</div>
+              <div className="text-xs text-muted-foreground">+{item.ingredients.length - 3} nguyên liệu</div>
             )}
           </div>
         ) : (
-          <span className="text-muted-foreground">Chua co</span>
+          <span className="text-muted-foreground">Chưa có</span>
         ),
     },
     {
       key: 'price',
-      header: 'Gia ban',
+      header: 'Giá bán',
       className: 'font-medium',
-      render: (item) => <>{item.price.toLocaleString()} d</>,
+      render: (item) => <>{item.price.toLocaleString()} đ</>,
     },
     {
       key: 'cost',
-      header: 'Gia von',
-      render: (item) => <>{item.cost.toLocaleString()} d</>,
+      header: 'Giá vốn',
+      render: (item) => <>{item.cost.toLocaleString()} đ</>,
     },
     {
       key: 'profit',
-      header: 'Loi nhuan',
+      header: 'Lợi nhuận',
       render: (item) => {
         const profit = item.price - item.cost;
         const profitMargin = item.price > 0 ? ((profit / item.price) * 100).toFixed(1) : '0';
@@ -349,19 +349,19 @@ export function MenuManagement() {
     },
     {
       key: 'status',
-      header: 'Trang thai',
+      header: 'Trạng thái',
       render: (item) => (
         <button
           onClick={() => handleToggleAvailability(item.id)}
           className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${item.available ? 'bg-green-100 text-green-800' : 'bg-muted text-foreground'}`}
         >
-          {item.available ? 'Kha dung' : 'Ngung ban'}
+          {item.available ? 'Khả dụng' : 'Ngừng bán'}
         </button>
       ),
     },
     {
       key: 'actions',
-      header: 'Thao tac',
+      header: 'Thao tác',
       headerClassName: 'text-right',
       className: 'text-right',
       render: (item) => (
@@ -387,15 +387,15 @@ export function MenuManagement() {
     <div className="flex flex-col space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-foreground">Quan ly Menu</h1>
-          <p className="text-muted-foreground mt-1">Quan ly danh sach mon an va thuc uong</p>
+          <h1 className="text-lg font-bold text-foreground">Quản lý Menu</h1>
+          <p className="text-muted-foreground mt-1">Quản lý danh sách món ăn và thức uống</p>
         </div>
         <button
           onClick={openCreateForm}
           className="flex items-center gap-1.5 px-2 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
         >
           <Plus className="size-3.5" />
-          Them mon moi
+          Thêm món mới
         </button>
       </div>
 
@@ -405,7 +405,7 @@ export function MenuManagement() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Tim kiem mon an..."
+              placeholder="Tìm kiếm món ăn..."
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-1.5 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
@@ -420,7 +420,7 @@ export function MenuManagement() {
         data={filteredItems}
         keyExtractor={(item) => item.id}
         loading={isLoading || !isReady}
-        emptyMessage="Khong co mon an nao."
+        emptyMessage="Không có món ăn nào."
         pagination={pagination}
         onPageChange={setPage}
         onPageSizeChange={handlePageSizeChange}
@@ -429,10 +429,10 @@ export function MenuManagement() {
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 z-50">
           <div className="bg-card rounded-lg max-w-2xl w-full p-3 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold mb-3">{editingItem ? 'Chinh sua mon an' : 'Them mon an moi'}</h2>
+            <h2 className="text-lg font-bold mb-3">{editingItem ? 'Chỉnh sửa món ăn' : 'Thêm món ăn mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium mb-0.5">Ten mon</label>
+                <label className="block text-xs font-medium mb-0.5">Tên món</label>
                 <input
                   type="text"
                   required
@@ -444,7 +444,7 @@ export function MenuManagement() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium mb-0.5">Gia ban (d)</label>
+                  <label className="block text-xs font-medium mb-0.5">Giá bán (đ)</label>
                   <input
                     type="number"
                     min="0"
@@ -455,7 +455,7 @@ export function MenuManagement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-0.5">Gia von (d)</label>
+                  <label className="block text-xs font-medium mb-0.5">Giá vốn (đ)</label>
                   <input
                     type="number"
                     min="0"
@@ -471,8 +471,8 @@ export function MenuManagement() {
                 <div className="border border-border rounded-md p-3 space-y-2">
                   <div className="flex items-center justify-between flex-shrink-0">
                     <div>
-                      <label className="block text-xs font-medium">Cong thuc nguyen lieu</label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Nhap so luong nguyen lieu can dung cho 1 phan mon</p>
+                      <label className="block text-xs font-medium">Công thức nguyên liệu</label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Nhập số lượng nguyên liệu cần dùng cho 1 phần món</p>
                     </div>
                     <button
                       type="button"
@@ -480,7 +480,7 @@ export function MenuManagement() {
                       className="flex items-center gap-1 px-2 py-1.5 text-xs bg-accent text-primary rounded-md hover:bg-accent"
                     >
                       <Plus className="size-3.5" />
-                      Them dong
+                      Thêm dòng
                     </button>
                   </div>
 
@@ -492,7 +492,7 @@ export function MenuManagement() {
                           onChange={(e) => updateRecipeRow(index, { ingredientId: e.target.value })}
                           className="w-full px-2 py-1.5 border border-input rounded-md text-xs bg-input-background text-foreground"
                         >
-                          <option value="">-- Chon nguyen lieu --</option>
+                          <option value="">-- Chọn nguyên liệu --</option>
                           {ingredients.map((i) => (
                             <option key={i.id} value={i.id}>
                               {i.name} ({i.quantity} {i.unit})
@@ -507,7 +507,7 @@ export function MenuManagement() {
                           step="0.001"
                           value={row.amount}
                           onChange={(e) => updateRecipeRow(index, { amount: e.target.value })}
-                          placeholder="So luong"
+                          placeholder="Số lượng"
                           className="w-full px-2 py-1.5 border border-input rounded-md text-xs pr-12 bg-input-background text-foreground"
                         />
                       </div>
@@ -516,7 +516,7 @@ export function MenuManagement() {
                           type="button"
                           onClick={() => removeRecipeRow(index)}
                           className="p-2 text-muted-foreground hover:text-destructive"
-                          title="Xoa dong"
+                          title="Xóa dòng"
                         >
                           <X className="size-3.5" />
                         </button>
@@ -527,7 +527,7 @@ export function MenuManagement() {
               )}
 
               <div>
-                <label className="block text-xs font-medium mb-0.5">Mo ta</label>
+                <label className="block text-xs font-medium mb-0.5">Mô tả</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -538,7 +538,7 @@ export function MenuManagement() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <label className="block text-xs font-medium mb-0.5">Anh mon an</label>
+                  <label className="block text-xs font-medium mb-0.5">Ảnh món ăn</label>
                   <div className="flex items-center gap-2">
                     <input
                       ref={fileInputRef}
@@ -557,7 +557,7 @@ export function MenuManagement() {
                       className="inline-flex items-center gap-1.5 rounded-md border border-input bg-input-background px-2 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
                     >
                       {uploadingImage ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-                      Tai anh len
+                      Tải ảnh lên
                     </button>
                     <button
                       type="button"
@@ -566,7 +566,7 @@ export function MenuManagement() {
                       className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                     >
                       {generatingImage ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-                      Tao anh AI
+                      Tạo ảnh AI
                     </button>
                   </div>
                 </div>
@@ -574,7 +574,7 @@ export function MenuManagement() {
                   type="url"
                   value={formData.imageUrl}
                   onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="URL anh se duoc dien sau khi tao hoac tai len"
+                  placeholder="URL ảnh sẽ được điền sau khi tạo hoặc tải lên"
                   className="w-full px-2 py-1.5 border border-input rounded-md bg-input-background text-xs text-foreground"
                 />
                 {formData.imageUrl ? (
@@ -588,7 +588,7 @@ export function MenuManagement() {
                 ) : (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <ImagePlus className="size-3.5" />
-                    Chua co anh. Bam Tai anh len hoac Tao anh AI.
+                    Chưa có ảnh. Bấm Tải ảnh lên hoặc Tạo ảnh AI.
                   </div>
                 )}
               </div>
@@ -601,19 +601,19 @@ export function MenuManagement() {
                   onChange={(e) => setFormData({ ...formData, available: e.target.checked })}
                   className="size-3.5"
                 />
-                <label htmlFor="available" className="text-xs">Mon an kha dung</label>
+                <label htmlFor="available" className="text-xs">Món ăn khả dụng</label>
               </div>
 
               <div className="flex gap-2 pt-3">
                 <button type="button" onClick={resetForm} className="flex-1 px-3 py-1.5 border border-input rounded-md bg-input-background text-xs">
-                  Huy
+                  Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="flex-1 px-2 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium disabled:opacity-50"
                 >
-                  {saving ? 'Dang luu...' : editingItem ? 'Cap nhat' : 'Them moi'}
+                  {saving ? 'Đang lưu...' : editingItem ? 'Cập nhật' : 'Thêm mới'}
                 </button>
               </div>
             </form>
