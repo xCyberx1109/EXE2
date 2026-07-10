@@ -34,6 +34,70 @@ type TableInfo = {
 const formatCurrency = (value: number) =>
   `${value.toLocaleString('vi-VN')} ₫`;
 
+const ORDER_STATUS_LABELS: Record<
+  string,
+  { label: string; className: string }
+> = {
+  PENDING: {
+    label: 'Đang chờ xác nhận',
+    className: 'bg-slate-100 text-slate-700',
+  },
+  PENDING_PAYMENT: {
+    label: 'Chờ thanh toán',
+    className: 'bg-amber-100 text-amber-800',
+  },
+  CONFIRMED: {
+    label: 'Đã xác nhận',
+    className: 'bg-blue-100 text-blue-700',
+  },
+  PREPARING: {
+    label: 'Đang chế biến',
+    className: 'bg-orange-100 text-orange-700',
+  },
+  READY: {
+    label: 'Sẵn sàng phục vụ',
+    className: 'bg-emerald-100 text-emerald-700',
+  },
+  SERVED: {
+    label: 'Đã phục vụ',
+    className: 'bg-emerald-100 text-emerald-700',
+  },
+  COMPLETED: {
+    label: 'Đã hoàn tất',
+    className: 'bg-slate-200 text-slate-700',
+  },
+  CANCELLED: {
+    label: 'Đã hủy',
+    className: 'bg-red-100 text-red-700',
+  },
+  REFUNDED: {
+    label: 'Đã hoàn tiền',
+    className: 'bg-red-100 text-red-700',
+  },
+};
+
+const getOrderStatusInfo = (status: string) =>
+  ORDER_STATUS_LABELS[status] ?? {
+    label: status,
+    className: 'bg-slate-100 text-slate-700',
+  };
+
+const cartStorageKey = (token: string) => `qr-menu-cart:${token}`;
+
+const readStoredCart = (token: string): CartItem[] => {
+  if (!token) return [];
+
+  try {
+    const raw = window.sessionStorage.getItem(cartStorageKey(token));
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export function MenuQR() {
   const [params] = useSearchParams();
   const token = params.get('t') ?? '';
@@ -43,7 +107,7 @@ export function MenuQR() {
   const [currentOrder, setCurrentOrder] =
     useState<QrCurrentOrder | null>(null);
 
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => readStoredCart(token));
   const [searchTerm, setSearchTerm] = useState('');
 
   const [showCart, setShowCart] = useState(false);
@@ -106,6 +170,23 @@ export function MenuQR() {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    try {
+      if (cart.length === 0) {
+        window.sessionStorage.removeItem(cartStorageKey(token));
+      } else {
+        window.sessionStorage.setItem(
+          cartStorageKey(token),
+          JSON.stringify(cart),
+        );
+      }
+    } catch {
+      // sessionStorage có thể bị chặn (chế độ riêng tư) — bỏ qua, giỏ hàng vẫn hoạt động trong phiên
+    }
+  }, [cart, token]);
 
   const filteredMenuItems = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -420,9 +501,19 @@ export function MenuQR() {
                 </div>
 
                 <div className="min-w-0">
-                  <h2 className="font-bold text-emerald-950">
-                    Món đã gọi
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-bold text-emerald-950">
+                      Món đã gọi
+                    </h2>
+
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        getOrderStatusInfo(currentOrder.status).className
+                      }`}
+                    >
+                      {getOrderStatusInfo(currentOrder.status).label}
+                    </span>
+                  </div>
 
                   <p className="text-xs text-emerald-700">
                     {orderedQuantity} món · {formatCurrency(orderedTotal)}
