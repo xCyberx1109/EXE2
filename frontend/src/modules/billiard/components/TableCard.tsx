@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Bell } from 'lucide-react';
 import type { BilliardTableWithSession } from '../types';
 import { cn } from '@/app/components/ui/utils';
 
@@ -50,9 +50,10 @@ interface TableCardProps {
   position?: { xPercent: number; yPercent: number };
   overlap?: boolean;
   containerSize?: { width: number; height: number };
+  hasNewOrder?: boolean;
 }
 
-export function TableCard({ mode, table, selected, onSelect, draggable, onDragStart, position, overlap }: TableCardProps) {
+export function TableCard({ mode, table, selected, onSelect, draggable, onDragStart, position, overlap, hasNewOrder }: TableCardProps) {
   const isRestaurant = mode === 'RESTAURANT';
   const style = STATUS_STYLES[table.status] || STATUS_STYLES.AVAILABLE;
   const isOccupied = table.status === 'OCCUPIED' || table.status === 'CHECKING_OUT';
@@ -86,8 +87,18 @@ export function TableCard({ mode, table, selected, onSelect, draggable, onDragSt
         overlap ? 'bg-red-50 dark:bg-red-950/30' : style.bg,
         selected && 'ring-2 ring-blue-500 dark:ring-blue-400 shadow-lg z-10 scale-105',
         table.status === 'DISABLED' && 'opacity-50',
+        hasNewOrder && !selected && 'ring-2 ring-red-400 animate-pulse',
       )}
     >
+      {hasNewOrder && (
+        <span
+          className="absolute -right-1.5 -top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-md animate-pulse"
+          title="Có món mới chưa xem"
+        >
+          <Bell className="h-3 w-3" />
+        </span>
+      )}
+
       <span className={cn(
         'inline-block self-start rounded px-1.5 py-[1px] text-[clamp(9px,0.7vw,11px)] font-semibold leading-tight',
         overlap ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : cn(style.bg, style.text),

@@ -110,7 +110,8 @@ export function useRestaurantTables(enabled = true) {
   return useQuery<RestaurantTable[]>({
     queryKey: ['restaurant', 'tables'],
     queryFn: () => restaurantApi.listTables(),
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 5,
+    refetchInterval: enabled ? 5000 : false,
     enabled,
   });
 }
@@ -156,7 +157,8 @@ export function useRestaurantTableOrder(tableId: string) {
     queryKey: ['restaurant', 'order', tableId],
     queryFn: () => restaurantApi.getTableOrder(tableId),
     enabled: !!tableId,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 5,
+    refetchInterval: tableId ? 5000 : false,
   });
 }
 

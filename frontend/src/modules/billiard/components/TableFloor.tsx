@@ -53,9 +53,10 @@ interface TableFloorProps {
   onRefresh: () => void;
   layoutMode: boolean;
   onLayoutModeChange: (mode: boolean) => void;
+  newOrderTableIds?: Set<string>;
 }
 
-export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange }: TableFloorProps) {
+export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRefresh, layoutMode, onLayoutModeChange, newOrderTableIds }: TableFloorProps) {
   const { hasPermission, isEmployeeMode } = useAuth();
   const tables = Array.isArray(rawTables) ? rawTables : [];
   const [showCreate, setShowCreate] = useState(false);
@@ -253,6 +254,7 @@ export function TableFloor({ mode, tables: rawTables, selectedId, onSelect, onRe
               position={positions[table.id]}
               overlap={overlappingIds.has(table.id)}
               containerSize={containerSize}
+              hasNewOrder={newOrderTableIds?.has(table.id) ?? false}
             />
           ))
         )}
