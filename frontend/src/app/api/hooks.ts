@@ -309,7 +309,7 @@ export function useIngredientTransactions(ingredientId: string | null) {
   });
 }
 
-export function useInventoryTransactions(params?: { page?: number; limit?: number; type?: string; search?: string }) {
+export function useInventoryTransactions(params?: { page?: number; limit?: number; type?: string; search?: string; fromDate?: string; toDate?: string }) {
   return useQuery({
     queryKey: queryKeys.inventory.transactions(params),
     queryFn: () => inventoryApi.listTransactions(params),

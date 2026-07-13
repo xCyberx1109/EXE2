@@ -10,6 +10,7 @@ import { ReportExportFilter } from '../../modules/dashboard/components/ReportExp
 import { exportToExcel, exportToPDF } from '../../modules/dashboard/utils';
 import type { ExportReportData } from '../../modules/dashboard/utils';
 import { useAuth } from '../context/AuthContext';
+import { APP_NAME } from '../../shared/constants';
 import { formatDateTime } from '../../shared/utils/date';
 import type { DateRangeState } from '../../modules/dashboard/hooks/useDashboardData';
 
@@ -87,7 +88,7 @@ export function Dashboard() {
   const canViewTransactions = isReady && hasPermission('INVENTORY_TRANSACTION_VIEW');
 
   const handleExport = useCallback((format: 'xlsx' | 'pdf') => {
-    const storeName = user?.fullName || employee?.fullName || 'FBMS POS';
+    const storeName = user?.fullName || employee?.fullName || APP_NAME;
     const reportData: ExportReportData = {
       storeName,
       reportPeriod: buildReportPeriod(dateRange),

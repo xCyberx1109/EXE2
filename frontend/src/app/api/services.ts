@@ -265,7 +265,7 @@ export const inventoryApi = {
       body: JSON.stringify(body),
     }),
 
-  listTransactions: (params?: { page?: number; limit?: number; type?: string; search?: string }) => {
+  listTransactions: (params?: { page?: number; limit?: number; type?: string; search?: string; fromDate?: string; toDate?: string }) => {
     const q = params ? '?' + new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)]))
     ).toString() : '';

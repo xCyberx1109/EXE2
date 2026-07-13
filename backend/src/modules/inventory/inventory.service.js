@@ -209,7 +209,7 @@ export const inventoryService = {
     return txs.map(mapInventoryTransaction);
   },
 
-  async listAllTransactions(user, { page, limit, type, search } = {}) {
+  async listAllTransactions(user, { page, limit, type, search, fromDate, toDate } = {}) {
     const where = {};
     if (user) {
       where.ingredient = { accountId: user.accountId || user.id };
@@ -222,6 +222,14 @@ export const inventoryService = {
         ...where.ingredient,
         name: { contains: search, mode: 'insensitive' },
       };
+    }
+    if (fromDate) {
+      where.createdAt = { ...where.createdAt, gte: new Date(fromDate) };
+    }
+    if (toDate) {
+      const end = new Date(toDate);
+      end.setHours(23, 59, 59, 999);
+      where.createdAt = { ...where.createdAt, lte: end };
     }
     const { page: p, limit: l, skip } = parsePagination({ page, limit });
     const [total, txs] = await inventoryTransactionRepository.findManyPaginated(where, skip, l);

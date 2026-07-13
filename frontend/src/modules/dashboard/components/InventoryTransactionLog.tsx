@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Package, ArrowDownFromLine, ArrowUpFromLine, ClipboardList, Search } from 'lucide-react';
+import { Package, ArrowDownFromLine, ArrowUpFromLine, ClipboardList, Search, CalendarDays } from 'lucide-react';
 import { useInventoryTransactions } from '../../../app/api/hooks';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { DataTable, type Column } from '../../../app/components/DataTable';
 import { SectionHeader } from './shared';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../../app/components/ui/tooltip';
+import { Popover, PopoverTrigger, PopoverContent } from '../../../app/components/ui/popover';
+import { Calendar } from '../../../app/components/ui/calendar';
 import type { InventoryTransaction } from '../../../app/types';
 import { getUnitLabel } from '../../../shared/constants';
 
@@ -14,6 +16,12 @@ const formatTime = (iso: string) => {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   });
+};
+
+const formatDisplayDate = (isoValue: string): string => {
+  if (!isoValue) return '';
+  const [y, m, d] = isoValue.split('-');
+  return `${d}/${m}/${y}`;
 };
 
 const typeMeta: Record<string, { label: string; badge: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -34,11 +42,52 @@ const filterOptions = [
   { value: 'OUT', label: 'Xuất kho' },
 ];
 
+function toISODate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function DatePickerField({ value, onChange, placeholder = 'dd/mm/yyyy' }: { value: string; onChange: (date: Date) => void; placeholder?: string }) {
+  const [open, setOpen] = useState(false);
+  const selectedDate = value ? new Date(value + 'T00:00:00') : undefined;
+  const display = formatDisplayDate(value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`inline-flex items-center gap-1.5 h-7 px-2 w-[110px] rounded-md border border-input bg-input-background text-[11px] transition-colors outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${
+            display ? 'text-foreground' : 'text-muted-foreground'
+          }`}
+        >
+          <CalendarDays className="size-3 shrink-0" />
+          {display || placeholder}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          defaultMonth={selectedDate}
+          onSelect={(day) => {
+            if (day) {
+              onChange(day);
+              setOpen(false);
+            }
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function InventoryTransactionLog() {
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const debouncedSearch = useDebounce(search, 300);
 
   const { data: response, isLoading, isFetching } = useInventoryTransactions({
@@ -46,6 +95,8 @@ export function InventoryTransactionLog() {
     limit: pageSize,
     type: typeFilter || undefined,
     search: debouncedSearch || undefined,
+    fromDate: fromDate || undefined,
+    toDate: toDate || undefined,
   });
   const txs = response?.data ?? [];
   const pagination = response?.pagination;
@@ -117,7 +168,21 @@ export function InventoryTransactionLog() {
 
   return (
     <div className="bg-card rounded-md border border-border p-3">
-      <SectionHeader title="Nhật ký xuất nhập kho" actionLabel="Xem tất cả" actionHref="/app/inventory">
+      <SectionHeader title="Nhật ký xuất nhập kho" actionLabel="Xem tất cả" actionHref="/app/inventory" />
+
+      <div className="flex items-center gap-1.5 mt-2 mb-3 flex-wrap">
+        <div className="relative flex-1 min-w-[140px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Tìm kiếm hàng hóa..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-full h-7 pl-9 pr-3 border border-input rounded-md bg-input-background text-[11px] focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+        <DatePickerField value={fromDate} onChange={(d) => setFromDate(toISODate(d))} placeholder="Từ ngày" />
+        <DatePickerField value={toDate} onChange={(d) => setToDate(toISODate(d))} placeholder="Đến ngày" />
         <div className="flex gap-0.5 bg-muted p-0.5 rounded-md">
           {filterOptions.map((opt) => (
             <button
@@ -131,17 +196,6 @@ export function InventoryTransactionLog() {
             </button>
           ))}
         </div>
-      </SectionHeader>
-
-      <div className="relative mb-3 mt-2">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Tìm kiếm hàng hóa..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="w-full pl-10 pr-4 py-2 border border-input rounded-md bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-        />
       </div>
 
       <DataTable

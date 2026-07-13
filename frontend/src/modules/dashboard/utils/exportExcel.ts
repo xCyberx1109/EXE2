@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { ExportReportData } from './types';
 import { formatVND, formatNumber, formatDateShort } from './format';
+import { APP_NAME } from '../../../shared/constants';
 
 function autoFitColumns(ws: XLSX.WorkSheet) {
   const colWidths: { wch: number }[] = [];
@@ -38,6 +39,12 @@ function applyBorderRange(ws: XLSX.WorkSheet, range: string) {
 
 export function exportToExcel(data: ExportReportData) {
   const wb = XLSX.utils.book_new();
+
+  wb.Props = {
+    Author: APP_NAME,
+    Title: `${APP_NAME} Business Report`,
+    Subject: `${APP_NAME} Report`,
+  };
 
   // Sheet 1: Summary
   const summaryRows: [string, string | number][] = [
@@ -155,6 +162,6 @@ export function exportToExcel(data: ExportReportData) {
   XLSX.utils.book_append_sheet(wb, topWs, 'Món bán chạy');
 
   // Download
-  const fileName = `BaoCaoKinhDoanh_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const fileName = `POSitive_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fileName);
 }

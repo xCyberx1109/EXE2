@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { ExportReportData } from './types';
 import { formatVND, formatNumber, formatDateShort } from './format';
+import { APP_NAME } from '../../../shared/constants';
 
 const FONT = 'Roboto';
 
@@ -35,9 +36,31 @@ async function ensureFonts(doc: jsPDF) {
   doc.addFont('Roboto-Italic.ttf', FONT, 'italic');
 }
 
+async function loadLogoBase64(): Promise<string | null> {
+  try {
+    const res = await fetch('/Logo.png');
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return 'data:image/png;base64,' + btoa(bin);
+  } catch {
+    return null;
+  }
+}
+
 export async function exportToPDF(data: ExportReportData) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   await ensureFonts(doc);
+
+  const logoDataUrl = await loadLogoBase64();
+
+  doc.setProperties({
+    author: APP_NAME,
+    creator: APP_NAME,
+    subject: `${APP_NAME} Business Report`,
+    title: `${APP_NAME} Report`,
+  });
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
@@ -61,6 +84,25 @@ export async function exportToPDF(data: ExportReportData) {
   };
 
   // ── Header ───────────────────────────────────────────────────
+  if (logoDataUrl) {
+    const logoEl = await new Promise<HTMLImageElement>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.src = logoDataUrl;
+    });
+    const maxHeight = 14;
+    const ratio = logoEl.naturalHeight / logoEl.naturalWidth;
+    let logoH = maxHeight;
+    let logoW = logoH / ratio;
+    if (logoW > contentWidth * 0.35) {
+      logoW = contentWidth * 0.35;
+      logoH = logoW * ratio;
+    }
+    const logoX = (pageWidth - logoW) / 2;
+    doc.addImage(logoDataUrl, 'PNG', logoX, y, logoW, logoH);
+    y += logoH + 4;
+  }
+
   doc.setFontSize(18);
   doc.setFont(FONT, 'bold');
   doc.setTextColor(30, 30, 30);
@@ -246,7 +288,7 @@ export async function exportToPDF(data: ExportReportData) {
   doc.setFontSize(8);
   doc.setFont(FONT, 'normal');
   doc.setTextColor(150, 150, 150);
-  doc.text('Xuất bởi: FBMS POS', margin, footerY);
+  doc.text(`Xuất bởi: ${APP_NAME}`, margin, footerY);
 
   // Page numbers on all pages
   const totalPages = doc.getNumberOfPages();
@@ -259,6 +301,6 @@ export async function exportToPDF(data: ExportReportData) {
   }
 
   // Download
-  const fileName = `BaoCaoKinhDoanh_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const fileName = `POSitive_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(fileName);
 }
